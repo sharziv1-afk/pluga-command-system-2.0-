@@ -18,7 +18,7 @@ export default function RootLayout({
       dir="rtl"
       className="h-full antialiased"
     >
-      <body className="min-h-full flex flex-col bg-tactical-bg text-slate-100 selection:bg-cyan-500/30 selection:text-cyan-200">
+      <body className="min-h-full flex flex-col bg-tactical-bg text-slate-950 selection:bg-cyan-200 selection:text-slate-950">
         <Providers>
           {children}
         </Providers>

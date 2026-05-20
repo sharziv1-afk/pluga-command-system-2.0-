@@ -24,7 +24,7 @@ export const GlossyButton: React.FC<GlossyButtonProps> = ({
         // Variants
         variant === 'cyan' && "bg-[#00e5ff] hover:bg-[#00d4eb] shadow-[0_0_12px_rgba(0,229,255,0.25)] border border-[#00e5ff]/50",
         variant === 'orange' && "bg-[#ff6b02] hover:bg-[#ee6300] shadow-[0_0_12px_rgba(255,107,2,0.25)] border border-[#ff6b02]/50 text-slate-950",
-        variant === 'slate' && "bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-700/80 hover:border-slate-600/80 shadow-md",
+        variant === 'slate' && "bg-white hover:bg-slate-50 text-slate-950 border border-slate-300/80 hover:border-slate-400/80 shadow-md",
         
         // Sizes
         size === 'sm' && "text-[10px] py-1 px-3 rounded-lg",

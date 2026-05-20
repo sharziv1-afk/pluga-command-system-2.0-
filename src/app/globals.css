@@ -2,39 +2,42 @@
 @import "tailwindcss";
 
 @theme {
-  --color-tactical-bg: #030712;
-  --color-tactical-card: rgba(11, 19, 43, 0.45);
-  --color-tactical-card-hover: rgba(15, 23, 42, 0.6);
-  --color-tactical-border: rgba(148, 163, 184, 0.12);
-  --color-tactical-border-hover: rgba(56, 189, 248, 0.35);
-  --color-accent-orange: #ff6b02;
-  --color-accent-cyan: #00e5ff;
-  --color-status-success: #00f5d4;
-  --color-status-stuck: #fee440;
-  --color-status-danger: #ff0054;
-  --color-status-info: #00bbf9;
+  --color-tactical-bg: #f8fafc;
+  --color-tactical-card: rgba(255, 255, 255, 0.78);
+  --color-tactical-card-hover: rgba(255, 255, 255, 0.92);
+  --color-tactical-border: rgba(15, 23, 42, 0.1);
+  --color-tactical-border-hover: rgba(8, 145, 178, 0.3);
+  --color-accent-orange: #f97316;
+  --color-accent-cyan: #0891b2;
+  --color-status-success: #059669;
+  --color-status-stuck: #ca8a04;
+  --color-status-danger: #e11d48;
+  --color-status-info: #0284c7;
 }
 
 :root {
-  --background: #030712;
-  --foreground: #f8fafc;
+  --background: #f8fafc;
+  --foreground: #0f172a;
   
-  --tactical-dark: #0b132b;
-  --tactical-glass: rgba(11, 19, 43, 0.45);
-  --tactical-border: rgba(148, 163, 184, 0.12);
-  --tactical-border-hover: rgba(56, 189, 248, 0.35);
+  --tactical-dark: #ffffff;
+  --tactical-glass: rgba(255, 255, 255, 0.78);
+  --tactical-border: rgba(15, 23, 42, 0.1);
+  --tactical-border-hover: rgba(8, 145, 178, 0.3);
   
-  --accent-orange: #ff6b02;
-  --accent-cyan: #00e5ff;
+  --accent-orange: #f97316;
+  --accent-cyan: #0891b2;
   
-  --status-success: #00f5d4;
-  --status-stuck: #fee440;
-  --status-danger: #ff0054;
-  --status-info: #00bbf9;
+  --status-success: #059669;
+  --status-stuck: #ca8a04;
+  --status-danger: #e11d48;
+  --status-info: #0284c7;
 }
 
 body {
-  background-color: var(--background);
+  background:
+    linear-gradient(135deg, rgba(8, 145, 178, 0.08), transparent 32%),
+    linear-gradient(315deg, rgba(249, 115, 22, 0.08), transparent 30%),
+    var(--background);
   color: var(--foreground);
   font-family: 'Rubik', 'Inter', system-ui, -apple-system, sans-serif;
   direction: rtl;
@@ -48,18 +51,18 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(3, 7, 18, 0.5);
+  background: rgba(226, 232, 240, 0.8);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 229, 255, 0.15);
+  background: rgba(8, 145, 178, 0.28);
   border-radius: 9999px;
   transition: all 0.3s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--accent-cyan);
-  box-shadow: 0 0 8px var(--accent-cyan);
+  box-shadow: 0 0 8px rgba(8, 145, 178, 0.28);
 }
 
 /* Glassmorphism Card Style */
@@ -68,25 +71,27 @@ body {
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
   border: 1px solid var(--tactical-border);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .tactical-glass-card:hover {
   border-color: var(--tactical-border-hover);
-  box-shadow: 0 8px 32px 0 rgba(0, 229, 255, 0.12);
+  box-shadow: 0 22px 55px rgba(8, 145, 178, 0.12);
   transform: translateY(-2px);
 }
 
 /* Glowing Border for simulations or active elements */
 .tactical-glow-cyan {
   border-color: var(--accent-cyan);
-  box-shadow: 0 0 15px rgba(0, 229, 255, 0.25);
+  background: linear-gradient(135deg, rgba(8, 145, 178, 0.12), rgba(255, 255, 255, 0.86));
+  box-shadow: 0 18px 45px rgba(8, 145, 178, 0.14);
 }
 
 .tactical-glow-orange {
   border-color: var(--accent-orange);
-  box-shadow: 0 0 15px rgba(255, 107, 2, 0.25);
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.13), rgba(255, 255, 255, 0.86));
+  box-shadow: 0 18px 45px rgba(249, 115, 22, 0.14);
 }
 
 /* Glossy Highlights Sweep Animation */
@@ -105,7 +110,7 @@ body {
   background: linear-gradient(
     to right,
     rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.05) 50%,
+    rgba(255, 255, 255, 0.6) 50%,
     rgba(255, 255, 255, 0) 100%
   );
   transform: skewX(-25deg);
@@ -118,7 +123,10 @@ body {
 
 /* Scanline and Tactical Overlay Effects */
 .tactical-overlay {
-  background: radial-gradient(circle, rgba(16, 24, 48, 0.2) 0%, rgba(3, 7, 18, 0.85) 100%);
+  background:
+    linear-gradient(rgba(15, 23, 42, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.025) 1px, transparent 1px);
+  background-size: 32px 32px;
   position: fixed;
   inset: 0;
   pointer-events: none;
@@ -130,11 +138,11 @@ body {
   display: block;
   position: absolute;
   top: 0; left: 0; bottom: 0; right: 0;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+  background: linear-gradient(90deg, rgba(8, 145, 178, 0.04), rgba(249, 115, 22, 0.03), rgba(15, 23, 42, 0.02));
   z-index: 2;
-  background-size: 100% 3px, 6px 100%;
+  background-size: 100% 100%;
   pointer-events: none;
-  opacity: 0.35;
+  opacity: 0.55;
 }
 
 /* Utility Animations */
@@ -145,4 +153,57 @@ body {
 
 .animate-pulse-soft {
   animation: pulse-soft 3s infinite ease-in-out;
+}
+
+/* Light command theme overrides for legacy dark Tailwind utilities. */
+[class*="bg-[#030712]"],
+[class*="bg-slate-950"],
+[class*="bg-slate-900"] {
+  background-color: rgba(255, 255, 255, 0.78) !important;
+}
+
+[class*="bg-slate-850"],
+[class*="bg-slate-800"] {
+  background-color: rgba(241, 245, 249, 0.9) !important;
+}
+
+[class*="border-slate-950"],
+[class*="border-slate-900"],
+[class*="border-slate-800"],
+[class*="border-slate-700"] {
+  border-color: rgba(15, 23, 42, 0.1) !important;
+}
+
+[class*="text-slate-100"],
+[class*="text-slate-200"],
+[class*="text-slate-300"] {
+  color: #0f172a !important;
+}
+
+[class*="text-slate-400"],
+[class*="text-slate-450"],
+[class*="text-slate-500"],
+[class*="text-slate-600"] {
+  color: #475569 !important;
+}
+
+[class*="placeholder-slate-600"]::placeholder {
+  color: #94a3b8 !important;
+}
+
+input,
+select,
+textarea {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  color: #0f172a !important;
+}
+
+option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+[class*="shadow-[0_0_"] {
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.08) !important;
 }

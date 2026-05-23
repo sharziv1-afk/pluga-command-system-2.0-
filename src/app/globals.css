@@ -44,6 +44,31 @@ body {
   overflow-x: hidden;
 }
 
+.protected-layout-shell {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100svh;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.protected-content-shell {
+  min-height: 100vh;
+  min-height: 100svh;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .protected-content-shell {
+    width: auto;
+    max-width: calc(100% - 16rem);
+    margin-right: 16rem;
+  }
+}
+
 /* Custom Tactical Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
@@ -206,4 +231,33 @@ option {
 
 [class*="shadow-[0_0_"] {
   box-shadow: 0 14px 36px rgba(15, 23, 42, 0.08) !important;
+}
+
+.auth-navy-shell {
+  background:
+    linear-gradient(135deg, #020617 0%, #0f172a 42%, #10233d 100%) !important;
+  color: #f8fafc !important;
+}
+
+.auth-dark-card {
+  background: rgba(2, 6, 23, 0.72) !important;
+  border-color: rgba(148, 163, 184, 0.2) !important;
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.34) !important;
+}
+
+.auth-dark-card h1,
+.auth-dark-card p,
+.auth-dark-card span,
+.auth-dark-card label {
+  color: inherit;
+}
+
+.auth-dark-input {
+  background-color: rgba(15, 23, 42, 0.82) !important;
+  border: 1px solid rgba(148, 163, 184, 0.22) !important;
+  color: #f8fafc !important;
+}
+
+.auth-dark-input::placeholder {
+  color: #64748b !important;
 }

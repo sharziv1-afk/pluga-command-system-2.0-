@@ -8,7 +8,7 @@ export default function ProtectedLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="min-h-screen bg-[#030712] relative flex flex-col lg:flex-row-reverse">
+    <div className="protected-layout-shell bg-[#030712] flex flex-col">
       {/* Tactical scanline/grid overlay */}
       <div className="tactical-overlay" />
 
@@ -16,12 +16,12 @@ export default function ProtectedLayout({
       <AppSidebar />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col lg:pe-64 min-w-0">
+      <div className="protected-content-shell flex flex-1 flex-col">
         {/* Mobile Header (Sticky on small screens) */}
         <MobileHeader />
 
         {/* Scrollable Dashboard Viewport */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto custom-scrollbar">
+        <main className="flex-1 max-w-full overflow-x-hidden overflow-y-auto p-4 sm:p-6 lg:p-8 custom-scrollbar">
           {children}
         </main>
       </div>

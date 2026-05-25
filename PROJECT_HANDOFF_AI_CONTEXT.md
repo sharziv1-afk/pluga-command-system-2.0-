@@ -64,15 +64,15 @@ Important files:
 Current auth status:
 
 - Supabase Auth is connected.
-- `/login` now uses an Email OTP code identification flow with two modes:
-  - Existing user login: `signInWithOtp({ shouldCreateUser: false })`, then `verifyOtp`.
-  - First registration: `signInWithOtp({ shouldCreateUser: true })`, then `verifyOtp`, then create/update `public.users`.
-- Profile creation for first registration happens only after OTP verification.
+- `/login` uses a **hybrid authentication paradigm**:
+  - **Existing user login**: Uses a standard **Email + Password** flow (`signInWithPassword`), completely bypassing OTP/Magic Links to conserve Supabase email quotas, then routes by `public.users` profile status.
+  - **First registration**: Uses an **Email OTP code verification** flow (`signInWithOtp` with `shouldCreateUser: true`). Upon successful `verifyOtp`, the user sets up their **Password** (`updateUser({ password })`), and only then is their profile created in `public.users` before redirecting to `/onboarding`.
+- Profile creation for first registration happens only after OTP verification and password setup.
 - Callback route remains as a Magic Link fallback and should create/find `public.users` profiles if a Magic Link is used.
 - Callback was adjusted to create a new `public.users` profile with the required NOT NULL fields.
 - Protected route proxy exists.
-- Email OTP and Magic Link fallback still require live verification because Supabase reached the email rate limit again.
-- Development-only password login remains in `/login` for local work and must not be exposed in production.
+- Email OTP still requires live verification for new registrations because Supabase reached the email rate limit again.
+- Development-only Dev Login with email/password credentials remains in `/login` for local work and must not be exposed in production.
 
 Known issue:
 
@@ -91,14 +91,14 @@ Supabase Email Template requirement:
 
 Still requires manual verification:
 
-- One Email OTP send after rate limit expires
-- `verifyOtp` succeeds for existing user login
-- `verifyOtp` succeeds for first registration
-- `public.users` profile creation succeeds only after OTP verification
-- New users redirect to `/onboarding`
-- Pending users redirect to `/pending-approval`
-- Approved active users redirect to `/dashboard`
-- Magic Link callback fallback still reaches `/auth/callback` if used
+- One Email OTP send during first registration after rate limit expires.
+- `verifyOtp` and subsequent password setup (`updateUser({ password })`) succeed for first registration.
+- `public.users` profile creation succeeds only after OTP verification and password setup.
+- Existing user login with email + password succeeds.
+- New users redirect to `/onboarding`.
+- Pending users redirect to `/pending-approval`.
+- Approved active users redirect to `/dashboard`.
+- Magic Link callback fallback still reaches `/auth/callback` if used.
 
 ## Demo Layer Warning
 

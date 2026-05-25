@@ -22,8 +22,8 @@ RLS policies for `public.users` were added manually in Supabase after profile cr
 ## What Has Been Done
 
 - Supabase client/server helpers are connected.
-- `/login` now uses Email OTP code identification with existing-user login and first-registration modes.
-- First registration creates/updates `public.users` only after `verifyOtp` succeeds.
+- `/login` uses a **hybrid authentication paradigm**: existing-user login via **Email + Password** (`signInWithPassword`) to conserve email quota, and first-registration via **Email OTP code verification** (`signInWithOtp`) with password setup (`updateUser({ password })`).
+- First registration creates/updates `public.users` only after both OTP verification and password setup succeed.
 - Development-only password login remains available locally and is hidden in production.
 - Auth callback route exists.
 - Auth callback profile creation was adjusted to include all required NOT NULL fields for `public.users`.
@@ -56,13 +56,14 @@ Screens aligned in this pass:
 
 ## Auth Status
 
-Supabase Email OTP is implemented in `/login` but not fully verified end-to-end because Supabase currently returns:
+A hybrid authentication paradigm is implemented in `/login`: Existing user login uses Email + Password (preserving email quota), while first-registration uses Email OTP.
+Supabase OTP verification and password update are wired, but live end-to-end testing has been bottlenecked due to:
 
 ```txt
 429 over_email_send_rate_limit
 ```
 
-After the manual RLS policy update, Email OTP and the Magic Link fallback still require a live verification pass because the project reached the Supabase email rate limit again.
+After the manual RLS policy update, Email OTP still requires a live registration pass once the Supabase email rate limit expires.
 
 Before live testing, manually update Supabase:
 
@@ -78,12 +79,12 @@ The template must include:
 
 If it only includes `{{ .ConfirmationURL }}`, Supabase will keep sending a link instead of a code.
 
-After the rate limit expires, send one OTP code from `/login` and test:
+After the rate limit expires, test the registration flow:
 
-- Email OTP delivery
-- Existing-user `verifyOtp`
-- First-registration `verifyOtp`
-- `public.users` profile creation after OTP verification and RLS policies
+- Email OTP delivery for new registrations.
+- Registration `verifyOtp` and subsequent password setup (`updateUser({ password })`).
+- `public.users` profile creation after OTP verification and RLS policies.
+- Existing user login with email + password (which works instantly without emails/OTP).
 - redirect to `/onboarding`
 - redirect to `/pending-approval`
 - approved user access to `/dashboard`
@@ -107,4 +108,4 @@ npx tsc -p tsconfig.json --noEmit
 npm run build
 ```
 
-Then wait for the Supabase rate limit, send one OTP code from `/login`, verify `public.users` receives a profile row only after code verification, and confirm redirect to `/onboarding`.
+Then wait for the Supabase rate limit, verify registration OTP and profile creation, and confirm existing user login with email + password.

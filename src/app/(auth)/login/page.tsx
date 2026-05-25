@@ -34,6 +34,7 @@ type RegistrationDraft = {
   email: string;
   role: string;
   unitId: string | null;
+  password?: string;
 };
 
 const profileSelect = 'id,auth_user_id,email,status,role_approval_status,has_completed_onboarding';
@@ -103,6 +104,8 @@ export default function LoginPage() {
   const [authMode, setAuthMode] = useState<AuthMode>('existing');
   const [otpStep, setOtpStep] = useState<OtpStep>('form');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [fullName, setFullName] = useState('');
   const [selectedRole, setSelectedRole] = useState(fallbackRoles[0].name);
@@ -114,6 +117,7 @@ export default function LoginPage() {
   const [devPassword, setDevPassword] = useState(isDevelopment ? 'Dev123456!' : '');
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isDevSubmitting, setIsDevSubmitting] = useState(false);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
@@ -160,46 +164,97 @@ export default function LoginPage() {
     setAuthMode(nextMode);
     setOtpStep('form');
     setOtpCode('');
+    setPassword('');
+    setConfirmPassword('');
     setMessage(null);
     setError(null);
   };
 
-  const sendExistingUserCode = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleExistingUserLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (isSendingOtp || cooldownSeconds > 0) return;
+    if (isLoggingIn) return;
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    setIsSendingOtp(true);
+    setIsLoggingIn(true);
     setMessage(null);
     setError(null);
 
     try {
       const supabase = createSupabaseBrowserClient();
-      const { error: signInError } = await supabase.auth.signInWithOtp({
+      const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
-        options: {
-          shouldCreateUser: false,
-        },
+        password: password,
       });
 
       if (signInError) {
-        setError(
-          isRateLimitError(signInError)
-            ? 'נשלחו יותר מדי קודים. נסה שוב מאוחר יותר.'
-            : `לא הצלחנו לשלוח קוד כניסה: ${signInError.message}`
-        );
+        const isInvalidCreds = signInError.message.toLowerCase().includes('invalid login credentials') ||
+                               signInError.status === 400;
+        setError(isInvalidCreds ? 'המייל או הסיסמה אינם נכונים' : `שגיאת התחברות: ${signInError.message}`);
+        logDevelopmentError('Existing user login failed', signInError);
         return;
       }
 
-      setEmail(normalizedEmail);
-      setOtpStep('code');
-      setCooldownSeconds(60);
-      setMessage('שלחנו קוד אימות למייל.');
+      const authUser = authData.user;
+      if (!authUser) {
+        setError('המייל או הסיסמה אינם נכונים');
+        return;
+      }
+
+      let { data: profile, error: profileError } = await supabase
+        .from('users')
+        .select(profileSelect)
+        .eq('auth_user_id', authUser.id)
+        .maybeSingle<AppUserProfile>();
+
+      if (!profile && !profileError) {
+        const result = await supabase
+          .from('users')
+          .select(profileSelect)
+          .eq('email', normalizedEmail)
+          .maybeSingle<AppUserProfile>();
+
+        profile = result.data;
+        profileError = result.error;
+      }
+
+      if (profileError) {
+        setError(`לא ניתן לקרוא פרופיל משתמש: ${profileError.message}`);
+        return;
+      }
+
+      if (!profile) {
+        setError('לא נמצא פרופיל למייל הזה. יש לבצע הרשמה ראשונה.');
+        await supabase.auth.signOut();
+        return;
+      }
+
+      if (profile.status === 'blocked') {
+        setError('המשתמש חסום. פנה למנהל המערכת.');
+        await supabase.auth.signOut();
+        return;
+      }
+
+      if (profile.status === 'inactive') {
+        setError('המשתמש אינו פעיל. פנה למנהל המערכת.');
+        await supabase.auth.signOut();
+        return;
+      }
+
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ last_login_at: new Date().toISOString() })
+        .eq('id', profile.id);
+
+      if (updateError) {
+        logDevelopmentError('Existing user last_login_at update failed', updateError);
+      }
+
+      window.location.href = getProfileRedirectPath(profile);
     } catch (unknownError) {
-      setError(`לא הצלחנו לשלוח קוד כניסה: ${getErrorMessage(unknownError)}`);
+      setError(`התחברות נכשלה: ${getErrorMessage(unknownError)}`);
     } finally {
-      setIsSendingOtp(false);
+      setIsLoggingIn(false);
     }
   };
 
@@ -210,6 +265,31 @@ export default function LoginPage() {
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedName = fullName.trim();
     const selectedUnit = selectedUnitId === 'none' ? null : selectedUnitId;
+
+    if (!normalizedName) {
+      setError('שם מלא הוא שדה חובה');
+      return;
+    }
+    if (!normalizedEmail) {
+      setError('דוא״ל הוא שדה חובה');
+      return;
+    }
+    if (!password) {
+      setError('סיסמה היא שדה חובה');
+      return;
+    }
+    if (password.length < 8) {
+      setError('הסיסמה חייבת להכיל לפחות 8 תווים');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('הסיסמאות אינן זהות');
+      return;
+    }
+    if (!selectedRole) {
+      setError('תפקיד מבוקש הוא שדה חובה');
+      return;
+    }
 
     setIsSendingOtp(true);
     setMessage(null);
@@ -239,6 +319,7 @@ export default function LoginPage() {
         email: normalizedEmail,
         role: selectedRole,
         unitId: selectedUnit,
+        password: password,
       });
       setOtpStep('code');
       setCooldownSeconds(60);
@@ -247,85 +328,6 @@ export default function LoginPage() {
       setError(`לא הצלחנו לשלוח קוד אימות: ${getErrorMessage(unknownError)}`);
     } finally {
       setIsSendingOtp(false);
-    }
-  };
-
-  const verifyExistingUserCode = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (isVerifyingOtp) return;
-
-    const normalizedEmail = email.trim().toLowerCase();
-    const normalizedToken = otpCode.trim();
-
-    setIsVerifyingOtp(true);
-    setMessage(null);
-    setError(null);
-
-    try {
-      const supabase = createSupabaseBrowserClient();
-      const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
-        email: normalizedEmail,
-        token: normalizedToken,
-        type: 'email',
-      });
-
-      if (verifyError || !verifyData.user) {
-        setError(`קוד האימות לא אושר: ${verifyError?.message ?? 'לא נמצא משתמש מאומת'}`);
-        return;
-      }
-
-      const authUser = verifyData.user;
-      let { data: profile, error: profileError } = await supabase
-        .from('users')
-        .select(profileSelect)
-        .eq('auth_user_id', authUser.id)
-        .maybeSingle<AppUserProfile>();
-
-      if (!profile && !profileError) {
-        const result = await supabase
-          .from('users')
-          .select(profileSelect)
-          .eq('email', normalizedEmail)
-          .maybeSingle<AppUserProfile>();
-
-        profile = result.data;
-        profileError = result.error;
-      }
-
-      if (profileError) {
-        setError(`לא ניתן לקרוא פרופיל משתמש: ${profileError.message}`);
-        return;
-      }
-
-      if (!profile) {
-        setError('לא נמצא פרופיל למייל הזה. יש לבצע הרשמה ראשונה.');
-        return;
-      }
-
-      if (profile.status === 'blocked') {
-        setError('המשתמש חסום. פנה למנהל המערכת.');
-        return;
-      }
-
-      if (profile.status === 'inactive') {
-        setError('המשתמש אינו פעיל. פנה למנהל המערכת.');
-        return;
-      }
-
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({ last_login_at: new Date().toISOString() })
-        .eq('id', profile.id);
-
-      if (updateError) {
-        logDevelopmentError('Existing user last_login_at update failed', updateError);
-      }
-
-      window.location.href = getProfileRedirectPath(profile);
-    } catch (unknownError) {
-      setError(`אימות הקוד נכשל: ${getErrorMessage(unknownError)}`);
-    } finally {
-      setIsVerifyingOtp(false);
     }
   };
 
@@ -350,6 +352,18 @@ export default function LoginPage() {
       if (verifyError || !verifyData.user) {
         setError(`קוד האימות לא אושר: ${verifyError?.message ?? 'לא נמצא משתמש מאומת'}`);
         return;
+      }
+
+      if (registrationDraft.password) {
+        const { error: passwordError } = await supabase.auth.updateUser({
+          password: registrationDraft.password,
+        });
+
+        if (passwordError) {
+          logDevelopmentError('Password update failed', passwordError);
+          setError(`אימות הקוד הצליח, אך הגדרת הסיסמה נכשלה: ${passwordError.message}`);
+          return;
+        }
       }
 
       const now = new Date().toISOString();
@@ -503,7 +517,7 @@ export default function LoginPage() {
           </div>
 
           {authMode === 'existing' && (
-            <form onSubmit={isCodeStep ? verifyExistingUserCode : sendExistingUserCode} className="space-y-4">
+            <form onSubmit={handleExistingUserLogin} className="space-y-4">
               <label className="block space-y-2">
                 <span className="block text-xs font-black text-[#344054]">דוא״ל</span>
                 <span className="relative block">
@@ -516,28 +530,27 @@ export default function LoginPage() {
                     onChange={(event) => setEmail(event.target.value)}
                     placeholder="commander@example.com"
                     className="command-input pl-11 text-left"
-                    disabled={isSendingOtp || isVerifyingOtp || isCodeStep}
+                    disabled={isLoggingIn}
                   />
                 </span>
               </label>
 
-              {isCodeStep && (
-                <label className="block space-y-2">
-                  <span className="block text-xs font-black text-[#344054]">קוד אימות</span>
+              <label className="block space-y-2">
+                <span className="block text-xs font-black text-[#344054]">סיסמה</span>
+                <span className="relative block">
+                  <KeyRound className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
                   <input
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={8}
+                    type="password"
                     dir="ltr"
                     required
-                    value={otpCode}
-                    onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, '').slice(0, 8))}
-                    placeholder="12345678"
-                    className="command-input text-center text-lg font-black tracking-[0.28em]"
-                    disabled={isVerifyingOtp}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="••••••••"
+                    className="command-input pl-11 text-left"
+                    disabled={isLoggingIn}
                   />
-                </label>
-              )}
+                </span>
+              </label>
 
               {message && (
                 <div className="flex items-start gap-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm leading-relaxed text-emerald-800">
@@ -552,40 +565,22 @@ export default function LoginPage() {
                 </div>
               )}
 
-              {cooldownText && (
-                <div className="rounded-2xl border border-[#FF6B02]/18 bg-[#FF6B02]/10 px-4 py-3 text-center text-xs font-black text-[#9A4600]">
-                  {cooldownText}
-                </div>
-              )}
-
               <GlossyButton
                 type="submit"
                 variant="orange"
                 size="lg"
                 className="w-full justify-center"
-                disabled={isSendingOtp || isVerifyingOtp || (!isCodeStep && cooldownSeconds > 0)}
+                disabled={isLoggingIn}
               >
-                {isSendingOtp || isVerifyingOtp ? (
+                {isLoggingIn ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    {isCodeStep ? 'מאמת קוד' : 'שולח קוד'}
+                    מתחבר...
                   </>
-                ) : isCodeStep ? (
-                  'אמת קוד והיכנס'
                 ) : (
-                  'שלח קוד כניסה'
+                  'התחבר למערכת'
                 )}
               </GlossyButton>
-
-              {isCodeStep && (
-                <button
-                  type="button"
-                  onClick={() => resetOtpState('existing')}
-                  className="flex min-h-10 w-full items-center justify-center rounded-2xl text-xs font-black text-[#667085] transition-colors hover:text-[#FF6B02]"
-                >
-                  שנה מייל / חזור
-                </button>
-              )}
             </form>
           )}
 
@@ -625,6 +620,42 @@ export default function LoginPage() {
                       />
                     </span>
                   </label>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="block space-y-2">
+                      <span className="block text-xs font-black text-[#344054]">סיסמה</span>
+                      <span className="relative block">
+                        <KeyRound className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
+                        <input
+                          type="password"
+                          dir="ltr"
+                          required
+                          value={password}
+                          onChange={(event) => setPassword(event.target.value)}
+                          placeholder="••••••••"
+                          className="command-input pl-11 text-left"
+                          disabled={isSendingOtp}
+                        />
+                      </span>
+                    </label>
+
+                    <label className="block space-y-2">
+                      <span className="block text-xs font-black text-[#344054]">אימות סיסמה</span>
+                      <span className="relative block">
+                        <KeyRound className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
+                        <input
+                          type="password"
+                          dir="ltr"
+                          required
+                          value={confirmPassword}
+                          onChange={(event) => setConfirmPassword(event.target.value)}
+                          placeholder="••••••••"
+                          className="command-input pl-11 text-left"
+                          disabled={isSendingOtp}
+                        />
+                      </span>
+                    </label>
+                  </div>
 
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="block space-y-2">
@@ -736,7 +767,7 @@ export default function LoginPage() {
           )}
 
           <div className="mt-6 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/58 px-4 py-3 text-center text-xs font-bold text-[#667085]">
-            מצב פיתוח · Supabase Email OTP Code
+            מצב פיתוח · כניסה בסיסמה והרשמה ב-OTP
           </div>
 
           {isDevelopment && (

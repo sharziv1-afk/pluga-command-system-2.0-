@@ -95,14 +95,14 @@ Supabase Auth is wired through:
 - `src/lib/supabase/server.ts`
 - `src/proxy.ts`
 
-The active `/login` screen is now an **Email OTP code identification flow** with two modes:
+The active `/login` screen implements a **hybrid authentication paradigm**:
 
-- Existing user login: sends an email OTP with `shouldCreateUser: false`, verifies the code with `verifyOtp`, then routes by `public.users` profile status.
-- First registration: sends an email OTP with `shouldCreateUser: true`, creates/updates `public.users` only after `verifyOtp`, then redirects to `/onboarding`.
+- **Existing user login**: Uses a standard **Email + Password** flow (`signInWithPassword`), completely bypassing OTP/Magic Links to preserve Supabase email quotas, then routes by `public.users` profile status.
+- **First registration**: Uses an **Email OTP code verification** flow (`signInWithOtp` with `shouldCreateUser: true`). Upon successful `verifyOtp`, the user sets up their **Password** (`updateUser({ password })`), and only then is their profile created in `public.users` before redirecting to `/onboarding`.
 
 `/auth/callback` remains in place as a Magic Link fallback and has not been removed.
 
-Development-only login with email/password is still present on `/login` when `NODE_ENV !== "production"` to avoid wasting Supabase emails during local development.
+Development-only login (Dev Login) with pre-configured email/password credentials is still present under the main form when `NODE_ENV !== "production"` to allow swift local testing.
 
 Known current issue:
 

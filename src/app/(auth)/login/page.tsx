@@ -176,14 +176,15 @@ export default function LoginPage() {
             <label className="block space-y-2">
               <span className="block text-xs font-black text-[#344054]">דוא"ל</span>
               <span className="relative block">
-                <Mail className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
+                <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
                 <input
                   type="email"
+                  dir="ltr"
                   required
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="commander@example.com"
-                  className="command-input pr-11"
+                  className="command-input pl-11 text-left"
                   disabled={isSubmitting}
                 />
               </span>
@@ -236,13 +237,14 @@ export default function LoginPage() {
                 <label className="block space-y-1.5">
                   <span className="block text-[11px] font-black text-[#344054]">email</span>
                   <span className="relative block">
-                    <Mail className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
+                    <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
                     <input
                       type="email"
+                      dir="ltr"
                       required
                       value={devEmail}
                       onChange={(event) => setDevEmail(event.target.value)}
-                      className="command-input min-h-11 pr-11 text-sm"
+                      className="command-input min-h-11 pl-11 text-left text-sm"
                       disabled={isDevSubmitting}
                     />
                   </span>
@@ -251,13 +253,14 @@ export default function LoginPage() {
                 <label className="block space-y-1.5">
                   <span className="block text-[11px] font-black text-[#344054]">password</span>
                   <span className="relative block">
-                    <KeyRound className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
+                    <KeyRound className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
                     <input
                       type="password"
+                      dir="ltr"
                       required
                       value={devPassword}
                       onChange={(event) => setDevPassword(event.target.value)}
-                      className="command-input min-h-11 pr-11 text-sm"
+                      className="command-input min-h-11 pl-11 text-left text-sm"
                       disabled={isDevSubmitting}
                     />
                   </span>

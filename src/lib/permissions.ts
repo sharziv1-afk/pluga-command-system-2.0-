@@ -9,9 +9,27 @@ export const ROLE_WEIGHTS: Record<RoleType, number> = {
   'מ"כ': 50,
 };
 
+export function getPermissionLevelForRole(role: string): number {
+  const normRole = role.replace(/["״]/g, '"'); // Normalize Hebrew gershayim and normal quotes
+  
+  if (normRole === 'מ"פ') return 100;
+  if (normRole === 'סמ"פ') return 90;
+  if (normRole === 'ע. מ"פ') return 85;
+  if (normRole === 'רס"פ / לוגיסטיקה' || normRole === 'רס"פ') return 75;
+  if (normRole.startsWith('מ"מ')) return 70;
+  if (normRole === 'חובש פלוגתי') return 70;
+  if (normRole === 'קשר פלוגתי') return 70;
+  if (normRole === 'ב.קוד / נהג' || normRole === 'ב.קוד/נהג') return 60;
+  if (normRole.startsWith('סמל')) return 60;
+  if (normRole.startsWith('מ"כ')) return 50;
+  return 0;
+}
+
 // Check if a role is higher or equal to another
 export function isHigherOrEqualRole(role1: RoleType, role2: RoleType): boolean {
-  return ROLE_WEIGHTS[role1] >= ROLE_WEIGHTS[role2];
+  const w1 = getPermissionLevelForRole(role1);
+  const w2 = getPermissionLevelForRole(role2);
+  return w1 >= w2;
 }
 
 // Check if frame matches or is a subframe (e.g. מחלקה 1 covers כיתה 1 if assigned appropriately)

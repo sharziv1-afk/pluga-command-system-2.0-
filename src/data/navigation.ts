@@ -5,6 +5,7 @@ import {
   MessageSquare,
   Shield,
   Truck,
+  User,
 } from 'lucide-react';
 
 export const navigationItems = [
@@ -32,6 +33,11 @@ export const navigationItems = [
     name: 'אישור משתמשים',
     path: '/admin',
     icon: Shield,
+  },
+  {
+    name: 'פרופיל אישי',
+    path: '/profile',
+    icon: User,
   },
   {
     name: 'עזרה ומדריך',

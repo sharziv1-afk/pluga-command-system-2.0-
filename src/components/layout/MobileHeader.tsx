@@ -9,10 +9,26 @@ import { QuickHelp } from '@/components/layout/QuickHelp';
 import { SystemStatusPanel } from '@/components/layout/SystemStatusPanel';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { cn } from '@/lib/utils';
+import { useApp } from '@/lib/context/AppContext';
 
 export const MobileHeader: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
+  const { currentUser } = useApp();
+
+  const hasAdminAccess = currentUser && (
+    (currentUser.role as string) === 'מ״פ' || 
+    (currentUser.role as string) === 'מ"פ' || 
+    (currentUser.role as string) === 'סמ״פ' || 
+    (currentUser.role as string) === 'סמ"פ'
+  );
+
+  const filteredNavigationItems = navigationItems.filter(item => {
+    if (item.path === '/admin') {
+      return hasAdminAccess;
+    }
+    return true;
+  });
 
   const closeMenu = () => setIsOpen(false);
 
@@ -22,7 +38,9 @@ export const MobileHeader: React.FC = () => {
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[#FF6B02]/20 bg-[#FF6B02]/10 text-[#FF6B02]">
           <Shield className="h-4 w-4" />
         </div>
-        <span className="truncate text-sm font-black text-[#020108]">המפקד · פלוגה ג&apos;</span>
+        <span className="truncate text-sm font-black text-[#020108]">
+          המפקד {currentUser ? `· ${currentUser.assigned_frame}` : ''}
+        </span>
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
@@ -49,7 +67,7 @@ export const MobileHeader: React.FC = () => {
             <SystemStatusPanel className="mb-3" />
 
             <nav className="mt-2 flex-1 space-y-2">
-              {navigationItems.map((item) => {
+              {filteredNavigationItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.path || (pathname === '/' && item.path === '/dashboard');
 

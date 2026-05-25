@@ -9,9 +9,25 @@ import { cn } from '@/lib/utils';
 import { QuickHelp } from '@/components/layout/QuickHelp';
 import { SystemStatusPanel } from '@/components/layout/SystemStatusPanel';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { useApp } from '@/lib/context/AppContext';
 
 export const AppSidebar: React.FC = () => {
   const pathname = usePathname();
+  const { currentUser, isLoading } = useApp();
+
+  const hasAdminAccess = currentUser && (
+    (currentUser.role as string) === 'מ״פ' || 
+    (currentUser.role as string) === 'מ"פ' || 
+    (currentUser.role as string) === 'סמ״פ' || 
+    (currentUser.role as string) === 'סמ"פ'
+  );
+
+  const filteredNavigationItems = navigationItems.filter(item => {
+    if (item.path === '/admin') {
+      return hasAdminAccess;
+    }
+    return true;
+  });
 
   return (
     <aside className="hidden lg:flex fixed inset-y-0 right-0 z-30 w-64 select-none flex-col border-e border-[rgba(2,1,8,0.10)] bg-white/72 text-right shadow-[0_18px_50px_rgba(2,1,8,0.08)] backdrop-blur-2xl">
@@ -33,7 +49,7 @@ export const AppSidebar: React.FC = () => {
       </div>
 
       <nav className="flex-1 space-y-1.5 overflow-y-auto px-3 py-5 custom-scrollbar">
-        {navigationItems.map((item) => {
+        {filteredNavigationItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.path || (pathname === '/' && item.path === '/dashboard');
 
@@ -66,23 +82,39 @@ export const AppSidebar: React.FC = () => {
         </div>
 
         <div className="flex items-center justify-between rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/70 p-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[rgba(2,1,8,0.08)] bg-[#EEF1F5] text-[#667085]">
-              <User className="h-4 w-4" />
+          {isLoading ? (
+            <div className="flex w-full items-center gap-2 animate-pulse py-1">
+              <div className="h-8 w-8 rounded-xl bg-[#EEF1F5]" />
+              <div className="flex-1 space-y-1">
+                <div className="h-2.5 w-16 rounded bg-[#EEF1F5]" />
+                <div className="h-2 w-24 rounded bg-[#EEF1F5]" />
+              </div>
             </div>
-            <div className="min-w-0">
-              <span className="block truncate text-xs font-black text-[#020108]">משתמש דמו</span>
-              <span className="block truncate text-[11px] text-[#667085]">פלוגה ג'</span>
-            </div>
-          </div>
+          ) : (
+            <>
+              <div className="flex min-w-0 items-center gap-2">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[rgba(2,1,8,0.08)] bg-[#EEF1F5] text-[#667085]">
+                  <User className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <span className="block truncate text-xs font-black text-[#020108]">
+                    {currentUser?.full_name || 'משתמש'}
+                  </span>
+                  <span className="block truncate text-[10px] font-bold text-[#667085]">
+                    {currentUser ? `${currentUser.role} • ${currentUser.assigned_frame}` : 'תפקיד לא הוגדר'}
+                  </span>
+                </div>
+              </div>
 
-          <Link
-            href="/login"
-            title="התנתק"
-            className="rounded-xl p-2 text-[#98A2B3] transition-all hover:bg-red-500/10 hover:text-red-700"
-          >
-            <LogOut className="h-4 w-4" />
-          </Link>
+              <Link
+                href="/login"
+                title="התנתק"
+                className="rounded-xl p-2 text-[#98A2B3] transition-all hover:bg-red-500/10 hover:text-red-700"
+              >
+                <LogOut className="h-4 w-4" />
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </aside>

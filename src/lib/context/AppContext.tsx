@@ -6,6 +6,7 @@ import {
   RoleType, FrameType, TaskStatusType, TaskPriorityType, TaskCategoryType,
   GapStatusType, GapCategoryType, UrgencyType, RequestStatusType, RequestTypeType
 } from '../types';
+import { fetchCurrentProfile } from '../supabase/profile';
 
 interface AppContextProps {
   // Authentication & Session
@@ -13,6 +14,7 @@ interface AppContextProps {
   activeRole: RoleType | null;
   activeFrame: FrameType | null;
   isSimulating: boolean;
+  isLoading: boolean;
   login: (email: string) => Promise<boolean>;
   register: (fullName: string, email: string, role: RoleType, frame: FrameType) => Promise<void>;
   logout: () => void;
@@ -313,6 +315,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeRole, setActiveRole] = useState<RoleType | null>(null);
   const [activeFrame, setActiveFrame] = useState<FrameType | null>(null);
   const [isSimulating, setIsSimulating] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Initialize DB from LocalStorage or Seed Data
   useEffect(() => {
@@ -332,40 +335,58 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setForumSummaries(getOrSet('pluga_forum_summaries', initialForumSummaries));
     setAuditLogs(getOrSet('pluga_audit_logs', initialAuditLogs));
 
-    // Auto-login MP by default to make starting simple
-    const sessionUser = localStorage.getItem('pluga_session');
-    if (sessionUser) {
+    async function initializeAuth() {
+      setIsLoading(true);
       try {
-        const user = JSON.parse(sessionUser) as Profile;
-        setCurrentUser(user);
-        
-        // Restore role simulation if active
-        const simRole = localStorage.getItem('pluga_sim_role');
-        const simFrame = localStorage.getItem('pluga_sim_frame');
-        if (simRole && simFrame) {
-          setActiveRole(simRole as RoleType);
-          setActiveFrame(simFrame as FrameType);
-          setIsSimulating(true);
-        } else {
-          setActiveRole(user.role);
-          setActiveFrame(user.assigned_frame);
+        const supabaseProfile = await fetchCurrentProfile();
+        if (supabaseProfile) {
+          setCurrentUser(supabaseProfile);
+          setActiveRole(supabaseProfile.role);
+          setActiveFrame(supabaseProfile.assigned_frame);
+          setIsSimulating(false);
+          setIsLoading(false);
+          return;
         }
-      } catch {
-        // Default login
+      } catch (err) {
+        console.error('Failed to load profile from Supabase, falling back to mock state:', err);
+      }
+
+      // LocalStorage/Mock Fallback
+      const sessionUser = localStorage.getItem('pluga_session');
+      if (sessionUser) {
+        try {
+          const user = JSON.parse(sessionUser) as Profile;
+          setCurrentUser(user);
+          
+          const simRole = localStorage.getItem('pluga_sim_role');
+          const simFrame = localStorage.getItem('pluga_sim_frame');
+          if (simRole && simFrame) {
+            setActiveRole(simRole as RoleType);
+            setActiveFrame(simFrame as FrameType);
+            setIsSimulating(true);
+          } else {
+            setActiveRole(user.role);
+            setActiveFrame(user.assigned_frame);
+          }
+        } catch {
+          const defaultMp = initialProfiles.find(p => p.role === 'מ"פ') || null;
+          setCurrentUser(defaultMp);
+          setActiveRole(defaultMp?.role || null);
+          setActiveFrame(defaultMp?.assigned_frame || null);
+        }
+      } else {
         const defaultMp = initialProfiles.find(p => p.role === 'מ"פ') || null;
         setCurrentUser(defaultMp);
         setActiveRole(defaultMp?.role || null);
         setActiveFrame(defaultMp?.assigned_frame || null);
+        if (defaultMp) {
+          localStorage.setItem('pluga_session', JSON.stringify(defaultMp));
+        }
       }
-    } else {
-      const defaultMp = initialProfiles.find(p => p.role === 'מ"פ') || null;
-      setCurrentUser(defaultMp);
-      setActiveRole(defaultMp?.role || null);
-      setActiveFrame(defaultMp?.assigned_frame || null);
-      if (defaultMp) {
-        localStorage.setItem('pluga_session', JSON.stringify(defaultMp));
-      }
+      setIsLoading(false);
     }
+
+    initializeAuth();
   }, []);
 
   // Helper to persist states to localStorage
@@ -797,6 +818,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       activeRole,
       activeFrame,
       isSimulating,
+      isLoading,
       login,
       register,
       logout,

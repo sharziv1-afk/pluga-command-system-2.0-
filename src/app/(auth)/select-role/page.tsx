@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ArrowRight, Eye, ShieldCheck, Users } from 'lucide-react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlossyButton } from '@/components/ui/GlossyButton';
+import { ThemeToggle } from '@/components/layout/ThemeToggle';
 
 const roleOptions = ['מ"פ', 'מ"מ', 'מ"כ', 'רס"פ'];
 const frameOptions = ['פלוגה', 'מחלקה 1', 'מחלקה 2', 'מחלקה 3', 'מחלקה 4', 'כיתה 1', 'כיתה 2', 'מפל"ג'];
@@ -27,7 +28,11 @@ export default function SelectRolePage() {
   };
 
   return (
-    <main className="command-page-shell flex items-center justify-center p-4 sm:p-6 lg:p-8 text-right">
+    <main className="command-page-shell relative flex items-center justify-center p-4 sm:p-6 lg:p-8 text-right">
+      <div className="absolute left-4 top-4 z-20">
+        <ThemeToggle />
+      </div>
+
       <div className="w-full max-w-3xl">
         <GlassCard glow="orange" className="w-full">
           <div className="mb-7 flex flex-col items-center text-center">

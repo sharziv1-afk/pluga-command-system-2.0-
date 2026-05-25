@@ -47,6 +47,8 @@ Current known state:
 - Schema file exists and is kept in Git.
 - Seed file exists and is kept in Git.
 - The schema and seed were already run manually in Supabase.
+- RLS policies for `public.users` were added manually in Supabase after profile creation failed.
+- `public.users` was empty before the manual RLS policy update.
 - Do not change schema, seed, RLS, triggers, or database structure during design-only work.
 
 ## Auth State
@@ -64,8 +66,9 @@ Current auth status:
 - Supabase Auth is connected.
 - Magic Link request flow exists.
 - Callback route exists and should create/find `public.users` profiles.
+- Callback was adjusted to create a new `public.users` profile with the required NOT NULL fields.
 - Protected route proxy exists.
-- End-to-end Magic Link still requires verification after the current Supabase email rate limit ends.
+- Magic Link after the manual RLS policy update still requires live verification because Supabase reached the email rate limit again.
 
 Known issue:
 
@@ -79,7 +82,7 @@ Still requires manual verification:
 
 - Magic Link callback reaches `/auth/callback`
 - `exchangeCodeForSession` succeeds
-- `public.users` profile creation succeeds
+- `public.users` profile creation succeeds after the manual RLS policies
 - New users redirect to `/onboarding`
 - Pending users redirect to `/pending-approval`
 - Approved active users redirect to `/dashboard`
@@ -251,10 +254,12 @@ Check:
 
 1. Finish visual QA for the updated light gloss screens.
 2. Verify lint, TypeScript, and build.
-3. After Supabase rate limit expires, test Magic Link end-to-end.
-4. Confirm `public.users` profile creation.
-5. Confirm redirect to `/onboarding`.
-6. Only then continue onboarding/admin approval/product logic.
+3. Wait for the Supabase email rate limit to expire.
+4. Send exactly one Magic Link for a live verification pass.
+5. Confirm that a row is created in `public.users`.
+6. Confirm redirect to `/onboarding`.
+7. If profile creation still fails, read the development terminal log for `Profile create failed` and inspect `message`, `code`, `details`, and `hint`.
+8. Only then continue onboarding/admin approval/product logic.
 
 ## Guardrails For Future Agents
 

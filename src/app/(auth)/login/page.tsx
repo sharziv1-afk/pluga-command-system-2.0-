@@ -2,17 +2,37 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Loader2, Mail, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, KeyRound, Loader2, Mail, ShieldCheck } from 'lucide-react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlossyButton } from '@/components/ui/GlossyButton';
+import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 
+type AppUserProfile = {
+  id: string;
+  status: 'active' | 'pending' | 'blocked' | 'inactive';
+  role_approval_status: 'pending' | 'approved' | 'rejected';
+  has_completed_onboarding: boolean;
+};
+
+function getProfileRedirectPath(profile: AppUserProfile): string {
+  if (!profile.has_completed_onboarding) return '/onboarding';
+  if (profile.role_approval_status === 'pending') return '/pending-approval';
+  if (profile.status === 'active' && profile.role_approval_status === 'approved') return '/dashboard';
+
+  return '/pending-approval';
+}
+
 export default function LoginPage() {
+  const isDevelopment = process.env.NODE_ENV !== 'production';
   const [email, setEmail] = useState('');
+  const [devEmail, setDevEmail] = useState(isDevelopment ? 'dev@pluga.local' : '');
+  const [devPassword, setDevPassword] = useState(isDevelopment ? 'Dev123456!' : '');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDevSubmitting, setIsDevSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const isDevelopment = process.env.NODE_ENV === 'development';
+  const [devError, setDevError] = useState<string | null>(null);
 
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -72,9 +92,68 @@ export default function LoginPage() {
     }
   };
 
+  const handleDevLogin = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!isDevelopment) return;
+
+    setIsDevSubmitting(true);
+    setDevError(null);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const supabase = createSupabaseBrowserClient();
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: devEmail.trim(),
+        password: devPassword,
+      });
+
+      if (signInError) {
+        setDevError(`כניסת פיתוח נכשלה: ${signInError.message}`);
+        return;
+      }
+
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      const authUser = userData.user;
+
+      if (userError || !authUser) {
+        setDevError('כניסת פיתוח הצליחה, אבל לא נמצא משתמש Supabase תקין.');
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from('users')
+        .select('id,status,role_approval_status,has_completed_onboarding')
+        .eq('auth_user_id', authUser.id)
+        .maybeSingle<AppUserProfile>();
+
+      if (profileError) {
+        setDevError(`לא ניתן לקרוא פרופיל מ-public.users: ${profileError.message}`);
+        return;
+      }
+
+      if (!profile) {
+        setDevError('לא נמצא פרופיל ב-public.users');
+        return;
+      }
+
+      window.location.href = getProfileRedirectPath(profile);
+    } catch (unknownError) {
+      const devMessage = unknownError instanceof Error ? unknownError.message : String(unknownError);
+      setDevError(`כניסת פיתוח נכשלה: ${devMessage}`);
+    } finally {
+      setIsDevSubmitting(false);
+    }
+  };
+
   return (
     <main className="command-page-shell relative flex items-center justify-center p-4 sm:p-6 text-right">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_18%,rgba(255,107,2,0.16),transparent_30%),radial-gradient(circle_at_20%_82%,rgba(2,1,8,0.06),transparent_34%)]" />
+      <div className="command-auth-overlay pointer-events-none absolute inset-0" />
+      <div className="absolute left-4 top-4 z-20">
+        <ThemeToggle />
+      </div>
 
       <div className="relative z-10 w-full max-w-md">
         <div className="mb-5 text-center">
@@ -143,6 +222,72 @@ export default function LoginPage() {
           <div className="mt-6 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/58 px-4 py-3 text-center text-xs font-bold text-[#667085]">
             מצב פיתוח · Supabase Magic Link
           </div>
+
+          {isDevelopment && (
+            <div className="mt-5 rounded-[22px] border border-[#FF6B02]/20 bg-[#FF6B02]/8 p-4">
+              <div className="mb-3">
+                <h2 className="text-sm font-black text-[#020108]">כניסת פיתוח זמנית</h2>
+                <p className="mt-1 text-xs font-semibold leading-relaxed text-[#667085]">
+                  מיועד לפיתוח מקומי בלבד, כדי לעקוף זמנית את מגבלת שליחת המיילים.
+                </p>
+              </div>
+
+              <form onSubmit={handleDevLogin} className="space-y-3">
+                <label className="block space-y-1.5">
+                  <span className="block text-[11px] font-black text-[#344054]">email</span>
+                  <span className="relative block">
+                    <Mail className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
+                    <input
+                      type="email"
+                      required
+                      value={devEmail}
+                      onChange={(event) => setDevEmail(event.target.value)}
+                      className="command-input min-h-11 pr-11 text-sm"
+                      disabled={isDevSubmitting}
+                    />
+                  </span>
+                </label>
+
+                <label className="block space-y-1.5">
+                  <span className="block text-[11px] font-black text-[#344054]">password</span>
+                  <span className="relative block">
+                    <KeyRound className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
+                    <input
+                      type="password"
+                      required
+                      value={devPassword}
+                      onChange={(event) => setDevPassword(event.target.value)}
+                      className="command-input min-h-11 pr-11 text-sm"
+                      disabled={isDevSubmitting}
+                    />
+                  </span>
+                </label>
+
+                {devError && (
+                  <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm leading-relaxed text-red-800">
+                    {devError}
+                  </div>
+                )}
+
+                <GlossyButton
+                  type="submit"
+                  variant="slate"
+                  size="md"
+                  className="w-full justify-center"
+                  disabled={isDevSubmitting}
+                >
+                  {isDevSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      מתחבר כמשתמש פיתוח
+                    </>
+                  ) : (
+                    'התחבר כמשתמש פיתוח'
+                  )}
+                </GlossyButton>
+              </form>
+            </div>
+          )}
 
           <div className="mt-5 flex flex-col items-center justify-between gap-3 border-t border-[rgba(2,1,8,0.08)] pt-5 text-xs font-bold text-[#667085] sm:flex-row">
             <Link href="/onboarding" className="flex items-center gap-1 transition-colors hover:text-[#FF6B02]">

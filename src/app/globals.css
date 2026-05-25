@@ -46,6 +46,17 @@
   --status-info: #1570ef;
 }
 
+:root[data-theme="dark"] {
+  --background: #101114;
+  --foreground: #f8fafc;
+  --tactical-glass: rgba(255, 255, 255, 0.08);
+  --tactical-strong-glass: rgba(255, 255, 255, 0.12);
+  --tactical-border: rgba(255, 255, 255, 0.14);
+  --tactical-border-hover: rgba(255, 107, 2, 0.38);
+  --command-muted: #cbd5e1;
+  --command-subtle: #94a3b8;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -64,6 +75,14 @@ body {
   font-family: 'Rubik', 'Inter', system-ui, -apple-system, sans-serif;
   direction: rtl;
   overflow-x: hidden;
+}
+
+:root[data-theme="dark"] body {
+  background:
+    radial-gradient(circle at top right, rgba(255,107,2,0.18), transparent 30%),
+    radial-gradient(circle at bottom left, rgba(255,255,255,0.06), transparent 32%),
+    #101114;
+  color: #f8fafc;
 }
 
 a,
@@ -131,6 +150,12 @@ textarea {
   transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease, background-color 160ms ease;
 }
 
+:root[data-theme="dark"] .tactical-glass-card {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.28);
+}
+
 .tactical-glass-card:hover {
   border-color: var(--tactical-border-hover);
   box-shadow: 0 22px 60px rgba(2, 1, 8, 0.1);
@@ -144,10 +169,20 @@ textarea {
   box-shadow: 0 18px 50px rgba(2, 1, 8, 0.08);
 }
 
+:root[data-theme="dark"] .tactical-glow-cyan {
+  background: linear-gradient(135deg, rgba(15, 118, 110, 0.14), rgba(255, 255, 255, 0.08));
+  border-color: rgba(45, 212, 191, 0.26);
+}
+
 .tactical-glow-orange {
   border-color: rgba(255, 107, 2, 0.28);
   background: linear-gradient(135deg, rgba(255, 107, 2, 0.12), rgba(255, 255, 255, 0.88));
   box-shadow: 0 22px 60px rgba(2, 1, 8, 0.1);
+}
+
+:root[data-theme="dark"] .tactical-glow-orange {
+  background: linear-gradient(135deg, rgba(255, 107, 2, 0.16), rgba(255, 255, 255, 0.09));
+  border-color: rgba(255, 107, 2, 0.38);
 }
 
 /* Glossy Highlights Sweep Animation */
@@ -213,6 +248,97 @@ textarea {
     radial-gradient(circle at bottom left, rgba(2,1,8,0.06), transparent 32%),
     #F6F7F9;
   color: #020108;
+}
+
+:root[data-theme="dark"] .command-page-shell {
+  background:
+    radial-gradient(circle at top right, rgba(255,107,2,0.18), transparent 30%),
+    radial-gradient(circle at bottom left, rgba(255,255,255,0.06), transparent 32%),
+    #101114;
+  color: #f8fafc;
+}
+
+.command-page-transition {
+  animation: command-page-enter 150ms ease-out both;
+}
+
+@keyframes command-page-enter {
+  from {
+    opacity: 0.86;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 640px) {
+  .command-page-transition {
+    animation-duration: 80ms;
+  }
+}
+
+.command-icon-button {
+  display: inline-flex;
+  width: 2.5rem;
+  height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 1rem;
+  border: 1px solid rgba(2, 1, 8, 0.1);
+  background: rgba(255, 255, 255, 0.72);
+  color: #667085;
+  box-shadow: 0 10px 24px rgba(2, 1, 8, 0.06);
+  backdrop-filter: blur(16px);
+  transition: color 150ms ease, border-color 150ms ease, background-color 150ms ease, transform 150ms ease;
+}
+
+.command-icon-button:hover {
+  border-color: rgba(255, 107, 2, 0.28);
+  color: #ff6b02;
+  background: rgba(255, 107, 2, 0.1);
+}
+
+.command-icon-button:active {
+  transform: scale(0.98);
+}
+
+.command-soft-panel {
+  backdrop-filter: blur(16px);
+}
+
+.command-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgba(2, 1, 8, 0.08);
+}
+
+.command-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.58), transparent);
+  animation: command-skeleton-shimmer 1.1s ease-in-out infinite;
+}
+
+@keyframes command-skeleton-shimmer {
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+:root[data-theme="dark"] .command-icon-button,
+:root[data-theme="dark"] .command-help-panel,
+:root[data-theme="dark"] .command-soft-panel {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.08);
+  color: #f6f7f9;
+}
+
+:root[data-theme="dark"] .command-skeleton {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .command-container {
@@ -317,9 +443,43 @@ textarea {
   color: #020108 !important;
 }
 
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #f6f7f9 !important;
+}
+
 option {
   background-color: #ffffff !important;
   color: #0f172a !important;
+}
+
+:root[data-theme="dark"] option {
+  background-color: #171717 !important;
+  color: #f6f7f9 !important;
+}
+
+:root[data-theme="dark"] [class*="bg-white"],
+:root[data-theme="dark"] [class*="bg-[#EEF1F5]"] {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+:root[data-theme="dark"] [class*="text-[#020108]"],
+:root[data-theme="dark"] [class*="text-slate-950"],
+:root[data-theme="dark"] [class*="text-slate-900"],
+:root[data-theme="dark"] [class*="text-slate-800"],
+:root[data-theme="dark"] [class*="text-slate-700"] {
+  color: #f6f7f9 !important;
+}
+
+:root[data-theme="dark"] [class*="text-[#667085]"],
+:root[data-theme="dark"] [class*="text-[#344054]"],
+:root[data-theme="dark"] [class*="text-slate-600"],
+:root[data-theme="dark"] [class*="text-slate-500"],
+:root[data-theme="dark"] [class*="text-slate-400"] {
+  color: #cbd5e1 !important;
 }
 
 [class*="shadow-[0_0_"] {
@@ -340,6 +500,12 @@ option {
   box-shadow: 0 22px 60px rgba(2, 1, 8, 0.1) !important;
 }
 
+.command-auth-overlay {
+  background:
+    radial-gradient(circle at 70% 18%, rgba(255,107,2,0.16), transparent 30%),
+    radial-gradient(circle at 20% 82%, rgba(2,1,8,0.06), transparent 34%);
+}
+
 .auth-dark-card h1,
 .auth-dark-card p,
 .auth-dark-card span,
@@ -355,4 +521,109 @@ option {
 
 .auth-dark-input::placeholder {
   color: #98A2B3 !important;
+}
+
+/* Night variant: keep the same gloss system while overriding legacy light utilities. */
+:root[data-theme="dark"] .auth-navy-shell,
+:root[data-theme="dark"] .command-page-shell {
+  background:
+    radial-gradient(circle at top right, rgba(255,107,2,0.18), transparent 30%),
+    radial-gradient(circle at bottom left, rgba(255,255,255,0.06), transparent 32%),
+    #101114 !important;
+  color: #f8fafc !important;
+}
+
+:root[data-theme="dark"] .command-auth-overlay {
+  background:
+    radial-gradient(circle at 70% 18%, rgba(255,107,2,0.18), transparent 30%),
+    radial-gradient(circle at 20% 82%, rgba(255,255,255,0.06), transparent 34%);
+}
+
+:root[data-theme="dark"] .auth-dark-card,
+:root[data-theme="dark"] .tactical-glass-card,
+:root[data-theme="dark"] [class*="bg-white"],
+:root[data-theme="dark"] [class*="bg-[#F6F7F9]"],
+:root[data-theme="dark"] [class*="bg-[#EEF1F5]"],
+:root[data-theme="dark"] [class*="bg-slate-950"],
+:root[data-theme="dark"] [class*="bg-slate-900"],
+:root[data-theme="dark"] [class*="bg-slate-850"],
+:root[data-theme="dark"] [class*="bg-slate-800"] {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #f8fafc !important;
+}
+
+:root[data-theme="dark"] .tactical-glow-orange,
+:root[data-theme="dark"] .auth-dark-card {
+  background:
+    linear-gradient(135deg, rgba(255,107,2,0.16), rgba(255,255,255,0.08)) !important;
+  border-color: rgba(255, 107, 2, 0.32) !important;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.32) !important;
+}
+
+:root[data-theme="dark"] .command-icon-button,
+:root[data-theme="dark"] .command-help-panel,
+:root[data-theme="dark"] .command-soft-panel,
+:root[data-theme="dark"] [class*="border-[rgba(2,1,8"] {
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+:root[data-theme="dark"] .auth-dark-card h1,
+:root[data-theme="dark"] .auth-dark-card p,
+:root[data-theme="dark"] .auth-dark-card span,
+:root[data-theme="dark"] .auth-dark-card label,
+:root[data-theme="dark"] [class*="text-[#020108]"],
+:root[data-theme="dark"] [class*="text-[#344054]"],
+:root[data-theme="dark"] [class*="text-slate-950"],
+:root[data-theme="dark"] [class*="text-slate-900"],
+:root[data-theme="dark"] [class*="text-slate-800"],
+:root[data-theme="dark"] [class*="text-slate-700"],
+:root[data-theme="dark"] [class*="text-slate-100"],
+:root[data-theme="dark"] [class*="text-slate-200"],
+:root[data-theme="dark"] [class*="text-slate-300"] {
+  color: #f8fafc !important;
+}
+
+:root[data-theme="dark"] [class*="text-[#667085]"],
+:root[data-theme="dark"] [class*="text-[#98A2B3]"],
+:root[data-theme="dark"] [class*="text-slate-600"],
+:root[data-theme="dark"] [class*="text-slate-500"],
+:root[data-theme="dark"] [class*="text-slate-450"],
+:root[data-theme="dark"] [class*="text-slate-400"] {
+  color: #cbd5e1 !important;
+}
+
+:root[data-theme="dark"] [class*="text-emerald-700"],
+:root[data-theme="dark"] [class*="text-blue-700"],
+:root[data-theme="dark"] [class*="text-red-700"],
+:root[data-theme="dark"] [class*="text-red-800"],
+:root[data-theme="dark"] [class*="text-zinc-700"] {
+  color: #f8fafc !important;
+}
+
+:root[data-theme="dark"] [class*="text-[#C54F00]"],
+:root[data-theme="dark"] [class*="text-[#9A4600]"] {
+  color: #ffb077 !important;
+}
+
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea,
+:root[data-theme="dark"] .auth-dark-input {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #f8fafc !important;
+}
+
+:root[data-theme="dark"] input::placeholder,
+:root[data-theme="dark"] textarea::placeholder,
+:root[data-theme="dark"] .auth-dark-input::placeholder {
+  color: #94a3b8 !important;
+}
+
+:root[data-theme="dark"] .tactical-overlay {
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  opacity: 0.2;
 }

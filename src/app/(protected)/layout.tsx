@@ -1,6 +1,7 @@
 import React from 'react';
 import { AppSidebar } from '@/components/layout/AppSidebar';
 import { MobileHeader } from '@/components/layout/MobileHeader';
+import { PageTransition } from '@/components/layout/PageTransition';
 
 export default function ProtectedLayout({
   children,
@@ -17,7 +18,7 @@ export default function ProtectedLayout({
         <MobileHeader />
 
         <main className="flex-1 max-w-full overflow-x-hidden overflow-y-auto p-4 sm:p-6 lg:p-8 custom-scrollbar">
-          {children}
+          <PageTransition>{children}</PageTransition>
         </main>
       </div>
     </div>

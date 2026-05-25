@@ -6,6 +6,9 @@ import { usePathname } from 'next/navigation';
 import { LogOut, Shield, User } from 'lucide-react';
 import { navigationItems } from '@/data/navigation';
 import { cn } from '@/lib/utils';
+import { QuickHelp } from '@/components/layout/QuickHelp';
+import { SystemStatusPanel } from '@/components/layout/SystemStatusPanel';
+import { ThemeToggle } from '@/components/layout/ThemeToggle';
 
 export const AppSidebar: React.FC = () => {
   const pathname = usePathname();
@@ -21,6 +24,11 @@ export const AppSidebar: React.FC = () => {
             <h1 className="text-base font-black text-[#020108]">המפקד</h1>
             <p className="mt-0.5 text-[11px] font-bold text-[#667085]">ניהול פיקודי לפלוגה</p>
           </div>
+        </div>
+
+        <div className="mt-4 flex items-center gap-2">
+          <ThemeToggle />
+          <QuickHelp />
         </div>
       </div>
 
@@ -53,6 +61,10 @@ export const AppSidebar: React.FC = () => {
       </nav>
 
       <div className="border-t border-[rgba(2,1,8,0.08)] p-4">
+        <div className="mb-3">
+          <SystemStatusPanel />
+        </div>
+
         <div className="flex items-center justify-between rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/70 p-3">
           <div className="flex min-w-0 items-center gap-2">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[rgba(2,1,8,0.08)] bg-[#EEF1F5] text-[#667085]">

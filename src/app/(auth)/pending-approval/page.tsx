@@ -7,6 +7,7 @@ import { Clock3, LogOut, RefreshCw, UserCheck } from 'lucide-react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlossyButton } from '@/components/ui/GlossyButton';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { ThemeToggle } from '@/components/layout/ThemeToggle';
 
 export default function PendingApprovalPage() {
   const router = useRouter();
@@ -20,7 +21,11 @@ export default function PendingApprovalPage() {
   };
 
   return (
-    <main className="command-page-shell flex items-center justify-center p-4 sm:p-6 text-right">
+    <main className="command-page-shell relative flex items-center justify-center p-4 sm:p-6 text-right">
+      <div className="absolute left-4 top-4 z-20">
+        <ThemeToggle />
+      </div>
+
       <div className="w-full max-w-md">
         <GlassCard glow="orange" className="w-full">
           <div className="mb-6 flex flex-col items-center text-center">

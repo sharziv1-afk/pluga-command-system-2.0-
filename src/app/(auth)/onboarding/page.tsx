@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ArrowRight, ClipboardList, User } from 'lucide-react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlossyButton } from '@/components/ui/GlossyButton';
+import { ThemeToggle } from '@/components/layout/ThemeToggle';
 
 const roles = ['מ"פ', 'סמ"פ', 'מ"מ', 'מ"כ', 'רס"פ'];
 const frames = [
@@ -34,7 +35,11 @@ export default function OnboardingPage() {
   };
 
   return (
-    <main className="command-page-shell flex items-center justify-center p-4 sm:p-6 text-right">
+    <main className="command-page-shell relative flex items-center justify-center p-4 sm:p-6 text-right">
+      <div className="absolute left-4 top-4 z-20">
+        <ThemeToggle />
+      </div>
+
       <div className="w-full max-w-2xl">
         <GlassCard glow="orange" className="w-full">
           <div className="mb-6 flex flex-col items-center text-center">

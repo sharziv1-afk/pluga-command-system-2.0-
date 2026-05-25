@@ -50,7 +50,16 @@ Current known state:
 - RLS policies for `public.users` were added manually in Supabase after profile creation failed.
 - Commander RLS policies for reading/managing user profiles were also run manually in Supabase and verified in the live project.
 - `public.users` was empty before the manual RLS policy update.
+- Basic `requests` table already exists in the schema and is used by the first requests/requirements module.
 - Do not change schema, seed, RLS, triggers, or database structure during design-only work.
+
+Requests schema currently used:
+
+- Table: `public.requests`
+- Columns used by the app: `title`, `description`, `status`, `request_type`, `requested_by`, `unit_id`, `metadata`, `created_at`, `updated_at`
+- Existing status enum: `open`, `in_progress`, `approved`, `rejected`, `completed`, `cancelled`
+- Category is stored in `request_type`.
+- Priority and creator display fields are stored in `metadata`.
 
 ## Auth State
 
@@ -277,17 +286,11 @@ Check:
 
 ## Next Safe Steps
 
-1. Finish visual QA for the updated light gloss screens.
-2. Verify lint, TypeScript, and build.
-3. Ensure the Supabase Email Template contains `{{ .Token }}`.
-4. Wait for the Supabase email rate limit to expire.
-5. Send exactly one OTP code from `/login` for a live verification pass.
-6. Confirm that a row is created in `public.users` after `verifyOtp`.
-7. Confirm redirect to `/onboarding`.
-8. If profile creation still fails, read the development terminal log for `Registration profile upsert failed` and inspect `message`, `code`, `details`, and `hint`.
-9. Next recommended product step: build the basic requests/requirements module.
-10. There is still no complete requests/requirements module connected to real data.
-11. Only then continue broader product logic.
+1. Manually verify `/requests` with an approved active commander and a regular/non-commander user.
+2. Confirm that request creation writes a row to `public.requests`.
+3. Confirm RLS allows users to see their own requests and commanders to see/update all requests.
+4. If RLS blocks requests, add policies manually in Supabase; do not disable RLS or use service role keys.
+5. Continue from the basic requests/requirements module toward real request workflows only after the simple flow is verified.
 
 ## Guardrails For Future Agents
 

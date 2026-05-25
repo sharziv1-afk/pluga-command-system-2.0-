@@ -154,6 +154,21 @@ Latest manual verification:
 - Sidebar and mobile header show the connected user and role.
 - Basic role-based interface behavior is working.
 
+## Requests / Requirements
+
+`/requests` is a basic Supabase-backed requests/requirements module.
+
+Current behavior:
+
+- Connected users can open a request.
+- Requests are saved to `public.requests`.
+- The app uses existing schema fields only: `title`, `description`, `status`, `request_type`, `requested_by`, `unit_id`, `metadata`, `created_at`, and `updated_at`.
+- `request_type` stores the request category.
+- `metadata` stores priority and creator display fields.
+- Existing `request_status` values are used: `open`, `in_progress`, `approved`, `rejected`, `completed`, `cancelled`.
+
+Manual RLS verification is still required for request creation, own-request reads, commander all-request reads/updates, and any professional-role category visibility.
+
 ## Design System
 
 Current design direction: **Light Gloss Command System**.
@@ -223,10 +238,11 @@ Protected route checks are handled by `src/proxy.ts`.
 
 ## Next Safe Steps
 
-1. Build the basic requests/requirements module.
-2. Keep it scoped: there is still no complete requests/requirements module connected to real data.
-3. Preserve the verified role-based interface, commander Admin Panel visibility, and Supabase RLS assumptions.
-4. Re-run `npm run lint`, `npx tsc -p tsconfig.json --noEmit`, and `npm run build` after changes.
+1. Manually verify `/requests` against Supabase RLS.
+2. Confirm request creation, listing, and commander status updates.
+3. Keep the module scoped: it is a basic connected module, not a complete workflow yet.
+4. Preserve the verified role-based interface, commander Admin Panel visibility, and Supabase RLS assumptions.
+5. Re-run `npm run lint`, `npx tsc -p tsconfig.json --noEmit`, and `npm run build` after changes.
 
 ## Guardrails
 

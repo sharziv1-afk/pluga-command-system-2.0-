@@ -266,6 +266,40 @@ export default function DashboardPage() {
         })}
       </div>
 
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <GlassCard className="min-h-32" glow="orange">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-2">
+              <span className="block text-xs font-black text-[#667085]">בקשות פתוחות</span>
+              <span className="block text-2xl font-black text-[#020108]">מרכז דרישות</span>
+              <p className="text-xs font-semibold leading-relaxed text-[#667085]">
+                פתיחה ומעקב אחר בקשות מהשטח לפי תפקיד, יחידה וקטגוריה.
+              </p>
+            </div>
+            <Truck className="h-7 w-7 shrink-0 text-[#FF6B02]" />
+          </div>
+          <GlossyButton variant="slate" size="sm" className="mt-4" onClick={() => window.location.href = '/requests'}>
+            מעבר לבקשות
+          </GlossyButton>
+        </GlassCard>
+
+        <GlassCard className="min-h-32">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-2">
+              <span className="block text-xs font-black text-[#667085]">בקשות דחופות</span>
+              <span className="block text-2xl font-black text-[#020108]">לפי הרשאות</span>
+              <p className="text-xs font-semibold leading-relaxed text-[#667085]">
+                מפקדים רואים תמונה רחבה; בעלי תפקיד מקצועיים רואים קטגוריות רלוונטיות.
+              </p>
+            </div>
+            <AlertTriangle className="h-7 w-7 shrink-0 text-red-600" />
+          </div>
+          <GlossyButton variant="slate" size="sm" className="mt-4" onClick={() => window.location.href = '/requests'}>
+            צפייה בדרישות
+          </GlossyButton>
+        </GlassCard>
+      </div>
+
       {/* Main Blocks */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <GlassCard className="space-y-4 lg:col-span-2" glow="none">

@@ -33,6 +33,7 @@ RLS policies for `public.users` were added manually in Supabase after profile cr
 - The app has a protected layout with sidebar/mobile header.
 - Role-based interface is working at a basic level: approved active commanders see commander dashboard content, Admin Panel navigation, and real user/role identity in the sidebar/header.
 - Personal profile page exists and displays the connected user and role.
+- A basic Supabase-backed requests/requirements module now exists at `/requests`.
 - Core UI components exist: `GlassCard`, `GlossyButton`, `StatusBadge`, `EmptyState`.
 - The current UI pass introduced the **Light Gloss Command System**.
 
@@ -120,6 +121,11 @@ npx tsc -p tsconfig.json --noEmit
 npm run build
 ```
 
-Then continue with the next recommended product step: a basic requests/requirements module.
+Then manually verify the basic requests/requirements module:
 
-Important: there is still no complete requests/requirements module connected to real data.
+- Open `/requests`.
+- Create a request and confirm it is written to `public.requests`.
+- Confirm the row includes `title`, `description`, `status`, `request_type`, `requested_by`, `unit_id`, and `metadata`.
+- Confirm a commander can see/update requests and a regular user can at least see their own requests.
+
+Important: `/requests` is now a basic connected module, but it is not yet a complete request workflow.

@@ -534,20 +534,20 @@ export default function RequestsPage() {
       </div>
 
       {/* Filter bar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
+      <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(20rem,1fr)_minmax(10rem,12rem)_minmax(10rem,12rem)_auto] xl:items-center">
+        <div className="relative min-w-0 sm:col-span-2 xl:col-span-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
           <input
             value={searchText}
             onChange={e => setSearchText(e.target.value)}
-            className="command-input pr-9"
-            placeholder="חיפוש לפי כותרת או פירוט..."
+            className="command-input pl-10 pr-4"
+            placeholder="חיפוש לפי כותרת או פירוט"
           />
         </div>
         <select
           value={filterCategory}
           onChange={e => setFilterCategory(e.target.value as RequestCategory | 'הכל')}
-          className="command-select sm:w-36"
+          className="command-select min-w-0"
         >
           <option value="הכל">כל הקטגוריות</option>
           {categories.map(c => <option key={c} value={c}>{c}</option>)}
@@ -555,12 +555,12 @@ export default function RequestsPage() {
         <select
           value={filterPriority}
           onChange={e => setFilterPriority(e.target.value as RequestPriority | 'הכל')}
-          className="command-select sm:w-32"
+          className="command-select min-w-0"
         >
           <option value="הכל">כל העדיפויות</option>
           {priorities.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
-        <GlossyButton variant="slate" size="sm" onClick={loadRequests}>
+        <GlossyButton variant="slate" size="sm" onClick={loadRequests} className="w-full sm:col-span-2 xl:col-span-1 xl:w-auto">
           <RefreshCw className="h-4 w-4" />
           רענון
         </GlossyButton>

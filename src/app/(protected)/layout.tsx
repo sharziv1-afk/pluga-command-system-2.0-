@@ -17,7 +17,7 @@ export default function ProtectedLayout({
       <div className="protected-content-shell flex flex-1 flex-col">
         <MobileHeader />
 
-        <main className="flex-1 max-w-full overflow-x-hidden overflow-y-auto p-4 sm:p-6 lg:p-8 custom-scrollbar">
+        <main className="flex-1 max-w-full overflow-x-hidden overflow-y-auto p-4 sm:p-6 xl:p-8 custom-scrollbar">
           <PageTransition>{children}</PageTransition>
         </main>
       </div>

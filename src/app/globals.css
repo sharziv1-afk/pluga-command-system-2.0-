@@ -110,7 +110,7 @@ textarea {
   min-width: 0;
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 1280px) {
   .protected-content-shell {
     width: auto;
     max-width: calc(100% - 16rem);

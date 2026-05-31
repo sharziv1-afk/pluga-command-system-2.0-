@@ -33,7 +33,7 @@ export const MobileHeader: React.FC = () => {
   const closeMenu = () => setIsOpen(false);
 
   return (
-    <header className="sticky top-0 z-40 flex w-full select-none items-center justify-between gap-3 border-b border-[rgba(2,1,8,0.08)] bg-white/78 px-4 py-3 text-right shadow-[0_10px_26px_rgba(2,1,8,0.05)] backdrop-blur-2xl lg:hidden">
+    <header className="sticky top-0 z-40 flex w-full select-none items-center justify-between gap-3 border-b border-[rgba(2,1,8,0.08)] bg-white/78 px-4 py-3 text-right shadow-[0_10px_26px_rgba(2,1,8,0.05)] backdrop-blur-2xl xl:hidden">
       <div className="flex min-w-0 items-center gap-2">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[#FF6B02]/20 bg-[#FF6B02]/10 text-[#FF6B02]">
           <Shield className="h-4 w-4" />
@@ -56,7 +56,7 @@ export const MobileHeader: React.FC = () => {
       </div>
 
       {isOpen && (
-        <div className="fixed inset-0 top-[65px] z-30 flex justify-start lg:hidden">
+        <div className="fixed inset-0 top-[65px] z-30 flex justify-start xl:hidden">
           <button
             aria-label="סגור תפריט"
             onClick={closeMenu}

@@ -30,7 +30,7 @@ export const AppSidebar: React.FC = () => {
   });
 
   return (
-    <aside className="hidden lg:flex fixed inset-y-0 right-0 z-30 w-64 select-none flex-col border-e border-[rgba(2,1,8,0.10)] bg-white/72 text-right shadow-[0_18px_50px_rgba(2,1,8,0.08)] backdrop-blur-2xl">
+    <aside className="hidden xl:flex fixed inset-y-0 right-0 z-30 w-64 select-none flex-col border-e border-[rgba(2,1,8,0.10)] bg-white/72 text-right shadow-[0_18px_50px_rgba(2,1,8,0.08)] backdrop-blur-2xl">
       <div className="border-b border-[rgba(2,1,8,0.08)] p-5">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#FF6B02]/22 bg-[#FF6B02]/10 text-[#FF6B02]">

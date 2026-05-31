@@ -11,7 +11,12 @@ import { SystemStatusPanel } from '@/components/layout/SystemStatusPanel';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { useApp } from '@/lib/context/AppContext';
 
-export const AppSidebar: React.FC = () => {
+type AppSidebarProps = {
+  className?: string;
+  onNavigate?: () => void;
+};
+
+export const AppSidebar: React.FC<AppSidebarProps> = ({ className, onNavigate }) => {
   const pathname = usePathname();
   const { currentUser, isLoading } = useApp();
 
@@ -30,7 +35,7 @@ export const AppSidebar: React.FC = () => {
   });
 
   return (
-    <aside className="hidden xl:flex fixed inset-y-0 right-0 z-30 w-64 select-none flex-col border-e border-[rgba(2,1,8,0.10)] bg-white/72 text-right shadow-[0_18px_50px_rgba(2,1,8,0.08)] backdrop-blur-2xl">
+    <aside className={cn('relative z-30 flex h-svh shrink-0 select-none flex-col border-e border-[rgba(2,1,8,0.10)] bg-white/72 text-right shadow-[0_18px_50px_rgba(2,1,8,0.08)] backdrop-blur-2xl', className)}>
       <div className="border-b border-[rgba(2,1,8,0.08)] p-5">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#FF6B02]/22 bg-[#FF6B02]/10 text-[#FF6B02]">
@@ -57,6 +62,7 @@ export const AppSidebar: React.FC = () => {
             <Link
               key={item.path}
               href={item.path}
+              onClick={onNavigate}
               className={cn(
                 'group flex min-h-11 items-center gap-3 rounded-2xl border px-3 text-sm font-bold transition-all duration-150',
                 isActive

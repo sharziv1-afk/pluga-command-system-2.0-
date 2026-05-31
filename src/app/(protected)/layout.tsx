@@ -1,4 +1,6 @@
-import React from 'react';
+'use client';
+
+import React, { useState } from 'react';
 import { AppSidebar } from '@/components/layout/AppSidebar';
 import { MobileHeader } from '@/components/layout/MobileHeader';
 import { PageTransition } from '@/components/layout/PageTransition';
@@ -8,16 +10,21 @@ export default function ProtectedLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   return (
-    <div className="protected-layout-shell command-page-shell flex flex-col">
+    <div className="protected-layout-shell command-page-shell flex">
       <div className="tactical-overlay" />
 
-      <AppSidebar />
+      <AppSidebar className="hidden w-64 xl:flex" />
 
       <div className="protected-content-shell flex flex-1 flex-col">
-        <MobileHeader />
+        <MobileHeader
+          isSidebarOpen={isSidebarOpen}
+          onToggleSidebar={() => setIsSidebarOpen((value) => !value)}
+        />
 
-        <main className="flex-1 max-w-full overflow-x-hidden overflow-y-auto p-4 sm:p-6 xl:p-8 custom-scrollbar">
+        <main className="flex-1 min-w-0 max-w-full overflow-x-hidden overflow-y-auto p-4 sm:p-6 xl:p-8 custom-scrollbar">
           <PageTransition>{children}</PageTransition>
         </main>
       </div>

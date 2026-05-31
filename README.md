@@ -162,9 +162,10 @@ Current behavior:
 
 - Connected users can open a request.
 - Requests are saved to `public.requests`.
-- The app uses existing schema fields only: `title`, `description`, `status`, `request_type`, `requested_by`, `unit_id`, `metadata`, `created_at`, and `updated_at`.
+- The app uses existing schema fields only: `title`, `description`, `status`, `request_type`, `requested_by`, `assigned_to`, `unit_id`, `metadata`, `created_at`, and `updated_at`.
 - `request_type` stores the request category.
 - `metadata` stores priority and creator display fields.
+- `assigned_to` stores the assigned handler as `public.users.id`.
 - Existing `request_status` values are used: `open`, `in_progress`, `approved`, `rejected`, `completed`, `cancelled`.
 
 Manual verification passed:
@@ -173,8 +174,9 @@ Manual verification passed:
 - Requests are saved to `public.requests`.
 - RLS policies for `public.requests` were run manually in Supabase and work.
 - Approved + active commanders can see requests.
+- Approved + active commanders can assign or remove a request handler through `assigned_to`.
 
-The module is still a basic connected module. It is not yet a complete request workflow with filters, queues, statistics, and full status actions.
+The module includes Requests Workflow v1 with filters, queues, statistics, status actions, and basic assignee management. It does not yet include comments/history, audit trail, notifications, SLA, or attachments.
 
 ## Design System
 
@@ -245,7 +247,7 @@ Protected route checks are handled by `src/proxy.ts`.
 
 ## Next Safe Steps
 
-1. Build **Requests Workflow v1** with filters, queues, statistics, and status actions.
+1. Continue from Requests Workflow v1 toward comments/history, audit trail, SLA, and richer assignment workflows.
 2. Keep RLS enabled and use only policies intentionally added in Supabase.
 3. Keep the module scoped: it is a verified basic connected module, not a complete workflow yet.
 4. Preserve the verified role-based interface, commander Admin Panel visibility, and Supabase RLS assumptions.

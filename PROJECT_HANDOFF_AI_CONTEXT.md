@@ -60,10 +60,11 @@ Current known state:
 Requests schema currently used:
 
 - Table: `public.requests`
-- Columns used by the app: `title`, `description`, `status`, `request_type`, `requested_by`, `unit_id`, `metadata`, `created_at`, `updated_at`
+- Columns used by the app: `title`, `description`, `status`, `request_type`, `requested_by`, `assigned_to`, `unit_id`, `metadata`, `created_at`, `updated_at`
 - Existing status enum: `open`, `in_progress`, `approved`, `rejected`, `completed`, `cancelled`
 - Category is stored in `request_type`.
 - Priority and creator display fields are stored in `metadata`.
+- Assigned handler is stored in `assigned_to` as `public.users.id`.
 
 ## Auth State
 
@@ -296,6 +297,7 @@ Check:
 - **7 queue tabs**: הכל / שלי / פתוחות / דחופות / בטיפול / הושלמו / נדחו|בוטלו — each shows a live count badge.
 - **Filter bar**: free-text search (title + description), category dropdown, priority dropdown. Each filter is independent of tab selection.
 - **Assigned-to display**: fetches assignee names in a safe secondary query; shows "טרם הוקצה" when null or RLS blocks.
+- **Assignee management**: approved commanders / permission >= 90 can choose an active approved `public.users` profile as handler, or remove the assignment. This updates only `public.requests.assigned_to` and does not change status.
 - **Commander action buttons** (permission >= 90): contextual buttons per status (קבל לטיפול / אשר / סמן הושלם / דחה / בטל). Non-commanders see a dropdown.
 - **Per-tab/filter empty states** with context-appropriate messages.
 - Schema unchanged. RLS unchanged. No new policies needed.
@@ -307,7 +309,7 @@ Check:
 1. Manual QA of Requests Workflow v1 with a live connected user (tabs, filters, action buttons, assignee display).
 2. Keep using the existing `public.requests` schema unless a future schema change is explicitly approved.
 3. Keep RLS enabled; if workflow status actions require additional policies, propose SQL for manual Supabase execution.
-4. Future: comments on requests, assign-to UI, file attachments, SLA indicators.
+4. Future: comments/history, audit trail, richer assignment workflow, file attachments, SLA indicators.
 5. Future: migrate tasks/forum from AppContext demo layer to real Supabase queries.
 
 ## Guardrails For Future Agents

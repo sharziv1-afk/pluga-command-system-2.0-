@@ -38,7 +38,7 @@ RLS policies for `public.users` were added manually in Supabase after profile cr
 - A basic Supabase-backed requests/requirements module now exists at `/requests`.
 - The requests module was manually verified: request creation works and writes to `public.requests`.
 - RLS policies for `public.requests` were run manually in Supabase and work.
-- **Requests Workflow v1** is implemented: queue tabs, text/category/priority filters, 4-stat header, assigned-to display, commander action buttons (קבל לטיפול / אשר / סמן הושלם / דחה / בטל), per-tab empty states. Schema unchanged.
+- **Requests Workflow v1** is implemented: queue tabs, text/category/priority filters, 4-stat header, assigned-to display, commander assignee management through `assigned_to`, commander action buttons (קבל לטיפול / אשר / סמן הושלם / דחה / בטל), per-tab empty states. Schema unchanged and RLS unchanged.
 - Dashboard updated with a third "בקשות בטיפול" card linking to `/requests`.
 - Core UI components exist: `GlassCard`, `GlossyButton`, `StatusBadge`, `EmptyState`.
 - The current UI pass introduced the **Light Gloss Command System**.
@@ -55,6 +55,7 @@ Manual testing passed after the commander RLS policies were applied in Supabase:
 - `/requests` works.
 - A new request can be created and is saved in `public.requests`.
 - Approved + active commanders can see requests after the manual `public.requests` RLS policy update.
+- Approved + active commanders can assign or remove a request handler; `assigned_to` stores `public.users.id`.
 
 ## Latest Design Change
 
@@ -133,5 +134,5 @@ npm run build
 Next recommended feature steps:
 
 - Manual QA of Requests Workflow v1 (tabs, filters, action buttons) with a live connected user.
-- Future enhancements: comments on requests, assign-to UI, file attachments, SLA indicators.
+- Future enhancements: comments/history, audit trail, richer assignment workflow, file attachments, SLA indicators.
 - Move tasks/forum from AppContext demo layer to real Supabase queries when ready.

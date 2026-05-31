@@ -31,9 +31,19 @@ type TabId = 'all' | 'mine' | 'open' | 'urgent' | 'in_progress' | 'completed' | 
 type DbProfile = {
   id: string;
   name: string;
+  email?: string;
   role: string;
   unit_id: string | null;
   permission_level: number;
+  units: { name: string } | null;
+};
+
+type AssigneeUser = {
+  id: string;
+  name: string | null;
+  email: string;
+  role: string;
+  unit_id: string | null;
   units: { name: string } | null;
 };
 
@@ -59,7 +69,7 @@ type RawRequest = {
   updated_at: string;
 };
 
-type DbRequest = RawRequest & { assigneeName: string | null };
+type DbRequest = RawRequest & { assigneeName: string | null; assigneeRole: string | null };
 
 const categories: RequestCategory[] = ['לוגיסטיקה', 'רפואה', 'קשר', 'רכב', 'כוח אדם', 'אחר'];
 const priorities: RequestPriority[] = ['נמוכה', 'רגילה', 'גבוהה', 'דחופה'];
@@ -152,6 +162,10 @@ function logSupabaseError(message: string, error: { message?: string; code?: str
   console.error(message, { message: error.message, code: error.code, details: error.details, hint: error.hint });
 }
 
+function getAssigneeDisplayName(user: Pick<AssigneeUser, 'name' | 'email'>) {
+  return user.name || user.email;
+}
+
 function filterByTab(request: DbRequest, tab: TabId, profileId: string | undefined): boolean {
   switch (tab) {
     case 'all': return true;
@@ -181,11 +195,14 @@ export default function RequestsPage() {
   const { currentUser, isLoading: isContextLoading } = useApp();
   const [dbProfile, setDbProfile] = useState<DbProfile | null>(null);
   const [requests, setRequests] = useState<DbRequest[]>([]);
+  const [assigneeUsers, setAssigneeUsers] = useState<AssigneeUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
+  const [updatingAssigneeId, setUpdatingAssigneeId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [assigneeLoadError, setAssigneeLoadError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -206,6 +223,7 @@ export default function RequestsPage() {
     if (!currentUser) { setIsLoading(false); return; }
     setIsLoading(true);
     setError(null);
+    setAssigneeLoadError(null);
 
     try {
       const { data: profileData, error: profileError } = await supabase
@@ -225,6 +243,25 @@ export default function RequestsPage() {
       }
       setDbProfile(profileData);
 
+      let assignableUsers: AssigneeUser[] = [];
+      if (isCommanderRole(profileData.role, profileData.permission_level)) {
+        const { data: usersData, error: usersError } = await supabase
+          .from('users')
+          .select('id,name,email,role,unit_id,units(name)')
+          .eq('status', 'active')
+          .eq('role_approval_status', 'approved')
+          .order('name', { ascending: true })
+          .returns<AssigneeUser[]>();
+
+        if (usersError) {
+          logSupabaseError('Assignable users load failed', usersError);
+          setAssigneeLoadError('לא ניתן לטעון רשימת מטפלים');
+        } else {
+          assignableUsers = usersData ?? [];
+        }
+      }
+      setAssigneeUsers(assignableUsers);
+
       const { data: requestData, error: requestsError } = await supabase
         .from('requests')
         .select('id,title,description,status,request_type,requested_by,assigned_to,unit_id,metadata,created_at,updated_at')
@@ -240,16 +277,29 @@ export default function RequestsPage() {
       const raw = requestData ?? [];
 
       // Lookup assignee display names; falls back to null if RLS blocks access
+      const assignableById = new Map(assignableUsers.map(user => [user.id, user]));
       const assigneeIds = [...new Set(raw.filter(r => r.assigned_to).map(r => r.assigned_to as string))];
-      const assigneeNames: Record<string, string> = {};
-      if (assigneeIds.length > 0) {
-        const { data: assigneeData } = await supabase.from('users').select('id,name').in('id', assigneeIds);
+      const assigneeNames: Record<string, { name: string; role: string | null }> = {};
+      for (const user of assignableUsers) {
+        assigneeNames[user.id] = { name: getAssigneeDisplayName(user), role: user.role };
+      }
+      const missingAssigneeIds = assigneeIds.filter(id => !assignableById.has(id));
+      if (missingAssigneeIds.length > 0) {
+        const { data: assigneeData } = await supabase
+          .from('users')
+          .select('id,name,email,role')
+          .in('id', missingAssigneeIds)
+          .returns<Array<Pick<AssigneeUser, 'id' | 'name' | 'email' | 'role'>>>();
         if (assigneeData) {
-          for (const u of assigneeData) assigneeNames[u.id] = u.name;
+          for (const u of assigneeData) assigneeNames[u.id] = { name: getAssigneeDisplayName(u), role: u.role };
         }
       }
 
-      setRequests(raw.map(r => ({ ...r, assigneeName: r.assigned_to ? (assigneeNames[r.assigned_to] ?? null) : null })));
+      setRequests(raw.map(r => ({
+        ...r,
+        assigneeName: r.assigned_to ? (assigneeNames[r.assigned_to]?.name ?? null) : null,
+        assigneeRole: r.assigned_to ? (assigneeNames[r.assigned_to]?.role ?? null) : null,
+      })));
     } finally {
       setIsLoading(false);
     }
@@ -364,6 +414,39 @@ export default function RequestsPage() {
   };
 
   const hasActiveFilters = searchText !== '' || filterCategory !== 'הכל' || filterPriority !== 'הכל';
+  const handleAssigneeChange = async (request: DbRequest, value: string) => {
+    if (!canSeeAll) return;
+    const nextAssigneeId = value === 'none' ? null : value;
+    setUpdatingAssigneeId(request.id);
+    setError(null);
+    setSuccess(null);
+
+    const { error: updateError } = await supabase
+      .from('requests')
+      .update({ assigned_to: nextAssigneeId })
+      .eq('id', request.id);
+
+    setUpdatingAssigneeId(null);
+    if (updateError) {
+      logSupabaseError('Request assignee update failed', updateError);
+      setError('לא ניתן לעדכן מטפל לבקשה');
+      return;
+    }
+
+    const selectedUser = nextAssigneeId ? assigneeUsers.find(user => user.id === nextAssigneeId) : null;
+    setRequests(current => current.map(item => (
+      item.id === request.id
+        ? {
+            ...item,
+            assigned_to: nextAssigneeId,
+            assigneeName: selectedUser ? getAssigneeDisplayName(selectedUser) : null,
+            assigneeRole: selectedUser?.role ?? null,
+          }
+        : item
+    )));
+    setSuccess('המטפל עודכן');
+  };
+
   const emptyText = getTabEmptyText(activeTab);
 
   if (isContextLoading || isLoading) {
@@ -596,6 +679,7 @@ export default function RequestsPage() {
             const requestPriority = getRequestPriority(request);
             const metadata = request.metadata ?? {};
             const isUpdating = updatingStatusId === request.id;
+            const isUpdatingAssignee = updatingAssigneeId === request.id;
             const canUpdate = canUpdateRequestStatus(request);
             const actions = STATUS_ACTIONS[request.status] ?? [];
             const showActionButtons = canSeeAll && actions.length > 0;
@@ -632,9 +716,39 @@ export default function RequestsPage() {
                   <span>יחידה: <strong className="text-[#020108]">{metadata.creator_unit || 'לא ידוע'}</strong></span>
                   <span className="flex items-center gap-1">
                     <UserCheck className="h-3.5 w-3.5 shrink-0" />
-                    מטפל: <strong className="text-[#020108]">{request.assigneeName ?? 'טרם הוקצה'}</strong>
+                    מטפל: <strong className="text-[#020108]">
+                      {request.assigneeName ? `${request.assigneeName}${request.assigneeRole ? ` · ${request.assigneeRole}` : ''}` : 'טרם הוקצה'}
+                    </strong>
                   </span>
                 </div>
+
+                {canSeeAll && (
+                  <div className="flex flex-col gap-2 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/58 p-3 sm:flex-row sm:items-center">
+                    <span className="shrink-0 text-[11px] font-black text-[#98A2B3]">שיוך מטפל</span>
+                    <select
+                      value={request.assigned_to ?? 'none'}
+                      onChange={event => handleAssigneeChange(request, event.target.value)}
+                      className="command-select min-h-10 flex-1 text-xs"
+                      disabled={isUpdatingAssignee || (assigneeUsers.length === 0 && !request.assigned_to)}
+                    >
+                      <option value="none">{request.assigned_to ? 'הסר שיוך' : 'בחר מטפל'}</option>
+                      {request.assigned_to && !assigneeUsers.some(user => user.id === request.assigned_to) && (
+                        <option value={request.assigned_to}>
+                          {request.assigneeName ? `${request.assigneeName}${request.assigneeRole ? ` · ${request.assigneeRole}` : ''}` : 'מטפל לא זמין'}
+                        </option>
+                      )}
+                      {assigneeUsers.map(user => (
+                        <option key={user.id} value={user.id}>
+                          {getAssigneeDisplayName(user)} · {user.role}{user.units?.name ? ` · ${user.units.name}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    {isUpdatingAssignee && <Loader2 className="h-4 w-4 animate-spin text-[#FF6B02]" />}
+                    {assigneeLoadError && (
+                      <span className="text-[11px] font-bold text-red-700">{assigneeLoadError}</span>
+                    )}
+                  </div>
+                )}
 
                 {canUpdate && (
                   <div className="flex flex-wrap items-center gap-2 pt-1">

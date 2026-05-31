@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Clock3,
   Loader2,
+  MessageSquareText,
   Plus,
   RefreshCw,
   Search,
@@ -55,6 +56,11 @@ type RequestMetadata = {
   creator_unit?: string;
 };
 
+type CommentMetadata = {
+  author_name?: string;
+  author_role?: string;
+};
+
 type RawRequest = {
   id: string;
   title: string;
@@ -70,6 +76,18 @@ type RawRequest = {
 };
 
 type DbRequest = RawRequest & { assigneeName: string | null; assigneeRole: string | null };
+
+type DbComment = {
+  id: string;
+  entity_type: 'request';
+  entity_id: string;
+  user_id: string | null;
+  body: string;
+  metadata: CommentMetadata | null;
+  created_at: string;
+  updated_at: string;
+  users: { name: string | null; email: string | null; role: string | null } | null;
+};
 
 const categories: RequestCategory[] = ['לוגיסטיקה', 'רפואה', 'קשר', 'רכב', 'כוח אדם', 'אחר'];
 const priorities: RequestPriority[] = ['נמוכה', 'רגילה', 'גבוהה', 'דחופה'];
@@ -157,6 +175,16 @@ function formatDate(value: string) {
   });
 }
 
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString('he-IL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 function logSupabaseError(message: string, error: { message?: string; code?: string; details?: string; hint?: string }) {
   if (process.env.NODE_ENV !== 'development') return;
   console.error(message, { message: error.message, code: error.code, details: error.details, hint: error.hint });
@@ -201,6 +229,12 @@ export default function RequestsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [updatingAssigneeId, setUpdatingAssigneeId] = useState<string | null>(null);
+  const [openComments, setOpenComments] = useState<Record<string, boolean>>({});
+  const [commentsByRequest, setCommentsByRequest] = useState<Record<string, DbComment[]>>({});
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
+  const [loadingCommentsId, setLoadingCommentsId] = useState<string | null>(null);
+  const [submittingCommentId, setSubmittingCommentId] = useState<string | null>(null);
+  const [commentErrors, setCommentErrors] = useState<Record<string, string | null>>({});
   const [error, setError] = useState<string | null>(null);
   const [assigneeLoadError, setAssigneeLoadError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -447,6 +481,80 @@ export default function RequestsPage() {
     setSuccess('המטפל עודכן');
   };
 
+  const loadComments = async (requestId: string) => {
+    setLoadingCommentsId(requestId);
+    setCommentErrors(current => ({ ...current, [requestId]: null }));
+
+    const { data, error: commentsError } = await supabase
+      .from('comments')
+      .select('id,entity_type,entity_id,user_id,body,metadata,created_at,updated_at,users:user_id(name,email,role)')
+      .eq('entity_type', 'request')
+      .eq('entity_id', requestId)
+      .order('created_at', { ascending: true })
+      .returns<DbComment[]>();
+
+    setLoadingCommentsId(null);
+    if (commentsError) {
+      logSupabaseError('Request comments load failed', commentsError);
+      setCommentErrors(current => ({ ...current, [requestId]: 'לא ניתן לטעון את היסטוריית הטיפול' }));
+      return;
+    }
+
+    setCommentsByRequest(current => ({ ...current, [requestId]: data ?? [] }));
+  };
+
+  const toggleComments = async (requestId: string) => {
+    const nextOpen = !openComments[requestId];
+    setOpenComments(current => ({ ...current, [requestId]: nextOpen }));
+    if (nextOpen && !commentsByRequest[requestId]) {
+      await loadComments(requestId);
+    }
+  };
+
+  const handleAddComment = async (request: DbRequest) => {
+    if (!currentUser || !dbProfile) return;
+    const body = (commentDrafts[request.id] ?? '').trim();
+    if (!body) {
+      setCommentErrors(current => ({ ...current, [request.id]: 'יש לכתוב עדכון טיפול לפני השליחה' }));
+      return;
+    }
+
+    setSubmittingCommentId(request.id);
+    setCommentErrors(current => ({ ...current, [request.id]: null }));
+    setError(null);
+    setSuccess(null);
+
+    const metadata: CommentMetadata = {
+      author_name: dbProfile.name || currentUser.full_name,
+      author_role: dbProfile.role || currentUser.role,
+    };
+
+    const { data, error: insertError } = await supabase
+      .from('comments')
+      .insert({
+        entity_type: 'request',
+        entity_id: request.id,
+        user_id: dbProfile.id,
+        body,
+        metadata,
+      })
+      .select('id,entity_type,entity_id,user_id,body,metadata,created_at,updated_at,users:user_id(name,email,role)')
+      .single<DbComment>();
+
+    setSubmittingCommentId(null);
+    if (insertError) {
+      logSupabaseError('Request comment insert failed', insertError);
+      setCommentErrors(current => ({ ...current, [request.id]: 'לא ניתן להוסיף עדכון טיפול' }));
+      return;
+    }
+
+    if (data) {
+      setCommentsByRequest(current => ({ ...current, [request.id]: [...(current[request.id] ?? []), data] }));
+    }
+    setCommentDrafts(current => ({ ...current, [request.id]: '' }));
+    setSuccess('עדכון הטיפול נשמר');
+  };
+
   const emptyText = getTabEmptyText(activeTab);
 
   if (isContextLoading || isLoading) {
@@ -683,6 +791,11 @@ export default function RequestsPage() {
             const canUpdate = canUpdateRequestStatus(request);
             const actions = STATUS_ACTIONS[request.status] ?? [];
             const showActionButtons = canSeeAll && actions.length > 0;
+            const isCommentsOpen = Boolean(openComments[request.id]);
+            const comments = commentsByRequest[request.id] ?? [];
+            const commentError = commentErrors[request.id];
+            const isLoadingComments = loadingCommentsId === request.id;
+            const isSubmittingComment = submittingCommentId === request.id;
 
             return (
               <GlassCard key={request.id} className="space-y-4">
@@ -784,6 +897,87 @@ export default function RequestsPage() {
                     )}
                   </div>
                 )}
+
+                <div className="border-t border-[rgba(2,1,8,0.08)] pt-3">
+                  <button
+                    type="button"
+                    onClick={() => toggleComments(request.id)}
+                    className="inline-flex min-h-10 items-center gap-2 rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/60 px-3 py-2 text-xs font-black text-[#020108] transition-all duration-150 hover:border-[#FF6B02]/30 hover:bg-[#FF6B02]/10"
+                  >
+                    <MessageSquareText className="h-4 w-4 text-[#FF6B02]" />
+                    {isCommentsOpen ? 'הסתר היסטוריית טיפול' : 'הצג היסטוריית טיפול'}
+                    {comments.length > 0 && (
+                      <span className="rounded-full bg-[#FF6B02]/12 px-2 py-0.5 text-[10px] text-[#C54F00]">
+                        {comments.length}
+                      </span>
+                    )}
+                  </button>
+
+                  {isCommentsOpen && (
+                    <div className="mt-3 space-y-3 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/52 p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <h4 className="text-xs font-black text-[#020108]">היסטוריית טיפול</h4>
+                        {isLoadingComments && <Loader2 className="h-4 w-4 animate-spin text-[#FF6B02]" />}
+                      </div>
+
+                      {commentError && (
+                        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-700">
+                          {commentError}
+                        </div>
+                      )}
+
+                      {!isLoadingComments && !commentError && comments.length === 0 && (
+                        <p className="rounded-xl border border-[rgba(2,1,8,0.08)] bg-white/50 px-3 py-3 text-xs font-bold text-[#667085]">
+                          אין עדיין עדכוני טיפול לבקשה זו
+                        </p>
+                      )}
+
+                      {comments.length > 0 && (
+                        <div className="space-y-2">
+                          {comments.map(comment => {
+                            const authorName = comment.metadata?.author_name || comment.users?.name || comment.users?.email || 'משתמש';
+                            const authorRole = comment.metadata?.author_role || comment.users?.role;
+                            return (
+                              <div key={comment.id} className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/62 p-3">
+                                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                                  <span className="text-xs font-black text-[#020108]">
+                                    {authorName}{authorRole ? ` · ${authorRole}` : ''}
+                                  </span>
+                                  <span className="text-[11px] font-bold text-[#98A2B3]">{formatDateTime(comment.created_at)}</span>
+                                </div>
+                                <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-relaxed text-[#667085]">
+                                  {comment.body}
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      <div className="space-y-2">
+                        <textarea
+                          value={commentDrafts[request.id] ?? ''}
+                          onChange={event => setCommentDrafts(current => ({ ...current, [request.id]: event.target.value }))}
+                          className="command-input min-h-24 resize-none text-sm"
+                          placeholder="כתוב עדכון טיפול..."
+                          disabled={isSubmittingComment}
+                        />
+                        <div className="flex justify-end">
+                          <GlossyButton
+                            type="button"
+                            variant="orange"
+                            size="sm"
+                            onClick={() => handleAddComment(request)}
+                            disabled={isSubmittingComment}
+                          >
+                            {isSubmittingComment && <Loader2 className="h-4 w-4 animate-spin" />}
+                            הוסף עדכון
+                          </GlossyButton>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </GlassCard>
             );
           })}

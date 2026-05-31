@@ -176,7 +176,17 @@ Manual verification passed:
 - Approved + active commanders can see requests.
 - Approved + active commanders can assign or remove a request handler through `assigned_to`.
 
-The module includes Requests Workflow v1 with filters, queues, statistics, status actions, and basic assignee management. It does not yet include comments/history, audit trail, notifications, SLA, or attachments.
+The module includes Requests Workflow v1 with filters, queues, statistics, status actions, basic assignee management, and basic request treatment comments. It does not yet include audit trail, notifications, SLA, or attachments.
+
+Request treatment history is now wired through the existing generic `public.comments` table:
+
+- Request comments use `entity_type = 'request'` and `entity_id = public.requests.id`.
+- `user_id` stores the author as `public.users.id`.
+- `body` stores the treatment update text.
+- `metadata` stores author display fields such as name and role.
+- No schema change was made for this feature.
+
+The comments feature still needs live Supabase/RLS verification. Future enhancements remain: audit trail, attachments, SLA, notifications, and richer treatment history workflows.
 
 ## Design System
 

@@ -111,12 +111,13 @@ const STATUS_ACTIONS: Partial<Record<RequestStatus, Array<{ label: string; nextS
 };
 
 function normalizeRole(role: string) {
-  return role.replace(/[״׳´"]/g, '"');
+  return role.replace(/[״׳´"“”]/g, '"');
 }
 
 function isCommanderRole(role: string, permissionLevel: number) {
   const normalizedRole = normalizeRole(role);
-  return permissionLevel >= 90 || normalizedRole.includes('מ"פ') || normalizedRole.includes('סמ"פ');
+  const inferredLevel = getPermissionLevelForRole(normalizedRole);
+  return permissionLevel >= 90 || inferredLevel >= 90 || normalizedRole.includes('מ"פ') || normalizedRole.includes('סמ"פ');
 }
 
 function professionalCategories(role: string): RequestCategory[] {
@@ -538,6 +539,7 @@ export default function RequestsPage() {
         <div className="relative min-w-0 sm:col-span-2 xl:col-span-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
           <input
+            type="text"
             value={searchText}
             onChange={e => setSearchText(e.target.value)}
             className="command-input pl-10 pr-4"

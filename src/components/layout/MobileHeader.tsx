@@ -20,10 +20,10 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({ isSidebarOpen = fals
   const { currentUser } = useApp();
 
   const hasAdminAccess = currentUser && (
-    (currentUser.role as string) === '׳׳´׳₪' ||
-    (currentUser.role as string) === '׳"׳₪' ||
-    (currentUser.role as string) === '׳¡׳׳´׳₪' ||
-    (currentUser.role as string) === '׳¡׳"׳₪'
+    (currentUser.role as string) === 'מ״פ' ||
+    (currentUser.role as string) === 'מ"פ' ||
+    (currentUser.role as string) === 'סמ״פ' ||
+    (currentUser.role as string) === 'סמ"פ'
   );
 
   const filteredNavigationItems = navigationItems.filter(item => {

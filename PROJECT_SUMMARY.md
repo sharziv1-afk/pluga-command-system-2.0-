@@ -38,6 +38,8 @@ RLS policies for `public.users` were added manually in Supabase after profile cr
 - A basic Supabase-backed requests/requirements module now exists at `/requests`.
 - The requests module was manually verified: request creation works and writes to `public.requests`.
 - RLS policies for `public.requests` were run manually in Supabase and work.
+- **Requests Workflow v1** is implemented: queue tabs, text/category/priority filters, 4-stat header, assigned-to display, commander action buttons (קבל לטיפול / אשר / סמן הושלם / דחה / בטל), per-tab empty states. Schema unchanged.
+- Dashboard updated with a third "בקשות בטיפול" card linking to `/requests`.
 - Core UI components exist: `GlassCard`, `GlossyButton`, `StatusBadge`, `EmptyState`.
 - The current UI pass introduced the **Light Gloss Command System**.
 
@@ -128,9 +130,8 @@ npx tsc -p tsconfig.json --noEmit
 npm run build
 ```
 
-Next recommended feature step:
+Next recommended feature steps:
 
-- Build **Requests Workflow v1** with filters, queues, statistics, and status actions.
-- Preserve the verified basic request creation flow and manual Supabase RLS assumptions.
-
-Important: `/requests` is now a manually verified basic connected module, but it is not yet a complete request workflow.
+- Manual QA of Requests Workflow v1 (tabs, filters, action buttons) with a live connected user.
+- Future enhancements: comments on requests, assign-to UI, file attachments, SLA indicators.
+- Move tasks/forum from AppContext demo layer to real Supabase queries when ready.

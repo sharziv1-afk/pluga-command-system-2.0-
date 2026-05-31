@@ -288,13 +288,27 @@ Check:
 - No content hidden by stuck `opacity: 0`
 - No dark theme relapse
 
+## Requests Workflow v1 — Completed
+
+`/requests` was upgraded from a basic form to a full command request workflow:
+
+- **4-stat header**: פתוחות / דחופות / בטיפול / הושלמו — computed live from Supabase results.
+- **7 queue tabs**: הכל / שלי / פתוחות / דחופות / בטיפול / הושלמו / נדחו|בוטלו — each shows a live count badge.
+- **Filter bar**: free-text search (title + description), category dropdown, priority dropdown. Each filter is independent of tab selection.
+- **Assigned-to display**: fetches assignee names in a safe secondary query; shows "טרם הוקצה" when null or RLS blocks.
+- **Commander action buttons** (permission >= 90): contextual buttons per status (קבל לטיפול / אשר / סמן הושלם / דחה / בטל). Non-commanders see a dropdown.
+- **Per-tab/filter empty states** with context-appropriate messages.
+- Schema unchanged. RLS unchanged. No new policies needed.
+- Dashboard updated: third card "בקשות בטיפול" added; grid changed from 2→3 columns.
+- lint: 0 / tsc: 0 / build: success (13 routes).
+
 ## Next Safe Steps
 
-1. Continue to **Requests Workflow v1** with filters, queues, statistics, and status actions.
+1. Manual QA of Requests Workflow v1 with a live connected user (tabs, filters, action buttons, assignee display).
 2. Keep using the existing `public.requests` schema unless a future schema change is explicitly approved.
 3. Keep RLS enabled; if workflow status actions require additional policies, propose SQL for manual Supabase execution.
-4. Preserve the verified basic request creation flow and commander visibility.
-5. Do not turn the basic requests module into a broad tasks/workflow system without a scoped request.
+4. Future: comments on requests, assign-to UI, file attachments, SLA indicators.
+5. Future: migrate tasks/forum from AppContext demo layer to real Supabase queries.
 
 ## Guardrails For Future Agents
 

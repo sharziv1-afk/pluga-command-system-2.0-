@@ -266,7 +266,7 @@ export default function DashboardPage() {
         })}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <GlassCard className="min-h-32" glow="orange">
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-2">
@@ -296,6 +296,22 @@ export default function DashboardPage() {
           </div>
           <GlossyButton variant="slate" size="sm" className="mt-4" onClick={() => window.location.href = '/requests'}>
             צפייה בדרישות
+          </GlossyButton>
+        </GlassCard>
+
+        <GlassCard className="min-h-32">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-2">
+              <span className="block text-xs font-black text-[#667085]">בקשות בטיפול</span>
+              <span className="block text-2xl font-black text-[#020108]">פעולות תורים</span>
+              <p className="text-xs font-semibold leading-relaxed text-[#667085]">
+                תורים, פילטרים וסטטוסים לניהול בקשות פעילות לפי עדיפות.
+              </p>
+            </div>
+            <Clock className="h-7 w-7 shrink-0 text-blue-500" />
+          </div>
+          <GlossyButton variant="slate" size="sm" className="mt-4" onClick={() => window.location.href = '/requests'}>
+            לניהול בקשות
           </GlossyButton>
         </GlassCard>
       </div>

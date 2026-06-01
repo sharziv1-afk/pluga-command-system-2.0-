@@ -1,5 +1,41 @@
 # Project Summary - pluga-command-system
 
+## Restart Snapshot - 2026-06-01
+
+Latest pushed feature commit before this docs-only handoff:
+
+```txt
+3582eeb Add request treatment history comments
+```
+
+The project is a Hebrew RTL company command-management system named **"המפקד"**. It is built with Next.js 16 App Router, React 19, TypeScript, Tailwind CSS 4, Supabase Auth/PostgreSQL/RLS, and GitHub. Future deployment target: Vercel. The project uses `src/proxy.ts`; do not create `middleware.ts`.
+
+Current product state:
+
+- Auth works.
+- First registration uses Email OTP + password setup.
+- Existing login uses email + password.
+- OTP supports 8 digits.
+- Supabase Email Template must use `{{ .Token }}`.
+- Dev Login is development-only.
+- Magic Link callback remains as fallback.
+- Role Based Interface works.
+- Approved + active commanders see role-specific dashboard and Admin.
+- Profile page works.
+- Sidebar/Header display name, role, and unit.
+- Requests module works with Supabase.
+- Request creation has been manually verified.
+- `public.users` and `public.requests` RLS were run manually in Supabase and work.
+- Request assignee management has been implemented and pushed; live verification of latest `assigned_to` update/removal is still recommended.
+- Request treatment comments have been implemented and pushed; live verification of `public.comments` select/insert under RLS is still required.
+
+Immediate next steps:
+
+1. Manually test request assignee update/removal against Supabase.
+2. Manually test request comments select/insert against Supabase.
+3. If comments are blocked by RLS, prepare a `public.comments` policy for manual Supabase execution.
+4. Then consider real audit logs, richer treatment history, improved assignee workflow, tasks-to-Supabase migration, and Vercel deployment.
+
 ## Current State
 
 `pluga-command-system` is the repository for **"המפקד"**, a Hebrew RTL company command-management system.
@@ -136,3 +172,86 @@ Next recommended feature steps:
 - Manual QA of Requests Workflow v1 (tabs, filters, action buttons) with a live connected user.
 - Future enhancements: audit trail, richer treatment history, file attachments, SLA indicators, notifications.
 - Move tasks/forum from AppContext demo layer to real Supabase queries when ready.
+
+## Final Handoff Notes For Restart
+
+Product roles currently documented for the role-based interface:
+
+- מ"פ
+- סמ"פ
+- ע. מ"פ
+- מ"מ
+- מ"כ
+- סמל
+- רס"פ / לוגיסטיקה
+- חובש פלוגתי
+- קשר פלוגתי
+- ב.קוד / נהג
+
+Requests module details:
+
+- Basic request creation writes to `public.requests`.
+- `request_type` stores category.
+- `metadata.priority` stores priority.
+- `metadata.creator_name`, `metadata.creator_role`, and `metadata.creator_unit` store creator display fields.
+- `requested_by = public.users.id`.
+- `unit_id` is stored when available.
+- Queue tabs: הכל, שלי, פתוחות, דחופות, בטיפול, הושלמו, נדחו/בוטלו.
+- Status actions:
+  - `open ->` קבל לטיפול / אשר / דחה / בטל
+  - `in_progress ->` אשר / סמן הושלם / דחה / בטל
+  - `approved ->` סמן הושלם / בטל
+  - terminal statuses have no actions.
+- Assign Request Owner lets approved commanders / high-permission users set or remove `public.requests.assigned_to`.
+- Regular users can see the handler but cannot change it.
+- Request Comments / Treatment History uses existing `public.comments`:
+  - `entity_type = 'request'`
+  - `entity_id = request.id`
+  - `user_id = public.users.id`
+  - `body =` comment text
+  - `metadata = { author_name, author_role }`
+  - empty comments are blocked client-side.
+
+RLS and Supabase:
+
+- `supabase/migrations/002_rls_policies.sql` documents manually-run RLS for `public.users` and `public.requests`.
+- `public.is_commander(auth_id uuid)` uses `SECURITY DEFINER` and `SET search_path = public`.
+- It checks active + approved users whose role is מ"פ/סמ"פ or whose `permission_level >= 90`.
+- `public.comments` exists and is used by the app, but comments select/insert still requires live RLS verification.
+- Do not run SQL automatically.
+- Do not use a service role key in frontend code.
+
+UI and Browser QA:
+
+- Claude Code Browser QA covered login, dashboard, requests, admin, profile, and widths `1440`, `1280`, `1200`, `1024`, `768`, and `390`.
+- Fixed after QA: mobile Admin link, commander action visibility, role quote normalization, filter/search issue, compact navigation, and QuickHelp modal positioning.
+- Theme toggle supports day/night while preserving Light Gloss Command System.
+- Final responsive layout: fixed sidebar at `1280px+`; compact top navigation inside the flow below `1280px`; one menu button; no overlay hiding content.
+
+Technical debt / known risks:
+
+- `AppContext` still contains demo/localStorage state.
+- `tasks` and `forum` still rely on mock/localStorage behavior.
+- `Profile.status` currently maps `role_approval_status`, not `users.status`.
+- `users.role` is text, not a foreign key to `roles`.
+- Request priority is stored in `metadata`, not a dedicated column.
+- Latest `assigned_to` and comments features need live Supabase/RLS QA.
+- `audit_logs` exists in schema but is not connected to real DB activity yet.
+- No Vercel deployment yet.
+- No notifications, SLA, attachments, Realtime, or full audit trail yet.
+
+Recent important commits:
+
+- `c8aa98d Allow 8 digit email OTP codes`
+- `02c54e5 Use password login for existing users and OTP registration`
+- `652276b Add password visibility toggles`
+- `6f6c0d4 Add role based interface and commander approval panel`
+- `7521e75 Add basic requests module`
+- `3760a2a Document verified requests flow`
+- `a296ef6 Stabilize RLS policy documentation and admin client`
+- `6b2d7f6 Add requests workflow filters and status queues`
+- `388a815 Fix responsive layout and requests search input`
+- `c4e1ad6 Fix compact navigation and quick help modal`
+- `c22177c Fix mobile admin link and commander role detection`
+- `2e1d576 Add request assignee management`
+- `3582eeb Add request treatment history comments`

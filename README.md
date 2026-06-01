@@ -12,11 +12,12 @@ Latest pushed feature commit before this docs-only handoff:
 
 Important: this project uses **Next.js 16 `src/proxy.ts`**, not `middleware.ts`.
 
-Current immediate next step after restart:
+Current verified state after comments RLS QA:
 
-1. Verify live that request assignee updates write to `public.requests.assigned_to`.
-2. Verify live that treatment comments can select/insert rows in `public.comments`.
-3. If comments RLS blocks, propose a `public.comments` policy for manual Supabase execution; do not bypass RLS in code.
+1. Request assignee updates write to `public.requests.assigned_to`.
+2. `public.comments` RLS policies are documented in `supabase/migrations/002_rls_policies.sql`.
+3. Treatment comments select/insert were verified manually against Supabase.
+4. Request Treatment History works in the site with no React code changes required.
 
 Role-based UI currently targets: מ"פ, סמ"פ, ע. מ"פ, מ"מ, מ"כ, סמל, רס"פ / לוגיסטיקה, חובש פלוגתי, קשר פלוגתי, ב.קוד / נהג.
 
@@ -123,8 +124,9 @@ Current project state:
 - `seed_units_roles.sql` includes company, platoons 1-4, logistics, medical, communications, vehicles, and the main command/professional roles.
 - Commander RLS policies for reading/managing user profiles were run manually in Supabase and verified with an approved + active commander.
 - `public.requests` RLS policies were run manually in Supabase and verified.
-- `supabase/migrations/002_rls_policies.sql` documents the manually-applied `public.is_commander()` helper and users/requests policies for recovery or new-environment setup.
-- `public.comments` exists and is used by request treatment history, but comments select/insert still needs live Supabase/RLS verification.
+- `supabase/migrations/002_rls_policies.sql` documents the manually-applied `public.is_commander()` helper and users/requests/comments policies for recovery or new-environment setup.
+- `public.comments` RLS was added manually in Supabase and documented in Git.
+- `public.comments` select/insert for request treatment history was manually verified against Supabase.
 - Do not change schema, RLS, triggers, seed, or database structure during design-only work.
 
 ## Auth Status
@@ -242,9 +244,7 @@ Request treatment history is now wired through the existing generic `public.comm
 - `metadata` stores author display fields such as name and role.
 - No schema change was made for this feature.
 
-The comments feature still needs live Supabase/RLS verification. Future enhancements remain: audit trail, attachments, SLA, notifications, and richer treatment history workflows.
-
-If comments are blocked by RLS, propose a dedicated `public.comments` policy for manual Supabase execution. Do not bypass RLS in code.
+The comments feature has passed live Supabase/RLS verification. Future enhancements remain: audit trail, attachments, SLA, notifications, and richer treatment history workflows.
 
 ## Design System
 
@@ -318,11 +318,8 @@ Protected route checks are handled by `src/proxy.ts`.
 
 ## Next Safe Steps
 
-1. Live QA: verify `public.requests.assigned_to` update and removal.
-2. Live QA: verify `public.comments` select/insert for treatment history.
-3. If comments RLS blocks, prepare SQL for a dedicated comments policy and run it manually only after approval.
-4. Then consider real `audit_logs`, richer treatment history, improved assignee workflow, tasks-to-Supabase migration, and Vercel deployment.
-5. Re-run `npm run lint`, `npx tsc -p tsconfig.json --noEmit`, and `npm run build` after changes.
+1. Consider real `audit_logs`, richer treatment history, improved assignee workflow, tasks-to-Supabase migration, and Vercel deployment.
+2. Re-run `npm run lint`, `npx tsc -p tsconfig.json --noEmit`, and `npm run build` after changes.
 
 ## Technical Debt / Known Risks
 
@@ -331,7 +328,7 @@ Protected route checks are handled by `src/proxy.ts`.
 - `Profile.status` currently maps `role_approval_status`, not `users.status`; this is intentional until app-level types are remapped.
 - `users.role` is text, not a foreign key to `roles`.
 - Request priority is stored in `metadata`, not a dedicated column.
-- `assigned_to` and treatment comments need final live Supabase/RLS QA after the latest UI work.
+- `assigned_to` and treatment comments passed live Supabase/RLS QA after the latest UI work.
 - `audit_logs` exists in schema but is not connected to real DB activity yet.
 - No Vercel deployment yet.
 - No notifications, SLA, attachments, Realtime, or full audit trail yet.

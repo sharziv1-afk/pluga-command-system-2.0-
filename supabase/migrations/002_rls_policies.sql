@@ -164,3 +164,46 @@ create policy "requests: commander update all"
   to authenticated
   using ( public.is_commander(auth.uid()) )
   with check ( public.is_commander(auth.uid()) );
+
+
+-- ============================================================
+-- D. RLS: public.comments
+-- ============================================================
+
+alter table public.comments enable row level security;
+
+-- D1. Authenticated users can read request comments for requests they can view.
+drop policy if exists "comments: select request comments for request viewers" on public.comments;
+create policy "comments: select request comments for request viewers"
+  on public.comments
+  for select
+  to authenticated
+  using (
+    entity_type = 'request'
+    and exists (
+      select 1
+        from public.requests
+       where requests.id = comments.entity_id
+    )
+  );
+
+-- D2. Authenticated users can add their own treatment update to a request they can view.
+--     The user_id value must match their own public.users.id.
+drop policy if exists "comments: insert own request comments for request viewers" on public.comments;
+create policy "comments: insert own request comments for request viewers"
+  on public.comments
+  for insert
+  to authenticated
+  with check (
+    entity_type = 'request'
+    and user_id = (
+      select id from public.users
+       where auth_user_id = auth.uid()
+       limit 1
+    )
+    and exists (
+      select 1
+        from public.requests
+       where requests.id = comments.entity_id
+    )
+  );

@@ -70,11 +70,12 @@ Stack:
 - Browser QA with Playwright/Chrome was performed by Claude Code across login, dashboard, requests, admin, profile, and responsive widths `1440`, `1280`, `1200`, `1024`, `768`, `390`.
 - Browser QA findings that were fixed: missing mobile Admin link, commander action visibility caused by role/permission normalization, search/filter issue, compact navigation issues, and QuickHelp positioning.
 
-### Manual QA Still Required
+### Latest Manual QA
 
-- Verify `assigned_to` update live in Supabase after the latest assignee UI.
-- Verify `public.comments` select/insert live in Supabase/RLS after the latest treatment history feature.
-- If `public.comments` is blocked by RLS, prepare a dedicated comments policy and run it manually in Supabase only after approval.
+- `assigned_to` update was verified live in Supabase after the latest assignee UI.
+- `public.comments` RLS policies were applied manually in Supabase and documented in `supabase/migrations/002_rls_policies.sql`.
+- `public.comments` select/insert was verified live against Supabase/RLS after the treatment history feature.
+- Request Treatment History works in the site; no React code change was required.
 
 ### Important Commits
 
@@ -132,7 +133,7 @@ Assign Request Owner:
 - Commanders / permission >= 90 can assign a handler through a select.
 - Regular users can see the handler but cannot change it.
 - Removing assignment sets `public.requests.assigned_to = null`.
-- No schema or RLS change was made.
+- No schema change was made. `public.comments` RLS policies were added manually in Supabase and documented in Git.
 
 Request Comments / Treatment History:
 
@@ -145,7 +146,7 @@ Request Comments / Treatment History:
 - `metadata = { author_name, author_role }`.
 - Empty comments are blocked client-side.
 - Clear errors are shown if comment loading or insertion fails.
-- Live Supabase/RLS verification is still required for `public.comments`.
+- Live Supabase/RLS verification passed for `public.comments` select/insert.
 
 ### Supabase / Schema / Seed
 
@@ -176,7 +177,7 @@ RLS:
 - It checks active + approved users whose role is מ"פ/סמ"פ or whose `permission_level >= 90`.
 - `public.users` policies: select own profile, commander select all, commander update all.
 - `public.requests` policies: insert own, select own, select own unit, commander select all, commander update all.
-- `public.comments` table exists and is used by the app, but comments RLS still needs live verification.
+- `public.comments` table exists and is used by the app. Comments RLS is documented and select/insert was manually verified.
 - Do not run SQL automatically. Propose SQL and wait for manual Supabase execution approval.
 - Never put a service role key in frontend code.
 
@@ -200,21 +201,15 @@ RLS:
 - `Profile.status` currently maps `role_approval_status` because the app-level `UserStatusType` is `pending | approved | rejected`; it does not directly represent `users.status` (`active | pending | blocked | inactive`). Do not change this without full type and authorization mapping.
 - `users.role` is text, not a foreign key to `roles`.
 - Request priority is stored in `metadata`, not a dedicated column.
-- `assigned_to` works in UI but still needs live Supabase verification after latest changes.
-- Comments/history were added but require live comments RLS verification.
+- `assigned_to` works in UI and passed live Supabase verification after latest changes.
+- Comments/history were added and passed live comments RLS verification.
 - `audit_logs` exists in schema but is not connected to real DB activity yet.
 - No Vercel deployment yet.
 - No notifications, SLA, attachments, Realtime, or full audit trail yet.
 
 ### Recommended Next Steps
 
-1. Live QA:
-   - Verify request assignee update in Supabase.
-   - Verify comments select/insert in Supabase.
-2. If comments RLS blocks:
-   - Prepare a dedicated `public.comments` RLS policy.
-   - Do not bypass RLS in code.
-3. Then continue with one of:
+1. Continue with one of:
    - Real `audit_logs` connection.
    - Richer treatment history polish.
    - Improved assignee workflow.
@@ -229,11 +224,11 @@ RLS:
 
 ### Prompt For A New ChatGPT Chat
 
-Continue the project `pluga-command-system` / "המפקד". It is a Hebrew RTL company command-management system built with Next.js 16, React 19, TypeScript, Tailwind CSS 4, Supabase Auth/PostgreSQL/RLS, and GitHub. Auth works with hybrid auth: first registration uses Email OTP + password setup, existing login uses email + password, OTP supports 8 digits, Dev Login is development-only, password visibility toggles exist, and Magic Link callback remains fallback. Role Based Interface works: approved active commanders see dashboard and Admin, Profile page works, Sidebar/Header show user/role/unit. Requests module works: request creation, workflow queues, search, filters, status actions, assignee display, assignee management, and treatment comments are implemented. RLS for users/requests was run manually and works; `supabase/migrations/002_rls_policies.sql` documents it. Immediate next step: manually verify latest `assigned_to` update/removal and `public.comments` select/insert against Supabase/RLS. Do not change Auth, schema, seed, proxy, AppContext, or RLS without approval.
+Continue the project `pluga-command-system` / "המפקד". It is a Hebrew RTL company command-management system built with Next.js 16, React 19, TypeScript, Tailwind CSS 4, Supabase Auth/PostgreSQL/RLS, and GitHub. Auth works with hybrid auth: first registration uses Email OTP + password setup, existing login uses email + password, OTP supports 8 digits, Dev Login is development-only, password visibility toggles exist, and Magic Link callback remains fallback. Role Based Interface works: approved active commanders see dashboard and Admin, Profile page works, Sidebar/Header show user/role/unit. Requests module works: request creation, workflow queues, search, filters, status actions, assignee display, assignee management, and treatment comments are implemented. RLS for users/requests/comments was run manually and works; `supabase/migrations/002_rls_policies.sql` documents it. Request Treatment History works in the site with no React code changes required for the RLS fix. Do not change Auth, schema, seed, proxy, AppContext, or RLS without approval.
 
 ### Prompt For A New Codex Chat
 
-Open `C:\Users\Maltak 123\Desktop\pluga-command-system` on branch `main`. Read `README.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`, `PROJECT_SUMMARY.md`, `AGENTS.md`, and `CLAUDE.md` first. The last known feature commit before docs handoff is `3582eeb Add request treatment history comments`. The project uses Next.js 16 `src/proxy.ts`, not middleware. Working assumptions: code is stable, Light Gloss Command System is primary, `.claude/` is ignored, AppContext still has demo/localStorage state, tasks/forum are still mock/localStorage, and service role keys must never enter frontend code. Next safe work is live QA for request assignee updates and `public.comments` RLS; if comments fail due to RLS, propose SQL only and wait for manual Supabase execution approval.
+Open `C:\Users\Maltak 123\Desktop\pluga-command-system` on branch `main`. Read `README.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`, `PROJECT_SUMMARY.md`, `AGENTS.md`, and `CLAUDE.md` first. The last known feature commit before docs handoff is `3582eeb Add request treatment history comments`. The project uses Next.js 16 `src/proxy.ts`, not middleware. Working assumptions: code is stable, Light Gloss Command System is primary, `.claude/` is ignored, AppContext still has demo/localStorage state, tasks/forum are still mock/localStorage, and service role keys must never enter frontend code. Request assignee updates and `public.comments` select/insert have passed live Supabase/RLS QA.
 
 ## Current Snapshot
 
@@ -283,7 +278,7 @@ Current known state:
 - RLS policies for `public.requests` were run manually in Supabase and work.
 - Request creation from `/requests` was manually verified and writes to `public.requests`.
 - Approved + active commanders can see requests.
-- `supabase/migrations/002_rls_policies.sql` was added to version-control the `public.is_commander()` function and all RLS policies for `public.users` and `public.requests`. These were previously only applied manually. The file is idempotent (safe to re-run) and is intended for recovery or new-environment setup — it does NOT need to be re-run in the existing production database.
+- `supabase/migrations/002_rls_policies.sql` was added to version-control the `public.is_commander()` function and all RLS policies for `public.users`, `public.requests`, and `public.comments`. These were previously only applied manually. The file is idempotent (safe to re-run) and is intended for recovery or new-environment setup — it does NOT need to be re-run in the existing production database unless policies need recovery.
 - Do not change schema, seed, RLS, triggers, or database structure during design-only work.
 
 Requests schema currently used:
@@ -528,10 +523,10 @@ Check:
 - **Filter bar**: free-text search (title + description), category dropdown, priority dropdown. Each filter is independent of tab selection.
 - **Assigned-to display**: fetches assignee names in a safe secondary query; shows "טרם הוקצה" when null or RLS blocks.
 - **Assignee management**: approved commanders / permission >= 90 can choose an active approved `public.users` profile as handler, or remove the assignment. This updates only `public.requests.assigned_to` and does not change status.
-- **Treatment history**: each request card can open a compact comments panel backed by `public.comments`. Users who can view a request can add a treatment update. Comments store author display metadata and do not change request status.
+- **Treatment history**: each request card can open a compact comments panel backed by `public.comments`. Users who can view a request can add a treatment update. Comments store author display metadata and do not change request status. Select/insert was manually verified against Supabase.
 - **Commander action buttons** (permission >= 90): contextual buttons per status (קבל לטיפול / אשר / סמן הושלם / דחה / בטל). Non-commanders see a dropdown.
 - **Per-tab/filter empty states** with context-appropriate messages.
-- Schema unchanged. RLS unchanged. No new policies needed.
+- Schema unchanged. `public.comments` RLS policies are documented in `002_rls_policies.sql`.
 - Dashboard updated: third card "בקשות בטיפול" added; grid changed from 2→3 columns.
 - lint: 0 / tsc: 0 / build: success (13 routes).
 

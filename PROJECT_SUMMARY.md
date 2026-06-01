@@ -26,15 +26,15 @@ Current product state:
 - Requests module works with Supabase.
 - Request creation has been manually verified.
 - `public.users` and `public.requests` RLS were run manually in Supabase and work.
-- Request assignee management has been implemented and pushed; live verification of latest `assigned_to` update/removal is still recommended.
-- Request treatment comments have been implemented and pushed; live verification of `public.comments` select/insert under RLS is still required.
+- Request assignee management has been implemented and pushed; latest `assigned_to` update was verified live against Supabase.
+- Request treatment comments have been implemented and pushed.
+- `public.comments` RLS policies were added manually in Supabase and documented in `supabase/migrations/002_rls_policies.sql`.
+- `public.comments` select/insert was manually verified against Supabase.
+- Request Treatment History works in the site, and no React code change was required.
 
 Immediate next steps:
 
-1. Manually test request assignee update/removal against Supabase.
-2. Manually test request comments select/insert against Supabase.
-3. If comments are blocked by RLS, prepare a `public.comments` policy for manual Supabase execution.
-4. Then consider real audit logs, richer treatment history, improved assignee workflow, tasks-to-Supabase migration, and Vercel deployment.
+1. Consider real audit logs, richer treatment history, improved assignee workflow, tasks-to-Supabase migration, and Vercel deployment.
 
 ## Current State
 
@@ -55,7 +55,7 @@ The schema and seed were already run manually in Supabase. The seed file is kept
 
 RLS policies for `public.users` were added manually in Supabase after profile creation failed. `public.users` was empty before those policies were added. Commander RLS policies for reading/managing user profiles were also run manually in Supabase and verified.
 
-`supabase/migrations/002_rls_policies.sql` now documents the `public.is_commander()` helper function and all RLS policies for `public.users` and `public.requests` in version control. This file was not previously tracked in Git. It is idempotent and can be used to restore policies in a new or reset environment. It does not need to be re-run on the existing production database.
+`supabase/migrations/002_rls_policies.sql` now documents the `public.is_commander()` helper function and all RLS policies for `public.users`, `public.requests`, and `public.comments` in version control. This file was not previously tracked in Git. It is idempotent and can be used to restore policies in a new or reset environment. It does not need to be re-run on the existing production database unless policies need recovery.
 
 ## What Has Been Done
 
@@ -74,7 +74,7 @@ RLS policies for `public.users` were added manually in Supabase after profile cr
 - A basic Supabase-backed requests/requirements module now exists at `/requests`.
 - The requests module was manually verified: request creation works and writes to `public.requests`.
 - RLS policies for `public.requests` were run manually in Supabase and work.
-- **Requests Workflow v1** is implemented: queue tabs, text/category/priority filters, 4-stat header, assigned-to display, commander assignee management through `assigned_to`, basic treatment comments through the existing `public.comments` table, commander action buttons (קבל לטיפול / אשר / סמן הושלם / דחה / בטל), per-tab empty states. Schema unchanged and RLS unchanged.
+- **Requests Workflow v1** is implemented: queue tabs, text/category/priority filters, 4-stat header, assigned-to display, commander assignee management through `assigned_to`, basic treatment comments through the existing `public.comments` table, commander action buttons (קבל לטיפול / אשר / סמן הושלם / דחה / בטל), per-tab empty states. Schema unchanged; comments RLS is now documented.
 - Dashboard updated with a third "בקשות בטיפול" card linking to `/requests`.
 - Core UI components exist: `GlassCard`, `GlossyButton`, `StatusBadge`, `EmptyState`.
 - The current UI pass introduced the **Light Gloss Command System**.
@@ -214,10 +214,10 @@ Requests module details:
 
 RLS and Supabase:
 
-- `supabase/migrations/002_rls_policies.sql` documents manually-run RLS for `public.users` and `public.requests`.
+- `supabase/migrations/002_rls_policies.sql` documents manually-run RLS for `public.users`, `public.requests`, and `public.comments`.
 - `public.is_commander(auth_id uuid)` uses `SECURITY DEFINER` and `SET search_path = public`.
 - It checks active + approved users whose role is מ"פ/סמ"פ or whose `permission_level >= 90`.
-- `public.comments` exists and is used by the app, but comments select/insert still requires live RLS verification.
+- `public.comments` exists and is used by the app; comments select/insert was manually verified live against Supabase.
 - Do not run SQL automatically.
 - Do not use a service role key in frontend code.
 
@@ -235,7 +235,7 @@ Technical debt / known risks:
 - `Profile.status` currently maps `role_approval_status`, not `users.status`.
 - `users.role` is text, not a foreign key to `roles`.
 - Request priority is stored in `metadata`, not a dedicated column.
-- Latest `assigned_to` and comments features need live Supabase/RLS QA.
+- Latest `assigned_to` and comments features passed live Supabase/RLS QA.
 - `audit_logs` exists in schema but is not connected to real DB activity yet.
 - No Vercel deployment yet.
 - No notifications, SLA, attachments, Realtime, or full audit trail yet.

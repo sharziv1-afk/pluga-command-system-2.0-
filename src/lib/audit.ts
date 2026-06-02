@@ -7,6 +7,7 @@ export type AuditActionType =
   | 'request_comment_added'
   | 'request_deleted'
   | 'task_created'
+  | 'task_updated'
   | 'task_status_changed'
   | 'task_deleted'
   | 'event_created'

@@ -7,10 +7,12 @@ import {
   CheckCircle2,
   ClipboardList,
   Loader2,
+  Pencil,
   Plus,
   RefreshCw,
   Trash2,
   UserCheck,
+  X,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -50,7 +52,7 @@ type TaskUser = {
 type EventOption = {
   id: string;
   title: string;
-  starts_at: string;
+  starts_at: string | null;
   ends_at?: string | null;
 };
 
@@ -149,6 +151,15 @@ function formatEventTimeLabel(startsAt: string | null, endsAt: string | null) {
   return end ? `${start}–${end}` : start;
 }
 
+function formatDateTimeLocalInput(value: string | null) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return offsetDate.toISOString().slice(0, 16);
+}
+
 function getTaskMetadata(task: DbTask): TaskMetadata {
   return (task.metadata ?? {}) as TaskMetadata;
 }
@@ -182,8 +193,10 @@ export default function TasksPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
+  const [editingTask, setEditingTask] = useState<TaskView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TaskTab>('all');
@@ -196,6 +209,15 @@ export default function TasksPage() {
   const [category, setCategory] = useState('');
   const [location, setLocation] = useState('');
   const [outputRequired, setOutputRequired] = useState('');
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editPriority, setEditPriority] = useState<TaskPriority>('רגילה');
+  const [editAssignedTo, setEditAssignedTo] = useState('none');
+  const [editEventId, setEditEventId] = useState('none');
+  const [editDueAt, setEditDueAt] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editLocation, setEditLocation] = useState('');
+  const [editOutputRequired, setEditOutputRequired] = useState('');
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const profilePermissionLevel = dbProfile?.permission_level ?? getPermissionLevelForRole(currentUser?.role ?? '');
@@ -355,6 +377,40 @@ export default function TasksPage() {
     [activeTab, tasks, dbProfile?.id],
   );
 
+  const editAssigneeOptions = useMemo(() => {
+    if (!editingTask?.assigned_to || assignableUsers.some(user => user.id === editingTask.assigned_to)) {
+      return assignableUsers;
+    }
+
+    return [
+      ...assignableUsers,
+      {
+        id: editingTask.assigned_to,
+        name: editingTask.assigneeName,
+        email: '',
+        role: '',
+        unit_id: null,
+        units: null,
+      },
+    ];
+  }, [assignableUsers, editingTask]);
+
+  const editEventOptions = useMemo(() => {
+    if (!editingTask?.event_id || eventOptions.some(event => event.id === editingTask.event_id)) {
+      return eventOptions;
+    }
+
+    return [
+      ...eventOptions,
+      {
+        id: editingTask.event_id,
+        title: editingTask.eventTitle ?? 'מופע קיים',
+        starts_at: null,
+        ends_at: null,
+      },
+    ];
+  }, [editingTask, eventOptions]);
+
   const openCount = tasks.filter(task => task.status === 'open').length;
   const inProgressCount = tasks.filter(task => task.status === 'in_progress' || task.status === 'blocked').length;
   const completedCount = tasks.filter(task => task.status === 'completed').length;
@@ -480,8 +536,123 @@ export default function TasksPage() {
     return canSeeAll || task.created_by === dbProfile.id;
   };
 
+  const canEditTask = (task: TaskView) => canSeeAll || task.created_by === dbProfile?.id;
+
   const canDeleteCompletedTask = (task: TaskView) => {
     return canSeeAll && activeTab === 'completed' && task.status === 'completed';
+  };
+
+  const openEditTask = (task: TaskView) => {
+    if (!canEditTask(task)) return;
+
+    const metadata = getTaskMetadata(task);
+    const taskPriority = priorityOptions.includes(task.priority as TaskPriority) ? (task.priority as TaskPriority) : 'רגילה';
+
+    setEditingTask(task);
+    setEditTitle(task.title);
+    setEditDescription(task.description ?? '');
+    setEditPriority(taskPriority);
+    setEditAssignedTo(task.assigned_to ?? 'none');
+    setEditEventId(task.event_id ?? 'none');
+    setEditDueAt(formatDateTimeLocalInput(task.due_at));
+    setEditCategory(metadata.category ?? '');
+    setEditLocation(metadata.location ?? '');
+    setEditOutputRequired(metadata.output_required ?? '');
+  };
+
+  const closeEditTask = () => {
+    if (isEditSubmitting) return;
+    setEditingTask(null);
+    setEditTitle('');
+    setEditDescription('');
+    setEditPriority('רגילה');
+    setEditAssignedTo('none');
+    setEditEventId('none');
+    setEditDueAt('');
+    setEditCategory('');
+    setEditLocation('');
+    setEditOutputRequired('');
+  };
+
+  const handleEditTask = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!dbProfile || !editingTask || !canEditTask(editingTask)) return;
+
+    const cleanTitle = editTitle.trim();
+    if (!cleanTitle) {
+      setError('יש להזין כותרת למשימה.');
+      return;
+    }
+
+    const previousMetadata = getTaskMetadata(editingTask);
+    const nextMetadata: Record<string, unknown> = {
+      ...(editingTask.metadata ?? {}),
+      category: editCategory.trim() || null,
+      location: editLocation.trim() || null,
+      output_required: editOutputRequired.trim() || null,
+    };
+
+    const nextValues = {
+      title: cleanTitle,
+      description: editDescription.trim() || null,
+      priority: editPriority,
+      assigned_to: editAssignedTo === 'none' ? null : editAssignedTo,
+      due_at: editDueAt ? new Date(editDueAt).toISOString() : null,
+      event_id: editEventId === 'none' ? null : editEventId,
+      metadata: nextMetadata,
+    };
+
+    setIsEditSubmitting(true);
+    setError(null);
+    setSuccess(null);
+
+    const { error: updateError } = await supabase
+      .from('tasks')
+      .update(nextValues)
+      .eq('id', editingTask.id);
+
+    setIsEditSubmitting(false);
+
+    if (updateError) {
+      logSupabaseError('Task edit failed', updateError);
+      setError('לא ניתן לעדכן את המשימה. ייתכן שמדיניות RLS מאפשרת עריכה רק ליוצר המשימה או למפקד.');
+      return;
+    }
+
+    void createAuditLog(supabase, {
+      userId: dbProfile.id,
+      userName: dbProfile.name,
+      userRole: dbProfile.role,
+      actionType: 'task_updated',
+      entityType: 'task',
+      entityId: editingTask.id,
+      previousValue: {
+        title: editingTask.title,
+        description: editingTask.description,
+        priority: editingTask.priority,
+        assigned_to: editingTask.assigned_to,
+        due_at: editingTask.due_at,
+        event_id: editingTask.event_id,
+        category: previousMetadata.category ?? null,
+        location: previousMetadata.location ?? null,
+        output_required: previousMetadata.output_required ?? null,
+      },
+      newValue: {
+        title: nextValues.title,
+        description: nextValues.description,
+        priority: nextValues.priority,
+        assigned_to: nextValues.assigned_to,
+        due_at: nextValues.due_at,
+        event_id: nextValues.event_id,
+        category: nextMetadata.category,
+        location: nextMetadata.location,
+        output_required: nextMetadata.output_required,
+      },
+    });
+
+    setEditingTask(null);
+    setSuccess('המשימה עודכנה.');
+    await loadTasks();
   };
 
   const handleStatusChange = async (task: TaskView, nextStatus: TaskStatus) => {
@@ -792,6 +963,7 @@ export default function TasksPage() {
             const taskStatus = statusOptions.includes(task.status as TaskStatus) ? (task.status as TaskStatus) : 'open';
             const taskPriority = priorityOptions.includes(task.priority as TaskPriority) ? (task.priority as TaskPriority) : 'רגילה';
             const canUpdate = canUpdateTaskStatus(task);
+            const canEdit = canEditTask(task);
 
             return (
               <GlassCard key={task.id} className="space-y-4">
@@ -852,6 +1024,16 @@ export default function TasksPage() {
 
                   {canUpdate ? (
                     <div className="flex flex-wrap items-center gap-2">
+                      {canEdit && (
+                        <GlossyButton
+                          variant="slate"
+                          size="sm"
+                          onClick={() => openEditTask(task)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                          ערוך
+                        </GlossyButton>
+                      )}
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-[#667085]">עדכון סטטוס</span>
                         <select
@@ -884,6 +1066,160 @@ export default function TasksPage() {
               </GlassCard>
             );
           })}
+        </div>
+      )}
+
+      {editingTask && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/20 p-3 sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="task-edit-title"
+          onClick={closeEditTask}
+        >
+          <form
+            onSubmit={handleEditTask}
+            className="flex max-h-[85svh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-[rgba(2,1,8,0.10)] bg-white/95 shadow-[0_24px_70px_rgba(2,1,8,0.18)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[rgba(2,1,8,0.08)] px-5 py-4">
+              <div>
+                <p className="text-xs font-black text-[#FF6B02]">עריכת משימה</p>
+                <h2 id="task-edit-title" className="mt-1 text-xl font-black text-[#020108]">
+                  {editingTask.title}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={closeEditTask}
+                className="rounded-full border border-[rgba(2,1,8,0.10)] bg-white/80 p-2 text-[#667085] transition hover:border-[#FF6B02]/30 hover:text-[#020108] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#FF6B02]/18"
+                aria-label="סגור עריכת משימה"
+                disabled={isEditSubmitting}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 custom-scrollbar">
+              <div className="grid gap-4 lg:grid-cols-2">
+                <label className="space-y-1 lg:col-span-2">
+                  <span className="text-xs font-bold text-[#667085]">כותרת</span>
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(event) => setEditTitle(event.target.value)}
+                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                    required
+                  />
+                </label>
+
+                <label className="space-y-1 lg:col-span-2">
+                  <span className="text-xs font-bold text-[#667085]">תיאור</span>
+                  <textarea
+                    value={editDescription}
+                    onChange={(event) => setEditDescription(event.target.value)}
+                    className="min-h-24 w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                  />
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-xs font-bold text-[#667085]">עדיפות</span>
+                  <select
+                    value={editPriority}
+                    onChange={(event) => setEditPriority(event.target.value as TaskPriority)}
+                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                  >
+                    {priorityOptions.map(item => <option key={item} value={item}>{item}</option>)}
+                  </select>
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-xs font-bold text-[#667085]">אחראי</span>
+                  <select
+                    value={editAssignedTo}
+                    onChange={(event) => setEditAssignedTo(event.target.value)}
+                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                  >
+                    <option value="none">טרם הוקצה</option>
+                    {editAssigneeOptions.map(user => (
+                      <option key={user.id} value={user.id}>
+                        {getUserDisplayName(user)}{user.role ? ` · ${user.role}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-xs font-bold text-[#667085]">תאריך יעד</span>
+                  <input
+                    type="datetime-local"
+                    value={editDueAt}
+                    onChange={(event) => setEditDueAt(event.target.value)}
+                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                  />
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-xs font-bold text-[#667085]">שייך למופע</span>
+                  <select
+                    value={editEventId}
+                    onChange={(event) => setEditEventId(event.target.value)}
+                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                  >
+                    <option value="none">ללא שיוך</option>
+                    {editEventOptions.map(event => (
+                      <option key={event.id} value={event.id}>
+                        {event.title}{event.starts_at ? ` — ${formatDateTime(event.starts_at)}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-xs font-bold text-[#667085]">קטגוריה</span>
+                  <input
+                    type="text"
+                    value={editCategory}
+                    onChange={(event) => setEditCategory(event.target.value)}
+                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                  />
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-xs font-bold text-[#667085]">מיקום</span>
+                  <input
+                    type="text"
+                    value={editLocation}
+                    onChange={(event) => setEditLocation(event.target.value)}
+                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                  />
+                </label>
+
+                <label className="space-y-1 lg:col-span-2">
+                  <span className="text-xs font-bold text-[#667085]">תוצר נדרש</span>
+                  <input
+                    type="text"
+                    value={editOutputRequired}
+                    onChange={(event) => setEditOutputRequired(event.target.value)}
+                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="flex shrink-0 flex-col gap-2 border-t border-[rgba(2,1,8,0.08)] bg-white/76 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs font-bold text-[#98A2B3]">סטטוס המשימה מתעדכן מהכרטיס עצמו.</p>
+              <div className="flex gap-2">
+                <GlossyButton variant="slate" type="button" onClick={closeEditTask} disabled={isEditSubmitting}>
+                  ביטול
+                </GlossyButton>
+                <GlossyButton variant="orange" type="submit" disabled={isEditSubmitting}>
+                  {isEditSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                  שמור
+                </GlossyButton>
+              </div>
+            </div>
+          </form>
         </div>
       )}
     </div>

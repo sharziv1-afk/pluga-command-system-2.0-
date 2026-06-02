@@ -11,6 +11,7 @@ import {
   RefreshCw,
   Search,
   ShieldAlert,
+  Trash2,
   Truck,
   UserCheck,
 } from 'lucide-react';
@@ -230,6 +231,7 @@ export default function RequestsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [updatingAssigneeId, setUpdatingAssigneeId] = useState<string | null>(null);
+  const [deletingRequestId, setDeletingRequestId] = useState<string | null>(null);
   const [openComments, setOpenComments] = useState<Record<string, boolean>>({});
   const [commentsByRequest, setCommentsByRequest] = useState<Record<string, DbComment[]>>({});
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
@@ -388,6 +390,34 @@ export default function RequestsPage() {
 
   const resetForm = () => { setTitle(''); setDescription(''); setCategory('לוגיסטיקה'); setPriority('רגילה'); };
 
+  const resolveRequestUnitId = async () => {
+    if (!dbProfile) return null;
+    if (dbProfile.unit_id) return dbProfile.unit_id;
+
+    const fallbackUnitName = dbProfile.units?.name || currentUser?.assigned_frame;
+    if (!fallbackUnitName) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[requests] user profile has no unit_id or unit name; request.unit_id will be null');
+      }
+      return null;
+    }
+
+    const { data: unit, error: unitError } = await supabase
+      .from('units')
+      .select('id')
+      .eq('name', fallbackUnitName)
+      .maybeSingle<{ id: string }>();
+
+    if (unitError || !unit) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[requests] could not resolve unit_id for request:', unitError?.message ?? fallbackUnitName);
+      }
+      return null;
+    }
+
+    return unit.id;
+  };
+
   const handleCreateRequest = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!currentUser || !dbProfile) { setError('לא נמצא פרופיל משתמש. יש להתחבר מחדש.'); return; }
@@ -402,6 +432,7 @@ export default function RequestsPage() {
       creator_role: dbProfile.role || currentUser.role,
       creator_unit: dbProfile.units?.name || currentUser.assigned_frame,
     };
+    const requestUnitId = await resolveRequestUnitId();
 
     const { data: createdRequest, error: insertError } = await supabase.from('requests').insert({
       title: title.trim(),
@@ -409,7 +440,7 @@ export default function RequestsPage() {
       status: 'open',
       request_type: category,
       requested_by: currentUser.id,
-      unit_id: dbProfile.unit_id,
+      unit_id: requestUnitId,
       metadata,
     })
       .select('id,title,status,request_type')
@@ -524,6 +555,50 @@ export default function RequestsPage() {
         : item
     )));
     setSuccess('המטפל עודכן');
+  };
+
+  const handleDeleteCompletedRequest = async (request: DbRequest) => {
+    if (!canSeeAll || !dbProfile || activeTab !== 'completed' || request.status !== 'completed') return;
+    const confirmed = window.confirm('האם למחוק את הדרישה שהושלמה? פעולה זו תסיר אותה מהרשימה.');
+    if (!confirmed) return;
+
+    setDeletingRequestId(request.id);
+    setError(null);
+    setSuccess(null);
+
+    const { error: deleteError } = await supabase
+      .from('requests')
+      .delete()
+      .eq('id', request.id)
+      .eq('status', 'completed');
+
+    setDeletingRequestId(null);
+    if (deleteError) {
+      logSupabaseError('Request delete failed', deleteError);
+      setError('לא ניתן למחוק את הדרישה. ייתכן שנדרשת מדיניות RLS למחיקת בקשות שהושלמו.');
+      return;
+    }
+
+    void createAuditLog(supabase, {
+      userId: dbProfile.id,
+      userName: dbProfile.name,
+      userRole: dbProfile.role,
+      actionType: 'request_deleted',
+      entityType: 'request',
+      entityId: request.id,
+      previousValue: {
+        id: request.id,
+        title: request.title,
+        status: request.status,
+        request_type: request.request_type,
+        assigned_to: request.assigned_to,
+        unit_id: request.unit_id,
+      },
+      newValue: null,
+    });
+
+    setRequests(current => current.filter(item => item.id !== request.id));
+    setSuccess('הדרישה שהושלמה נמחקה.');
   };
 
   const loadComments = async (requestId: string) => {
@@ -854,6 +929,8 @@ export default function RequestsPage() {
             const commentError = commentErrors[request.id];
             const isLoadingComments = loadingCommentsId === request.id;
             const isSubmittingComment = submittingCommentId === request.id;
+            const canDeleteCompleted = canSeeAll && activeTab === 'completed' && request.status === 'completed';
+            const isDeleting = deletingRequestId === request.id;
 
             return (
               <GlassCard key={request.id} className="space-y-4">
@@ -953,6 +1030,22 @@ export default function RequestsPage() {
                         {isUpdating && <Loader2 className="h-4 w-4 animate-spin text-[#FF6B02]" />}
                       </>
                     )}
+                  </div>
+                )}
+
+                {canDeleteCompleted && (
+                  <div className="flex justify-start border-t border-[rgba(2,1,8,0.08)] pt-3">
+                    <GlossyButton
+                      type="button"
+                      variant="slate"
+                      size="sm"
+                      onClick={() => handleDeleteCompletedRequest(request)}
+                      disabled={isDeleting}
+                      className="text-red-700 hover:border-red-500/25 hover:bg-red-500/10"
+                    >
+                      {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                      מחק
+                    </GlossyButton>
                   </div>
                 )}
 

@@ -165,6 +165,17 @@ create policy "requests: commander update all"
   using ( public.is_commander(auth.uid()) )
   with check ( public.is_commander(auth.uid()) );
 
+-- C6. Commanders can delete completed requests only.
+drop policy if exists "requests: commander delete completed" on public.requests;
+create policy "requests: commander delete completed"
+  on public.requests
+  for delete
+  to authenticated
+  using (
+    status = 'completed'
+    and public.is_commander(auth.uid())
+  );
+
 
 -- ============================================================
 -- D. RLS: public.comments

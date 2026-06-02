@@ -4,7 +4,8 @@ export type AuditActionType =
   | 'request_created'
   | 'request_status_changed'
   | 'request_assigned'
-  | 'request_comment_added';
+  | 'request_comment_added'
+  | 'request_deleted';
 
 interface CreateAuditLogParams {
   userId: string;

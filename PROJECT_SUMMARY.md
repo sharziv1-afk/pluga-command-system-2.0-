@@ -1,11 +1,11 @@
 # Project Summary - pluga-command-system
 
-## Restart Snapshot - 2026-06-01
+## Restart Snapshot - 2026-06-02
 
 Latest pushed feature commit before this docs-only handoff:
 
 ```txt
-3582eeb Add request treatment history comments
+084b810 Add audit trail and completed request deletion
 ```
 
 The project is a Hebrew RTL company command-management system named **"המפקד"**. It is built with Next.js 16 App Router, React 19, TypeScript, Tailwind CSS 4, Supabase Auth/PostgreSQL/RLS, and GitHub. Future deployment target: Vercel. The project uses `src/proxy.ts`; do not create `middleware.ts`.
@@ -31,14 +31,21 @@ Current product state:
 - `public.comments` RLS policies were added manually in Supabase and documented in `supabase/migrations/002_rls_policies.sql`.
 - `public.comments` select/insert was manually verified against Supabase.
 - Request Treatment History works in the site, and no React code change was required.
-- Real Audit Trail for Requests has started with `src/lib/audit.ts`.
-- Request actions now write best-effort audit rows for `request_created`, `request_status_changed`, `request_assigned`, and `request_comment_added`.
-- Proposed `public.audit_logs` RLS policies were added to `supabase/migrations/002_rls_policies.sql`; SQL still needs manual Supabase execution and insert/select QA.
+- Real Audit Trail for Requests works with `src/lib/audit.ts`.
+- Request actions write best-effort audit rows for `request_created`, `request_status_changed`, `request_assigned`, `request_comment_added`, and `request_deleted`.
+- `public.audit_logs` RLS section E was manually run in Supabase and verified.
+- Completed-request deletion works in the completed tab for commander-level users only.
+- `requests: commander delete completed` was manually run in Supabase and verified.
+- `unit_id` behavior is accepted: requests are associated to the creator profile unit; existing profiles missing `unit_id` use a fallback resolver, and future users per unit/department should work correctly.
 
 Immediate next steps:
 
-1. Run the documented `public.audit_logs` RLS policies manually in Supabase and verify request audit insert/select.
-2. Consider richer treatment history, improved assignee workflow, tasks-to-Supabase migration, and Vercel deployment.
+1. Map current Tasks and Forum implementation.
+2. Move Tasks from localStorage/mock to Supabase.
+3. Add Events / Schedule / לו"ז / מופעים.
+4. Link Tasks to Events using a future `event_id`.
+5. Later connect Forum posts to Tasks/Events.
+6. Only later consider AI-based extraction from forum posts.
 
 ## Current State
 
@@ -59,7 +66,7 @@ The schema and seed were already run manually in Supabase. The seed file is kept
 
 RLS policies for `public.users` were added manually in Supabase after profile creation failed. `public.users` was empty before those policies were added. Commander RLS policies for reading/managing user profiles were also run manually in Supabase and verified.
 
-`supabase/migrations/002_rls_policies.sql` now documents the `public.is_commander()` helper function and all RLS policies for `public.users`, `public.requests`, `public.comments`, and proposed `public.audit_logs` policies in version control. This file was not previously tracked in Git. It is idempotent and can be used to restore policies in a new or reset environment. The audit log policies still need manual execution in Supabase and live QA.
+`supabase/migrations/002_rls_policies.sql` now documents the `public.is_commander()` helper function and RLS policies for `public.users`, `public.requests`, `public.comments`, and `public.audit_logs` in version control. It also documents the completed-request delete policy. These policies were manually run in Supabase and verified in the live project.
 
 ## What Has Been Done
 
@@ -78,7 +85,7 @@ RLS policies for `public.users` were added manually in Supabase after profile cr
 - A basic Supabase-backed requests/requirements module now exists at `/requests`.
 - The requests module was manually verified: request creation works and writes to `public.requests`.
 - RLS policies for `public.requests` were run manually in Supabase and work.
-- **Requests Workflow v1** is implemented: queue tabs, text/category/priority filters, 4-stat header, assigned-to display, commander assignee management through `assigned_to`, basic treatment comments through the existing `public.comments` table, initial real request audit logging, commander action buttons (קבל לטיפול / אשר / סמן הושלם / דחה / בטל), per-tab empty states. Schema unchanged; comments and audit RLS are now documented.
+- **Requests Workflow v1** is implemented: queue tabs, text/category/priority filters, 4-stat header, assigned-to display, commander assignee management through `assigned_to`, treatment comments through the existing `public.comments` table, real request audit logging, completed-request deletion, commander action buttons (קבל לטיפול / אשר / סמן הושלם / דחה / בטל), per-tab empty states. Schema unchanged; comments, audit, and completed-delete RLS are now documented and manually verified.
 - Dashboard updated with a third "בקשות בטיפול" card linking to `/requests`.
 - Core UI components exist: `GlassCard`, `GlossyButton`, `StatusBadge`, `EmptyState`.
 - The current UI pass introduced the **Light Gloss Command System**.
@@ -96,6 +103,10 @@ Manual testing passed after the commander RLS policies were applied in Supabase:
 - A new request can be created and is saved in `public.requests`.
 - Approved + active commanders can see requests after the manual `public.requests` RLS policy update.
 - Approved + active commanders can assign or remove a request handler; `assigned_to` stores `public.users.id`.
+- `public.comments` select/insert works for Request Treatment History.
+- `public.audit_logs` records `request_created`, `request_status_changed`, `request_assigned`, `request_comment_added`, and `request_deleted`.
+- Completed requests can be deleted only from the completed tab by commander-level users.
+- The latest checks passed: lint, typecheck, and build. The latest build produced 16 routes.
 
 ## Latest Design Change
 
@@ -173,9 +184,12 @@ npm run build
 
 Next recommended feature steps:
 
-- Manual QA of Requests Workflow v1 (tabs, filters, action buttons) with a live connected user.
-- Future enhancements: richer audit display, richer treatment history, file attachments, SLA indicators, notifications.
-- Move tasks/forum from AppContext demo layer to real Supabase queries when ready.
+- First map current Tasks and Forum implementation.
+- Move Tasks from localStorage/mock to Supabase.
+- Add Events / Schedule / לו"ז / מופעים.
+- Link Tasks to Events using a future `event_id`.
+- Later connect Forum posts to Tasks/Events.
+- Only later consider AI-based extraction from forum posts.
 
 ## Final Handoff Notes For Restart
 
@@ -208,6 +222,7 @@ Requests module details:
   - terminal statuses have no actions.
 - Assign Request Owner lets approved commanders / high-permission users set or remove `public.requests.assigned_to`.
 - Regular users can see the handler but cannot change it.
+- `unit_id` stores which unit/department the request belongs to. `assigned_to` stores who handles it. No UI selector for requesting unit is needed yet.
 - Request Comments / Treatment History uses existing `public.comments`:
   - `entity_type = 'request'`
   - `entity_id = request.id`
@@ -215,13 +230,29 @@ Requests module details:
   - `body =` comment text
   - `metadata = { author_name, author_role }`
   - empty comments are blocked client-side.
+- Request Audit Trail uses `src/lib/audit.ts` and `public.audit_logs`:
+  - `request_created`
+  - `request_status_changed`
+  - `request_assigned`
+  - `request_comment_added`
+  - `request_deleted`
+  - Audit is best-effort/fire-and-forget; failures only `console.warn` and do not block the primary request action.
+- Completed-request deletion:
+  - Delete button appears only in the completed tab.
+  - Delete button appears only when `request.status === 'completed'`.
+  - Delete is available only to `canSeeAll` / commander-level users.
+  - Regular users do not see delete.
+  - The delete query also guards `.eq('status', 'completed')`.
+  - A confirmation prompt appears before delete.
 
 RLS and Supabase:
 
-- `supabase/migrations/002_rls_policies.sql` documents manually-run RLS for `public.users`, `public.requests`, and `public.comments`, plus proposed `public.audit_logs` policies that still need manual execution.
+- `supabase/migrations/002_rls_policies.sql` documents manually-run RLS for `public.users`, `public.requests`, `public.comments`, `public.audit_logs`, and `requests: commander delete completed`.
 - `public.is_commander(auth_id uuid)` uses `SECURITY DEFINER` and `SET search_path = public`.
 - It checks active + approved users whose role is מ"פ/סמ"פ or whose `permission_level >= 90`.
 - `public.comments` exists and is used by the app; comments select/insert was manually verified live against Supabase.
+- `public.audit_logs` insert own/select own/commander select all was manually verified.
+- `public.requests` delete completed policy allows commanders to delete only completed requests.
 - Do not run SQL automatically.
 - Do not use a service role key in frontend code.
 
@@ -240,9 +271,9 @@ Technical debt / known risks:
 - `users.role` is text, not a foreign key to `roles`.
 - Request priority is stored in `metadata`, not a dedicated column.
 - Latest `assigned_to` and comments features passed live Supabase/RLS QA.
-- `audit_logs` is connected for initial Requests write logging, but `public.audit_logs` RLS still needs manual Supabase execution and QA.
+- `audit_logs` is connected for Requests write logging and RLS was manually verified, but `AuditTab.tsx` still uses mock/localStorage and is not yet connected to Supabase `audit_logs`.
 - No Vercel deployment yet.
-- No notifications, SLA, attachments, Realtime, or full audit trail yet.
+- No notifications, SLA, attachments, Realtime, Events/Schedule module, or full Supabase-backed Audit UI yet.
 
 Recent important commits:
 
@@ -259,3 +290,12 @@ Recent important commits:
 - `c22177c Fix mobile admin link and commander role detection`
 - `2e1d576 Add request assignee management`
 - `3582eeb Add request treatment history comments`
+- `24651be Add comments RLS policies for request treatment history`
+- `d11279d Add Audit Trail for Requests`
+- `084b810 Add audit trail and completed request deletion`
+
+Local development note:
+
+- Latest checks passed: lint, typecheck, and build.
+- Latest build produced 16 routes.
+- If localhost acts stale after changes, stop the dev server, remove `.next`, hard reload or use Incognito, then restart `npm run dev`.

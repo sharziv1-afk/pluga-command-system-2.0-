@@ -1,24 +1,28 @@
 # pluga-command-system
 
-## Current Restart Handoff - 2026-06-01
+## Current Restart Handoff - 2026-06-02
 
 Latest pushed feature commit before this docs-only handoff:
 
 ```txt
-3582eeb Add request treatment history comments
+084b810 Add audit trail and completed request deletion
 ```
 
 `pluga-command-system` / **"המפקד"** is a Hebrew RTL company command-management system. It uses Next.js 16 App Router, React 19, TypeScript, Tailwind CSS 4, Supabase Auth, Supabase PostgreSQL, Supabase RLS, and GitHub. Future deployment target: Vercel.
 
 Important: this project uses **Next.js 16 `src/proxy.ts`**, not `middleware.ts`.
 
-Current verified state after comments RLS QA:
+Current stable state after Requests audit/deletion QA:
 
 1. Request assignee updates write to `public.requests.assigned_to`.
 2. `public.comments` RLS policies are documented in `supabase/migrations/002_rls_policies.sql`.
 3. Treatment comments select/insert were verified manually against Supabase.
 4. Request Treatment History works in the site with no React code changes required.
-5. Real Audit Trail for Requests has started through `src/lib/audit.ts`; audit RLS for `public.audit_logs` is documented but still needs manual Supabase execution and QA.
+5. Real Audit Trail for Requests works through `src/lib/audit.ts`.
+6. `public.audit_logs` RLS section E was run manually in Supabase and verified.
+7. Completed-request deletion works only in the completed tab for commander-level users.
+8. `requests: commander delete completed` was run manually in Supabase and verified.
+9. `unit_id` behavior is accepted: request insert uses the request creator profile unit, with a fallback resolver for existing profiles missing `unit_id`.
 
 Role-based UI currently targets: מ"פ, סמ"פ, ע. מ"פ, מ"מ, מ"כ, סמל, רס"פ / לוגיסטיקה, חובש פלוגתי, קשר פלוגתי, ב.קוד / נהג.
 
@@ -37,6 +41,9 @@ Recent important commits:
 - `c22177c Fix mobile admin link and commander role detection`
 - `2e1d576 Add request assignee management`
 - `3582eeb Add request treatment history comments`
+- `24651be Add comments RLS policies for request treatment history`
+- `d11279d Add Audit Trail for Requests`
+- `084b810 Add audit trail and completed request deletion`
 
 `pluga-command-system` is the codebase for **"המפקד"**, a Hebrew RTL command-management web application for a company-level command team.
 
@@ -125,8 +132,8 @@ Current project state:
 - `seed_units_roles.sql` includes company, platoons 1-4, logistics, medical, communications, vehicles, and the main command/professional roles.
 - Commander RLS policies for reading/managing user profiles were run manually in Supabase and verified with an approved + active commander.
 - `public.requests` RLS policies were run manually in Supabase and verified.
-- `supabase/migrations/002_rls_policies.sql` documents the manually-applied `public.is_commander()` helper and users/requests/comments policies for recovery or new-environment setup.
-- `supabase/migrations/002_rls_policies.sql` also includes proposed `public.audit_logs` RLS policies; these still need manual execution in Supabase and live insert/select verification.
+- `supabase/migrations/002_rls_policies.sql` documents the manually-applied `public.is_commander()` helper and users/requests/comments/audit policies for recovery or new-environment setup.
+- `supabase/migrations/002_rls_policies.sql` includes `public.audit_logs` RLS and `requests: commander delete completed`; both were manually run in Supabase and verified.
 - `public.comments` RLS was added manually in Supabase and documented in Git.
 - `public.comments` select/insert for request treatment history was manually verified against Supabase.
 - Do not change schema, RLS, triggers, seed, or database structure during design-only work.
@@ -225,16 +232,34 @@ Manual verification passed:
 - Approved + active commanders can see requests.
 - Approved + active commanders can assign or remove a request handler through `assigned_to`.
 
-The module includes Requests Workflow v1 with filters, queues, statistics, status actions, basic assignee management, basic request treatment comments, and initial real request audit logging. It does not yet include notifications, SLA, or attachments.
+The module includes Requests Workflow v1 with filters, queues, statistics, status actions, basic assignee management, request treatment comments, real request audit logging, and completed-request deletion. It does not yet include notifications, SLA, or attachments.
 
-Initial real request audit logging uses `src/lib/audit.ts` and writes best-effort rows to `public.audit_logs` after successful:
+Real request audit logging uses `src/lib/audit.ts` and writes best-effort rows to `public.audit_logs` after successful:
 
 - `request_created`
 - `request_status_changed`
 - `request_assigned`
 - `request_comment_added`
+- `request_deleted`
 
-Audit insert failures only warn in the console and do not block the main request action. Audit RLS still needs manual Supabase execution and QA.
+Audit insert failures only warn in the console and do not block the main request action. `DbAuditLog` was added to `src/lib/types.ts` without changing the existing mock/localStorage `AuditLog` used by AppContext/AuditTab.
+
+Completed-request deletion behavior:
+
+- Delete button appears only in the completed tab.
+- Delete button appears only for requests whose status is `completed`.
+- Delete is available only to `canSeeAll` / commander-level users.
+- The delete query guards with `.eq('status', 'completed')`.
+- A confirmation prompt appears before delete.
+- `request_deleted` audit is written after successful delete.
+
+`unit_id` behavior:
+
+- Request insert uses `dbProfile.unit_id`.
+- If an existing profile is missing `unit_id`, `resolveRequestUnitId` tries to resolve from `dbProfile.units.name` or `currentUser.assigned_frame`.
+- If users are created per unit/department and have correct `unit_id`, requests are associated correctly.
+- No immediate UI selector for "requesting unit" is needed.
+- `assigned_to` means who handles the request; `unit_id` means which unit/department the request belongs to.
 
 Workflow details:
 
@@ -255,7 +280,15 @@ Request treatment history is now wired through the existing generic `public.comm
 - `metadata` stores author display fields such as name and role.
 - No schema change was made for this feature.
 
-The comments feature has passed live Supabase/RLS verification. Future enhancements remain: audit trail, attachments, SLA, notifications, and richer treatment history workflows.
+The comments feature has passed live Supabase/RLS verification. Future enhancements remain: richer audit display, attachments, SLA, notifications, and richer treatment history workflows.
+
+Manual Supabase SQL/RLS already run and verified:
+
+- RLS for `public.users`.
+- RLS for `public.requests`.
+- RLS for `public.comments`.
+- Section E RLS for `public.audit_logs`.
+- C6 policy `requests: commander delete completed`.
 
 ## Design System
 
@@ -329,9 +362,13 @@ Protected route checks are handled by `src/proxy.ts`.
 
 ## Next Safe Steps
 
-1. Run the documented `public.audit_logs` RLS policies manually in Supabase, then verify audit insert/select for request actions.
-2. Consider richer treatment history, improved assignee workflow, tasks-to-Supabase migration, and Vercel deployment.
-3. Re-run `npm run lint`, `npx tsc -p tsconfig.json --noEmit`, and `npm run build` after changes.
+1. Map current Tasks and Forum implementation before changing them.
+2. Move Tasks from localStorage/mock to Supabase.
+3. Add Events / Schedule / לו"ז / מופעים module.
+4. Link Tasks to Events using a future `event_id`.
+5. Later connect Forum posts to Tasks/Events.
+6. Only later consider AI-based extraction from forum posts.
+7. Re-run `npm run lint`, `npx tsc -p tsconfig.json --noEmit`, and `npm run build` after changes.
 
 ## Technical Debt / Known Risks
 
@@ -341,9 +378,15 @@ Protected route checks are handled by `src/proxy.ts`.
 - `users.role` is text, not a foreign key to `roles`.
 - Request priority is stored in `metadata`, not a dedicated column.
 - `assigned_to` and treatment comments passed live Supabase/RLS QA after the latest UI work.
-- `audit_logs` is connected for initial Requests write logging, but `public.audit_logs` RLS still needs manual Supabase execution and QA.
+- `audit_logs` is connected for Requests write logging and RLS was manually verified, but `AuditTab.tsx` still reads mock/localStorage through AppContext.
 - No Vercel deployment yet.
-- No notifications, SLA, attachments, Realtime, or full audit trail yet.
+- No notifications, SLA, attachments, Realtime, Events/Schedule module, or full Supabase-backed Audit UI yet.
+
+Local development note:
+
+- Latest checks passed: lint, typecheck, and build.
+- Latest build produced 16 routes.
+- If localhost acts stale after changes, stop the dev server, remove `.next`, hard reload or use Incognito, then restart `npm run dev`.
 
 ## Guardrails
 

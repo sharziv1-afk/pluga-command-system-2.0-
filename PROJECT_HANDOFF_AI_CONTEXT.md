@@ -6,7 +6,7 @@ Project name: `pluga-command-system`
 Product name: **"המפקד"**  
 Purpose: Hebrew RTL command-management system for a company-level command team.
 
-## Final Handoff Before Restart - 2026-06-01
+## Final Handoff Before Restart - 2026-06-02
 
 This is the current authoritative handoff snapshot for future AI agents after the long ChatGPT/Codex/Claude work session.
 
@@ -15,7 +15,7 @@ Repository:
 - Local path: `C:\Users\Maltak 123\Desktop\pluga-command-system`
 - GitHub: `https://github.com/sharziv1-afk/pluga-command-system.git`
 - Branch: `main`
-- Last known pushed commit before this docs-only handoff: `3582eeb Add request treatment history comments`
+- Last known pushed commit before this docs-only handoff: `084b810 Add audit trail and completed request deletion`
 - Working tree was clean before this documentation update.
 - `.claude/` is ignored in `.gitignore` and must stay out of Git.
 
@@ -54,7 +54,7 @@ Stack:
 - Dashboard content is role-specific.
 - Profile page exists.
 - Admin Panel exists for approved active commanders / high-permission users.
-- Requests module is connected to Supabase and has progressed through basic requests, workflow queues, assignee management, and treatment comments.
+- Requests module is connected to Supabase and has progressed through basic requests, workflow queues, assignee management, treatment comments, real request audit logging, and completed-request deletion.
 
 ### Manual QA Already Passed
 
@@ -76,9 +76,12 @@ Stack:
 - `public.comments` RLS policies were applied manually in Supabase and documented in `supabase/migrations/002_rls_policies.sql`.
 - `public.comments` select/insert was verified live against Supabase/RLS after the treatment history feature.
 - Request Treatment History works in the site; no React code change was required.
-- Real Audit Trail for Requests has started with `src/lib/audit.ts`.
-- Request actions now write best-effort audit rows for `request_created`, `request_status_changed`, `request_assigned`, and `request_comment_added`.
-- Proposed `public.audit_logs` RLS policies were added to `supabase/migrations/002_rls_policies.sql`; SQL still needs manual Supabase execution and insert/select QA.
+- Real Audit Trail for Requests works with `src/lib/audit.ts`.
+- Request actions write best-effort audit rows for `request_created`, `request_status_changed`, `request_assigned`, `request_comment_added`, and `request_deleted`.
+- `public.audit_logs` RLS section E was manually run in Supabase and verified.
+- Completed-request deletion works in the completed tab for commander-level users only.
+- `requests: commander delete completed` was manually run in Supabase and verified.
+- `unit_id` behavior is accepted: requests are associated to the creator profile unit; existing profiles missing `unit_id` use a fallback resolver, and future users per unit/department should work correctly.
 
 ### Important Commits
 
@@ -95,6 +98,9 @@ Stack:
 - `c22177c Fix mobile admin link and commander role detection`
 - `2e1d576 Add request assignee management`
 - `3582eeb Add request treatment history comments`
+- `24651be Add comments RLS policies for request treatment history`
+- `d11279d Add Audit Trail for Requests`
+- `084b810 Add audit trail and completed request deletion`
 
 ### Requests Module Evolution
 
@@ -154,10 +160,29 @@ Request Comments / Treatment History:
 Request Audit Trail:
 
 - `src/lib/audit.ts` contains `createAuditLog`, a best-effort Supabase insert helper for `public.audit_logs`.
-- Request create, status change, assignee change, and comment add actions call audit after the primary Supabase action succeeds.
+- Request create, status change, assignee change, comment add, and completed-request delete actions call audit after the primary Supabase action succeeds.
 - Audit insert failures only warn in the console and do not block the request workflow.
+- `DbAuditLog` was added to `src/lib/types.ts` without changing the existing mock/localStorage `AuditLog`.
 - `AuditTab.tsx` and the AppContext/localStorage audit mock are intentionally untouched.
-- Proposed `public.audit_logs` RLS policies are documented in `002_rls_policies.sql`, but still need manual Supabase execution and QA.
+- `public.audit_logs` RLS was manually run and verified in Supabase.
+
+Completed Request Deletion:
+
+- Delete button appears only in the completed tab.
+- Delete button appears only when `request.status === 'completed'`.
+- Delete is available only to `canSeeAll` / commander-level users.
+- Regular users do not see delete.
+- The delete query also guards `.eq('status', 'completed')`.
+- A confirmation prompt appears before delete.
+- `request_deleted` audit is written after successful delete.
+
+Unit ownership:
+
+- `unit_id` means which unit/department the item belongs to.
+- `assigned_to` means who handles the request/task.
+- Request insert uses `dbProfile.unit_id`.
+- If an existing profile is missing `unit_id`, `resolveRequestUnitId` tries `dbProfile.units.name` or `currentUser.assigned_frame`.
+- No immediate UI selector for "requesting unit" is needed.
 
 ### Supabase / Schema / Seed
 
@@ -189,7 +214,8 @@ RLS:
 - `public.users` policies: select own profile, commander select all, commander update all.
 - `public.requests` policies: insert own, select own, select own unit, commander select all, commander update all.
 - `public.comments` table exists and is used by the app. Comments RLS is documented and select/insert was manually verified.
-- `public.audit_logs` table exists and is now written by request actions, but audit RLS still needs manual Supabase execution and verification.
+- `public.audit_logs` table exists and is written by request actions. Insert own/select own/commander select all was manually verified.
+- `public.requests` delete completed policy allows commanders to delete only completed requests.
 - Do not run SQL automatically. Propose SQL and wait for manual Supabase execution approval.
 - Never put a service role key in frontend code.
 
@@ -215,20 +241,19 @@ RLS:
 - Request priority is stored in `metadata`, not a dedicated column.
 - `assigned_to` works in UI and passed live Supabase verification after latest changes.
 - Comments/history were added and passed live comments RLS verification.
-- `audit_logs` is connected for initial Requests write logging, but `public.audit_logs` RLS still needs manual Supabase execution and QA.
+- `audit_logs` is connected for Requests write logging and RLS was manually verified, but `AuditTab.tsx` still uses mock/localStorage and is not yet connected to Supabase `audit_logs`.
 - No Vercel deployment yet.
-- No notifications, SLA, attachments, Realtime, or full audit trail yet.
+- No notifications, SLA, attachments, Realtime, Events/Schedule module, or full Supabase-backed Audit UI yet.
 
 ### Recommended Next Steps
 
-1. Run the documented `public.audit_logs` RLS policies manually in Supabase and verify request audit insert/select.
-2. Continue with one of:
-   - Richer audit display.
-   - Richer treatment history polish.
-   - Improved assignee workflow.
-   - Tasks module migration to Supabase.
-   - Vercel deployment.
-4. Avoid for now:
+1. Map current Tasks and Forum implementation.
+2. Move Tasks from localStorage/mock to Supabase.
+3. Add Events / Schedule / לו"ז / מופעים.
+4. Link Tasks to Events using a future `event_id`.
+5. Later connect Forum posts to Tasks/Events.
+6. Only later consider AI-based extraction from forum posts.
+7. Avoid for now:
    - Big `AppContext` refactor.
    - Auth rewrite.
    - Schema changes without planning.
@@ -237,24 +262,25 @@ RLS:
 
 ### Prompt For A New ChatGPT Chat
 
-Continue the project `pluga-command-system` / "המפקד". It is a Hebrew RTL company command-management system built with Next.js 16, React 19, TypeScript, Tailwind CSS 4, Supabase Auth/PostgreSQL/RLS, and GitHub. Auth works with hybrid auth: first registration uses Email OTP + password setup, existing login uses email + password, OTP supports 8 digits, Dev Login is development-only, password visibility toggles exist, and Magic Link callback remains fallback. Role Based Interface works: approved active commanders see dashboard and Admin, Profile page works, Sidebar/Header show user/role/unit. Requests module works: request creation, workflow queues, search, filters, status actions, assignee display, assignee management, and treatment comments are implemented. RLS for users/requests/comments was run manually and works; `supabase/migrations/002_rls_policies.sql` documents it. Request Treatment History works in the site with no React code changes required for the RLS fix. Do not change Auth, schema, seed, proxy, AppContext, or RLS without approval.
+Continue the project `pluga-command-system` / "המפקד". It is a Hebrew RTL company command-management system built with Next.js 16, React 19, TypeScript, Tailwind CSS 4, Supabase Auth/PostgreSQL/RLS, and GitHub. Auth works with hybrid auth: first registration uses Email OTP + password setup, existing login uses email + password, OTP supports 8 digits, Dev Login is development-only, password visibility toggles exist, and Magic Link callback remains fallback. Role Based Interface works: approved active commanders see dashboard and Admin, Profile page works, Sidebar/Header show user/role/unit. Requests module works: request creation, workflow queues, search, filters, status actions, assignee display, assignee management, treatment comments, real request audit logging, and completed-request deletion. RLS for users/requests/comments/audit and completed-request delete was run manually and works; `supabase/migrations/002_rls_policies.sql` documents it. Do not change Auth, schema, seed, proxy, AppContext, or RLS without approval.
 
 ### Prompt For A New Codex Chat
 
-Open `C:\Users\Maltak 123\Desktop\pluga-command-system` on branch `main`. Read `README.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`, `PROJECT_SUMMARY.md`, `AGENTS.md`, and `CLAUDE.md` first. The last known feature commit before docs handoff is `3582eeb Add request treatment history comments`. The project uses Next.js 16 `src/proxy.ts`, not middleware. Working assumptions: code is stable, Light Gloss Command System is primary, `.claude/` is ignored, AppContext still has demo/localStorage state, tasks/forum are still mock/localStorage, and service role keys must never enter frontend code. Request assignee updates and `public.comments` select/insert have passed live Supabase/RLS QA.
+Open `C:\Users\Maltak 123\Desktop\pluga-command-system` on branch `main`. Read `README.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`, `PROJECT_SUMMARY.md`, `AGENTS.md`, and `CLAUDE.md` first. The last known feature commit before docs handoff is `084b810 Add audit trail and completed request deletion`. The project uses Next.js 16 `src/proxy.ts`, not middleware. Working assumptions: code is stable, Light Gloss Command System is primary, `.claude/` is ignored, AppContext still has demo/localStorage state, tasks/forum are still mock/localStorage, and service role keys must never enter frontend code. Requests, comments, audit trail, and completed-request deletion have passed live Supabase/RLS QA.
 
 ## Current Snapshot
 
 Last known local commit:
 
 ```txt
-3582eeb Add request treatment history comments
+084b810 Add audit trail and completed request deletion
 ```
 
 Current focus:
 
-- Development of new product logic is paused.
-- Current work is limited to the real site design language and existing project documentation.
+- Requests Workflow v1 is stable and manually verified.
+- Development of large product logic is paused until Tasks/Forum/Event planning is mapped.
+- Current work is limited to documentation and careful planning unless explicitly requested.
 - The active design direction is **Light Gloss Command System**.
 
 Tech stack:
@@ -537,20 +563,21 @@ Check:
 - **Assigned-to display**: fetches assignee names in a safe secondary query; shows "טרם הוקצה" when null or RLS blocks.
 - **Assignee management**: approved commanders / permission >= 90 can choose an active approved `public.users` profile as handler, or remove the assignment. This updates only `public.requests.assigned_to` and does not change status.
 - **Treatment history**: each request card can open a compact comments panel backed by `public.comments`. Users who can view a request can add a treatment update. Comments store author display metadata and do not change request status. Select/insert was manually verified against Supabase.
-- **Initial request audit trail**: request create, status change, assignee change, and comment add actions write best-effort rows to `public.audit_logs` through `src/lib/audit.ts`.
+- **Initial request audit trail**: request create, status change, assignee change, comment add, and completed-request delete actions write best-effort rows to `public.audit_logs` through `src/lib/audit.ts`.
 - **Commander action buttons** (permission >= 90): contextual buttons per status (קבל לטיפול / אשר / סמן הושלם / דחה / בטל). Non-commanders see a dropdown.
 - **Per-tab/filter empty states** with context-appropriate messages.
-- Schema unchanged. `public.comments` RLS policies and proposed `public.audit_logs` RLS policies are documented in `002_rls_policies.sql`.
+- Schema unchanged. `public.comments`, `public.audit_logs`, and completed-request delete RLS policies are documented in `002_rls_policies.sql` and were manually verified.
 - Dashboard updated: third card "בקשות בטיפול" added; grid changed from 2→3 columns.
-- lint: 0 / tsc: 0 / build: success (13 routes).
+- lint: 0 / tsc: 0 / build: success (16 routes).
 
 ## Next Safe Steps
 
-1. Manual QA of Requests Workflow v1 with a live connected user (tabs, filters, action buttons, assignee display).
-2. Keep using the existing `public.requests` schema unless a future schema change is explicitly approved.
-3. Keep RLS enabled; if workflow status actions require additional policies, propose SQL for manual Supabase execution.
-4. Future: richer audit display, richer treatment history, file attachments, SLA indicators, notifications.
-5. Future: migrate tasks/forum from AppContext demo layer to real Supabase queries.
+1. Map current Tasks and Forum implementation.
+2. Move Tasks from localStorage/mock to Supabase.
+3. Add Events / Schedule / לו"ז / מופעים.
+4. Link Tasks to Events using a future `event_id`.
+5. Later connect Forum posts to Tasks/Events.
+6. Only later consider AI-based extraction from forum posts.
 
 ## Guardrails For Future Agents
 

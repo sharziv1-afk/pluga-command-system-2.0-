@@ -15,7 +15,8 @@ Repository:
 - Local path: `C:\Users\Maltak 123\Desktop\pluga-command-system`
 - GitHub: `https://github.com/sharziv1-afk/pluga-command-system.git`
 - Branch: `main`
-- Last known pushed commit before this docs-only handoff: `084b810 Add audit trail and completed request deletion`
+- Previous latest pushed feature commit before Events/Schedule v1: `5bd714d Add Supabase-backed Tasks v1`
+- Latest feature ready for commit: Events / Schedule v1
 - Working tree was clean before this documentation update.
 - `.claude/` is ignored in `.gitignore` and must stay out of Git.
 
@@ -55,6 +56,7 @@ Stack:
 - Profile page exists.
 - Admin Panel exists for approved active commanders / high-permission users.
 - Requests module is connected to Supabase and has progressed through basic requests, workflow queues, assignee management, treatment comments, real request audit logging, and completed-request deletion.
+- Events / Schedule v1 is connected to Supabase and works through `/schedule`.
 
 ### Manual QA Already Passed
 
@@ -82,6 +84,20 @@ Stack:
 - Completed-request deletion works in the completed tab for commander-level users only.
 - `requests: commander delete completed` was manually run in Supabase and verified.
 - `unit_id` behavior is accepted: requests are associated to the creator profile unit; existing profiles missing `unit_id` use a fallback resolver, and future users per unit/department should work correctly.
+
+### Events / Schedule v1
+
+- New route: `/schedule`.
+- Navigation item: `לו״ז` was added through `src/data/navigation.ts`.
+- Route protection: `/schedule` is protected through `src/proxy.ts`.
+- Database migration: `supabase/migrations/003_events_schema.sql` adds `public.events`.
+- RLS documentation: Section G in `supabase/migrations/002_rls_policies.sql` covers `public.events`.
+- Page behavior: tabs for today/tomorrow/week/all, summary counters, timeline view grouped by day and hour, compact event blocks, click-to-open details modal, event creation, status update, loading/error/empty states.
+- Audit: `src/lib/audit.ts` supports `event_created`, `event_status_changed`, and future `event_updated`; audit `entityType` supports `request | task | event`.
+- Types: `DbEvent` was added to `src/lib/types.ts`.
+- Layout: protected shell uses viewport height and an internal main scroll area to improve sidebar and modal behavior.
+- Manual SQL for new environments: run `003_events_schema.sql`, then Section G for `public.events` RLS.
+- Not included yet: task `event_id`, calendar grid, drag/drop, recurring events, Google Calendar, Forum integration, or AI.
 
 ### Important Commits
 
@@ -249,7 +265,7 @@ RLS:
 
 1. Map current Tasks and Forum implementation.
 2. Move Tasks from localStorage/mock to Supabase.
-3. Add Events / Schedule / לו"ז / מופעים.
+3. Keep Events / Schedule v1 stable and manually verify new-environment SQL when needed.
 4. Link Tasks to Events using a future `event_id`.
 5. Later connect Forum posts to Tasks/Events.
 6. Only later consider AI-based extraction from forum posts.
@@ -519,6 +535,7 @@ Protected:
 - `/dashboard`
 - `/tasks`
 - `/requests`
+- `/schedule`
 - `/forum`
 - `/admin`
 - `/help`
@@ -574,7 +591,7 @@ Check:
 
 1. Map current Tasks and Forum implementation.
 2. Move Tasks from localStorage/mock to Supabase.
-3. Add Events / Schedule / לו"ז / מופעים.
+3. Keep Events / Schedule v1 stable and manually verify new-environment SQL when needed.
 4. Link Tasks to Events using a future `event_id`.
 5. Later connect Forum posts to Tasks/Events.
 6. Only later consider AI-based extraction from forum posts.

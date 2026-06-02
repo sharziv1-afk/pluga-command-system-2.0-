@@ -385,3 +385,112 @@ create policy "tasks: commander delete completed"
     status = 'completed'
     and public.is_commander(auth.uid())
   );
+
+
+-- ============================================================
+-- G. RLS: public.events
+-- ============================================================
+
+alter table public.events enable row level security;
+
+-- G1. Authenticated user can create their own event.
+drop policy if exists "events: insert own" on public.events;
+create policy "events: insert own"
+  on public.events
+  for insert
+  to authenticated
+  with check (
+    created_by = (
+      select id
+        from public.users
+       where auth_user_id = auth.uid()
+       limit 1
+    )
+  );
+
+-- G2. User can view events they created.
+drop policy if exists "events: select own" on public.events;
+create policy "events: select own"
+  on public.events
+  for select
+  to authenticated
+  using (
+    created_by = (
+      select id
+        from public.users
+       where auth_user_id = auth.uid()
+       limit 1
+    )
+  );
+
+-- G3. User can view events they are responsible for.
+drop policy if exists "events: select responsible" on public.events;
+create policy "events: select responsible"
+  on public.events
+  for select
+  to authenticated
+  using (
+    responsible_user_id = (
+      select id
+        from public.users
+       where auth_user_id = auth.uid()
+       limit 1
+    )
+  );
+
+-- G4. User can view events belonging to their unit.
+drop policy if exists "events: select own unit" on public.events;
+create policy "events: select own unit"
+  on public.events
+  for select
+  to authenticated
+  using (
+    unit_id is not null
+    and unit_id = (
+      select unit_id
+        from public.users
+       where auth_user_id = auth.uid()
+         and unit_id is not null
+       limit 1
+    )
+  );
+
+-- G5. Commanders can view all events.
+drop policy if exists "events: commander select all" on public.events;
+create policy "events: commander select all"
+  on public.events
+  for select
+  to authenticated
+  using (public.is_commander(auth.uid()));
+
+-- G6. Commanders can update all events.
+drop policy if exists "events: commander update all" on public.events;
+create policy "events: commander update all"
+  on public.events
+  for update
+  to authenticated
+  using (public.is_commander(auth.uid()))
+  with check (public.is_commander(auth.uid()));
+
+-- G7. Event creator can update their own event.
+drop policy if exists "events: creator update own" on public.events;
+create policy "events: creator update own"
+  on public.events
+  for update
+  to authenticated
+  using (
+    created_by = (
+      select id
+        from public.users
+       where auth_user_id = auth.uid()
+       limit 1
+    )
+  )
+  with check (
+    created_by = (
+      select id
+        from public.users
+       where auth_user_id = auth.uid()
+       limit 1
+    )
+  );

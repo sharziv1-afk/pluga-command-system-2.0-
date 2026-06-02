@@ -1,4 +1,5 @@
 import {
+  CalendarClock,
   CheckSquare,
   HelpCircle,
   LayoutDashboard,
@@ -18,6 +19,11 @@ export const navigationItems = [
     name: 'משימות ובקרה',
     path: '/tasks',
     icon: CheckSquare,
+  },
+  {
+    name: 'לו״ז',
+    path: '/schedule',
+    icon: CalendarClock,
   },
   {
     name: 'דרישות לוגיסטיקה',

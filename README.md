@@ -2,11 +2,13 @@
 
 ## Current Restart Handoff - 2026-06-02
 
-Latest pushed feature commit before this docs-only handoff:
+Previous latest pushed feature commit before Events/Schedule v1:
 
 ```txt
-084b810 Add audit trail and completed request deletion
+5bd714d Add Supabase-backed Tasks v1
 ```
+
+Latest feature ready for commit: **Events / Schedule v1**.
 
 `pluga-command-system` / **"המפקד"** is a Hebrew RTL company command-management system. It uses Next.js 16 App Router, React 19, TypeScript, Tailwind CSS 4, Supabase Auth, Supabase PostgreSQL, Supabase RLS, and GitHub. Future deployment target: Vercel.
 
@@ -23,6 +25,21 @@ Current stable state after Requests audit/deletion QA:
 7. Completed-request deletion works only in the completed tab for commander-level users.
 8. `requests: commander delete completed` was run manually in Supabase and verified.
 9. `unit_id` behavior is accepted: request insert uses the request creator profile unit, with a fallback resolver for existing profiles missing `unit_id`.
+
+Events / Schedule v1 current state:
+
+1. Added protected route `/schedule`.
+2. Added the `לו״ז` navigation item through `src/data/navigation.ts`.
+3. `/schedule` is protected through `src/proxy.ts`.
+4. Added `public.events` through `supabase/migrations/003_events_schema.sql`.
+5. Added Section G in `supabase/migrations/002_rls_policies.sql` for `public.events` RLS.
+6. The schedule page includes day-range tabs, summary counters, timeline grouping by day/hour, compact event blocks, click-through event details modal, event creation, status updates, loading/error/empty states.
+7. Audit was extended for events: `event_created`, `event_status_changed`, and future `event_updated`; `entityType` now supports `request | task | event`.
+8. `DbEvent` was added to `src/lib/types.ts`.
+9. The protected layout shell now keeps viewport height with the main area as the internal scroll region, improving sidebar/modal behavior.
+10. Manual SQL required for a new environment: run `003_events_schema.sql` first, then Section G for `public.events` RLS.
+
+Not included yet: task `event_id`, full calendar grid, drag/drop, recurring events, Google Calendar, Forum integration, or AI.
 
 Role-based UI currently targets: מ"פ, סמ"פ, ע. מ"פ, מ"מ, מ"כ, סמל, רס"פ / לוגיסטיקה, חובש פלוגתי, קשר פלוגתי, ב.קוד / נהג.
 
@@ -353,6 +370,7 @@ Protected routes:
 - `/dashboard`
 - `/tasks`
 - `/requests`
+- `/schedule`
 - `/forum`
 - `/admin`
 - `/profile`

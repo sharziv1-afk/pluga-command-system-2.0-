@@ -178,6 +178,23 @@ export interface DbTask {
   updated_at: string;
 }
 
+export interface DbEvent {
+  id: string;
+  title: string;
+  description: string | null;
+  event_type: 'training' | 'logistics' | 'meeting' | 'inspection' | 'operation' | 'admin' | 'other';
+  starts_at: string;
+  ends_at: string | null;
+  location: string | null;
+  unit_id: string | null;
+  created_by: string | null;
+  responsible_user_id: string | null;
+  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface TrackingColumn {
   id: string;
   name: string;

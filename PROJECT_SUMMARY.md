@@ -2,11 +2,13 @@
 
 ## Restart Snapshot - 2026-06-02
 
-Latest pushed feature commit before this docs-only handoff:
+Previous latest pushed feature commit before Events/Schedule v1:
 
 ```txt
-084b810 Add audit trail and completed request deletion
+5bd714d Add Supabase-backed Tasks v1
 ```
+
+Latest feature ready for commit: **Events / Schedule v1**.
 
 The project is a Hebrew RTL company command-management system named **"המפקד"**. It is built with Next.js 16 App Router, React 19, TypeScript, Tailwind CSS 4, Supabase Auth/PostgreSQL/RLS, and GitHub. Future deployment target: Vercel. The project uses `src/proxy.ts`; do not create `middleware.ts`.
 
@@ -37,12 +39,23 @@ Current product state:
 - Completed-request deletion works in the completed tab for commander-level users only.
 - `requests: commander delete completed` was manually run in Supabase and verified.
 - `unit_id` behavior is accepted: requests are associated to the creator profile unit; existing profiles missing `unit_id` use a fallback resolver, and future users per unit/department should work correctly.
+- Events / Schedule v1 is implemented and manually verified.
+- `/schedule` is a protected route through `src/proxy.ts`.
+- The `לו״ז` navigation item was added through `src/data/navigation.ts`.
+- `public.events` was added through `supabase/migrations/003_events_schema.sql`.
+- Section G for `public.events` RLS was added to `supabase/migrations/002_rls_policies.sql`.
+- `/schedule` includes today/tomorrow/week/all tabs, summary counters, timeline by day/hour, compact event blocks, details modal, event creation, status updates, loading/error/empty states.
+- Event audit support includes `event_created`, `event_status_changed`, and future `event_updated`; audit `entityType` supports `request | task | event`.
+- `DbEvent` was added to `src/lib/types.ts`.
+- Protected layout now uses a viewport-height shell with internal main scrolling for better sidebar/modal behavior.
+- New environments should run `003_events_schema.sql` first, then Section G for `public.events` RLS.
+- Not included yet: task `event_id`, calendar grid, drag/drop, recurring events, Google Calendar, Forum integration, or AI.
 
 Immediate next steps:
 
 1. Map current Tasks and Forum implementation.
 2. Move Tasks from localStorage/mock to Supabase.
-3. Add Events / Schedule / לו"ז / מופעים.
+3. Keep Events / Schedule v1 stable and manually verify new-environment SQL when needed.
 4. Link Tasks to Events using a future `event_id`.
 5. Later connect Forum posts to Tasks/Events.
 6. Only later consider AI-based extraction from forum posts.
@@ -186,7 +199,7 @@ Next recommended feature steps:
 
 - First map current Tasks and Forum implementation.
 - Move Tasks from localStorage/mock to Supabase.
-- Add Events / Schedule / לו"ז / מופעים.
+- Keep Events / Schedule v1 stable and manually verify new-environment SQL when needed.
 - Link Tasks to Events using a future `event_id`.
 - Later connect Forum posts to Tasks/Events.
 - Only later consider AI-based extraction from forum posts.

@@ -162,6 +162,22 @@ export interface DbAuditLog {
   created_at: string;
 }
 
+export interface DbTask {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  priority: string | null;
+  assigned_to: string | null;
+  created_by: string | null;
+  unit_id: string | null;
+  due_at: string | null;
+  completed_at: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface TrackingColumn {
   id: string;
   name: string;

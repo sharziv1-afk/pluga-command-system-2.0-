@@ -5,14 +5,17 @@ export type AuditActionType =
   | 'request_status_changed'
   | 'request_assigned'
   | 'request_comment_added'
-  | 'request_deleted';
+  | 'request_deleted'
+  | 'task_created'
+  | 'task_status_changed'
+  | 'task_deleted';
 
 interface CreateAuditLogParams {
   userId: string;
   userName: string;
   userRole: string;
   actionType: AuditActionType;
-  entityType: 'request';
+  entityType: 'request' | 'task';
   entityId: string;
   previousValue?: Record<string, unknown> | null;
   newValue?: Record<string, unknown> | null;

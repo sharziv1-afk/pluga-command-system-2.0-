@@ -264,3 +264,124 @@ create policy "audit_logs: select own"
        limit 1
     )
   );
+
+
+-- ============================================================
+-- F. RLS: public.tasks
+-- ============================================================
+
+alter table public.tasks enable row level security;
+
+-- F1. Any authenticated user can insert a task they created.
+--     The created_by value must match their own public.users.id.
+drop policy if exists "tasks: insert own" on public.tasks;
+create policy "tasks: insert own"
+  on public.tasks
+  for insert
+  to authenticated
+  with check (
+    created_by = (
+      select id
+        from public.users
+       where auth_user_id = auth.uid()
+       limit 1
+    )
+  );
+
+-- F2. A user can view tasks they created.
+drop policy if exists "tasks: select own" on public.tasks;
+create policy "tasks: select own"
+  on public.tasks
+  for select
+  to authenticated
+  using (
+    created_by = (
+      select id
+        from public.users
+       where auth_user_id = auth.uid()
+       limit 1
+    )
+  );
+
+-- F3. A user can view tasks assigned to them.
+drop policy if exists "tasks: select assigned" on public.tasks;
+create policy "tasks: select assigned"
+  on public.tasks
+  for select
+  to authenticated
+  using (
+    assigned_to = (
+      select id
+        from public.users
+       where auth_user_id = auth.uid()
+       limit 1
+    )
+  );
+
+-- F4. A user can view all tasks belonging to their unit.
+drop policy if exists "tasks: select own unit" on public.tasks;
+create policy "tasks: select own unit"
+  on public.tasks
+  for select
+  to authenticated
+  using (
+    unit_id is not null
+    and unit_id = (
+      select unit_id
+        from public.users
+       where auth_user_id = auth.uid()
+         and unit_id is not null
+       limit 1
+    )
+  );
+
+-- F5. Commanders can view all tasks.
+drop policy if exists "tasks: commander select all" on public.tasks;
+create policy "tasks: commander select all"
+  on public.tasks
+  for select
+  to authenticated
+  using ( public.is_commander(auth.uid()) );
+
+-- F6. Commanders can update any task.
+drop policy if exists "tasks: commander update all" on public.tasks;
+create policy "tasks: commander update all"
+  on public.tasks
+  for update
+  to authenticated
+  using ( public.is_commander(auth.uid()) )
+  with check ( public.is_commander(auth.uid()) );
+
+-- F7. Task creators can update their own tasks.
+drop policy if exists "tasks: creator update own" on public.tasks;
+create policy "tasks: creator update own"
+  on public.tasks
+  for update
+  to authenticated
+  using (
+    created_by = (
+      select id
+        from public.users
+       where auth_user_id = auth.uid()
+       limit 1
+    )
+  )
+  with check (
+    created_by = (
+      select id
+        from public.users
+       where auth_user_id = auth.uid()
+       limit 1
+    )
+  );
+
+-- F8. Commanders can delete completed tasks only.
+drop policy if exists "tasks: commander delete completed" on public.tasks;
+create policy "tasks: commander delete completed"
+  on public.tasks
+  for delete
+  to authenticated
+  using (
+    status = 'completed'
+    and public.is_commander(auth.uid())
+  );

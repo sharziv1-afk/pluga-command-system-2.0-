@@ -10,8 +10,7 @@ export type AuditActionType =
   | 'task_status_changed'
   | 'task_deleted'
   | 'event_created'
-  | 'event_status_changed'
-  | 'event_updated';
+  | 'event_status_changed';
 
 interface CreateAuditLogParams {
   userId: string;

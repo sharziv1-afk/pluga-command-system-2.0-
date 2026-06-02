@@ -171,6 +171,7 @@ export interface DbTask {
   assigned_to: string | null;
   created_by: string | null;
   unit_id: string | null;
+  event_id: string | null;
   due_at: string | null;
   completed_at: string | null;
   metadata: Record<string, unknown> | null;

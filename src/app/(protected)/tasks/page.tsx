@@ -47,6 +47,13 @@ type TaskUser = {
   units: { name: string } | null;
 };
 
+type EventOption = {
+  id: string;
+  title: string;
+  starts_at: string;
+  ends_at?: string | null;
+};
+
 type TaskMetadata = {
   category?: string;
   location?: string;
@@ -64,6 +71,8 @@ type TaskView = DbTask & {
   creatorName: string | null;
   assigneeName: string | null;
   unitName: string | null;
+  eventTitle: string | null;
+  eventTimeLabel: string | null;
 };
 
 const statusOptions: TaskStatus[] = ['open', 'in_progress', 'blocked', 'completed', 'cancelled'];
@@ -123,6 +132,23 @@ function formatDateTime(value: string | null) {
   });
 }
 
+function formatTime(value: string | null) {
+  if (!value) return '';
+  return new Date(value).toLocaleTimeString('he-IL', {
+    timeZone: 'Asia/Jerusalem',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function formatEventTimeLabel(startsAt: string | null, endsAt: string | null) {
+  const start = formatTime(startsAt);
+  if (!start) return null;
+
+  const end = formatTime(endsAt);
+  return end ? `${start}–${end}` : start;
+}
+
 function getTaskMetadata(task: DbTask): TaskMetadata {
   return (task.metadata ?? {}) as TaskMetadata;
 }
@@ -152,6 +178,7 @@ export default function TasksPage() {
   const [dbProfile, setDbProfile] = useState<DbProfile | null>(null);
   const [tasks, setTasks] = useState<TaskView[]>([]);
   const [assignableUsers, setAssignableUsers] = useState<TaskUser[]>([]);
+  const [eventOptions, setEventOptions] = useState<EventOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -164,6 +191,7 @@ export default function TasksPage() {
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('רגילה');
   const [assignedTo, setAssignedTo] = useState('none');
+  const [selectedEventId, setSelectedEventId] = useState('none');
   const [dueAt, setDueAt] = useState('');
   const [category, setCategory] = useState('');
   const [location, setLocation] = useState('');
@@ -204,7 +232,7 @@ export default function TasksPage() {
 
       const { data: taskData, error: tasksError } = await supabase
         .from('tasks')
-        .select('id,title,description,status,priority,assigned_to,created_by,unit_id,due_at,completed_at,metadata,created_at,updated_at')
+        .select('id,title,description,status,priority,assigned_to,created_by,unit_id,event_id,due_at,completed_at,metadata,created_at,updated_at')
         .order('created_at', { ascending: false })
         .returns<DbTask[]>();
 
@@ -221,6 +249,7 @@ export default function TasksPage() {
         ),
       ];
       const unitIds = [...new Set(rawTasks.map(task => task.unit_id).filter((id): id is string => Boolean(id)))];
+      const eventIds = [...new Set(rawTasks.map(task => task.event_id).filter((id): id is string => Boolean(id)))];
 
       const userNames: Record<string, { name: string; role: string | null }> = {};
       if (userIds.length > 0) {
@@ -246,6 +275,22 @@ export default function TasksPage() {
         for (const unit of unitsData ?? []) unitNames[unit.id] = unit.name;
       }
 
+      const eventDetails: Record<string, { title: string; timeLabel: string | null }> = {};
+      if (eventIds.length > 0) {
+        const { data: eventsData } = await supabase
+          .from('events')
+          .select('id,title,starts_at,ends_at')
+          .in('id', eventIds)
+          .returns<Array<Pick<EventOption, 'id' | 'title' | 'starts_at' | 'ends_at'>>>();
+
+        for (const event of eventsData ?? []) {
+          eventDetails[event.id] = {
+            title: event.title,
+            timeLabel: formatEventTimeLabel(event.starts_at, event.ends_at ?? null),
+          };
+        }
+      }
+
       let usersForAssignment: TaskUser[] = [];
       if (isCommanderRole(profileData.role, profileData.permission_level)) {
         const { data: activeUsers, error: usersError } = await supabase
@@ -264,6 +309,20 @@ export default function TasksPage() {
       }
       setAssignableUsers(usersForAssignment);
 
+      const { data: visibleEvents, error: eventsError } = await supabase
+        .from('events')
+        .select('id,title,starts_at')
+        .in('status', ['scheduled', 'in_progress'])
+        .order('starts_at', { ascending: true })
+        .returns<EventOption[]>();
+
+      if (eventsError) {
+        logSupabaseError('Task event options load failed', eventsError);
+        setEventOptions([]);
+      } else {
+        setEventOptions(visibleEvents ?? []);
+      }
+
       setTasks(rawTasks.map(task => {
         const metadata = getTaskMetadata(task);
         return {
@@ -271,6 +330,8 @@ export default function TasksPage() {
           creatorName: task.created_by ? (userNames[task.created_by]?.name ?? metadata.creator_name ?? null) : metadata.creator_name ?? null,
           assigneeName: task.assigned_to ? (userNames[task.assigned_to]?.name ?? null) : null,
           unitName: task.unit_id ? (unitNames[task.unit_id] ?? metadata.creator_unit ?? null) : metadata.creator_unit ?? null,
+          eventTitle: task.event_id ? (eventDetails[task.event_id]?.title ?? null) : null,
+          eventTimeLabel: task.event_id ? (eventDetails[task.event_id]?.timeLabel ?? null) : null,
         };
       }));
     } finally {
@@ -303,6 +364,7 @@ export default function TasksPage() {
     setDescription('');
     setPriority('רגילה');
     setAssignedTo('none');
+    setSelectedEventId('none');
     setDueAt('');
     setCategory('');
     setLocation('');
@@ -376,11 +438,12 @@ export default function TasksPage() {
       created_by: dbProfile.id,
       unit_id: taskUnitId,
       assigned_to: assignedTo === 'none' ? null : assignedTo,
+      event_id: selectedEventId === 'none' ? null : selectedEventId,
       due_at: dueAt ? new Date(dueAt).toISOString() : null,
       metadata,
     })
-      .select('id,title,status,priority')
-      .single<Pick<DbTask, 'id' | 'title' | 'status' | 'priority'>>();
+      .select('id,title,status,priority,event_id')
+      .single<Pick<DbTask, 'id' | 'title' | 'status' | 'priority' | 'event_id'>>();
 
     setIsSubmitting(false);
 
@@ -402,6 +465,7 @@ export default function TasksPage() {
         title: createdTask.title,
         status: createdTask.status,
         priority: createdTask.priority,
+        event_id: createdTask.event_id ?? null,
       },
     });
 
@@ -645,6 +709,22 @@ export default function TasksPage() {
             </label>
 
             <label className="space-y-1">
+              <span className="text-xs font-bold text-[#667085]">שייך למופע</span>
+              <select
+                value={selectedEventId}
+                onChange={(event) => setSelectedEventId(event.target.value)}
+                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
+              >
+                <option value="none">ללא שיוך</option>
+                {eventOptions.map(event => (
+                  <option key={event.id} value={event.id}>
+                    {event.title} — {formatDateTime(event.starts_at)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="space-y-1">
               <span className="text-xs font-bold text-[#667085]">קטגוריה</span>
               <input
                 type="text"
@@ -754,6 +834,13 @@ export default function TasksPage() {
                   <div className="rounded-2xl border border-[#FF6B02]/15 bg-[#FF6B02]/8 p-3 text-sm text-[#020108]">
                     <span className="font-black">תוצר נדרש: </span>
                     {metadata.output_required}
+                  </div>
+                )}
+
+                {task.event_id && task.eventTitle && (
+                  <div className="flex items-center gap-2 rounded-2xl border border-[#FF6B02]/15 bg-[#FF6B02]/8 px-3 py-2 text-xs font-bold text-[#C54F00]">
+                    <CalendarClock className="h-4 w-4" />
+                    <span>מופע: {task.eventTitle}{task.eventTimeLabel ? ` · ${task.eventTimeLabel}` : ''}</span>
                   </div>
                 )}
 

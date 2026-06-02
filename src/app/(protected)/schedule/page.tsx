@@ -54,6 +54,12 @@ type EventView = DbEvent & {
   unitName: string | null;
 };
 
+type EventTaskView = {
+  id: string;
+  title: string;
+  status: string;
+};
+
 const eventTypes: EventType[] = ['training', 'logistics', 'meeting', 'inspection', 'operation', 'admin', 'other'];
 const eventStatuses: EventStatus[] = ['scheduled', 'in_progress', 'completed', 'cancelled'];
 
@@ -79,6 +85,14 @@ const statusLabels: Record<EventStatus, string> = {
   in_progress: 'בתהליך',
   completed: 'הושלם',
   cancelled: 'בוטל',
+};
+
+const taskStatusLabels: Record<string, string> = {
+  open: 'פתוחה',
+  in_progress: 'בתהליך',
+  blocked: 'תקועה',
+  completed: 'הושלמה',
+  cancelled: 'בוטלה',
 };
 
 const eventTypeStyles: Record<EventType, string> = {
@@ -192,6 +206,8 @@ export default function SchedulePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [updatingEventId, setUpdatingEventId] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<EventView | null>(null);
+  const [eventTasks, setEventTasks] = useState<EventTaskView[]>([]);
+  const [isEventTasksLoading, setIsEventTasksLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ScheduleTab>('today');
@@ -321,6 +337,42 @@ export default function SchedulePage() {
     if (!isContextLoading) void loadEvents();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isContextLoading, currentUser?.id]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadEventTasks = async () => {
+      if (!selectedEvent) {
+        setEventTasks([]);
+        setIsEventTasksLoading(false);
+        return;
+      }
+
+      setIsEventTasksLoading(true);
+      const { data, error: tasksError } = await supabase
+        .from('tasks')
+        .select('id,title,status')
+        .eq('event_id', selectedEvent.id)
+        .returns<EventTaskView[]>();
+
+      if (!isMounted) return;
+
+      if (tasksError) {
+        logSupabaseError('Event linked tasks load failed', tasksError);
+        setEventTasks([]);
+      } else {
+        setEventTasks(data ?? []);
+      }
+
+      setIsEventTasksLoading(false);
+    };
+
+    void loadEventTasks();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedEvent, supabase]);
 
   const visibleEvents = useMemo(
     () => events.filter(event => filterEventByTab(event, activeTab)),
@@ -524,6 +576,9 @@ export default function SchedulePage() {
     setSelectedEvent(current => current && current.id === event.id ? { ...current, status: nextStatus } : current);
     setSuccess('סטטוס המופע עודכן.');
   };
+
+  const activeEventTasksCount = eventTasks.filter(task => ['open', 'in_progress', 'blocked'].includes(task.status)).length;
+  const completedEventTasksCount = eventTasks.filter(task => task.status === 'completed').length;
 
   return (
     <div className="space-y-6">
@@ -851,6 +906,37 @@ export default function SchedulePage() {
                   <p className="text-xs font-black text-[#98A2B3]">נוצר בתאריך</p>
                   <p className="mt-1 text-sm font-bold text-[#020108]">{formatDateTime(selectedEvent.created_at)}</p>
                 </div>
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/64 p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="text-sm font-black text-[#020108]">משימות קשורות</h3>
+                    <p className="mt-1 text-xs font-bold text-[#98A2B3]">
+                      {isEventTasksLoading
+                        ? 'טוען משימות...'
+                        : `${activeEventTasksCount} פתוחות/בתהליך/חסומות · ${completedEventTasksCount} הושלמו`}
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-[#FF6B02]/20 bg-[#FF6B02]/10 px-2.5 py-1 text-xs font-black text-[#C54F00]">
+                    {eventTasks.length}
+                  </span>
+                </div>
+
+                {!isEventTasksLoading && eventTasks.length === 0 ? (
+                  <p className="mt-3 rounded-2xl border border-dashed border-[rgba(2,1,8,0.10)] bg-white/60 p-3 text-xs font-bold text-[#667085]">
+                    אין משימות קשורות למופע זה
+                  </p>
+                ) : (
+                  <div className="mt-3 space-y-2">
+                    {eventTasks.map(task => (
+                      <div key={task.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/70 px-3 py-2">
+                        <p className="truncate text-sm font-bold text-[#020108]">{task.title}</p>
+                        <StatusBadge status={taskStatusLabels[task.status] ?? task.status} className="min-h-5 shrink-0 px-2 text-[10px]" />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

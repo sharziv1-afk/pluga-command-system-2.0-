@@ -1,0 +1,38 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+export type AuditActionType =
+  | 'request_created'
+  | 'request_status_changed'
+  | 'request_assigned'
+  | 'request_comment_added';
+
+interface CreateAuditLogParams {
+  userId: string;
+  userName: string;
+  userRole: string;
+  actionType: AuditActionType;
+  entityType: 'request';
+  entityId: string;
+  previousValue?: Record<string, unknown> | null;
+  newValue?: Record<string, unknown> | null;
+}
+
+export async function createAuditLog(
+  supabase: SupabaseClient,
+  params: CreateAuditLogParams,
+): Promise<void> {
+  const { error } = await supabase.from('audit_logs').insert({
+    user_id: params.userId,
+    user_name: params.userName,
+    user_role: params.userRole,
+    action_type: params.actionType,
+    entity_type: params.entityType,
+    entity_id: params.entityId,
+    previous_value: params.previousValue ?? null,
+    new_value: params.newValue ?? null,
+  });
+
+  if (error) {
+    console.warn('[audit] insert failed:', error.message);
+  }
+}

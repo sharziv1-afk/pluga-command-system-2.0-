@@ -20,6 +20,7 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { GlossyButton } from '@/components/ui/GlossyButton';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { createAuditLog } from '@/lib/audit';
 import { useApp } from '@/lib/context/AppContext';
 import { getPermissionLevelForRole } from '@/lib/permissions';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
@@ -402,7 +403,7 @@ export default function RequestsPage() {
       creator_unit: dbProfile.units?.name || currentUser.assigned_frame,
     };
 
-    const { error: insertError } = await supabase.from('requests').insert({
+    const { data: createdRequest, error: insertError } = await supabase.from('requests').insert({
       title: title.trim(),
       description: description.trim(),
       status: 'open',
@@ -410,14 +411,32 @@ export default function RequestsPage() {
       requested_by: currentUser.id,
       unit_id: dbProfile.unit_id,
       metadata,
-    });
+    })
+      .select('id,title,status,request_type')
+      .single<Pick<RawRequest, 'id' | 'title' | 'status' | 'request_type'>>();
 
     setIsSubmitting(false);
-    if (insertError) {
-      logSupabaseError('Request create failed', insertError);
+    if (insertError || !createdRequest) {
+      if (insertError) {
+        logSupabaseError('Request create failed', insertError);
+      }
       setError('לא הצלחנו לפתוח בקשה. אם זו שגיאת הרשאות, יש לעדכן RLS ב-Supabase.');
       return;
     }
+    void createAuditLog(supabase, {
+      userId: dbProfile.id,
+      userName: dbProfile.name,
+      userRole: dbProfile.role,
+      actionType: 'request_created',
+      entityType: 'request',
+      entityId: createdRequest.id,
+      previousValue: null,
+      newValue: {
+        title: createdRequest.title,
+        status: createdRequest.status,
+        request_type: createdRequest.request_type,
+      },
+    });
     resetForm();
     setIsFormOpen(false);
     setSuccess('הבקשה נפתחה ונשמרה במערכת.');
@@ -431,6 +450,10 @@ export default function RequestsPage() {
   };
 
   const handleStatusChange = async (requestId: string, nextStatus: RequestStatus) => {
+    const request = requests.find(item => item.id === requestId);
+    if (!request || !dbProfile) return;
+    const oldStatus = request.status;
+
     setUpdatingStatusId(requestId);
     setError(null);
     setSuccess(null);
@@ -443,14 +466,25 @@ export default function RequestsPage() {
       setError('לא ניתן לעדכן סטטוס. ייתכן שנדרשת מדיניות RLS מתאימה ב-Supabase.');
       return;
     }
+    void createAuditLog(supabase, {
+      userId: dbProfile.id,
+      userName: dbProfile.name,
+      userRole: dbProfile.role,
+      actionType: 'request_status_changed',
+      entityType: 'request',
+      entityId: request.id,
+      previousValue: { status: oldStatus },
+      newValue: { status: nextStatus },
+    });
     setRequests(current => current.map(r => r.id === requestId ? { ...r, status: nextStatus } : r));
     setSuccess('סטטוס הבקשה עודכן.');
   };
 
   const hasActiveFilters = searchText !== '' || filterCategory !== 'הכל' || filterPriority !== 'הכל';
   const handleAssigneeChange = async (request: DbRequest, value: string) => {
-    if (!canSeeAll) return;
+    if (!canSeeAll || !dbProfile) return;
     const nextAssigneeId = value === 'none' ? null : value;
+    const oldAssigneeId = request.assigned_to;
     setUpdatingAssigneeId(request.id);
     setError(null);
     setSuccess(null);
@@ -466,6 +500,17 @@ export default function RequestsPage() {
       setError('לא ניתן לעדכן מטפל לבקשה');
       return;
     }
+
+    void createAuditLog(supabase, {
+      userId: dbProfile.id,
+      userName: dbProfile.name,
+      userRole: dbProfile.role,
+      actionType: 'request_assigned',
+      entityType: 'request',
+      entityId: request.id,
+      previousValue: { assigned_to: oldAssigneeId },
+      newValue: { assigned_to: nextAssigneeId },
+    });
 
     const selectedUser = nextAssigneeId ? assigneeUsers.find(user => user.id === nextAssigneeId) : null;
     setRequests(current => current.map(item => (
@@ -547,6 +592,19 @@ export default function RequestsPage() {
       setCommentErrors(current => ({ ...current, [request.id]: 'לא ניתן להוסיף עדכון טיפול' }));
       return;
     }
+
+    void createAuditLog(supabase, {
+      userId: dbProfile.id,
+      userName: dbProfile.name,
+      userRole: dbProfile.role,
+      actionType: 'request_comment_added',
+      entityType: 'request',
+      entityId: request.id,
+      previousValue: null,
+      newValue: {
+        body_length: body.length,
+      },
+    });
 
     if (data) {
       setCommentsByRequest(current => ({ ...current, [request.id]: [...(current[request.id] ?? []), data] }));

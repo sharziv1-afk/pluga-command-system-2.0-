@@ -18,6 +18,7 @@ Current verified state after comments RLS QA:
 2. `public.comments` RLS policies are documented in `supabase/migrations/002_rls_policies.sql`.
 3. Treatment comments select/insert were verified manually against Supabase.
 4. Request Treatment History works in the site with no React code changes required.
+5. Real Audit Trail for Requests has started through `src/lib/audit.ts`; audit RLS for `public.audit_logs` is documented but still needs manual Supabase execution and QA.
 
 Role-based UI currently targets: מ"פ, סמ"פ, ע. מ"פ, מ"מ, מ"כ, סמל, רס"פ / לוגיסטיקה, חובש פלוגתי, קשר פלוגתי, ב.קוד / נהג.
 
@@ -125,6 +126,7 @@ Current project state:
 - Commander RLS policies for reading/managing user profiles were run manually in Supabase and verified with an approved + active commander.
 - `public.requests` RLS policies were run manually in Supabase and verified.
 - `supabase/migrations/002_rls_policies.sql` documents the manually-applied `public.is_commander()` helper and users/requests/comments policies for recovery or new-environment setup.
+- `supabase/migrations/002_rls_policies.sql` also includes proposed `public.audit_logs` RLS policies; these still need manual execution in Supabase and live insert/select verification.
 - `public.comments` RLS was added manually in Supabase and documented in Git.
 - `public.comments` select/insert for request treatment history was manually verified against Supabase.
 - Do not change schema, RLS, triggers, seed, or database structure during design-only work.
@@ -223,7 +225,16 @@ Manual verification passed:
 - Approved + active commanders can see requests.
 - Approved + active commanders can assign or remove a request handler through `assigned_to`.
 
-The module includes Requests Workflow v1 with filters, queues, statistics, status actions, basic assignee management, and basic request treatment comments. It does not yet include audit trail, notifications, SLA, or attachments.
+The module includes Requests Workflow v1 with filters, queues, statistics, status actions, basic assignee management, basic request treatment comments, and initial real request audit logging. It does not yet include notifications, SLA, or attachments.
+
+Initial real request audit logging uses `src/lib/audit.ts` and writes best-effort rows to `public.audit_logs` after successful:
+
+- `request_created`
+- `request_status_changed`
+- `request_assigned`
+- `request_comment_added`
+
+Audit insert failures only warn in the console and do not block the main request action. Audit RLS still needs manual Supabase execution and QA.
 
 Workflow details:
 
@@ -318,8 +329,9 @@ Protected route checks are handled by `src/proxy.ts`.
 
 ## Next Safe Steps
 
-1. Consider real `audit_logs`, richer treatment history, improved assignee workflow, tasks-to-Supabase migration, and Vercel deployment.
-2. Re-run `npm run lint`, `npx tsc -p tsconfig.json --noEmit`, and `npm run build` after changes.
+1. Run the documented `public.audit_logs` RLS policies manually in Supabase, then verify audit insert/select for request actions.
+2. Consider richer treatment history, improved assignee workflow, tasks-to-Supabase migration, and Vercel deployment.
+3. Re-run `npm run lint`, `npx tsc -p tsconfig.json --noEmit`, and `npm run build` after changes.
 
 ## Technical Debt / Known Risks
 
@@ -329,7 +341,7 @@ Protected route checks are handled by `src/proxy.ts`.
 - `users.role` is text, not a foreign key to `roles`.
 - Request priority is stored in `metadata`, not a dedicated column.
 - `assigned_to` and treatment comments passed live Supabase/RLS QA after the latest UI work.
-- `audit_logs` exists in schema but is not connected to real DB activity yet.
+- `audit_logs` is connected for initial Requests write logging, but `public.audit_logs` RLS still needs manual Supabase execution and QA.
 - No Vercel deployment yet.
 - No notifications, SLA, attachments, Realtime, or full audit trail yet.
 

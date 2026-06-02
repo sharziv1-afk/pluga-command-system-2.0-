@@ -76,6 +76,9 @@ Stack:
 - `public.comments` RLS policies were applied manually in Supabase and documented in `supabase/migrations/002_rls_policies.sql`.
 - `public.comments` select/insert was verified live against Supabase/RLS after the treatment history feature.
 - Request Treatment History works in the site; no React code change was required.
+- Real Audit Trail for Requests has started with `src/lib/audit.ts`.
+- Request actions now write best-effort audit rows for `request_created`, `request_status_changed`, `request_assigned`, and `request_comment_added`.
+- Proposed `public.audit_logs` RLS policies were added to `supabase/migrations/002_rls_policies.sql`; SQL still needs manual Supabase execution and insert/select QA.
 
 ### Important Commits
 
@@ -148,6 +151,14 @@ Request Comments / Treatment History:
 - Clear errors are shown if comment loading or insertion fails.
 - Live Supabase/RLS verification passed for `public.comments` select/insert.
 
+Request Audit Trail:
+
+- `src/lib/audit.ts` contains `createAuditLog`, a best-effort Supabase insert helper for `public.audit_logs`.
+- Request create, status change, assignee change, and comment add actions call audit after the primary Supabase action succeeds.
+- Audit insert failures only warn in the console and do not block the request workflow.
+- `AuditTab.tsx` and the AppContext/localStorage audit mock are intentionally untouched.
+- Proposed `public.audit_logs` RLS policies are documented in `002_rls_policies.sql`, but still need manual Supabase execution and QA.
+
 ### Supabase / Schema / Seed
 
 Existing tables in `001_mvp_schema.sql`:
@@ -178,6 +189,7 @@ RLS:
 - `public.users` policies: select own profile, commander select all, commander update all.
 - `public.requests` policies: insert own, select own, select own unit, commander select all, commander update all.
 - `public.comments` table exists and is used by the app. Comments RLS is documented and select/insert was manually verified.
+- `public.audit_logs` table exists and is now written by request actions, but audit RLS still needs manual Supabase execution and verification.
 - Do not run SQL automatically. Propose SQL and wait for manual Supabase execution approval.
 - Never put a service role key in frontend code.
 
@@ -203,14 +215,15 @@ RLS:
 - Request priority is stored in `metadata`, not a dedicated column.
 - `assigned_to` works in UI and passed live Supabase verification after latest changes.
 - Comments/history were added and passed live comments RLS verification.
-- `audit_logs` exists in schema but is not connected to real DB activity yet.
+- `audit_logs` is connected for initial Requests write logging, but `public.audit_logs` RLS still needs manual Supabase execution and QA.
 - No Vercel deployment yet.
 - No notifications, SLA, attachments, Realtime, or full audit trail yet.
 
 ### Recommended Next Steps
 
-1. Continue with one of:
-   - Real `audit_logs` connection.
+1. Run the documented `public.audit_logs` RLS policies manually in Supabase and verify request audit insert/select.
+2. Continue with one of:
+   - Richer audit display.
    - Richer treatment history polish.
    - Improved assignee workflow.
    - Tasks module migration to Supabase.
@@ -524,9 +537,10 @@ Check:
 - **Assigned-to display**: fetches assignee names in a safe secondary query; shows "טרם הוקצה" when null or RLS blocks.
 - **Assignee management**: approved commanders / permission >= 90 can choose an active approved `public.users` profile as handler, or remove the assignment. This updates only `public.requests.assigned_to` and does not change status.
 - **Treatment history**: each request card can open a compact comments panel backed by `public.comments`. Users who can view a request can add a treatment update. Comments store author display metadata and do not change request status. Select/insert was manually verified against Supabase.
+- **Initial request audit trail**: request create, status change, assignee change, and comment add actions write best-effort rows to `public.audit_logs` through `src/lib/audit.ts`.
 - **Commander action buttons** (permission >= 90): contextual buttons per status (קבל לטיפול / אשר / סמן הושלם / דחה / בטל). Non-commanders see a dropdown.
 - **Per-tab/filter empty states** with context-appropriate messages.
-- Schema unchanged. `public.comments` RLS policies are documented in `002_rls_policies.sql`.
+- Schema unchanged. `public.comments` RLS policies and proposed `public.audit_logs` RLS policies are documented in `002_rls_policies.sql`.
 - Dashboard updated: third card "בקשות בטיפול" added; grid changed from 2→3 columns.
 - lint: 0 / tsc: 0 / build: success (13 routes).
 
@@ -535,7 +549,7 @@ Check:
 1. Manual QA of Requests Workflow v1 with a live connected user (tabs, filters, action buttons, assignee display).
 2. Keep using the existing `public.requests` schema unless a future schema change is explicitly approved.
 3. Keep RLS enabled; if workflow status actions require additional policies, propose SQL for manual Supabase execution.
-4. Future: audit trail, richer treatment history, file attachments, SLA indicators, notifications.
+4. Future: richer audit display, richer treatment history, file attachments, SLA indicators, notifications.
 5. Future: migrate tasks/forum from AppContext demo layer to real Supabase queries.
 
 ## Guardrails For Future Agents

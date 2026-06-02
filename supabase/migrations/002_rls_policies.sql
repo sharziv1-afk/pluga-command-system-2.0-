@@ -207,3 +207,49 @@ create policy "comments: insert own request comments for request viewers"
        where requests.id = comments.entity_id
     )
   );
+
+
+-- ============================================================
+-- E. RLS: public.audit_logs
+-- ============================================================
+
+alter table public.audit_logs enable row level security;
+
+-- E1. Authenticated user can insert their own audit log.
+--     user_id must match their own public.users.id.
+drop policy if exists "audit_logs: insert own" on public.audit_logs;
+create policy "audit_logs: insert own"
+  on public.audit_logs
+  for insert
+  to authenticated
+  with check (
+    user_id = (
+      select id
+        from public.users
+       where auth_user_id = auth.uid()
+       limit 1
+    )
+  );
+
+-- E2. Commanders can read all audit logs.
+drop policy if exists "audit_logs: commander select all" on public.audit_logs;
+create policy "audit_logs: commander select all"
+  on public.audit_logs
+  for select
+  to authenticated
+  using ( public.is_commander(auth.uid()) );
+
+-- E3. User can read their own audit logs.
+drop policy if exists "audit_logs: select own" on public.audit_logs;
+create policy "audit_logs: select own"
+  on public.audit_logs
+  for select
+  to authenticated
+  using (
+    user_id = (
+      select id
+        from public.users
+       where auth_user_id = auth.uid()
+       limit 1
+    )
+  );

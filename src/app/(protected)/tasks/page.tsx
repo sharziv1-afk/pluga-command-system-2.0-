@@ -538,8 +538,11 @@ export default function TasksPage() {
 
   const canEditTask = (task: TaskView) => canSeeAll || task.created_by === dbProfile?.id;
 
-  const canDeleteCompletedTask = (task: TaskView) => {
-    return canSeeAll && activeTab === 'completed' && task.status === 'completed';
+  const canDeleteTask = (task: TaskView) => {
+    if (!dbProfile) return false;
+    const isClosed = ['completed', 'cancelled'].includes(task.status);
+    if (!isClosed) return false;
+    return canSeeAll || task.created_by === dbProfile.id;
   };
 
   const openEditTask = (task: TaskView) => {
@@ -699,9 +702,9 @@ export default function TasksPage() {
   };
 
   const handleDeleteTask = async (task: TaskView) => {
-    if (!dbProfile || !canDeleteCompletedTask(task)) return;
+    if (!dbProfile || !canDeleteTask(task)) return;
 
-    const confirmed = window.confirm('האם למחוק את המשימה שהושלמה? פעולה זו תסיר אותה מהרשימה.');
+    const confirmed = window.confirm('האם למחוק משימה סגורה זו?');
     if (!confirmed) return;
 
     setDeletingTaskId(task.id);
@@ -711,14 +714,13 @@ export default function TasksPage() {
     const { error: deleteError } = await supabase
       .from('tasks')
       .delete()
-      .eq('id', task.id)
-      .eq('status', 'completed');
+      .eq('id', task.id);
 
     setDeletingTaskId(null);
 
     if (deleteError) {
       logSupabaseError('Task delete failed', deleteError);
-      setError('לא ניתן למחוק את המשימה. ייתכן שנדרשת מדיניות RLS למחיקת משימות שהושלמו.');
+      setError('לא ניתן למחוק את המשימה. ייתכן שנדרשת מדיניות RLS למחיקת משימות סגורות.');
       return;
     }
 
@@ -743,7 +745,7 @@ export default function TasksPage() {
     });
 
     setTasks(current => current.filter(item => item.id !== task.id));
-    setSuccess('המשימה שהושלמה נמחקה מהרשימה.');
+    setSuccess('המשימה הסגורה נמחקה מהרשימה.');
   };
 
   return (
@@ -1046,7 +1048,7 @@ export default function TasksPage() {
                         </select>
                         {updatingTaskId === task.id && <Loader2 className="h-4 w-4 animate-spin text-[#FF6B02]" />}
                       </div>
-                      {canDeleteCompletedTask(task) && (
+                      {canDeleteTask(task) && (
                         <GlossyButton
                           variant="slate"
                           size="sm"

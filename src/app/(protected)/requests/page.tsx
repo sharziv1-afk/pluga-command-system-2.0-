@@ -630,9 +630,16 @@ export default function RequestsPage() {
     setSuccess('המטפל עודכן');
   };
 
-  const handleDeleteCompletedRequest = async (request: DbRequest) => {
-    if (!canSeeAll || !dbProfile || activeTab !== 'completed' || request.status !== 'completed') return;
-    const confirmed = window.confirm('האם למחוק את הדרישה שהושלמה? פעולה זו תסיר אותה מהרשימה.');
+  const canDeleteRequest = (request: DbRequest) => {
+    if (!dbProfile) return false;
+    const isClosed = ['completed', 'rejected', 'cancelled'].includes(request.status);
+    if (!isClosed) return false;
+    return canSeeAll || request.requested_by === dbProfile.id;
+  };
+
+  const handleDeleteClosedRequest = async (request: DbRequest) => {
+    if (!dbProfile || !canDeleteRequest(request)) return;
+    const confirmed = window.confirm('האם למחוק דרישה סגורה זו?');
     if (!confirmed) return;
 
     setDeletingRequestId(request.id);
@@ -642,13 +649,12 @@ export default function RequestsPage() {
     const { error: deleteError } = await supabase
       .from('requests')
       .delete()
-      .eq('id', request.id)
-      .eq('status', 'completed');
+      .eq('id', request.id);
 
     setDeletingRequestId(null);
     if (deleteError) {
       logSupabaseError('Request delete failed', deleteError);
-      setError('לא ניתן למחוק את הדרישה. ייתכן שנדרשת מדיניות RLS למחיקת בקשות שהושלמו.');
+      setError('לא ניתן למחוק את הדרישה. ייתכן שנדרשת מדיניות RLS למחיקת בקשות סגורות.');
       return;
     }
 
@@ -672,7 +678,7 @@ export default function RequestsPage() {
     });
 
     setRequests(current => current.filter(item => item.id !== request.id));
-    setSuccess('הדרישה שהושלמה נמחקה.');
+    setSuccess('הדרישה הסגורה נמחקה.');
   };
 
   const loadComments = async (requestId: string) => {
@@ -1019,7 +1025,7 @@ export default function RequestsPage() {
             const commentError = commentErrors[request.id];
             const isLoadingComments = loadingCommentsId === request.id;
             const isSubmittingComment = submittingCommentId === request.id;
-            const canDeleteCompleted = canSeeAll && activeTab === 'completed' && request.status === 'completed';
+            const canDeleteClosed = canDeleteRequest(request);
             const isDeleting = deletingRequestId === request.id;
 
             return (
@@ -1130,13 +1136,13 @@ export default function RequestsPage() {
                   </div>
                 )}
 
-                {canDeleteCompleted && (
+                {canDeleteClosed && (
                   <div className="flex justify-start border-t border-[rgba(2,1,8,0.08)] pt-3">
                     <GlossyButton
                       type="button"
                       variant="slate"
                       size="sm"
-                      onClick={() => handleDeleteCompletedRequest(request)}
+                      onClick={() => handleDeleteClosedRequest(request)}
                       disabled={isDeleting}
                       className="text-red-700 hover:border-red-500/25 hover:bg-red-500/10"
                     >

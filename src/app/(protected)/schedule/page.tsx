@@ -10,6 +10,7 @@ import {
   MapPin,
   Plus,
   RefreshCw,
+  Trash2,
   UserCheck,
   X,
 } from 'lucide-react';
@@ -226,6 +227,13 @@ function isEventVisibleInDefaultSchedule(event: DbEvent) {
   return eventEnd >= cutoff;
 }
 
+function shouldAutoCompleteEvent(event: DbEvent) {
+  if (!['scheduled', 'in_progress'].includes(event.status)) return false;
+
+  const endTime = event.ends_at ? new Date(event.ends_at) : new Date(event.starts_at);
+  return endTime.getTime() < Date.now();
+}
+
 function filterEventByTab(event: EventView, tab: ScheduleTab) {
   if (tab === 'all') return true;
 
@@ -251,6 +259,7 @@ export default function SchedulePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeletingEvent, setIsDeletingEvent] = useState(false);
   const [updatingEventId, setUpdatingEventId] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<EventView | null>(null);
   const [eventTasks, setEventTasks] = useState<EventTaskView[]>([]);
@@ -371,8 +380,42 @@ export default function SchedulePage() {
       const dedupedUsers = Array.from(new Map(usersForResponsibility.map(user => [user.id, user])).values());
       setResponsibleUsers(dedupedUsers);
 
+      const canAutoCompleteAll = isCommanderRole(profileData.role, profileData.permission_level);
+      const autoCompletedEventIds = new Set<string>();
+      const eventsToAutoComplete = rawEvents.filter(event => (
+        shouldAutoCompleteEvent(event)
+        && (canAutoCompleteAll || event.created_by === profileData.id)
+      ));
+
+      for (const event of eventsToAutoComplete) {
+        const { error: autoCompleteError } = await supabase
+          .from('events')
+          .update({ status: 'completed' })
+          .eq('id', event.id);
+
+        if (autoCompleteError) {
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('[schedule] auto-complete event failed:', autoCompleteError.message);
+          }
+          continue;
+        }
+
+        autoCompletedEventIds.add(event.id);
+        void createAuditLog(supabase, {
+          userId: profileData.id,
+          userName: profileData.name,
+          userRole: profileData.role,
+          actionType: 'event_status_changed',
+          entityType: 'event',
+          entityId: event.id,
+          previousValue: { status: event.status },
+          newValue: { status: 'completed', auto_completed: true },
+        });
+      }
+
       setEvents(rawEvents.map(event => ({
         ...event,
+        status: autoCompletedEventIds.has(event.id) ? 'completed' : event.status,
         creatorName: event.created_by ? (userNames[event.created_by] ?? null) : null,
         responsibleName: event.responsible_user_id ? (userNames[event.responsible_user_id] ?? null) : null,
         unitName: event.unit_id ? (unitNames[event.unit_id] ?? null) : null,
@@ -641,6 +684,13 @@ export default function SchedulePage() {
     return canSeeAll || event.created_by === dbProfile.id;
   };
 
+  const canDeleteEvent = (event: EventView) => {
+    if (!dbProfile) return false;
+    const isClosed = ['completed', 'cancelled'].includes(event.status);
+    if (!isClosed) return false;
+    return canSeeAll || event.created_by === dbProfile.id;
+  };
+
   const handleStatusChange = async (event: EventView, nextStatus: EventStatus) => {
     if (!dbProfile || event.status === nextStatus || !canUpdateEventStatus(event)) return;
 
@@ -676,6 +726,53 @@ export default function SchedulePage() {
     setEvents(current => current.map(item => (item.id === event.id ? { ...item, status: nextStatus } : item)));
     setSelectedEvent(current => current && current.id === event.id ? { ...current, status: nextStatus } : current);
     setSuccess('סטטוס המופע עודכן.');
+  };
+
+  const handleDeleteEvent = async (event: EventView) => {
+    if (!dbProfile || !canDeleteEvent(event)) return;
+
+    const confirmed = window.confirm('האם למחוק מופע זה? משימות ודרישות הקשורות אליו יתנתקו מהמופע אך לא יימחקו.');
+    if (!confirmed) return;
+
+    setIsDeletingEvent(true);
+    setError(null);
+    setSuccess(null);
+
+    const { error: deleteError } = await supabase
+      .from('events')
+      .delete()
+      .eq('id', event.id);
+
+    setIsDeletingEvent(false);
+
+    if (deleteError) {
+      logSupabaseError('Event delete failed', deleteError);
+      setError('לא ניתן למחוק את המופע כרגע.');
+      return;
+    }
+
+    void createAuditLog(supabase, {
+      userId: dbProfile.id,
+      userName: dbProfile.name,
+      userRole: dbProfile.role,
+      actionType: 'event_deleted',
+      entityType: 'event',
+      entityId: event.id,
+      previousValue: {
+        title: event.title,
+        event_type: event.event_type,
+        starts_at: event.starts_at,
+        ends_at: event.ends_at,
+        status: event.status,
+        created_by: event.created_by,
+        unit_id: event.unit_id,
+      },
+      newValue: null,
+    });
+
+    setSelectedEvent(null);
+    setSuccess('המופע הסגור נמחק.');
+    await loadEvents();
   };
 
   const activeEventTasksCount = eventTasks.filter(task => ['open', 'in_progress', 'blocked'].includes(task.status)).length;
@@ -1141,9 +1238,23 @@ export default function SchedulePage() {
                 <p className="text-xs font-bold text-[#98A2B3]">אין הרשאת עדכון למופע זה</p>
               )}
 
-              <GlossyButton variant="slate" size="sm" onClick={() => setSelectedEvent(null)}>
-                סגור
-              </GlossyButton>
+              <div className="flex flex-wrap gap-2">
+                {canDeleteEvent(selectedEvent) && (
+                  <GlossyButton
+                    variant="slate"
+                    size="sm"
+                    onClick={() => void handleDeleteEvent(selectedEvent)}
+                    disabled={isDeletingEvent}
+                    className="text-red-700 hover:border-red-500/30 hover:bg-red-500/10"
+                  >
+                    {isDeletingEvent ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                    מחק מופע
+                  </GlossyButton>
+                )}
+                <GlossyButton variant="slate" size="sm" onClick={() => setSelectedEvent(null)}>
+                  סגור
+                </GlossyButton>
+              </div>
             </div>
           </div>
         </div>

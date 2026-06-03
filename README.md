@@ -51,7 +51,7 @@ ac47d00 Add closed item deletion and schedule auto-complete
 - **Tasks module** — Supabase-backed: create, status update, edit (Phase 1), assigned_to, event_id, audit trail, closed-item deletion (completed/cancelled). Linked to Events via `event_id`.
 - **Schedule / Events** — `/schedule`: timeline view, week grid, day tabs, event creation, status updates, auto-complete for elapsed events, closed-item deletion (completed/cancelled). Modal shows linked tasks and requests.
 - **Cross-module links** — Tasks ↔ Events (migration 004), Requests ↔ Events (migration 005). Deleting an event detaches linked items via `ON DELETE SET NULL`.
-- **Audit trail** — 13 action types, best-effort, non-blocking, full entityType support.
+- **Audit trail** — 12 action types, best-effort, non-blocking, full entityType support.
 - **Closed item deletion** — Phase 1: creator or commander can delete closed items across all three modules.
 
 ---

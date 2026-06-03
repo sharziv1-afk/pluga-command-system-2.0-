@@ -384,7 +384,7 @@ The DB-backed modules (Requests, Tasks, Events) use their own local types and di
 
 ## Prompt for New Claude Session
 
-Continue `pluga-command-system` / "המפקד". Last commit: `ac47d00 Add closed item deletion and schedule auto-complete`. Stack: Next.js 16 (src/proxy.ts NOT middleware.ts), React 19, TypeScript, Tailwind 4, Supabase Auth/PostgreSQL/RLS. Auth: hybrid email+password / Email OTP. Working modules: Requests (full workflow + event link + closed deletion), Tasks (Supabase + editing Phase 1 + event link + closed deletion), Events/Schedule (timeline, week grid, auto-complete, event link to tasks+requests, closed deletion). Migrations 001-006 all run in Supabase. Audit: 13 actions, best-effort. AppContext/forum still localStorage. No service role in frontend. No middleware.ts. Read README, PROJECT_HANDOFF_AI_CONTEXT, PROJECT_SUMMARY, AGENTS, CLAUDE before writing any code.
+Continue `pluga-command-system` / "המפקד". Last commit: `ac47d00 Add closed item deletion and schedule auto-complete`. Stack: Next.js 16 (src/proxy.ts NOT middleware.ts), React 19, TypeScript, Tailwind 4, Supabase Auth/PostgreSQL/RLS. Auth: hybrid email+password / Email OTP. Working modules: Requests (full workflow + event link + closed deletion), Tasks (Supabase + editing Phase 1 + event link + closed deletion), Events/Schedule (timeline, week grid, auto-complete, event link to tasks+requests, closed deletion). Migrations 001-006 all run in Supabase. Audit: 12 actions, best-effort. AppContext/forum still localStorage. No service role in frontend. No middleware.ts. Read README, PROJECT_HANDOFF_AI_CONTEXT, PROJECT_SUMMARY, AGENTS, CLAUDE before writing any code.
 
 ## Prompt for New Codex Session
 

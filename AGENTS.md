@@ -12,3 +12,12 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Do not run `npm audit fix --force`.
 - Do not delete or rewrite `src/lib/context/AppContext.tsx` / localStorage demo state without dependency mapping.
 - Do not touch Supabase schema, seed, auth callback, or proxy during design-only work unless a direct verified issue requires it.
+- Never put a service role key in frontend code.
+- Do not propose or run SQL automatically. Propose SQL, then wait for explicit manual execution.
+- Do not re-run migration 001 or 002 in production. They are idempotent but unnecessary.
+- Keep Hebrew gershayim normalization (`normalizeRole`) consistent across all modules — it is critical for commander role detection.
+- Tasks and Requests both have `event_id` as a real FK column (not metadata). Do not move it to metadata.
+- Metadata merge on task edit must preserve: `source_type`, `source_id`, `creator_name`, `creator_role`, `creator_unit`, `control_questions`, `stuck_reason`. Only `category`, `location`, `output_required` should be overwritten.
+- Audit actions are best-effort (`void createAuditLog(...)`). Never make them blocking.
+- Closed item deletion is Phase 1 only (creator + commander). Do not add unit/hierarchy logic without planning.
+- Do not add recurring events, drag/drop, cron jobs, Supabase Edge Functions, or Supabase Realtime without an explicit feature request and planning session.

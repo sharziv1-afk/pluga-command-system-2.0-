@@ -1,314 +1,210 @@
-# Project Summary - pluga-command-system
+# Project Summary — pluga-command-system
 
-## Restart Snapshot - 2026-06-02
+## Milestone Snapshot — 2026-06-03
 
-Previous latest pushed feature commit before Events/Schedule v1:
+**Milestone:** Closed Items Deletion + Schedule Auto-Complete
+**Last commit:** `ac47d00 Add closed item deletion and schedule auto-complete`
+**Branch:** `main` — clean working tree
 
-```txt
-5bd714d Add Supabase-backed Tasks v1
+---
+
+## What the product is
+
+**"המפקד"** is a Hebrew RTL command-management system for a company-level command team. It centralizes:
+
+- Logistics requests and follow-up (Requests module)
+- Task assignment and tracking (Tasks module)
+- Schedule and events management (Schedule/Events module)
+- Role-based access and approval (Admin Panel)
+- Forum updates (planned; currently mock)
+
+Target roles: מ"פ, סמ"פ, ע. מ"פ, מ"מ, מ"כ, סמל, רס"פ/לוגיסטיקה, חובש פלוגתי, קשר פלוגתי, ב.קוד/נהג.
+
+---
+
+## Full Build History
+
+### Foundation (pre-milestone)
+
+- Auth: hybrid Email OTP + password setup for registration; email+password for login. Dev Login for local work. Magic Link callback fallback. Password visibility toggles.
+- Role-based interface: approved active commanders see full dashboard and Admin Panel.
+- Admin Panel: approve/reject users, edit roles/units/permissions.
+- Profile page.
+- Design: **Light Gloss Command System** (bright, glass cards, orange #FF6B02, dark #020108 text, RTL).
+- Layout: fixed sidebar 1280px+; compact top nav below 1280px; no overlay; one menu button.
+
+### Requests module
+
+- Basic creation → `public.requests` via Supabase.
+- Queue tabs: הכל / שלי / פתוחות / דחופות / בטיפול / הושלמו / נדחו/בוטלו.
+- Free-text search + category + priority filters.
+- Status actions: contextual buttons for commanders, dropdown for others.
+- Assignee management: commanders can set/clear `assigned_to`.
+- Treatment history: `public.comments`, `entity_type='request'`.
+- Audit trail: `request_created`, `request_status_changed`, `request_assigned`, `request_comment_added`, `request_deleted`.
+- Completed-request deletion (commander only) — later expanded by migration 006.
+- Requests ↔ Events link (`097bf60`, migration 005): optional event dropdown on create; badge on card; `דרישות קשורות` in Schedule modal.
+- Closed deletion expanded (`ac47d00`, migration 006): completed + rejected + cancelled deletable by creator or commander.
+
+### Tasks module
+
+- Moved from localStorage to Supabase (`5bd714d`).
+- Create/edit/status-update/delete tasks in `public.tasks`.
+- `completed_at` set/cleared on status transition.
+- Metadata fields: category, location, output_required, control_questions, source_type.
+- Tasks ↔ Events link (`8788a9c`, migration 004): optional event dropdown; `משימות קשורות` in Schedule modal.
+- Task Editing Phase 1 (`066145e`): edit modal for creator/commander; metadata merge preserves provenance.
+- Closed deletion (`ac47d00`, migration 006): completed + cancelled deletable by creator or commander.
+- Audit: `task_created`, `task_updated`, `task_status_changed`, `task_deleted`.
+
+### Schedule / Events module
+
+- New route `/schedule`, protected via `src/proxy.ts`.
+- `public.events` via migration 003.
+- Timeline view + week grid (7 columns).
+- Tabs: היום / מחר / השבוע / הכל. Jerusalem-timezone day calculation.
+- Events ended >24h ago hidden client-side (no DB deletion).
+- Event creation, status updates, linked tasks/requests sections in modal.
+- Auto-complete (`ac47d00`): if `ends_at` (or `starts_at`) has passed and user can update → event moved to `completed` on page load; client-side only, no cron.
+- Closed event deletion (`ac47d00`, migration 006): completed + cancelled deletable by creator or commander; deleting event nullifies `event_id` on linked tasks/requests (`ON DELETE SET NULL`).
+- Audit: `event_created`, `event_status_changed`, `event_deleted`.
+
+---
+
+## Migrations Run (in order)
+
+1. `001_mvp_schema.sql` — base tables, enums, triggers.
+2. `seed_units_roles.sql` — units + roles seed.
+3. `002_rls_policies.sql` — is_commander() + RLS sections A–G.
+4. `003_events_schema.sql` — public.events.
+5. `004_task_event_link.sql` — tasks.event_id FK.
+6. `005_request_event_link.sql` — requests.event_id FK.
+7. `006_closed_items_delete_rls.sql` — replaces C6/F8 from 002; adds events delete policy.
+
+All were run manually in Supabase and verified.
+
+---
+
+## Audit Actions (as of ac47d00)
+
+```
+request_created          request_status_changed    request_assigned
+request_comment_added    request_deleted
+task_created             task_updated              task_status_changed
+task_deleted
+event_created            event_status_changed      event_deleted
 ```
 
-Latest feature ready for commit: **Events / Schedule v1**.
+All are best-effort: `void createAuditLog(...)`. Failures warn only.
 
-The project is a Hebrew RTL company command-management system named **"המפקד"**. It is built with Next.js 16 App Router, React 19, TypeScript, Tailwind CSS 4, Supabase Auth/PostgreSQL/RLS, and GitHub. Future deployment target: Vercel. The project uses `src/proxy.ts`; do not create `middleware.ts`.
+---
 
-Current product state:
+## Closed Item Deletion — Design Decisions
 
-- Auth works.
-- First registration uses Email OTP + password setup.
-- Existing login uses email + password.
-- OTP supports 8 digits.
-- Supabase Email Template must use `{{ .Token }}`.
-- Dev Login is development-only.
-- Magic Link callback remains as fallback.
-- Role Based Interface works.
-- Approved + active commanders see role-specific dashboard and Admin.
-- Profile page works.
-- Sidebar/Header display name, role, and unit.
-- Requests module works with Supabase.
-- Request creation has been manually verified.
-- `public.users` and `public.requests` RLS were run manually in Supabase and work.
-- Request assignee management has been implemented and pushed; latest `assigned_to` update was verified live against Supabase.
-- Request treatment comments have been implemented and pushed.
-- `public.comments` RLS policies were added manually in Supabase and documented in `supabase/migrations/002_rls_policies.sql`.
-- `public.comments` select/insert was manually verified against Supabase.
-- Request Treatment History works in the site, and no React code change was required.
-- Real Audit Trail for Requests works with `src/lib/audit.ts`.
-- Request actions write best-effort audit rows for `request_created`, `request_status_changed`, `request_assigned`, `request_comment_added`, and `request_deleted`.
-- `public.audit_logs` RLS section E was manually run in Supabase and verified.
-- Completed-request deletion works in the completed tab for commander-level users only.
-- `requests: commander delete completed` was manually run in Supabase and verified.
-- `unit_id` behavior is accepted: requests are associated to the creator profile unit; existing profiles missing `unit_id` use a fallback resolver, and future users per unit/department should work correctly.
-- Events / Schedule v1 is implemented and manually verified.
-- `/schedule` is a protected route through `src/proxy.ts`.
-- The `לו״ז` navigation item was added through `src/data/navigation.ts`.
-- `public.events` was added through `supabase/migrations/003_events_schema.sql`.
-- Section G for `public.events` RLS was added to `supabase/migrations/002_rls_policies.sql`.
-- `/schedule` includes today/tomorrow/week/all tabs, summary counters, timeline by day/hour, compact event blocks, details modal, event creation, status updates, loading/error/empty states.
-- Event audit support includes `event_created`, `event_status_changed`, and future `event_updated`; audit `entityType` supports `request | task | event`.
-- `DbEvent` was added to `src/lib/types.ts`.
-- Protected layout now uses a viewport-height shell with internal main scrolling for better sidebar/modal behavior.
-- New environments should run `003_events_schema.sql` first, then Section G for `public.events` RLS.
-- Not included yet: task `event_id`, calendar grid, drag/drop, recurring events, Google Calendar, Forum integration, or AI.
+| Module | Deletable statuses | Non-deletable |
+|--------|-------------------|---------------|
+| Requests | completed, rejected, cancelled | open, in_progress, approved |
+| Tasks | completed, cancelled | open, in_progress, blocked |
+| Events | completed, cancelled | scheduled, in_progress |
 
-Immediate next steps:
+Who can delete: **Phase 1 — creator OR commander (canSeeAll)**.
 
-1. Map current Tasks and Forum implementation.
-2. Move Tasks from localStorage/mock to Supabase.
-3. Keep Events / Schedule v1 stable and manually verify new-environment SQL when needed.
-4. Link Tasks to Events using a future `event_id`.
-5. Later connect Forum posts to Tasks/Events.
-6. Only later consider AI-based extraction from forum posts.
+Phase 2 (not built): unit hierarchy, permission_level comparison.
 
-## Current State
+---
 
-`pluga-command-system` is the repository for **"המפקד"**, a Hebrew RTL company command-management system.
+## Key Decisions Not to Lose
 
-The project currently uses:
+| Decision | Why |
+|----------|-----|
+| ON DELETE SET NULL for event_id | Tasks/requests survive when their linked event is deleted |
+| event_id as real column, not metadata | Enables proper FK, indexing, and RLS filtering |
+| Auto-complete is client-side only | No cron/scheduler needed for MVP; retries on next loadEvents() |
+| Metadata merge on task edit | Provenance fields (source_type, creator_name, etc.) are preserved |
+| No request edit form yet | Complex workflow; deferred to Phase 2 |
+| No column-level RLS | Postgres doesn't support it natively; assigned-user restrictions enforced in UI |
+| Hebrew gershayim normalization | Critical for commander role detection across all modules |
+| No service role key in frontend | Security non-negotiable |
+| AppContext kept intact | Still depended on by Forum, audit UI, gap tracking |
 
-- Next.js 16 App Router
-- React 19
-- TypeScript
-- Tailwind CSS 4
-- Supabase Auth
-- Supabase schema and seed files
-- Next.js 16 `src/proxy.ts` for protected routes
-- Existing `AppContext` / localStorage demo layer
+---
 
-The schema and seed were already run manually in Supabase. The seed file is kept in Git at `supabase/migrations/seed_units_roles.sql`.
+## What Was Deliberately NOT Built
 
-RLS policies for `public.users` were added manually in Supabase after profile creation failed. `public.users` was empty before those policies were added. Commander RLS policies for reading/managing user profiles were also run manually in Supabase and verified.
+- Recurring events, drag/drop, Google Calendar integration.
+- Supabase cron / Edge Functions / scheduler.
+- Request edit form (Phase 2).
+- Assigned-user expanded permissions (Phase 2).
+- Hierarchy/unit-level delete permissions (Phase 2).
+- request_event_changed audit action (Phase 2).
+- Vercel deployment.
+- Notifications, SLA, attachments.
+- Automated migration runner.
+- Forum → Supabase migration.
+- Real-time audit UI.
 
-`supabase/migrations/002_rls_policies.sql` now documents the `public.is_commander()` helper function and RLS policies for `public.users`, `public.requests`, `public.comments`, and `public.audit_logs` in version control. It also documents the completed-request delete policy. These policies were manually run in Supabase and verified in the live project.
+---
 
-## What Has Been Done
+## What Claude Reviewed and Approved
 
-- Supabase client/server helpers are connected.
-- `/login` uses a **hybrid authentication paradigm**: existing-user login via **Email + Password** (`signInWithPassword`) to conserve email quota, and first-registration via **Email OTP code verification** (`signInWithOtp`) with password setup (`updateUser({ password })`).
-- First registration creates/updates `public.users` only after both OTP verification and password setup succeed.
-- Development-only password login remains available locally and is hidden in production.
-- Auth callback route exists.
-- Auth callback profile creation was adjusted to include all required NOT NULL fields for `public.users`.
-- Protected route proxy exists.
-- Schema file exists.
-- Units/roles seed file exists.
-- The app has a protected layout with sidebar/mobile header.
-- Role-based interface is working at a basic level: approved active commanders see commander dashboard content, Admin Panel navigation, and real user/role identity in the sidebar/header.
-- Personal profile page exists and displays the connected user and role.
-- A basic Supabase-backed requests/requirements module now exists at `/requests`.
-- The requests module was manually verified: request creation works and writes to `public.requests`.
-- RLS policies for `public.requests` were run manually in Supabase and work.
-- **Requests Workflow v1** is implemented: queue tabs, text/category/priority filters, 4-stat header, assigned-to display, commander assignee management through `assigned_to`, treatment comments through the existing `public.comments` table, real request audit logging, completed-request deletion, commander action buttons (קבל לטיפול / אשר / סמן הושלם / דחה / בטל), per-tab empty states. Schema unchanged; comments, audit, and completed-delete RLS are now documented and manually verified.
-- Dashboard updated with a third "בקשות בטיפול" card linking to `/requests`.
-- Core UI components exist: `GlassCard`, `GlossyButton`, `StatusBadge`, `EmptyState`.
-- The current UI pass introduced the **Light Gloss Command System**.
+Each of the following had a dedicated QA pass by Claude before SQL was run or commit was made:
 
-## Latest Manual Verification
+1. Tasks ↔ Events link (migration 004, tasks page, schedule page) — before SQL.
+2. Task Editing Phase 1 (tasks page, audit.ts) — before commit.
+3. Requests ↔ Events link (migration 005, requests page, schedule page) — before SQL.
+4. Closed Items Deletion Phase 1 (migration 006, all three pages, audit.ts) — before SQL.
+5. Schedule Auto-Complete addition (schedule page) — before final commit.
 
-Manual testing passed after the commander RLS policies were applied in Supabase:
+QA covered: lint ✅ tsc ✅ build ✅ for all milestones.
 
-- An approved + active מ״פ can log in.
-- The מ״פ sees the role-appropriate commander dashboard.
-- The Admin Panel appears for the מ״פ.
-- The personal profile page exists.
-- Sidebar and mobile header show the connected user and role.
-- `/requests` works.
-- A new request can be created and is saved in `public.requests`.
-- Approved + active commanders can see requests after the manual `public.requests` RLS policy update.
-- Approved + active commanders can assign or remove a request handler; `assigned_to` stores `public.users.id`.
-- `public.comments` select/insert works for Request Treatment History.
-- `public.audit_logs` records `request_created`, `request_status_changed`, `request_assigned`, `request_comment_added`, and `request_deleted`.
-- Completed requests can be deleted only from the completed tab by commander-level users.
-- The latest checks passed: lint, typecheck, and build. The latest build produced 16 routes.
+---
 
-## Latest Design Change
+## What SQL Was Run Manually
 
-The design language was updated from dark/cyber styling to a bright professional command SaaS style:
+| SQL | When | Verified |
+|-----|------|---------|
+| 001_mvp_schema.sql | Project start | ✅ |
+| seed_units_roles.sql | Project start | ✅ |
+| 002_rls_policies.sql sections A–G | Incremental | ✅ |
+| 003_events_schema.sql | Events v1 | ✅ |
+| 004_task_event_link.sql | Tasks ↔ Events | ✅ |
+| 005_request_event_link.sql | Requests ↔ Events | ✅ |
+| 006_closed_items_delete_rls.sql | Closed deletion milestone | ✅ |
 
-- Light background: `#F6F7F9`
-- Primary text: `#020108`
-- Primary action: `#FF6B02`
-- Soft glass cards with blur, light borders, and restrained shadows
-- Orange active states
-- RTL-friendly mobile-first forms
+---
 
-Screens aligned in this pass:
+## Current Technical Debt
 
-- `/login`
-- `/onboarding`
-- `/select-role`
-- `/pending-approval`
-- `/dashboard` placeholder
-- Protected layout, sidebar, mobile header, and page header
+- AppContext: demo/localStorage (Forum, AuditTab, Gaps still depend on it).
+- No request edit form.
+- No hierarchy permissions.
+- Dashboard summaries not real Supabase queries.
+- No Vercel deployment.
+- No notifications/SLA/attachments.
+- task_deleted audit doesn't include event_id in previousValue (minor gap, not regression).
 
-## Auth Status
+---
 
-A hybrid authentication paradigm is implemented in `/login`: Existing user login uses Email + Password (preserving email quota), while first-registration uses Email OTP.
-Supabase OTP verification and password update are wired, but live end-to-end testing has been bottlenecked due to:
+## Recommended Next Steps (ordered)
 
-```txt
-429 over_email_send_rate_limit
-```
+1. Short manual QA of all three modules after docs commit.
+2. Real Supabase data in Dashboard summaries.
+3. Forum module → Supabase.
+4. Request edit form (parity with Task Editing Phase 1).
+5. Notifications/SLA.
+6. Hierarchy permissions Phase 2.
+7. Vercel deployment.
+8. Attachments.
 
-After the manual RLS policy update, Email OTP still requires a live registration pass once the Supabase email rate limit expires.
+---
 
-Before live testing, manually update Supabase:
+## Build Status
 
-```txt
-Authentication -> Email Templates
-```
+As of `ac47d00`:
 
-The template must include:
+- `npm run lint` — 0 errors/warnings.
+- `npx tsc -p tsconfig.json --noEmit` — 0 errors.
+- `npm run build` — 17 routes, 0 errors.
 
-```txt
-{{ .Token }}
-```
-
-If it only includes `{{ .ConfirmationURL }}`, Supabase will keep sending a link instead of a code.
-
-After the rate limit expires, test the registration flow:
-
-- Email OTP delivery for new registrations.
-- Registration `verifyOtp` and subsequent password setup (`updateUser({ password })`).
-- `public.users` profile creation after OTP verification and RLS policies.
-- Existing user login with email + password (which works instantly without emails/OTP).
-- redirect to `/onboarding`
-- redirect to `/pending-approval`
-- approved user access to `/dashboard`
-
-## Important Constraints
-
-- Do not change schema, seed, auth callback, or proxy during design-only work.
-- Do not delete `AppContext` / localStorage yet.
-- Do not rename `proxy.ts` to `middleware.ts`.
-- Do not run `npm audit fix --force`.
-- Keep Hebrew RTL.
-- Keep the primary design light. Do not return to dark theme.
-
-## Next Step
-
-Run visual QA and build checks:
-
-```bash
-npm run lint
-npx tsc -p tsconfig.json --noEmit
-npm run build
-```
-
-Next recommended feature steps:
-
-- First map current Tasks and Forum implementation.
-- Move Tasks from localStorage/mock to Supabase.
-- Keep Events / Schedule v1 stable and manually verify new-environment SQL when needed.
-- Link Tasks to Events using a future `event_id`.
-- Later connect Forum posts to Tasks/Events.
-- Only later consider AI-based extraction from forum posts.
-
-## Final Handoff Notes For Restart
-
-Product roles currently documented for the role-based interface:
-
-- מ"פ
-- סמ"פ
-- ע. מ"פ
-- מ"מ
-- מ"כ
-- סמל
-- רס"פ / לוגיסטיקה
-- חובש פלוגתי
-- קשר פלוגתי
-- ב.קוד / נהג
-
-Requests module details:
-
-- Basic request creation writes to `public.requests`.
-- `request_type` stores category.
-- `metadata.priority` stores priority.
-- `metadata.creator_name`, `metadata.creator_role`, and `metadata.creator_unit` store creator display fields.
-- `requested_by = public.users.id`.
-- `unit_id` is stored when available.
-- Queue tabs: הכל, שלי, פתוחות, דחופות, בטיפול, הושלמו, נדחו/בוטלו.
-- Status actions:
-  - `open ->` קבל לטיפול / אשר / דחה / בטל
-  - `in_progress ->` אשר / סמן הושלם / דחה / בטל
-  - `approved ->` סמן הושלם / בטל
-  - terminal statuses have no actions.
-- Assign Request Owner lets approved commanders / high-permission users set or remove `public.requests.assigned_to`.
-- Regular users can see the handler but cannot change it.
-- `unit_id` stores which unit/department the request belongs to. `assigned_to` stores who handles it. No UI selector for requesting unit is needed yet.
-- Request Comments / Treatment History uses existing `public.comments`:
-  - `entity_type = 'request'`
-  - `entity_id = request.id`
-  - `user_id = public.users.id`
-  - `body =` comment text
-  - `metadata = { author_name, author_role }`
-  - empty comments are blocked client-side.
-- Request Audit Trail uses `src/lib/audit.ts` and `public.audit_logs`:
-  - `request_created`
-  - `request_status_changed`
-  - `request_assigned`
-  - `request_comment_added`
-  - `request_deleted`
-  - Audit is best-effort/fire-and-forget; failures only `console.warn` and do not block the primary request action.
-- Completed-request deletion:
-  - Delete button appears only in the completed tab.
-  - Delete button appears only when `request.status === 'completed'`.
-  - Delete is available only to `canSeeAll` / commander-level users.
-  - Regular users do not see delete.
-  - The delete query also guards `.eq('status', 'completed')`.
-  - A confirmation prompt appears before delete.
-
-RLS and Supabase:
-
-- `supabase/migrations/002_rls_policies.sql` documents manually-run RLS for `public.users`, `public.requests`, `public.comments`, `public.audit_logs`, and `requests: commander delete completed`.
-- `public.is_commander(auth_id uuid)` uses `SECURITY DEFINER` and `SET search_path = public`.
-- It checks active + approved users whose role is מ"פ/סמ"פ or whose `permission_level >= 90`.
-- `public.comments` exists and is used by the app; comments select/insert was manually verified live against Supabase.
-- `public.audit_logs` insert own/select own/commander select all was manually verified.
-- `public.requests` delete completed policy allows commanders to delete only completed requests.
-- Do not run SQL automatically.
-- Do not use a service role key in frontend code.
-
-UI and Browser QA:
-
-- Claude Code Browser QA covered login, dashboard, requests, admin, profile, and widths `1440`, `1280`, `1200`, `1024`, `768`, and `390`.
-- Fixed after QA: mobile Admin link, commander action visibility, role quote normalization, filter/search issue, compact navigation, and QuickHelp modal positioning.
-- Theme toggle supports day/night while preserving Light Gloss Command System.
-- Final responsive layout: fixed sidebar at `1280px+`; compact top navigation inside the flow below `1280px`; one menu button; no overlay hiding content.
-
-Technical debt / known risks:
-
-- `AppContext` still contains demo/localStorage state.
-- `tasks` and `forum` still rely on mock/localStorage behavior.
-- `Profile.status` currently maps `role_approval_status`, not `users.status`.
-- `users.role` is text, not a foreign key to `roles`.
-- Request priority is stored in `metadata`, not a dedicated column.
-- Latest `assigned_to` and comments features passed live Supabase/RLS QA.
-- `audit_logs` is connected for Requests write logging and RLS was manually verified, but `AuditTab.tsx` still uses mock/localStorage and is not yet connected to Supabase `audit_logs`.
-- No Vercel deployment yet.
-- No notifications, SLA, attachments, Realtime, Events/Schedule module, or full Supabase-backed Audit UI yet.
-
-Recent important commits:
-
-- `c8aa98d Allow 8 digit email OTP codes`
-- `02c54e5 Use password login for existing users and OTP registration`
-- `652276b Add password visibility toggles`
-- `6f6c0d4 Add role based interface and commander approval panel`
-- `7521e75 Add basic requests module`
-- `3760a2a Document verified requests flow`
-- `a296ef6 Stabilize RLS policy documentation and admin client`
-- `6b2d7f6 Add requests workflow filters and status queues`
-- `388a815 Fix responsive layout and requests search input`
-- `c4e1ad6 Fix compact navigation and quick help modal`
-- `c22177c Fix mobile admin link and commander role detection`
-- `2e1d576 Add request assignee management`
-- `3582eeb Add request treatment history comments`
-- `24651be Add comments RLS policies for request treatment history`
-- `d11279d Add Audit Trail for Requests`
-- `084b810 Add audit trail and completed request deletion`
-
-Local development note:
-
-- Latest checks passed: lint, typecheck, and build.
-- Latest build produced 16 routes.
-- If localhost acts stale after changes, stop the dev server, remove `.next`, hard reload or use Incognito, then restart `npm run dev`.
+Routes produced:
+`/`, `/_not-found`, `/admin`, `/auth/callback (ƒ)`, `/dashboard`, `/forum`, `/help`, `/login`, `/onboarding`, `/pending-approval`, `/profile`, `/requests`, `/schedule`, `/select-role`, `/tasks`.

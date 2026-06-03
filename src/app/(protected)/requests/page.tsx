@@ -50,6 +50,13 @@ type AssigneeUser = {
   units: { name: string } | null;
 };
 
+type EventOption = {
+  id: string;
+  title: string;
+  starts_at: string | null;
+  ends_at?: string | null;
+};
+
 type RequestMetadata = {
   category?: RequestCategory;
   priority?: RequestPriority;
@@ -72,12 +79,18 @@ type RawRequest = {
   requested_by: string | null;
   assigned_to: string | null;
   unit_id: string | null;
+  event_id: string | null;
   metadata: RequestMetadata | null;
   created_at: string;
   updated_at: string;
 };
 
-type DbRequest = RawRequest & { assigneeName: string | null; assigneeRole: string | null };
+type DbRequest = RawRequest & {
+  assigneeName: string | null;
+  assigneeRole: string | null;
+  eventTitle: string | null;
+  eventTimeLabel: string | null;
+};
 
 type DbComment = {
   id: string;
@@ -187,6 +200,23 @@ function formatDateTime(value: string) {
   });
 }
 
+function formatTime(value: string | null) {
+  if (!value) return '';
+  return new Date(value).toLocaleTimeString('he-IL', {
+    timeZone: 'Asia/Jerusalem',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function formatEventTimeLabel(startsAt: string | null, endsAt: string | null) {
+  const start = formatTime(startsAt);
+  if (!start) return null;
+
+  const end = formatTime(endsAt);
+  return end ? `${start}–${end}` : start;
+}
+
 function logSupabaseError(message: string, error: { message?: string; code?: string; details?: string; hint?: string }) {
   if (process.env.NODE_ENV !== 'development') return;
   console.error(message, { message: error.message, code: error.code, details: error.details, hint: error.hint });
@@ -226,6 +256,7 @@ export default function RequestsPage() {
   const [dbProfile, setDbProfile] = useState<DbProfile | null>(null);
   const [requests, setRequests] = useState<DbRequest[]>([]);
   const [assigneeUsers, setAssigneeUsers] = useState<AssigneeUser[]>([]);
+  const [eventOptions, setEventOptions] = useState<EventOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -245,6 +276,7 @@ export default function RequestsPage() {
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<RequestCategory>('לוגיסטיקה');
   const [priority, setPriority] = useState<RequestPriority>('רגילה');
+  const [selectedEventId, setSelectedEventId] = useState('none');
   const [activeTab, setActiveTab] = useState<TabId>('all');
   const [searchText, setSearchText] = useState('');
   const [filterCategory, setFilterCategory] = useState<RequestCategory | 'הכל'>('הכל');
@@ -301,7 +333,7 @@ export default function RequestsPage() {
 
       const { data: requestData, error: requestsError } = await supabase
         .from('requests')
-        .select('id,title,description,status,request_type,requested_by,assigned_to,unit_id,metadata,created_at,updated_at')
+        .select('id,title,description,status,request_type,requested_by,assigned_to,unit_id,event_id,metadata,created_at,updated_at')
         .order('created_at', { ascending: false })
         .returns<RawRequest[]>();
 
@@ -316,6 +348,7 @@ export default function RequestsPage() {
       // Lookup assignee display names; falls back to null if RLS blocks access
       const assignableById = new Map(assignableUsers.map(user => [user.id, user]));
       const assigneeIds = [...new Set(raw.filter(r => r.assigned_to).map(r => r.assigned_to as string))];
+      const eventIds = [...new Set(raw.map(request => request.event_id).filter((id): id is string => Boolean(id)))];
       const assigneeNames: Record<string, { name: string; role: string | null }> = {};
       for (const user of assignableUsers) {
         assigneeNames[user.id] = { name: getAssigneeDisplayName(user), role: user.role };
@@ -332,10 +365,42 @@ export default function RequestsPage() {
         }
       }
 
+      const eventDetails: Record<string, { title: string; timeLabel: string | null }> = {};
+      if (eventIds.length > 0) {
+        const { data: eventsData } = await supabase
+          .from('events')
+          .select('id,title,starts_at,ends_at')
+          .in('id', eventIds)
+          .returns<Array<Pick<EventOption, 'id' | 'title' | 'starts_at' | 'ends_at'>>>();
+
+        for (const event of eventsData ?? []) {
+          eventDetails[event.id] = {
+            title: event.title,
+            timeLabel: formatEventTimeLabel(event.starts_at, event.ends_at ?? null),
+          };
+        }
+      }
+
+      const { data: visibleEvents, error: eventsError } = await supabase
+        .from('events')
+        .select('id,title,starts_at,ends_at')
+        .in('status', ['scheduled', 'in_progress'])
+        .order('starts_at', { ascending: true })
+        .returns<EventOption[]>();
+
+      if (eventsError) {
+        logSupabaseError('Request event options load failed', eventsError);
+        setEventOptions([]);
+      } else {
+        setEventOptions(visibleEvents ?? []);
+      }
+
       setRequests(raw.map(r => ({
         ...r,
         assigneeName: r.assigned_to ? (assigneeNames[r.assigned_to]?.name ?? null) : null,
         assigneeRole: r.assigned_to ? (assigneeNames[r.assigned_to]?.role ?? null) : null,
+        eventTitle: r.event_id ? (eventDetails[r.event_id]?.title ?? null) : null,
+        eventTimeLabel: r.event_id ? (eventDetails[r.event_id]?.timeLabel ?? null) : null,
       })));
     } finally {
       setIsLoading(false);
@@ -388,7 +453,13 @@ export default function RequestsPage() {
   const urgentCount = visibleRequests.filter(r => getRequestPriority(r) === 'דחופה').length;
   const completedCount = visibleRequests.filter(r => r.status === 'completed').length;
 
-  const resetForm = () => { setTitle(''); setDescription(''); setCategory('לוגיסטיקה'); setPriority('רגילה'); };
+  const resetForm = () => {
+    setTitle('');
+    setDescription('');
+    setCategory('לוגיסטיקה');
+    setPriority('רגילה');
+    setSelectedEventId('none');
+  };
 
   const resolveRequestUnitId = async () => {
     if (!dbProfile) return null;
@@ -441,10 +512,11 @@ export default function RequestsPage() {
       request_type: category,
       requested_by: currentUser.id,
       unit_id: requestUnitId,
+      event_id: selectedEventId === 'none' ? null : selectedEventId,
       metadata,
     })
-      .select('id,title,status,request_type')
-      .single<Pick<RawRequest, 'id' | 'title' | 'status' | 'request_type'>>();
+      .select('id,title,status,request_type,event_id')
+      .single<Pick<RawRequest, 'id' | 'title' | 'status' | 'request_type' | 'event_id'>>();
 
     setIsSubmitting(false);
     if (insertError || !createdRequest) {
@@ -466,6 +538,7 @@ export default function RequestsPage() {
         title: createdRequest.title,
         status: createdRequest.status,
         request_type: createdRequest.request_type,
+        event_id: createdRequest.event_id ?? null,
       },
     });
     resetForm();
@@ -593,6 +666,7 @@ export default function RequestsPage() {
         request_type: request.request_type,
         assigned_to: request.assigned_to,
         unit_id: request.unit_id,
+        event_id: request.event_id ?? null,
       },
       newValue: null,
     });
@@ -806,6 +880,22 @@ export default function RequestsPage() {
                 {priorities.map(item => <option key={item} value={item}>{item}</option>)}
               </select>
             </label>
+            <label className="block space-y-2 lg:col-span-2">
+              <span className="block text-xs font-black text-[#344054]">שייך למופע</span>
+              <select
+                value={selectedEventId}
+                onChange={event => setSelectedEventId(event.target.value)}
+                className="command-select"
+                disabled={isSubmitting}
+              >
+                <option value="none">ללא שיוך</option>
+                {eventOptions.map(event => (
+                  <option key={event.id} value={event.id}>
+                    {event.title} — {event.starts_at ? formatDateTime(event.starts_at) : 'ללא זמן'}
+                  </option>
+                ))}
+              </select>
+            </label>
             <div className="flex flex-col gap-2 lg:col-span-2 sm:flex-row">
               <GlossyButton type="submit" variant="orange" size="lg" disabled={isSubmitting} className="flex-1">
                 {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
@@ -969,6 +1059,13 @@ export default function RequestsPage() {
                     </strong>
                   </span>
                 </div>
+
+                {request.event_id && request.eventTitle && (
+                  <div className="flex items-center gap-2 rounded-2xl border border-[#FF6B02]/15 bg-[#FF6B02]/8 px-3 py-2 text-xs font-bold text-[#C54F00]">
+                    <Clock3 className="h-4 w-4" />
+                    <span>מופע: {request.eventTitle}{request.eventTimeLabel ? ` · ${request.eventTimeLabel}` : ''}</span>
+                  </div>
+                )}
 
                 {canSeeAll && (
                   <div className="flex flex-col gap-2 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/58 p-3 sm:flex-row sm:items-center">

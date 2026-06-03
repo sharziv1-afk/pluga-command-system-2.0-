@@ -60,6 +60,13 @@ type EventTaskView = {
   status: string;
 };
 
+type EventRequestView = {
+  id: string;
+  title: string;
+  status: string;
+  request_type: string | null;
+};
+
 const eventTypes: EventType[] = ['training', 'logistics', 'meeting', 'inspection', 'operation', 'admin', 'other'];
 const eventStatuses: EventStatus[] = ['scheduled', 'in_progress', 'completed', 'cancelled'];
 
@@ -93,6 +100,15 @@ const taskStatusLabels: Record<string, string> = {
   blocked: 'תקועה',
   completed: 'הושלמה',
   cancelled: 'בוטלה',
+};
+
+const requestStatusLabels: Record<string, string> = {
+  open: 'פתוח',
+  in_progress: 'בטיפול',
+  approved: 'אושר',
+  rejected: 'נדחה',
+  completed: 'הושלם',
+  cancelled: 'בוטל',
 };
 
 const eventTypeStyles: Record<EventType, string> = {
@@ -239,6 +255,8 @@ export default function SchedulePage() {
   const [selectedEvent, setSelectedEvent] = useState<EventView | null>(null);
   const [eventTasks, setEventTasks] = useState<EventTaskView[]>([]);
   const [isEventTasksLoading, setIsEventTasksLoading] = useState(false);
+  const [eventRequests, setEventRequests] = useState<EventRequestView[]>([]);
+  const [isEventRequestsLoading, setIsEventRequestsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ScheduleTab>('today');
@@ -399,6 +417,42 @@ export default function SchedulePage() {
     };
 
     void loadEventTasks();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedEvent, supabase]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadEventRequests = async () => {
+      if (!selectedEvent) {
+        setEventRequests([]);
+        setIsEventRequestsLoading(false);
+        return;
+      }
+
+      setIsEventRequestsLoading(true);
+      const { data, error: requestsError } = await supabase
+        .from('requests')
+        .select('id,title,status,request_type')
+        .eq('event_id', selectedEvent.id)
+        .returns<EventRequestView[]>();
+
+      if (!isMounted) return;
+
+      if (requestsError) {
+        logSupabaseError('Event linked requests load failed', requestsError);
+        setEventRequests([]);
+      } else {
+        setEventRequests(data ?? []);
+      }
+
+      setIsEventRequestsLoading(false);
+    };
+
+    void loadEventRequests();
 
     return () => {
       isMounted = false;
@@ -626,6 +680,8 @@ export default function SchedulePage() {
 
   const activeEventTasksCount = eventTasks.filter(task => ['open', 'in_progress', 'blocked'].includes(task.status)).length;
   const completedEventTasksCount = eventTasks.filter(task => task.status === 'completed').length;
+  const activeEventRequestsCount = eventRequests.filter(request => ['open', 'in_progress', 'approved'].includes(request.status)).length;
+  const completedEventRequestsCount = eventRequests.filter(request => request.status === 'completed').length;
 
   return (
     <div className="space-y-6">
@@ -1026,6 +1082,40 @@ export default function SchedulePage() {
                       <div key={task.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/70 px-3 py-2">
                         <p className="truncate text-sm font-bold text-[#020108]">{task.title}</p>
                         <StatusBadge status={taskStatusLabels[task.status] ?? task.status} className="min-h-5 shrink-0 px-2 text-[10px]" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/64 p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="text-sm font-black text-[#020108]">דרישות קשורות</h3>
+                    <p className="mt-1 text-xs font-bold text-[#98A2B3]">
+                      {isEventRequestsLoading
+                        ? 'טוען דרישות...'
+                        : `${activeEventRequestsCount} פתוחות/בטיפול · ${completedEventRequestsCount} הושלמו`}
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-[#FF6B02]/20 bg-[#FF6B02]/10 px-2.5 py-1 text-xs font-black text-[#C54F00]">
+                    {eventRequests.length}
+                  </span>
+                </div>
+
+                {!isEventRequestsLoading && eventRequests.length === 0 ? (
+                  <p className="mt-3 rounded-2xl border border-dashed border-[rgba(2,1,8,0.10)] bg-white/60 p-3 text-xs font-bold text-[#667085]">
+                    אין דרישות קשורות למופע זה
+                  </p>
+                ) : (
+                  <div className="mt-3 space-y-2">
+                    {eventRequests.map(request => (
+                      <div key={request.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/70 px-3 py-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-bold text-[#020108]">{request.title}</p>
+                          <p className="mt-0.5 text-[11px] font-bold text-[#98A2B3]">{request.request_type || 'ללא סוג'}</p>
+                        </div>
+                        <StatusBadge status={requestStatusLabels[request.status] ?? request.status} className="min-h-5 shrink-0 px-2 text-[10px]" />
                       </div>
                     ))}
                   </div>

@@ -169,6 +169,21 @@ function formatDateLabel(value: string) {
   });
 }
 
+function formatShortDateFromKey(dateKey: string) {
+  return new Date(`${dateKey}T12:00:00`).toLocaleDateString('he-IL', {
+    timeZone: 'Asia/Jerusalem',
+    day: '2-digit',
+    month: '2-digit',
+  });
+}
+
+function formatWeekdayFromKey(dateKey: string) {
+  return new Date(`${dateKey}T12:00:00`).toLocaleDateString('he-IL', {
+    timeZone: 'Asia/Jerusalem',
+    weekday: 'short',
+  });
+}
+
 function getTimelineHour(value: string) {
   return new Date(value).toLocaleTimeString('he-IL', {
     timeZone: 'Asia/Jerusalem',
@@ -177,20 +192,36 @@ function getTimelineHour(value: string) {
   });
 }
 
+function addDaysToDateKey(dateKey: string, days: number) {
+  const date = new Date(`${dateKey}T12:00:00`);
+  date.setDate(date.getDate() + days);
+  return getJerusalemDateKey(date);
+}
+
+function getWeekDateKeys() {
+  const todayKey = getJerusalemDateKey(new Date());
+  return Array.from({ length: 7 }, (_, index) => addDaysToDateKey(todayKey, index));
+}
+
+function isEventVisibleInDefaultSchedule(event: DbEvent) {
+  const now = new Date();
+  const eventEnd = event.ends_at ? new Date(event.ends_at) : new Date(event.starts_at);
+  const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  return eventEnd >= cutoff;
+}
+
 function filterEventByTab(event: EventView, tab: ScheduleTab) {
   if (tab === 'all') return true;
 
   const now = new Date();
-  const eventStart = new Date(event.starts_at);
+  const eventKey = getJerusalemDateKey(event.starts_at);
 
   if (tab === 'week') {
-    const weekEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    return eventStart >= now && eventStart <= weekEnd;
+    return getWeekDateKeys().includes(eventKey);
   }
 
   const todayKey = getJerusalemDateKey(now);
-  const tomorrowKey = getJerusalemDateKey(new Date(now.getTime() + 24 * 60 * 60 * 1000));
-  const eventKey = getJerusalemDateKey(event.starts_at);
+  const tomorrowKey = addDaysToDateKey(todayKey, 1);
 
   if (tab === 'today') return eventKey === todayKey;
   return eventKey === tomorrowKey;
@@ -374,21 +405,26 @@ export default function SchedulePage() {
     };
   }, [selectedEvent, supabase]);
 
+  const defaultVisibleEvents = useMemo(
+    () => events.filter(isEventVisibleInDefaultSchedule),
+    [events],
+  );
+
   const visibleEvents = useMemo(
-    () => events.filter(event => filterEventByTab(event, activeTab)),
-    [activeTab, events],
+    () => defaultVisibleEvents.filter(event => filterEventByTab(event, activeTab)),
+    [activeTab, defaultVisibleEvents],
   );
 
   const tabCounts = useMemo(() => {
     const counts: Partial<Record<ScheduleTab, number>> = {};
-    for (const tab of tabs) counts[tab.id] = events.filter(event => filterEventByTab(event, tab.id)).length;
+    for (const tab of tabs) counts[tab.id] = defaultVisibleEvents.filter(event => filterEventByTab(event, tab.id)).length;
     return counts;
-  }, [events]);
+  }, [defaultVisibleEvents]);
 
   const todayCount = tabCounts.today ?? 0;
   const tomorrowCount = tabCounts.tomorrow ?? 0;
   const weekCount = tabCounts.week ?? 0;
-  const allCount = tabCounts.all ?? events.length;
+  const allCount = tabCounts.all ?? defaultVisibleEvents.length;
 
   const groupedEvents = useMemo(() => {
     const dayGroups = new Map<string, EventView[]>();
@@ -419,6 +455,17 @@ export default function SchedulePage() {
       };
     });
   }, [visibleEvents]);
+
+  const weekColumns = useMemo(() => (
+    getWeekDateKeys().map(dateKey => ({
+      dateKey,
+      dayLabel: formatWeekdayFromKey(dateKey),
+      dateLabel: formatShortDateFromKey(dateKey),
+      events: defaultVisibleEvents
+        .filter(event => getJerusalemDateKey(event.starts_at) === dateKey)
+        .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()),
+    }))
+  ), [defaultVisibleEvents]);
 
   const resetForm = () => {
     setTitle('');
@@ -750,7 +797,7 @@ export default function SchedulePage() {
           <SkeletonCard />
           <SkeletonCard />
         </div>
-      ) : visibleEvents.length === 0 ? (
+      ) : activeTab !== 'week' && visibleEvents.length === 0 ? (
         <div className="py-10">
           <EmptyState
             icon={CalendarClock}
@@ -770,7 +817,53 @@ export default function SchedulePage() {
             <CalendarClock className="h-6 w-6 text-[#FF6B02]" />
           </div>
 
-          <div className="space-y-7">
+          {activeTab === 'week' && (
+            <div className="overflow-x-auto pb-2">
+              <div className="grid min-w-[980px] grid-cols-7 gap-3">
+                {weekColumns.map(column => (
+                  <section
+                    key={column.dateKey}
+                    className="min-h-80 rounded-3xl border border-[rgba(2,1,8,0.08)] bg-white/64 p-3"
+                  >
+                    <div className="sticky top-0 z-10 -mx-1 rounded-2xl border border-[#FF6B02]/14 bg-white/90 px-3 py-2 shadow-[0_10px_22px_rgba(2,1,8,0.05)]">
+                      <p className="text-sm font-black text-[#020108]">{column.dayLabel}</p>
+                      <p className="mt-0.5 font-mono text-xs font-black text-[#FF6B02]">{column.dateLabel}</p>
+                    </div>
+
+                    {column.events.length === 0 ? (
+                      <p className="mt-4 rounded-2xl border border-dashed border-[rgba(2,1,8,0.10)] bg-white/58 p-3 text-center text-xs font-bold text-[#98A2B3]">
+                        אין מופעים
+                      </p>
+                    ) : (
+                      <div className="mt-4 space-y-2">
+                        {column.events.map(event => (
+                          <button
+                            key={event.id}
+                            type="button"
+                            onClick={() => setSelectedEvent(event)}
+                            className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/78 p-2.5 text-right shadow-[0_8px_18px_rgba(2,1,8,0.05)] transition hover:border-[#FF6B02]/28 hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#FF6B02]/18"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <span className="shrink-0 font-mono text-[11px] font-black text-[#FF6B02]">
+                                {formatTime(event.starts_at)}
+                              </span>
+                              <StatusBadge status={statusLabels[event.status]} className="min-h-5 shrink-0 px-2 text-[10px]" />
+                            </div>
+                            <h3 className="mt-1 line-clamp-2 text-xs font-black leading-5 text-[#020108]">{event.title}</h3>
+                            {event.location && (
+                              <p className="mt-1 truncate text-[11px] font-bold text-[#667085]">{event.location}</p>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className={activeTab === 'week' ? 'hidden' : 'space-y-7'}>
             {groupedEvents.map(dayGroup => (
               <section key={dayGroup.dayKey} className="space-y-3">
                 {(activeTab === 'week' || activeTab === 'all') && (

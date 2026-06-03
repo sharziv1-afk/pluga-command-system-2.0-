@@ -11,15 +11,18 @@ import {
   ClipboardList,
   Clock,
   FilePlus2,
+  Loader2,
   RadioTower,
   ShieldAlert,
   Sparkles,
   UserRound,
+  X,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { createAuditLog } from '@/lib/audit';
 import { useApp } from '@/lib/context/AppContext';
 import { getPermissionLevelForRole } from '@/lib/permissions';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
@@ -28,6 +31,8 @@ import type { DbAuditLog, DbEvent, DbTask } from '@/lib/types';
 type RequestStatus = 'open' | 'in_progress' | 'approved' | 'rejected' | 'completed' | 'cancelled';
 type TaskStatus = 'open' | 'in_progress' | 'blocked' | 'completed' | 'cancelled';
 type DashboardItemType = 'request' | 'task' | 'event';
+type QuickCreateType = 'request' | 'task' | 'event';
+type EventType = DbEvent['event_type'];
 
 type DbProfile = {
   id: string;
@@ -94,6 +99,71 @@ type DashboardData = {
   usersById: Record<string, DashboardUser>;
   errors: string[];
 };
+
+type QuickRequestForm = {
+  title: string;
+  description: string;
+  category: string;
+  priority: 'רגילה' | 'גבוהה' | 'דחופה';
+  eventId: string;
+};
+
+type QuickTaskForm = {
+  title: string;
+  description: string;
+  priority: string;
+  dueAt: string;
+  assignedTo: string;
+  eventId: string;
+};
+
+type QuickEventForm = {
+  title: string;
+  eventType: EventType;
+  startsAt: string;
+  endsAt: string;
+  location: string;
+  description: string;
+};
+
+const defaultRequestForm: QuickRequestForm = {
+  title: '',
+  description: '',
+  category: 'לוגיסטיקה',
+  priority: 'רגילה',
+  eventId: 'none',
+};
+
+const defaultTaskForm: QuickTaskForm = {
+  title: '',
+  description: '',
+  priority: 'רגילה',
+  dueAt: '',
+  assignedTo: 'none',
+  eventId: 'none',
+};
+
+const defaultEventForm: QuickEventForm = {
+  title: '',
+  eventType: 'meeting',
+  startsAt: '',
+  endsAt: '',
+  location: '',
+  description: '',
+};
+
+const requestCategories = ['לוגיסטיקה', 'רפואה', 'קשר', 'רכב', 'כוח אדם', 'אחר'];
+const requestPriorities: QuickRequestForm['priority'][] = ['רגילה', 'גבוהה', 'דחופה'];
+const taskPriorities = ['רגילה', 'חשובה', 'דחופה', 'קריטית'];
+const eventTypeOptions: { value: EventType; label: string }[] = [
+  { value: 'training', label: 'אימון' },
+  { value: 'logistics', label: 'לוגיסטיקה' },
+  { value: 'meeting', label: 'פגישה' },
+  { value: 'inspection', label: 'ביקורת' },
+  { value: 'operation', label: 'מבצע' },
+  { value: 'admin', label: 'מנהלה' },
+  { value: 'other', label: 'אחר' },
+];
 
 const requestStatusLabels: Record<RequestStatus, string> = {
   open: 'פתוחה',
@@ -385,6 +455,13 @@ export default function DashboardPage() {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [dashboardData, setDashboardData] = useState<DashboardData>(emptyDashboardData);
   const [isLoading, setIsLoading] = useState(true);
+  const [quickCreateType, setQuickCreateType] = useState<QuickCreateType | null>(null);
+  const [isQuickCreateSubmitting, setIsQuickCreateSubmitting] = useState(false);
+  const [quickCreateError, setQuickCreateError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [requestForm, setRequestForm] = useState<QuickRequestForm>(defaultRequestForm);
+  const [taskForm, setTaskForm] = useState<QuickTaskForm>(defaultTaskForm);
+  const [eventForm, setEventForm] = useState<QuickEventForm>(defaultEventForm);
 
   const loadDashboard = useCallback(async () => {
     if (!currentUser) {
@@ -512,6 +589,229 @@ export default function DashboardPage() {
       .filter(event => getJerusalemDayKey(event.starts_at) === todayKey)
       .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
   }, [dashboardData.events]);
+  const eventOptions = useMemo(
+    () => dashboardData.events.filter(event => event.status === 'scheduled' || event.status === 'in_progress'),
+    [dashboardData.events],
+  );
+  const assignableUsers = useMemo(
+    () => Object.values(dashboardData.usersById).sort((a, b) => (a.name || a.email || '').localeCompare(b.name || b.email || '', 'he')),
+    [dashboardData.usersById],
+  );
+
+  const resetQuickForms = () => {
+    setRequestForm(defaultRequestForm);
+    setTaskForm(defaultTaskForm);
+    setEventForm(defaultEventForm);
+    setQuickCreateError(null);
+  };
+
+  const closeQuickCreate = () => {
+    if (isQuickCreateSubmitting) return;
+    setQuickCreateType(null);
+    resetQuickForms();
+  };
+
+  const openQuickCreate = (type: QuickCreateType) => {
+    setSuccessMessage(null);
+    setQuickCreateError(null);
+    setQuickCreateType(type);
+  };
+
+  const handleQuickRequestSubmit = async () => {
+    if (!currentUser || !profile) {
+      setQuickCreateError('לא נמצא פרופיל משתמש פעיל. יש להתחבר מחדש.');
+      return;
+    }
+
+    const title = requestForm.title.trim();
+    if (!title) {
+      setQuickCreateError('כותרת הדרישה היא שדה חובה.');
+      return;
+    }
+
+    setIsQuickCreateSubmitting(true);
+    setQuickCreateError(null);
+
+    const eventId = requestForm.eventId === 'none' ? null : requestForm.eventId;
+    const metadata = {
+      category: requestForm.category,
+      priority: requestForm.priority,
+      creator_name: profile.name || currentUser.full_name,
+      creator_role: profile.role || currentUser.role,
+      creator_unit: profile.units?.name || currentUser.assigned_frame,
+    };
+
+    const { data: createdRequest, error } = await supabase
+      .from('requests')
+      .insert({
+        title,
+        description: requestForm.description.trim() || null,
+        request_type: requestForm.category,
+        status: 'open',
+        requested_by: currentUser.id,
+        unit_id: profile.unit_id,
+        event_id: eventId,
+        metadata,
+      })
+      .select('id')
+      .single<{ id: string }>();
+
+    if (error) {
+      logSupabaseError('Dashboard quick request insert failed', error);
+      setQuickCreateError('יצירת הדרישה נכשלה. בדוק הרשאות או נסה שוב.');
+      setIsQuickCreateSubmitting(false);
+      return;
+    }
+
+    void createAuditLog(supabase, {
+      userId: profile.id,
+      userName: profile.name,
+      userRole: profile.role,
+      actionType: 'request_created',
+      entityType: 'request',
+      entityId: createdRequest.id,
+      newValue: { title, request_type: requestForm.category, status: 'open', event_id: eventId, metadata },
+    });
+
+    setQuickCreateType(null);
+    resetQuickForms();
+    setSuccessMessage('הדרישה נוצרה בהצלחה.');
+    await loadDashboard();
+    setIsQuickCreateSubmitting(false);
+  };
+
+  const handleQuickTaskSubmit = async () => {
+    if (!currentUser || !profile) {
+      setQuickCreateError('לא נמצא פרופיל משתמש פעיל. יש להתחבר מחדש.');
+      return;
+    }
+
+    const title = taskForm.title.trim();
+    if (!title) {
+      setQuickCreateError('כותרת המשימה היא שדה חובה.');
+      return;
+    }
+
+    setIsQuickCreateSubmitting(true);
+    setQuickCreateError(null);
+
+    const assignedTo = taskForm.assignedTo === 'none' ? null : taskForm.assignedTo;
+    const eventId = taskForm.eventId === 'none' ? null : taskForm.eventId;
+    const dueAt = taskForm.dueAt ? new Date(taskForm.dueAt).toISOString() : null;
+    const metadata = {
+      source_type: 'manual',
+      source_id: null,
+      creator_name: profile.name || currentUser.full_name,
+      creator_role: profile.role || currentUser.role,
+      creator_unit: profile.units?.name || currentUser.assigned_frame,
+    };
+
+    const { data: createdTask, error } = await supabase
+      .from('tasks')
+      .insert({
+        title,
+        description: taskForm.description.trim() || null,
+        status: 'open',
+        priority: taskForm.priority,
+        assigned_to: assignedTo,
+        created_by: profile.id,
+        unit_id: profile.unit_id,
+        event_id: eventId,
+        due_at: dueAt,
+        completed_at: null,
+        metadata,
+      })
+      .select('id')
+      .single<{ id: string }>();
+
+    if (error) {
+      logSupabaseError('Dashboard quick task insert failed', error);
+      setQuickCreateError('יצירת המשימה נכשלה. בדוק הרשאות או נסה שוב.');
+      setIsQuickCreateSubmitting(false);
+      return;
+    }
+
+    void createAuditLog(supabase, {
+      userId: profile.id,
+      userName: profile.name,
+      userRole: profile.role,
+      actionType: 'task_created',
+      entityType: 'task',
+      entityId: createdTask.id,
+      newValue: { title, status: 'open', priority: taskForm.priority, assigned_to: assignedTo, due_at: dueAt, event_id: eventId, metadata },
+    });
+
+    setQuickCreateType(null);
+    resetQuickForms();
+    setSuccessMessage('המשימה נוצרה בהצלחה.');
+    await loadDashboard();
+    setIsQuickCreateSubmitting(false);
+  };
+
+  const handleQuickEventSubmit = async () => {
+    if (!currentUser || !profile) {
+      setQuickCreateError('לא נמצא פרופיל משתמש פעיל. יש להתחבר מחדש.');
+      return;
+    }
+
+    const title = eventForm.title.trim();
+    if (!title) {
+      setQuickCreateError('כותרת המופע היא שדה חובה.');
+      return;
+    }
+
+    if (!eventForm.startsAt) {
+      setQuickCreateError('שעת התחלה היא שדה חובה.');
+      return;
+    }
+
+    setIsQuickCreateSubmitting(true);
+    setQuickCreateError(null);
+
+    const startsAt = new Date(eventForm.startsAt).toISOString();
+    const endsAt = eventForm.endsAt ? new Date(eventForm.endsAt).toISOString() : null;
+
+    const { data: createdEvent, error } = await supabase
+      .from('events')
+      .insert({
+        title,
+        description: eventForm.description.trim() || null,
+        event_type: eventForm.eventType,
+        starts_at: startsAt,
+        ends_at: endsAt,
+        location: eventForm.location.trim() || null,
+        unit_id: profile.unit_id,
+        created_by: profile.id,
+        responsible_user_id: null,
+        status: 'scheduled',
+        metadata: {},
+      })
+      .select('id')
+      .single<{ id: string }>();
+
+    if (error) {
+      logSupabaseError('Dashboard quick event insert failed', error);
+      setQuickCreateError('יצירת המופע נכשלה. בדוק הרשאות או נסה שוב.');
+      setIsQuickCreateSubmitting(false);
+      return;
+    }
+
+    void createAuditLog(supabase, {
+      userId: profile.id,
+      userName: profile.name,
+      userRole: profile.role,
+      actionType: 'event_created',
+      entityType: 'event',
+      entityId: createdEvent.id,
+      newValue: { title, event_type: eventForm.eventType, starts_at: startsAt, ends_at: endsAt, status: 'scheduled' },
+    });
+
+    setQuickCreateType(null);
+    resetQuickForms();
+    setSuccessMessage('המופע נוצר בהצלחה.');
+    await loadDashboard();
+    setIsQuickCreateSubmitting(false);
+  };
 
   if (isContextLoading || isLoading) {
     return (
@@ -550,13 +850,39 @@ export default function DashboardPage() {
         title="דשבורד פיקודי"
         subtitle="תמונת מצב עדכנית של הפלוגה, המשימות, הדרישות והלו״ז"
         actions={
-          <div className="flex flex-wrap justify-end gap-2">
-            <ActionLink href="/requests" icon={FilePlus2} label="פתיחת דרישה" variant="orange" />
-            <ActionLink href="/tasks" icon={CheckSquare} label="יצירת משימה" />
-            <ActionLink href="/schedule" icon={CalendarClock} label="הוספת מופע" />
+          <div className="relative flex flex-wrap justify-end gap-2">
+            <QuickActionButton onClick={() => openQuickCreate('request')} icon={FilePlus2} label="פתיחת דרישה" variant="orange" />
+            <QuickActionButton onClick={() => openQuickCreate('task')} icon={CheckSquare} label="יצירת משימה" />
+            <QuickActionButton onClick={() => openQuickCreate('event')} icon={CalendarClock} label="הוספת מופע" />
+            <QuickCreateModal
+              type={quickCreateType}
+              requestForm={requestForm}
+              taskForm={taskForm}
+              eventForm={eventForm}
+              eventOptions={eventOptions}
+              assignableUsers={assignableUsers}
+              error={quickCreateError}
+              isSubmitting={isQuickCreateSubmitting}
+              onClose={closeQuickCreate}
+              onRequestChange={setRequestForm}
+              onTaskChange={setTaskForm}
+              onEventChange={setEventForm}
+              onSubmitRequest={handleQuickRequestSubmit}
+              onSubmitTask={handleQuickTaskSubmit}
+              onSubmitEvent={handleQuickEventSubmit}
+            />
           </div>
         }
       />
+
+      {successMessage && (
+        <GlassCard className="border-emerald-500/20 bg-emerald-500/5 py-4">
+          <div className="flex items-center gap-3 text-sm font-black text-emerald-700">
+            <Sparkles className="h-5 w-5 shrink-0" />
+            <span>{successMessage}</span>
+          </div>
+        </GlassCard>
+      )}
 
       {dashboardData.errors.length > 0 && (
         <GlassCard className="border-red-500/20 bg-red-500/5 py-4">
@@ -632,17 +958,18 @@ export default function DashboardPage() {
           )}
         </GlassCard>
       </div>
+
     </div>
   );
 }
 
-function ActionLink({
-  href,
+function QuickActionButton({
+  onClick,
   icon: Icon,
   label,
   variant = 'slate',
 }: {
-  href: string;
+  onClick: () => void;
   icon: React.ElementType;
   label: string;
   variant?: 'orange' | 'slate';
@@ -652,14 +979,338 @@ function ActionLink({
     : 'border-[rgba(2,1,8,0.10)] bg-white/76 text-[#020108] shadow-[0_10px_24px_rgba(2,1,8,0.06)] hover:border-[#FF6B02]/30 hover:bg-[#FF6B02]/10';
 
   return (
-    <Link
-      href={href}
+    <button
+      type="button"
+      onClick={onClick}
       className={`relative inline-flex min-h-10 items-center justify-center gap-2 overflow-hidden rounded-xl border px-3 text-xs font-black transition active:scale-[0.98] ${classes}`}
     >
       <span className="pointer-events-none absolute inset-x-0 top-0 h-[42%] bg-gradient-to-b from-white/30 to-transparent" />
       <Icon className="relative z-10 h-4 w-4" />
       <span className="relative z-10">{label}</span>
-    </Link>
+    </button>
+  );
+}
+
+function QuickCreateModal({
+  type,
+  requestForm,
+  taskForm,
+  eventForm,
+  eventOptions,
+  assignableUsers,
+  error,
+  isSubmitting,
+  onClose,
+  onRequestChange,
+  onTaskChange,
+  onEventChange,
+  onSubmitRequest,
+  onSubmitTask,
+  onSubmitEvent,
+}: {
+  type: QuickCreateType | null;
+  requestForm: QuickRequestForm;
+  taskForm: QuickTaskForm;
+  eventForm: QuickEventForm;
+  eventOptions: DbEvent[];
+  assignableUsers: DashboardUser[];
+  error: string | null;
+  isSubmitting: boolean;
+  onClose: () => void;
+  onRequestChange: React.Dispatch<React.SetStateAction<QuickRequestForm>>;
+  onTaskChange: React.Dispatch<React.SetStateAction<QuickTaskForm>>;
+  onEventChange: React.Dispatch<React.SetStateAction<QuickEventForm>>;
+  onSubmitRequest: () => Promise<void>;
+  onSubmitTask: () => Promise<void>;
+  onSubmitEvent: () => Promise<void>;
+}) {
+  if (!type) return null;
+
+  const titles: Record<QuickCreateType, string> = {
+    request: 'פתיחת דרישה מהירה',
+    task: 'יצירת משימה מהירה',
+    event: 'הוספת מופע מהיר',
+  };
+
+  const subtitles: Record<QuickCreateType, string> = {
+    request: 'יצירת דרישה בסיסית בלי לצאת מהדשבורד',
+    task: 'משימה קצרה עם שיוך, יעד ומופע אופציונלי',
+    event: 'מופע לו״ז בסיסי עם זמן התחלה וסוג',
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (type === 'request') await onSubmitRequest();
+    if (type === 'task') await onSubmitTask();
+    if (type === 'event') await onSubmitEvent();
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="סגירת יצירה מהירה"
+        onClick={onClose}
+        disabled={isSubmitting}
+        className="fixed inset-0 z-40 cursor-default bg-black/5 disabled:pointer-events-none"
+      />
+
+      <div
+        className="fixed inset-x-4 top-24 z-50 w-auto max-w-none rounded-3xl border border-white/80 bg-white/95 shadow-[0_18px_50px_rgba(2,1,8,0.16)] md:inset-x-auto md:left-1/2 md:top-32 md:w-[min(92vw,520px)] md:max-w-[calc(100vw-2rem)] md:-translate-x-1/2"
+        dir="rtl"
+      >
+        <span className="absolute -top-2 left-1/2 hidden h-4 w-4 -translate-x-1/2 rotate-45 border-r border-t border-white/80 bg-white/95 md:block" aria-hidden="true" />
+        <div className="flex items-start justify-between gap-4 border-b border-[rgba(2,1,8,0.08)] px-5 py-4 sm:px-6">
+          <div>
+            <h2 className="text-lg font-black text-[#020108]">{titles[type]}</h2>
+            <p className="mt-1 text-xs font-semibold text-[#667085]">{subtitles[type]}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 text-[#020108] transition hover:border-[#FF6B02]/30 hover:bg-[#FF6B02]/10 disabled:opacity-50"
+            aria-label="סגירת חלון"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="max-h-[calc(100vh-8rem)] overflow-y-auto px-5 py-5 sm:px-6 md:max-h-[72vh]">
+          {error && (
+            <div className="mb-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-700">
+              {error}
+            </div>
+          )}
+
+          {type === 'request' && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <QuickField label="כותרת" required className="sm:col-span-2">
+                <input
+                  value={requestForm.title}
+                  onChange={event => onRequestChange(prev => ({ ...prev, title: event.target.value }))}
+                  className="command-input"
+                  placeholder="מה צריך לפתוח?"
+                  disabled={isSubmitting}
+                />
+              </QuickField>
+              <QuickField label="תיאור" className="sm:col-span-2">
+                <textarea
+                  value={requestForm.description}
+                  onChange={event => onRequestChange(prev => ({ ...prev, description: event.target.value }))}
+                  className="command-input min-h-24 resize-none"
+                  placeholder="פירוט קצר, אם צריך"
+                  disabled={isSubmitting}
+                />
+              </QuickField>
+              <QuickField label="קטגוריה">
+                <select
+                  value={requestForm.category}
+                  onChange={event => onRequestChange(prev => ({ ...prev, category: event.target.value }))}
+                  className="command-select"
+                  disabled={isSubmitting}
+                >
+                  {requestCategories.map(category => <option key={category} value={category}>{category}</option>)}
+                </select>
+              </QuickField>
+              <QuickField label="עדיפות">
+                <select
+                  value={requestForm.priority}
+                  onChange={event => onRequestChange(prev => ({ ...prev, priority: event.target.value as QuickRequestForm['priority'] }))}
+                  className="command-select"
+                  disabled={isSubmitting}
+                >
+                  {requestPriorities.map(priority => <option key={priority} value={priority}>{priority}</option>)}
+                </select>
+              </QuickField>
+              <QuickField label="שיוך למופע" className="sm:col-span-2">
+                <EventSelect value={requestForm.eventId} events={eventOptions} disabled={isSubmitting} onChange={eventId => onRequestChange(prev => ({ ...prev, eventId }))} />
+              </QuickField>
+            </div>
+          )}
+
+          {type === 'task' && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <QuickField label="כותרת" required className="sm:col-span-2">
+                <input
+                  value={taskForm.title}
+                  onChange={event => onTaskChange(prev => ({ ...prev, title: event.target.value }))}
+                  className="command-input"
+                  placeholder="מה המשימה?"
+                  disabled={isSubmitting}
+                />
+              </QuickField>
+              <QuickField label="תיאור" className="sm:col-span-2">
+                <textarea
+                  value={taskForm.description}
+                  onChange={event => onTaskChange(prev => ({ ...prev, description: event.target.value }))}
+                  className="command-input min-h-24 resize-none"
+                  placeholder="פירוט קצר, אם צריך"
+                  disabled={isSubmitting}
+                />
+              </QuickField>
+              <QuickField label="עדיפות">
+                <select
+                  value={taskForm.priority}
+                  onChange={event => onTaskChange(prev => ({ ...prev, priority: event.target.value }))}
+                  className="command-select"
+                  disabled={isSubmitting}
+                >
+                  {taskPriorities.map(priority => <option key={priority} value={priority}>{priority}</option>)}
+                </select>
+              </QuickField>
+              <QuickField label="תאריך יעד">
+                <input
+                  type="datetime-local"
+                  value={taskForm.dueAt}
+                  onChange={event => onTaskChange(prev => ({ ...prev, dueAt: event.target.value }))}
+                  className="command-input"
+                  disabled={isSubmitting}
+                />
+              </QuickField>
+              <QuickField label="אחראי">
+                <select
+                  value={taskForm.assignedTo}
+                  onChange={event => onTaskChange(prev => ({ ...prev, assignedTo: event.target.value }))}
+                  className="command-select"
+                  disabled={isSubmitting}
+                >
+                  <option value="none">ללא שיוך</option>
+                  {assignableUsers.map(user => <option key={user.id} value={user.id}>{user.name || user.email || 'משתמש'}</option>)}
+                </select>
+              </QuickField>
+              <QuickField label="שיוך למופע">
+                <EventSelect value={taskForm.eventId} events={eventOptions} disabled={isSubmitting} onChange={eventId => onTaskChange(prev => ({ ...prev, eventId }))} />
+              </QuickField>
+            </div>
+          )}
+
+          {type === 'event' && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <QuickField label="כותרת" required className="sm:col-span-2">
+                <input
+                  value={eventForm.title}
+                  onChange={event => onEventChange(prev => ({ ...prev, title: event.target.value }))}
+                  className="command-input"
+                  placeholder="שם המופע"
+                  disabled={isSubmitting}
+                />
+              </QuickField>
+              <QuickField label="סוג מופע">
+                <select
+                  value={eventForm.eventType}
+                  onChange={event => onEventChange(prev => ({ ...prev, eventType: event.target.value as EventType }))}
+                  className="command-select"
+                  disabled={isSubmitting}
+                >
+                  {eventTypeOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </QuickField>
+              <QuickField label="התחלה" required>
+                <input
+                  type="datetime-local"
+                  value={eventForm.startsAt}
+                  onChange={event => onEventChange(prev => ({ ...prev, startsAt: event.target.value }))}
+                  className="command-input"
+                  disabled={isSubmitting}
+                />
+              </QuickField>
+              <QuickField label="סיום">
+                <input
+                  type="datetime-local"
+                  value={eventForm.endsAt}
+                  onChange={event => onEventChange(prev => ({ ...prev, endsAt: event.target.value }))}
+                  className="command-input"
+                  disabled={isSubmitting}
+                />
+              </QuickField>
+              <QuickField label="מיקום">
+                <input
+                  value={eventForm.location}
+                  onChange={event => onEventChange(prev => ({ ...prev, location: event.target.value }))}
+                  className="command-input"
+                  placeholder="מיקום, אם יש"
+                  disabled={isSubmitting}
+                />
+              </QuickField>
+              <QuickField label="תיאור" className="sm:col-span-2">
+                <textarea
+                  value={eventForm.description}
+                  onChange={event => onEventChange(prev => ({ ...prev, description: event.target.value }))}
+                  className="command-input min-h-24 resize-none"
+                  placeholder="פירוט קצר, אם צריך"
+                  disabled={isSubmitting}
+                />
+              </QuickField>
+            </div>
+          )}
+
+          <div className="mt-6 flex flex-col-reverse gap-2 border-t border-[rgba(2,1,8,0.08)] pt-4 sm:flex-row sm:justify-start">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="min-h-11 rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/76 px-5 text-sm font-black text-[#020108] transition hover:border-[#FF6B02]/30 hover:bg-[#FF6B02]/10 disabled:opacity-50"
+            >
+              ביטול
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="relative inline-flex min-h-11 items-center justify-center gap-2 overflow-hidden rounded-2xl border border-[#FF6B02]/45 bg-[#FF6B02] px-5 text-sm font-black text-white shadow-[0_14px_28px_rgba(255,107,2,0.24)] transition hover:bg-[#E65F00] disabled:opacity-60"
+            >
+              <span className="pointer-events-none absolute inset-x-0 top-0 h-[42%] bg-gradient-to-b from-white/30 to-transparent" />
+              {isSubmitting && <Loader2 className="relative z-10 h-4 w-4 animate-spin" />}
+              <span className="relative z-10">שמירה</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </>
+  );
+}
+
+function QuickField({
+  label,
+  required,
+  className,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className={`space-y-2 text-right ${className ?? ''}`}>
+      <span className="block text-xs font-black text-[#667085]">
+        {label}{required ? ' *' : ''}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+function EventSelect({
+  value,
+  events,
+  disabled,
+  onChange,
+}: {
+  value: string;
+  events: DbEvent[];
+  disabled: boolean;
+  onChange: (eventId: string) => void;
+}) {
+  return (
+    <select value={value} onChange={event => onChange(event.target.value)} className="command-select" disabled={disabled}>
+      <option value="none">ללא שיוך</option>
+      {events.map(event => (
+        <option key={event.id} value={event.id}>
+          {event.title} · {formatShortDateTime(event.starts_at)}
+        </option>
+      ))}
+    </select>
   );
 }
 

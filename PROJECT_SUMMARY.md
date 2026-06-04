@@ -40,7 +40,7 @@ Target roles: מ"פ, סמ"פ, ע. מ"פ, מ"מ, מ"כ, סמל, רס"פ/לוגי�
 - "דרוש טיפול" attention list: deduped by composite key, sorted by priority/status.
 - "היום בלו״ז" today's events.
 - Open tasks panel + recent activity feed.
-- Quick Create modals (`dd2da33`): floating panel for request/task/event creation from header buttons. Each form inserts to Supabase, writes best-effort audit, and calls loadDashboard(). No RLS changes required.
+- Quick Create modals (`dd2da33`): floating popover panel (fixed positioning, no dark/blur overlay) for request/task/event creation from header buttons. Description textareas use `command-input min-h-24 resize-none` (`command-textarea` class does not exist). Each form inserts to Supabase, writes best-effort audit, and calls loadDashboard(). No RLS changes required.
 
 ### Requests module
 

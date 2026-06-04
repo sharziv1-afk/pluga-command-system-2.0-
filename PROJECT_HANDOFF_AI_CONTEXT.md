@@ -23,7 +23,8 @@ Authoritative technical handoff for AI agents and developers continuing work on 
 ## Git Log (last 12 commits)
 
 ```
-e002163 Add request and event editing
+769ea01 Update project handoff after editing milestone  ← latest (docs)
+e002163 Add request and event editing                   ← latest feature
 dd2da33 Add dashboard quick create modals
 3e12d3e Add Supabase dashboard summaries
 07a565e Fix audit action count in documentation
@@ -33,7 +34,6 @@ ac47d00 Add closed item deletion and schedule auto-complete
 29d445d Polish schedule weekly view
 066145e Add basic task editing
 8788a9c Link tasks to schedule events
-14ea875 Polish protected routes and audit actions
 836d176 Add Events and Schedule v1
 ```
 
@@ -152,7 +152,8 @@ No service role. No RPC. All anon-key browser client.
 Three forms accessible via header buttons: פתח דרישה / משימה חדשה / מופע חדש.
 
 Each form:
-- Uses a floating popover panel (fixed position, not a heavy modal overlay).
+- Uses a floating popover panel with `fixed` positioning to prevent clipping by parent containers. No dark/blur overlay backdrop.
+- Description textareas use `command-input min-h-24 resize-none` (not `command-textarea` which does not exist in globals.css — this was corrected during this commit).
 - Inserts directly to Supabase via browser client.
 - Calls `void createAuditLog(...)` after success (best-effort).
 - Calls `loadDashboard()` to refresh all data.

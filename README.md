@@ -13,7 +13,8 @@
 ## Recent Commits
 
 ```
-e002163 Add request and event editing
+769ea01 Update project handoff after editing milestone  ← latest (docs)
+e002163 Add request and event editing                   ← latest feature
 dd2da33 Add dashboard quick create modals
 3e12d3e Add Supabase dashboard summaries
 07a565e Fix audit action count in documentation
@@ -22,7 +23,6 @@ ac47d00 Add closed item deletion and schedule auto-complete
 097bf60 Link requests to schedule events
 29d445d Polish schedule weekly view
 066145e Add basic task editing
-8788a9c Link tasks to schedule events
 ```
 
 ---

@@ -23,8 +23,9 @@ Authoritative technical handoff for AI agents and developers continuing work on 
 ## Git Log (last 12 commits)
 
 ```
-769ea01 Update project handoff after editing milestone  ← latest (docs)
-e002163 Add request and event editing                   ← latest feature
+9d25c8b Complete docs review: add commit naming guardrail and Quick Create details  ← latest (docs)
+769ea01 Update project handoff after editing milestone
+e002163 Add request and event editing                                                ← latest feature
 dd2da33 Add dashboard quick create modals
 3e12d3e Add Supabase dashboard summaries
 07a565e Fix audit action count in documentation
@@ -370,7 +371,10 @@ Event detail modal includes:
 
 **Audit:** `event_updated` — previousValue and newValue include all 7 editable fields.
 
-**Note:** Editing a completed event to future times does NOT automatically change its status. Status remains managed via the separate status dropdown.
+**Status and auto-reopen:**
+- Status is not an editable field in the edit form.
+- **Exception:** if the event's current status is `completed` and the new `starts_at`/`ends_at` is in the future, `handleEditEvent` automatically sets `status: 'scheduled'` in the update payload and records `reopened_from_completed: true` in `event_updated.newValue`.
+- `cancelled` events are never auto-reopened.
 
 **RLS:** No new migration needed. `G7 "events: creator update own"` already existed in migration 002.
 
@@ -381,7 +385,7 @@ Event detail modal includes:
 - No recurring events, drag/drop, Google Calendar, cron, Supabase Realtime.
 - Old events hidden client-side only — no automatic DB deletion.
 - Auto-complete is client-triggered (loadEvents) — retries on next load if RLS blocks.
-- Event edit and status change are intentionally separate UI flows.
+- Event status is not an editable form field; status changes go through the separate status dropdown. The one exception is the auto-reopen: editing a `completed` event to a future time implicitly reopens it to `scheduled`.
 
 ---
 
@@ -462,7 +466,7 @@ The DB-backed modules (Requests, Tasks, Events) use their own local types and di
 6. **Metadata merge on task edit** — source_type, source_id, creator_name, creator_role, creator_unit, control_questions, stuck_reason are preserved; only category/location/output_required are updated.
 7. **No request_event_changed audit action yet** — deferred to Phase 2.
 8. **Request Editing Phase 1 live** — creator/commander can edit title, description, category, priority, event_id. Status/assigned_to/unit_id still Phase 2.
-9. **Event Editing Phase 1 live** — creator/commander can edit title, description, type, times, location, responsible user. Status unchanged by editing.
+9. **Event Editing Phase 1 live** — creator/commander can edit title, description, type, times, location, responsible user. Status not a form field; editing a `completed` event to a future time auto-reopens it to `scheduled` (audit: `reopened_from_completed: true`).
 10. **Assigned user cannot full-edit** — RLS cannot restrict column-level updates. Only creator/commander can edit. Phase 2 solution would require a SECURITY DEFINER function.
 10. **Hebrew gershayim normalization** — `normalizeRole()` replaces both U+05F4 (״) and straight quotes to match commander role names consistently across modules.
 

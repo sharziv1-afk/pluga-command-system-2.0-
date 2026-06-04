@@ -13,8 +13,9 @@
 ## Recent Commits
 
 ```
-769ea01 Update project handoff after editing milestone  ← latest (docs)
-e002163 Add request and event editing                   ← latest feature
+9d25c8b Complete docs review: add commit naming guardrail and Quick Create details  ← latest (docs)
+769ea01 Update project handoff after editing milestone
+e002163 Add request and event editing                                                ← latest feature
 dd2da33 Add dashboard quick create modals
 3e12d3e Add Supabase dashboard summaries
 07a565e Fix audit action count in documentation

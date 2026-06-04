@@ -22,6 +22,6 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Audit actions are best-effort (`void createAuditLog(...)`). Never make them blocking.
 - Closed item deletion is Phase 1 only (creator + commander). Do not add unit/hierarchy logic without planning.
 - Request editing (Phase 1) allows creator or commander to edit: title, description, category, priority, event_id. Do not add status, assigned_to, or unit_id editing without planning.
-- Event editing (Phase 1) allows creator or commander to edit: title, description, event_type, starts_at, ends_at, location, responsible_user_id. Status is managed by the separate status dropdown — do not include it in the edit form.
+- Event editing (Phase 1) allows creator or commander to edit: title, description, event_type, starts_at, ends_at, location, responsible_user_id. Status is not an editable field in the form. Exception: `handleEditEvent` auto-reopens a `completed` event to `scheduled` when the new time is in the future (records `reopened_from_completed: true` in audit). `cancelled` events are never auto-reopened. Do not add status as an editable field without explicit planning.
 - Do not add recurring events, drag/drop, cron jobs, Supabase Edge Functions, or Supabase Realtime without an explicit feature request and planning session.
 - Commit messages must be descriptive and specific (e.g., `Add request and event editing`, `Update project handoff after editing milestone`). Do not use generic names like `update`, `fix`, `changes`, or a hash alone.

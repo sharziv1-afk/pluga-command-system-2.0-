@@ -77,7 +77,7 @@ Target roles: מ"פ, סמ"פ, ע. מ"פ, מ"מ, מ"כ, סמל, רס"פ/לוגי�
 - Event creation, status updates, linked tasks/requests sections in modal.
 - Auto-complete (`ac47d00`): if `ends_at` (or `starts_at`) has passed and user can update → event moved to `completed` on page load; client-side only, no cron.
 - Closed event deletion (`ac47d00`, migration 006): completed + cancelled deletable by creator or commander; deleting event nullifies `event_id` on linked tasks/requests (`ON DELETE SET NULL`).
-- Event Editing Phase 1 (`e002163`): edit modal for creator (`created_by`) or commander. Editable: title, description, event_type, starts_at, ends_at, location, responsible_user_id. Status not changed by edit. Validation: title required, starts_at required, ends_at > starts_at. Audit: `event_updated`. No new migration needed — G7 creator update already existed in 002.
+- Event Editing Phase 1 (`e002163`): edit modal for creator (`created_by`) or commander. Editable: title, description, event_type, starts_at, ends_at, location, responsible_user_id. Status is not an editable field in the form; however, if a `completed` event is edited to a future time, it is automatically re-opened to `scheduled` with `event_updated.newValue.reopened_from_completed = true`. `cancelled` events are never auto-reopened. Validation: title required, starts_at required, ends_at > starts_at. Audit: `event_updated`. No new migration needed — G7 creator update already existed in 002.
 - Audit: `event_created`, `event_status_changed`, `event_deleted`, `event_updated`.
 
 ---
@@ -135,7 +135,7 @@ Phase 2 (not built): unit hierarchy, permission_level comparison.
 | Auto-complete is client-side only | No cron/scheduler needed for MVP; retries on next loadEvents() |
 | Metadata merge on task/request edit | Provenance fields (source_type, creator_name, etc.) are preserved across edits |
 | Request edit creator update via migration 007 | New RLS policy; events didn't need one (G7 existed in 002) |
-| Event editing does not change status | Status stays in its own dropdown; edit and status change are intentionally separate |
+| Event status not editable as a form field | Status changes via separate dropdown; exception: editing a `completed` event to a future time auto-reopens it to `scheduled` |
 | No column-level RLS | Postgres doesn't support it natively; assigned-user restrictions enforced in UI |
 | Hebrew gershayim normalization | Critical for commander role detection across all modules |
 | No service role key in frontend | Security non-negotiable |

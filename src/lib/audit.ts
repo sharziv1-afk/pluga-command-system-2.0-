@@ -14,14 +14,15 @@ export type AuditActionType =
   | 'event_created'
   | 'event_status_changed'
   | 'event_deleted'
-  | 'event_updated';
+  | 'event_updated'
+  | 'forum_post_created';
 
 interface CreateAuditLogParams {
   userId: string;
   userName: string;
   userRole: string;
   actionType: AuditActionType;
-  entityType: 'request' | 'task' | 'event';
+  entityType: 'request' | 'task' | 'event' | 'forum_post';
   entityId: string;
   previousValue?: Record<string, unknown> | null;
   newValue?: Record<string, unknown> | null;

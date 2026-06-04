@@ -2,9 +2,9 @@
 
 Authoritative technical handoff for AI agents and developers continuing work on `pluga-command-system`.
 
-**Last updated:** 2026-06-03
-**Milestone:** Closed Items Deletion + Schedule Auto-Complete
-**Last feature commit:** `ac47d00 Add closed item deletion and schedule auto-complete`
+**Last updated:** 2026-06-04
+**Milestone:** Request + Event Editing Phase 1
+**Last feature commit:** `e002163 Add request and event editing`
 
 ---
 
@@ -23,6 +23,11 @@ Authoritative technical handoff for AI agents and developers continuing work on 
 ## Git Log (last 12 commits)
 
 ```
+e002163 Add request and event editing
+dd2da33 Add dashboard quick create modals
+3e12d3e Add Supabase dashboard summaries
+07a565e Fix audit action count in documentation
+66dea44 Update project handoff after closed-items milestone
 ac47d00 Add closed item deletion and schedule auto-complete
 097bf60 Link requests to schedule events
 29d445d Polish schedule weekly view
@@ -30,11 +35,6 @@ ac47d00 Add closed item deletion and schedule auto-complete
 8788a9c Link tasks to schedule events
 14ea875 Polish protected routes and audit actions
 836d176 Add Events and Schedule v1
-5bd714d Add Supabase-backed Tasks v1
-71c4a4a Update project handoff documentation before sharing
-084b810 Add audit trail and completed request deletion
-d11279d Add Audit Trail for Requests
-24651be Add comments RLS policies for request treatment history
 ```
 
 ---
@@ -97,12 +97,13 @@ Implemented in `src/app/(auth)/login/page.tsx`, `src/app/auth/callback/route.ts`
 | `004_task_event_link.sql` | `tasks.event_id → events(id) ON DELETE SET NULL` + index | Tasks ↔ Events |
 | `005_request_event_link.sql` | `requests.event_id → events(id) ON DELETE SET NULL` + index | Requests ↔ Events |
 | `006_closed_items_delete_rls.sql` | Replaces C6 + F8; adds events delete policy | Supersedes 002 for those two policies |
+| `007_request_creator_update_rls.sql` | Adds `"requests: creator update own"` for request creator update | Events did not need this; G7 existed in 002 |
 
 ### RLS sections in 002_rls_policies.sql
 
 - **A** — `public.is_commander(uuid)` — SECURITY DEFINER helper; checks active + approved + (מ"פ/סמ"פ or permission_level ≥ 90).
 - **B** — `public.users` — select own, commander select all, commander update all.
-- **C** — `public.requests` — insert own, select own, select own unit, commander select all, commander update all. C6 (delete) was replaced by 006.
+- **C** — `public.requests` — insert own, select own, select own unit, commander select all, commander update all, **creator update own** (007). C6 (delete) was replaced by 006.
 - **D** — `public.comments` — select/insert for request viewers.
 - **E** — `public.audit_logs` — insert own, select own, commander select all.
 - **F** — `public.tasks` — insert own, select own/assigned/own unit, commander select all, commander update all, creator update own. F8 (delete) was replaced by 006.
@@ -122,6 +123,45 @@ No column-level restrictions exist in Postgres RLS. Assigned-user status-only up
 - No service role key in frontend code. Ever.
 - No automatic SQL execution. Propose SQL, wait for manual execution.
 - Do not re-run 001/002 in production. They are idempotent but unnecessary.
+
+---
+
+## Dashboard — Full State
+
+File: `src/app/(protected)/dashboard/page.tsx`
+
+### Data loading
+
+Loads on mount via `loadDashboard()`:
+1. Profile lookup (`users.maybeSingle`)
+2. `Promise.all([requests, tasks, events, audit_logs])` — all via browser client / RLS
+3. User name lookup for assignee display
+
+No service role. No RPC. All anon-key browser client.
+
+### UI sections
+
+- **Stat cards** — פתוחות / דחופות / בטיפול / הושלמו (requests).
+- **"דרוש טיפול"** — Urgent + open requests, overdue tasks; deduped via `Set<string>` composite key `${type}:${id}`.
+- **"היום בלו״ז"** — Events filtered by Jerusalem-timezone day key.
+- **Open tasks panel** — first 5 open/in_progress tasks.
+- **Recent activity** — last 8 audit_log entries.
+
+### Quick Create Modals (commit `dd2da33`)
+
+Three forms accessible via header buttons: פתח דרישה / משימה חדשה / מופע חדש.
+
+Each form:
+- Uses a floating popover panel (fixed position, not a heavy modal overlay).
+- Inserts directly to Supabase via browser client.
+- Calls `void createAuditLog(...)` after success (best-effort).
+- Calls `loadDashboard()` to refresh all data.
+- No new RLS policies required.
+
+### Decisions
+
+- Dashboard is read-only summary + quick entry — no status actions or management.
+- No service role, no admin bypass.
 
 ---
 
@@ -168,11 +208,34 @@ No column-level restrictions exist in Postgres RLS. Assigned-user status-only up
 - UI guard: `canDeleteRequest()` function + no extra `.eq('status', ...)` in query.
 - Audit: `request_deleted` written after success.
 
+### Request Editing Phase 1 (commit `e002163`, migration 007)
+
+`canEditRequest = canSeeAll || request.requested_by === dbProfile.id`
+
+**Editable fields:** title, description, request_type/category, metadata.priority, event_id.
+
+**Not editable in this modal:** status, requested_by, unit_id, assigned_to, comments.
+
+**Metadata merge pattern:**
+```typescript
+const mergedMetadata = {
+  ...existingMetadata,         // preserves creator_name, creator_role, creator_unit + any other fields
+  category: editCategory,
+  priority: editPriority,
+};
+```
+
+**Handler:** `handleEditRequest` — validates title, builds merged metadata, calls `.update({title, description, request_type, event_id, metadata}).eq('id', ...)`, on error shows inline `editError` and keeps modal open, on success calls `void createAuditLog(..., 'request_updated', ...)` + `loadRequests()`.
+
+**Audit:** `request_updated` — previousValue includes title, description, request_type, priority, event_id; newValue same.
+
+**RLS:** `"requests: creator update own"` from migration 007. Policy uses `USING` + `WITH CHECK` both checking `requested_by = (SELECT id FROM users WHERE auth_user_id = auth.uid() LIMIT 1)`. No column-level restriction — UI is the gate.
+
 ### Decisions
 
 - `requested_by` stores `public.users.id` (verified by 'mine' tab filter working).
-- No request edit modal yet.
-- No `request_updated` audit action yet.
+- Creator can edit their own request fields. Only UI prevents editing status/assigned_to.
+- `request_event_changed` audit action still deferred to Phase 2.
 
 ---
 
@@ -292,11 +355,32 @@ Event detail modal includes:
 - `דרישות קשורות` — queried from `requests WHERE event_id = selectedEvent.id`, RLS-filtered.
 - Both have `isMounted` guards, no infinite loops, separate loading states.
 
+### Event Editing Phase 1 (commit `e002163`)
+
+`canEditEvent = canSeeAll || event.created_by === dbProfile.id` (same as `canUpdateEventStatus`)
+
+**Editable fields:** title, description, event_type, starts_at, ends_at, location, responsible_user_id.
+
+**Not editable in this modal:** status (separate dropdown in detail footer), created_by, unit_id, metadata, linked tasks/requests.
+
+**Validations:** title required, starts_at required, ends_at must be after starts_at.
+
+**Handler:** `handleEditEvent` — validates, calls `.update({title, description, event_type, starts_at, ends_at, location, responsible_user_id}).eq('id', ...)`. On success: updates `events` state + `selectedEvent` locally, calls `void createAuditLog(..., 'event_updated', ...)` + `loadEvents()`.
+
+**Audit:** `event_updated` — previousValue and newValue include all 7 editable fields.
+
+**Note:** Editing a completed event to future times does NOT automatically change its status. Status remains managed via the separate status dropdown.
+
+**RLS:** No new migration needed. `G7 "events: creator update own"` already existed in migration 002.
+
+**UI:** Edit modal is z-[60], above the detail modal at z-50. `formatDateTimeLocalInput` pre-populates datetime-local inputs by converting ISO → local offset.
+
 ### Decisions
 
 - No recurring events, drag/drop, Google Calendar, cron, Supabase Realtime.
 - Old events hidden client-side only — no automatic DB deletion.
 - Auto-complete is client-triggered (loadEvents) — retries on next load if RLS blocks.
+- Event edit and status change are intentionally separate UI flows.
 
 ---
 
@@ -305,13 +389,13 @@ Event detail modal includes:
 File: `src/lib/audit.ts`
 Table: `public.audit_logs`
 
-### AuditActionType (as of ac47d00)
+### AuditActionType (as of e002163) — 14 total
 
 ```
 request_created | request_status_changed | request_assigned
-request_comment_added | request_deleted
+request_comment_added | request_deleted | request_updated
 task_created | task_updated | task_status_changed | task_deleted
-event_created | event_status_changed | event_deleted
+event_created | event_status_changed | event_deleted | event_updated
 ```
 
 ### entityType
@@ -351,9 +435,9 @@ The DB-backed modules (Requests, Tasks, Events) use their own local types and di
 | AuditTab | Reads localStorage, not DB |
 | types.ts | Old Task/LogisticsRequest types alongside DB types |
 | Task assigned user | No status-only expanded update (RLS limitation) |
-| Request edit | No edit form (only create) |
+| Request Editing Phase 1 | Does not include assigned_to / status / unit_id |
+| Event Editing Phase 1 | Does not include status / unit_id / metadata |
 | Permissions | No hierarchy/unit-level Phase 2 |
-| Dashboard | Summaries not yet real Supabase queries |
 | Deployment | No Vercel yet |
 | Notifications | None |
 | SLA | None |
@@ -375,20 +459,21 @@ The DB-backed modules (Requests, Tasks, Events) use their own local types and di
 4. **Closed deletion Phase 1** — creator + commander. Unit hierarchy is Phase 2.
 5. **Auto-complete is client-side** — no cron, no DB job, no scheduler.
 6. **Metadata merge on task edit** — source_type, source_id, creator_name, creator_role, creator_unit, control_questions, stuck_reason are preserved; only category/location/output_required are updated.
-7. **No request_event_changed audit action yet** — event_id is only set at create time.
-8. **No request edit modal yet** — only create.
-9. **Assigned user cannot full-edit** — RLS cannot restrict column-level updates. Only creator/commander can edit. Phase 2 solution would require a SECURITY DEFINER function.
+7. **No request_event_changed audit action yet** — deferred to Phase 2.
+8. **Request Editing Phase 1 live** — creator/commander can edit title, description, category, priority, event_id. Status/assigned_to/unit_id still Phase 2.
+9. **Event Editing Phase 1 live** — creator/commander can edit title, description, type, times, location, responsible user. Status unchanged by editing.
+10. **Assigned user cannot full-edit** — RLS cannot restrict column-level updates. Only creator/commander can edit. Phase 2 solution would require a SECURITY DEFINER function.
 10. **Hebrew gershayim normalization** — `normalizeRole()` replaces both U+05F4 (״) and straight quotes to match commander role names consistently across modules.
 
 ---
 
 ## Prompt for New Claude Session
 
-Continue `pluga-command-system` / "המפקד". Last commit: `ac47d00 Add closed item deletion and schedule auto-complete`. Stack: Next.js 16 (src/proxy.ts NOT middleware.ts), React 19, TypeScript, Tailwind 4, Supabase Auth/PostgreSQL/RLS. Auth: hybrid email+password / Email OTP. Working modules: Requests (full workflow + event link + closed deletion), Tasks (Supabase + editing Phase 1 + event link + closed deletion), Events/Schedule (timeline, week grid, auto-complete, event link to tasks+requests, closed deletion). Migrations 001-006 all run in Supabase. Audit: 12 actions, best-effort. AppContext/forum still localStorage. No service role in frontend. No middleware.ts. Read README, PROJECT_HANDOFF_AI_CONTEXT, PROJECT_SUMMARY, AGENTS, CLAUDE before writing any code.
+Continue `pluga-command-system` / "המפקד". Last commit: `e002163 Add request and event editing`. Stack: Next.js 16 (src/proxy.ts NOT middleware.ts), React 19, TypeScript, Tailwind 4, Supabase Auth/PostgreSQL/RLS. Auth: hybrid email+password / Email OTP. Working modules: Dashboard (Supabase summaries + Quick Create), Requests (full workflow + event link + closed deletion + Editing Phase 1), Tasks (Supabase + editing Phase 1 + event link + closed deletion), Events/Schedule (timeline, week grid, auto-complete, event link, closed deletion + Editing Phase 1). Migrations 001-007 all run in Supabase. Audit: 14 actions, best-effort. AppContext/forum still localStorage. No service role in frontend. No middleware.ts. Read README, PROJECT_HANDOFF_AI_CONTEXT, PROJECT_SUMMARY, AGENTS, CLAUDE before writing any code.
 
 ## Prompt for New Codex Session
 
-Open `C:\Users\Maltak 123\Desktop\pluga-command-system` on branch `main`. Read README.md, PROJECT_HANDOFF_AI_CONTEXT.md, PROJECT_SUMMARY.md, AGENTS.md, CLAUDE.md first. Last feature commit: `ac47d00`. Uses Next.js 16 src/proxy.ts (not middleware.ts). Supabase migrations 001–006 all run manually. Key guardrails: keep Hebrew RTL, keep Light Gloss Command System, no service role in frontend, no AppContext/localStorage delete without dependency mapping, no npm audit fix --force. All three main modules (Requests, Tasks, Events) are Supabase-backed with event_id links, audit trail, and closed-item deletion. Forum and audit UI are still mock/localStorage.
+Open `C:\Users\Maltak 123\Desktop\pluga-command-system` on branch `main`. Read README.md, PROJECT_HANDOFF_AI_CONTEXT.md, PROJECT_SUMMARY.md, AGENTS.md, CLAUDE.md first. Last feature commit: `e002163`. Uses Next.js 16 src/proxy.ts (not middleware.ts). Supabase migrations 001–007 all run manually. Key guardrails: keep Hebrew RTL, keep Light Gloss Command System, no service role in frontend, no AppContext/localStorage delete without dependency mapping, no npm audit fix --force. All three main modules (Requests, Tasks, Events) are Supabase-backed with event_id links, audit trail, closed-item deletion, and Editing Phase 1. Dashboard has real Supabase data + Quick Create. Forum and audit UI are still mock/localStorage.
 
 ---
 

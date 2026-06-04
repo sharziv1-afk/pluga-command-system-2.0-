@@ -1,8 +1,8 @@
 # pluga-command-system — "המפקד"
 
-## Milestone Snapshot — 2026-06-03
+## Milestone Snapshot — 2026-06-04
 
-**Last committed feature:** `ac47d00 Add closed item deletion and schedule auto-complete`
+**Last committed feature:** `e002163 Add request and event editing`
 
 `pluga-command-system` / **"המפקד"** is a Hebrew RTL company command-management system. Built with Next.js 16 App Router, React 19, TypeScript, Tailwind CSS 4, Supabase Auth/PostgreSQL/RLS, and GitHub. Future deployment target: Vercel.
 
@@ -13,16 +13,16 @@
 ## Recent Commits
 
 ```
+e002163 Add request and event editing
+dd2da33 Add dashboard quick create modals
+3e12d3e Add Supabase dashboard summaries
+07a565e Fix audit action count in documentation
+66dea44 Update project handoff after closed-items milestone
 ac47d00 Add closed item deletion and schedule auto-complete
 097bf60 Link requests to schedule events
 29d445d Polish schedule weekly view
 066145e Add basic task editing
 8788a9c Link tasks to schedule events
-14ea875 Polish protected routes and audit actions
-836d176 Add Events and Schedule v1
-5bd714d Add Supabase-backed Tasks v1
-71c4a4a Update project handoff documentation before sharing
-084b810 Add audit trail and completed request deletion
 ```
 
 ---
@@ -47,11 +47,12 @@ ac47d00 Add closed item deletion and schedule auto-complete
 - **Role Based Interface** — approved active commanders see full dashboard + Admin Panel; role/unit shown in sidebar/header.
 - **Profile page** — `/profile` is protected, shows real user data from Supabase.
 - **Admin Panel** — approve/reject users, edit roles/units, permission management.
-- **Requests module** — full workflow: create, queue tabs, search, filters, status actions, assignee management, treatment history comments, audit trail, closed-item deletion (completed/rejected/cancelled). Linked to Events via `event_id`.
+- **Dashboard** — `/dashboard` connected to real Supabase data: requests, tasks, events, audit_logs, users. Summary stat cards, "דרוש טיפול" attention list with dedup, "היום בלו״ז", open tasks panel, recent activity feed. Quick Create floating modals for request/task/event from header buttons (insert → audit → reload). No service role.
+- **Requests module** — full workflow: create, queue tabs, search, filters, status actions, assignee management, treatment history comments, audit trail, closed-item deletion. Linked to Events via `event_id`. **Editing Phase 1**: creator or commander can edit title, description, category, priority, event link — metadata merge preserves `creator_name/role/unit`.
 - **Tasks module** — Supabase-backed: create, status update, edit (Phase 1), assigned_to, event_id, audit trail, closed-item deletion (completed/cancelled). Linked to Events via `event_id`.
-- **Schedule / Events** — `/schedule`: timeline view, week grid, day tabs, event creation, status updates, auto-complete for elapsed events, closed-item deletion (completed/cancelled). Modal shows linked tasks and requests.
+- **Schedule / Events** — `/schedule`: timeline view, week grid, day tabs, event creation, status updates, auto-complete for elapsed events, closed-item deletion (completed/cancelled). Modal shows linked tasks and requests. **Editing Phase 1**: creator or commander can edit title, description, event type, times, location, responsible user.
 - **Cross-module links** — Tasks ↔ Events (migration 004), Requests ↔ Events (migration 005). Deleting an event detaches linked items via `ON DELETE SET NULL`.
-- **Audit trail** — 12 action types, best-effort, non-blocking, full entityType support.
+- **Audit trail** — 14 action types, best-effort, non-blocking, full entityType support.
 - **Closed item deletion** — Phase 1: creator or commander can delete closed items across all three modules.
 
 ---
@@ -103,8 +104,9 @@ All migrations are in `supabase/migrations/`. Run manually in Supabase SQL Edito
 | `004_task_event_link.sql` | `tasks.event_id → events(id) ON DELETE SET NULL` | ✅ run |
 | `005_request_event_link.sql` | `requests.event_id → events(id) ON DELETE SET NULL` | ✅ run |
 | `006_closed_items_delete_rls.sql` | Replaces C6/F8 with expanded delete policies; adds events delete policy | ✅ run |
+| `007_request_creator_update_rls.sql` | Adds `"requests: creator update own"` — request creator can update their own request | ✅ run |
 
-**Note:** Migration 006 supersedes C6 and F8 from migration 002. The 002 file retains the old policies for reference but they have been replaced in Supabase.
+**Note:** Migration 006 supersedes C6 and F8 from 002. Migration 007 adds a new policy (requests creator update) that did not exist in 002; events already had G7 creator update since 002.
 
 ---
 
@@ -132,9 +134,10 @@ All migrations are in `supabase/migrations/`. Run manually in Supabase SQL Edito
 - `Forum` still mock/localStorage.
 - `AuditTab.tsx` reads localStorage, not real `audit_logs`.
 - Old `Task` / `LogisticsRequest` types in `types.ts` coexist with DB implementations.
-- No assigned-user status-only edit for tasks (RLS can't restrict columns).
+- No assigned-user status-only edit for tasks/requests (RLS can't restrict columns; UI-only gate).
 - No hierarchy/unit-based permissions (Phase 2).
-- No request edit form.
+- Request Editing Phase 1 does not include: assigned_to, status, unit_id.
+- Event Editing Phase 1 does not include: status (separate dropdown), unit_id, metadata.
 - No Vercel deployment.
 - No notifications, SLA, attachments, recurring events, drag/drop.
 - No automated migration runner — SQL is manual.
@@ -143,14 +146,14 @@ All migrations are in `supabase/migrations/`. Run manually in Supabase SQL Edito
 
 ## Next Recommended Steps
 
-1. Short manual QA after docs update.
-2. Dashboard summaries from real Supabase data.
-3. Forum module → Supabase.
-4. Request edit (full form, Phase 1 parity with tasks).
-5. Notifications / SLA.
-6. Hierarchy permissions (Phase 2).
-7. Vercel deployment.
-8. Attachments.
+1. Short manual QA across all modules after docs update.
+2. Forum module → Supabase.
+3. Hierarchy permissions (Phase 2).
+4. Notifications / SLA.
+5. Attachments.
+6. Vercel deployment.
+7. Request Edit Phase 2 (assigned_to integration if needed).
+8. Recurring events / drag-drop / calendar integration.
 
 ---
 

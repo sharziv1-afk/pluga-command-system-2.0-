@@ -1,9 +1,9 @@
 # Project Summary — pluga-command-system
 
-## Milestone Snapshot — 2026-06-03
+## Milestone Snapshot — 2026-06-04
 
-**Milestone:** Closed Items Deletion + Schedule Auto-Complete
-**Last commit:** `ac47d00 Add closed item deletion and schedule auto-complete`
+**Milestone:** Request + Event Editing Phase 1
+**Last commit:** `e002163 Add request and event editing`
 **Branch:** `main` — clean working tree
 
 ---
@@ -33,6 +33,15 @@ Target roles: מ"פ, סמ"פ, ע. מ"פ, מ"מ, מ"כ, סמל, רס"פ/לוגי�
 - Design: **Light Gloss Command System** (bright, glass cards, orange #FF6B02, dark #020108 text, RTL).
 - Layout: fixed sidebar 1280px+; compact top nav below 1280px; no overlay; one menu button.
 
+### Dashboard module
+
+- `/dashboard` connected to real Supabase data (`3e12d3e`): loads requests, tasks, events, audit_logs, users via Promise.all + browser client (no service role).
+- Summary stat cards: פתוחות / דחופות / בטיפול / הושלמו.
+- "דרוש טיפול" attention list: deduped by composite key, sorted by priority/status.
+- "היום בלו״ז" today's events.
+- Open tasks panel + recent activity feed.
+- Quick Create modals (`dd2da33`): floating panel for request/task/event creation from header buttons. Each form inserts to Supabase, writes best-effort audit, and calls loadDashboard(). No RLS changes required.
+
 ### Requests module
 
 - Basic creation → `public.requests` via Supabase.
@@ -45,6 +54,7 @@ Target roles: מ"פ, סמ"פ, ע. מ"פ, מ"מ, מ"כ, סמל, רס"פ/לוגי�
 - Completed-request deletion (commander only) — later expanded by migration 006.
 - Requests ↔ Events link (`097bf60`, migration 005): optional event dropdown on create; badge on card; `דרישות קשורות` in Schedule modal.
 - Closed deletion expanded (`ac47d00`, migration 006): completed + rejected + cancelled deletable by creator or commander.
+- Request Editing Phase 1 (`e002163`, migration 007): edit modal for creator (`requested_by`) or commander. Editable: title, description, category/request_type, metadata.priority, event_id. Metadata merge preserves `creator_name`, `creator_role`, `creator_unit`. Audit: `request_updated`.
 
 ### Tasks module
 
@@ -67,7 +77,8 @@ Target roles: מ"פ, סמ"פ, ע. מ"פ, מ"מ, מ"כ, סמל, רס"פ/לוגי�
 - Event creation, status updates, linked tasks/requests sections in modal.
 - Auto-complete (`ac47d00`): if `ends_at` (or `starts_at`) has passed and user can update → event moved to `completed` on page load; client-side only, no cron.
 - Closed event deletion (`ac47d00`, migration 006): completed + cancelled deletable by creator or commander; deleting event nullifies `event_id` on linked tasks/requests (`ON DELETE SET NULL`).
-- Audit: `event_created`, `event_status_changed`, `event_deleted`.
+- Event Editing Phase 1 (`e002163`): edit modal for creator (`created_by`) or commander. Editable: title, description, event_type, starts_at, ends_at, location, responsible_user_id. Status not changed by edit. Validation: title required, starts_at required, ends_at > starts_at. Audit: `event_updated`. No new migration needed — G7 creator update already existed in 002.
+- Audit: `event_created`, `event_status_changed`, `event_deleted`, `event_updated`.
 
 ---
 
@@ -80,22 +91,24 @@ Target roles: מ"פ, סמ"פ, ע. מ"פ, מ"מ, מ"כ, סמל, רס"פ/לוגי�
 5. `004_task_event_link.sql` — tasks.event_id FK.
 6. `005_request_event_link.sql` — requests.event_id FK.
 7. `006_closed_items_delete_rls.sql` — replaces C6/F8 from 002; adds events delete policy.
+8. `007_request_creator_update_rls.sql` — adds `"requests: creator update own"` (did not exist in 002; events G7 already existed).
 
 All were run manually in Supabase and verified.
 
 ---
 
-## Audit Actions (as of ac47d00)
+## Audit Actions (as of e002163)
 
 ```
 request_created          request_status_changed    request_assigned
-request_comment_added    request_deleted
+request_comment_added    request_deleted           request_updated
 task_created             task_updated              task_status_changed
 task_deleted
 event_created            event_status_changed      event_deleted
+event_updated
 ```
 
-All are best-effort: `void createAuditLog(...)`. Failures warn only.
+Total: 14 action types. All are best-effort: `void createAuditLog(...)`. Failures warn only.
 
 ---
 
@@ -120,8 +133,9 @@ Phase 2 (not built): unit hierarchy, permission_level comparison.
 | ON DELETE SET NULL for event_id | Tasks/requests survive when their linked event is deleted |
 | event_id as real column, not metadata | Enables proper FK, indexing, and RLS filtering |
 | Auto-complete is client-side only | No cron/scheduler needed for MVP; retries on next loadEvents() |
-| Metadata merge on task edit | Provenance fields (source_type, creator_name, etc.) are preserved |
-| No request edit form yet | Complex workflow; deferred to Phase 2 |
+| Metadata merge on task/request edit | Provenance fields (source_type, creator_name, etc.) are preserved across edits |
+| Request edit creator update via migration 007 | New RLS policy; events didn't need one (G7 existed in 002) |
+| Event editing does not change status | Status stays in its own dropdown; edit and status change are intentionally separate |
 | No column-level RLS | Postgres doesn't support it natively; assigned-user restrictions enforced in UI |
 | Hebrew gershayim normalization | Critical for commander role detection across all modules |
 | No service role key in frontend | Security non-negotiable |
@@ -133,10 +147,11 @@ Phase 2 (not built): unit hierarchy, permission_level comparison.
 
 - Recurring events, drag/drop, Google Calendar integration.
 - Supabase cron / Edge Functions / scheduler.
-- Request edit form (Phase 2).
-- Assigned-user expanded permissions (Phase 2).
-- Hierarchy/unit-level delete permissions (Phase 2).
+- Assigned-user expanded update permissions (Phase 2).
+- Hierarchy/unit-level edit/delete permissions (Phase 2).
 - request_event_changed audit action (Phase 2).
+- Request edit: assigned_to / status / unit_id (Phase 2).
+- Event edit: status / unit_id / metadata (Phase 2).
 - Vercel deployment.
 - Notifications, SLA, attachments.
 - Automated migration runner.
@@ -154,6 +169,8 @@ Each of the following had a dedicated QA pass by Claude before SQL was run or co
 3. Requests ↔ Events link (migration 005, requests page, schedule page) — before SQL.
 4. Closed Items Deletion Phase 1 (migration 006, all three pages, audit.ts) — before SQL.
 5. Schedule Auto-Complete addition (schedule page) — before final commit.
+6. Dashboard Supabase summaries + Quick Create modals (dashboard page) — before commit.
+7. Request + Event Editing Phase 1 (requests page, schedule page, audit.ts, migration 007) — before SQL and commit.
 
 QA covered: lint ✅ tsc ✅ build ✅ for all milestones.
 
@@ -170,41 +187,43 @@ QA covered: lint ✅ tsc ✅ build ✅ for all milestones.
 | 004_task_event_link.sql | Tasks ↔ Events | ✅ |
 | 005_request_event_link.sql | Requests ↔ Events | ✅ |
 | 006_closed_items_delete_rls.sql | Closed deletion milestone | ✅ |
+| 007_request_creator_update_rls.sql | Request + Event Editing milestone | ✅ |
 
 ---
 
 ## Current Technical Debt
 
 - AppContext: demo/localStorage (Forum, AuditTab, Gaps still depend on it).
-- No request edit form.
 - No hierarchy permissions.
-- Dashboard summaries not real Supabase queries.
+- Request Editing Phase 1 omits: assigned_to, status, unit_id.
+- Event Editing Phase 1 omits: status, unit_id, metadata.
 - No Vercel deployment.
 - No notifications/SLA/attachments.
 - task_deleted audit doesn't include event_id in previousValue (minor gap, not regression).
+- No automated migration runner — SQL is manual.
 
 ---
 
 ## Recommended Next Steps (ordered)
 
-1. Short manual QA of all three modules after docs commit.
-2. Real Supabase data in Dashboard summaries.
-3. Forum module → Supabase.
-4. Request edit form (parity with Task Editing Phase 1).
-5. Notifications/SLA.
-6. Hierarchy permissions Phase 2.
-7. Vercel deployment.
-8. Attachments.
+1. Short manual QA across all modules after docs commit.
+2. Forum module → Supabase.
+3. Hierarchy permissions Phase 2.
+4. Notifications/SLA.
+5. Attachments.
+6. Vercel deployment.
+7. Request Edit Phase 2 (assigned_to integration if needed).
+8. Recurring events / drag-drop / calendar integration.
 
 ---
 
 ## Build Status
 
-As of `ac47d00`:
+As of `e002163`:
 
 - `npm run lint` — 0 errors/warnings.
 - `npx tsc -p tsconfig.json --noEmit` — 0 errors.
-- `npm run build` — 17 routes, 0 errors.
+- `npm run build` — 15 routes + Proxy, 0 errors.
 
 Routes produced:
 `/`, `/_not-found`, `/admin`, `/auth/callback (ƒ)`, `/dashboard`, `/forum`, `/help`, `/login`, `/onboarding`, `/pending-approval`, `/profile`, `/requests`, `/schedule`, `/select-role`, `/tasks`.

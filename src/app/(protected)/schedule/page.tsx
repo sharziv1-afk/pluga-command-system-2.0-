@@ -8,6 +8,7 @@ import {
   Clock3,
   Loader2,
   MapPin,
+  Pencil,
   Plus,
   RefreshCw,
   Trash2,
@@ -177,6 +178,15 @@ function formatTime(value: string | null) {
   });
 }
 
+function formatDateTimeLocalInput(value: string | null) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return offsetDate.toISOString().slice(0, 16);
+}
+
 function formatDateLabel(value: string) {
   return new Date(value).toLocaleDateString('he-IL', {
     timeZone: 'Asia/Jerusalem',
@@ -262,6 +272,9 @@ export default function SchedulePage() {
   const [isDeletingEvent, setIsDeletingEvent] = useState(false);
   const [updatingEventId, setUpdatingEventId] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<EventView | null>(null);
+  const [editingEvent, setEditingEvent] = useState<EventView | null>(null);
+  const [isEditEventSubmitting, setIsEditEventSubmitting] = useState(false);
+  const [editEventError, setEditEventError] = useState<string | null>(null);
   const [eventTasks, setEventTasks] = useState<EventTaskView[]>([]);
   const [isEventTasksLoading, setIsEventTasksLoading] = useState(false);
   const [eventRequests, setEventRequests] = useState<EventRequestView[]>([]);
@@ -276,6 +289,13 @@ export default function SchedulePage() {
   const [endsAt, setEndsAt] = useState('');
   const [location, setLocation] = useState('');
   const [responsibleUserId, setResponsibleUserId] = useState('none');
+  const [editEventTitle, setEditEventTitle] = useState('');
+  const [editEventDescription, setEditEventDescription] = useState('');
+  const [editEventType, setEditEventType] = useState<EventType>('other');
+  const [editStartsAt, setEditStartsAt] = useState('');
+  const [editEndsAt, setEditEndsAt] = useState('');
+  const [editLocation, setEditLocation] = useState('');
+  const [editResponsibleUserId, setEditResponsibleUserId] = useState('none');
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const profilePermissionLevel = dbProfile?.permission_level ?? getPermissionLevelForRole(currentUser?.role ?? '');
@@ -684,11 +704,146 @@ export default function SchedulePage() {
     return canSeeAll || event.created_by === dbProfile.id;
   };
 
+  const canEditEvent = (event: EventView) =>
+    Boolean(dbProfile && (canSeeAll || event.created_by === dbProfile.id));
+
   const canDeleteEvent = (event: EventView) => {
     if (!dbProfile) return false;
     const isClosed = ['completed', 'cancelled'].includes(event.status);
     if (!isClosed) return false;
     return canSeeAll || event.created_by === dbProfile.id;
+  };
+
+  const openEditEvent = (event: EventView) => {
+    if (!canEditEvent(event)) return;
+
+    setEditingEvent(event);
+    setEditEventTitle(event.title);
+    setEditEventDescription(event.description ?? '');
+    setEditEventType(event.event_type);
+    setEditStartsAt(formatDateTimeLocalInput(event.starts_at));
+    setEditEndsAt(formatDateTimeLocalInput(event.ends_at));
+    setEditLocation(event.location ?? '');
+    setEditResponsibleUserId(event.responsible_user_id ?? 'none');
+    setEditEventError(null);
+    setError(null);
+    setSuccess(null);
+  };
+
+  const closeEditEvent = () => {
+    if (isEditEventSubmitting) return;
+    setEditingEvent(null);
+    setEditEventError(null);
+  };
+
+  const handleEditEvent = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!dbProfile || !editingEvent || !canEditEvent(editingEvent)) return;
+
+    const cleanTitle = editEventTitle.trim();
+    const cleanDescription = editEventDescription.trim();
+    const cleanLocation = editLocation.trim();
+
+    if (!cleanTitle) {
+      setEditEventError('יש להזין כותרת למופע.');
+      return;
+    }
+
+    if (!editStartsAt) {
+      setEditEventError('יש להזין זמן התחלה.');
+      return;
+    }
+
+    const startsAtIso = new Date(editStartsAt).toISOString();
+    const endsAtIso = editEndsAt ? new Date(editEndsAt).toISOString() : null;
+
+    if (endsAtIso && new Date(endsAtIso).getTime() <= new Date(startsAtIso).getTime()) {
+      setEditEventError('זמן הסיום חייב להיות אחרי זמן ההתחלה.');
+      return;
+    }
+
+    const nextResponsibleUserId = editResponsibleUserId === 'none' ? null : editResponsibleUserId;
+    const effectiveEndTime = endsAtIso ? new Date(endsAtIso) : new Date(startsAtIso);
+    const shouldReopenCompletedEvent =
+      editingEvent.status === 'completed' && effectiveEndTime.getTime() > Date.now();
+    const nextStatus = shouldReopenCompletedEvent ? 'scheduled' : editingEvent.status;
+    const updatePayload = {
+      title: cleanTitle,
+      description: cleanDescription || null,
+      event_type: editEventType,
+      starts_at: startsAtIso,
+      ends_at: endsAtIso,
+      location: cleanLocation || null,
+      responsible_user_id: nextResponsibleUserId,
+      ...(shouldReopenCompletedEvent ? { status: 'scheduled' as const } : {}),
+    };
+
+    setIsEditEventSubmitting(true);
+    setEditEventError(null);
+
+    const { error: updateError } = await supabase
+      .from('events')
+      .update(updatePayload)
+      .eq('id', editingEvent.id);
+
+    setIsEditEventSubmitting(false);
+
+    if (updateError) {
+      logSupabaseError('Event edit failed', updateError);
+      setEditEventError('לא ניתן לעדכן את המופע. ייתכן שנדרשת מדיניות RLS מתאימה ב-Supabase.');
+      return;
+    }
+
+    void createAuditLog(supabase, {
+      userId: dbProfile.id,
+      userName: dbProfile.name,
+      userRole: dbProfile.role,
+      actionType: 'event_updated',
+      entityType: 'event',
+      entityId: editingEvent.id,
+      previousValue: {
+        title: editingEvent.title,
+        description: editingEvent.description,
+        event_type: editingEvent.event_type,
+        starts_at: editingEvent.starts_at,
+        ends_at: editingEvent.ends_at,
+        location: editingEvent.location,
+        responsible_user_id: editingEvent.responsible_user_id,
+        status: editingEvent.status,
+      },
+      newValue: {
+        title: cleanTitle,
+        description: cleanDescription || null,
+        event_type: editEventType,
+        starts_at: startsAtIso,
+        ends_at: endsAtIso,
+        location: cleanLocation || null,
+        responsible_user_id: nextResponsibleUserId,
+        ...(shouldReopenCompletedEvent ? { status: 'scheduled', reopened_from_completed: true } : {}),
+      },
+    });
+
+    const selectedResponsibleUser = nextResponsibleUserId
+      ? responsibleUsers.find(user => user.id === nextResponsibleUserId)
+      : null;
+    const nextEvent: EventView = {
+      ...editingEvent,
+      title: cleanTitle,
+      description: cleanDescription || null,
+      event_type: editEventType,
+      starts_at: startsAtIso,
+      ends_at: endsAtIso,
+      location: cleanLocation || null,
+      responsible_user_id: nextResponsibleUserId,
+      status: nextStatus,
+      responsibleName: selectedResponsibleUser ? getUserDisplayName(selectedResponsibleUser) : null,
+    };
+
+    setEvents(current => current.map(item => (item.id === editingEvent.id ? nextEvent : item)));
+    setSelectedEvent(current => current && current.id === editingEvent.id ? nextEvent : current);
+    setEditingEvent(null);
+    setSuccess('המופע עודכן.');
+    await loadEvents();
   };
 
   const handleStatusChange = async (event: EventView, nextStatus: EventStatus) => {
@@ -1239,6 +1394,17 @@ export default function SchedulePage() {
               )}
 
               <div className="flex flex-wrap gap-2">
+                {canEditEvent(selectedEvent) && (
+                  <GlossyButton
+                    variant="slate"
+                    size="sm"
+                    onClick={() => openEditEvent(selectedEvent)}
+                    disabled={isEditEventSubmitting}
+                  >
+                    <Pencil className="h-4 w-4" />
+                    ערוך מופע
+                  </GlossyButton>
+                )}
                 {canDeleteEvent(selectedEvent) && (
                   <GlossyButton
                     variant="slate"
@@ -1256,6 +1422,147 @@ export default function SchedulePage() {
                 </GlossyButton>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {editingEvent && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-black/20 p-3 sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="schedule-event-edit-title"
+          onClick={closeEditEvent}
+        >
+          <div
+            className="w-full max-w-2xl rounded-3xl border border-[rgba(2,1,8,0.10)] bg-white/95 shadow-[0_28px_80px_rgba(2,1,8,0.22)]"
+            onClick={(event) => event.stopPropagation()}
+            dir="rtl"
+          >
+            <div className="flex items-start justify-between gap-3 border-b border-[rgba(2,1,8,0.08)] px-5 py-4">
+              <div>
+                <p className="text-xs font-black text-[#FF6B02]">עריכת לו״ז</p>
+                <h2 id="schedule-event-edit-title" className="mt-1 text-xl font-black text-[#020108]">
+                  ערוך מופע
+                </h2>
+                <p className="mt-1 text-xs font-semibold text-[#667085]">עדכון פרטי המופע בלי לשנות סטטוס או קשרי משימות ודרישות.</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeEditEvent}
+                disabled={isEditEventSubmitting}
+                className="rounded-full border border-[rgba(2,1,8,0.10)] bg-white/80 p-2 text-[#667085] transition hover:border-[#FF6B02]/30 hover:text-[#020108] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#FF6B02]/18"
+                aria-label="סגור עריכת מופע"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditEvent} className="grid max-h-[76vh] gap-4 overflow-y-auto px-5 py-5 lg:grid-cols-2">
+              {editEventError && (
+                <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-700 lg:col-span-2">
+                  {editEventError}
+                </div>
+              )}
+
+              <label className="space-y-1 lg:col-span-2">
+                <span className="text-xs font-bold text-[#667085]">כותרת</span>
+                <input
+                  type="text"
+                  value={editEventTitle}
+                  onChange={(event) => setEditEventTitle(event.target.value)}
+                  className="command-input"
+                  required
+                  disabled={isEditEventSubmitting}
+                />
+              </label>
+
+              <label className="space-y-1 lg:col-span-2">
+                <span className="text-xs font-bold text-[#667085]">תיאור</span>
+                <textarea
+                  value={editEventDescription}
+                  onChange={(event) => setEditEventDescription(event.target.value)}
+                  className="command-input min-h-28 resize-none"
+                  disabled={isEditEventSubmitting}
+                />
+              </label>
+
+              <label className="space-y-1">
+                <span className="text-xs font-bold text-[#667085]">סוג מופע</span>
+                <select
+                  value={editEventType}
+                  onChange={(event) => setEditEventType(event.target.value as EventType)}
+                  className="command-select"
+                  disabled={isEditEventSubmitting}
+                >
+                  {eventTypes.map(type => <option key={type} value={type}>{eventTypeLabels[type]}</option>)}
+                </select>
+              </label>
+
+              <label className="space-y-1">
+                <span className="text-xs font-bold text-[#667085]">אחראי</span>
+                <select
+                  value={editResponsibleUserId}
+                  onChange={(event) => setEditResponsibleUserId(event.target.value)}
+                  className="command-select"
+                  disabled={isEditEventSubmitting}
+                >
+                  <option value="none">טרם הוקצה</option>
+                  {editingEvent.responsible_user_id && !responsibleUsers.some(user => user.id === editingEvent.responsible_user_id) && (
+                    <option value={editingEvent.responsible_user_id}>
+                      {editingEvent.responsibleName || 'אחראי נוכחי'}
+                    </option>
+                  )}
+                  {responsibleUsers.map(user => (
+                    <option key={user.id} value={user.id}>{getUserDisplayName(user)} · {user.role}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="space-y-1">
+                <span className="text-xs font-bold text-[#667085]">התחלה</span>
+                <input
+                  type="datetime-local"
+                  value={editStartsAt}
+                  onChange={(event) => setEditStartsAt(event.target.value)}
+                  className="command-input"
+                  required
+                  disabled={isEditEventSubmitting}
+                />
+              </label>
+
+              <label className="space-y-1">
+                <span className="text-xs font-bold text-[#667085]">סיום</span>
+                <input
+                  type="datetime-local"
+                  value={editEndsAt}
+                  onChange={(event) => setEditEndsAt(event.target.value)}
+                  className="command-input"
+                  disabled={isEditEventSubmitting}
+                />
+              </label>
+
+              <label className="space-y-1 lg:col-span-2">
+                <span className="text-xs font-bold text-[#667085]">מיקום</span>
+                <input
+                  type="text"
+                  value={editLocation}
+                  onChange={(event) => setEditLocation(event.target.value)}
+                  className="command-input"
+                  disabled={isEditEventSubmitting}
+                />
+              </label>
+
+              <div className="flex flex-col gap-2 border-t border-[rgba(2,1,8,0.08)] pt-4 lg:col-span-2 sm:flex-row">
+                <GlossyButton type="submit" variant="orange" size="lg" disabled={isEditEventSubmitting} className="flex-1">
+                  {isEditEventSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                  שמור שינויים
+                </GlossyButton>
+                <GlossyButton type="button" variant="slate" size="lg" onClick={closeEditEvent} disabled={isEditEventSubmitting} className="flex-1">
+                  ביטול
+                </GlossyButton>
+              </div>
+            </form>
           </div>
         </div>
       )}

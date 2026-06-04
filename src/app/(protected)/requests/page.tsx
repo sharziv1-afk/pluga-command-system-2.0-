@@ -7,6 +7,7 @@ import {
   Clock3,
   Loader2,
   MessageSquareText,
+  Pencil,
   Plus,
   RefreshCw,
   Search,
@@ -14,6 +15,7 @@ import {
   Trash2,
   Truck,
   UserCheck,
+  X,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -260,6 +262,9 @@ export default function RequestsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingRequest, setEditingRequest] = useState<DbRequest | null>(null);
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [updatingAssigneeId, setUpdatingAssigneeId] = useState<string | null>(null);
   const [deletingRequestId, setDeletingRequestId] = useState<string | null>(null);
@@ -277,6 +282,11 @@ export default function RequestsPage() {
   const [category, setCategory] = useState<RequestCategory>('לוגיסטיקה');
   const [priority, setPriority] = useState<RequestPriority>('רגילה');
   const [selectedEventId, setSelectedEventId] = useState('none');
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editCategory, setEditCategory] = useState<RequestCategory>('לוגיסטיקה');
+  const [editPriority, setEditPriority] = useState<RequestPriority>('רגילה');
+  const [editEventId, setEditEventId] = useState('none');
   const [activeTab, setActiveTab] = useState<TabId>('all');
   const [searchText, setSearchText] = useState('');
   const [filterCategory, setFilterCategory] = useState<RequestCategory | 'הכל'>('הכל');
@@ -544,6 +554,100 @@ export default function RequestsPage() {
     resetForm();
     setIsFormOpen(false);
     setSuccess('הבקשה נפתחה ונשמרה במערכת.');
+    await loadRequests();
+  };
+
+  const canEditRequest = (request: DbRequest) =>
+    Boolean(dbProfile && (canSeeAll || request.requested_by === dbProfile.id));
+
+  const openEditRequest = (request: DbRequest) => {
+    if (!canEditRequest(request)) return;
+    const metadata = request.metadata ?? {};
+
+    setEditingRequest(request);
+    setEditTitle(request.title);
+    setEditDescription(request.description ?? '');
+    setEditCategory((metadata.category ?? request.request_type ?? 'לוגיסטיקה') as RequestCategory);
+    setEditPriority((metadata.priority ?? 'רגילה') as RequestPriority);
+    setEditEventId(request.event_id ?? 'none');
+    setEditError(null);
+    setError(null);
+    setSuccess(null);
+  };
+
+  const closeEditRequest = () => {
+    if (isEditSubmitting) return;
+    setEditingRequest(null);
+    setEditError(null);
+  };
+
+  const handleEditRequest = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!dbProfile || !editingRequest || !canEditRequest(editingRequest)) return;
+
+    const cleanTitle = editTitle.trim();
+    const cleanDescription = editDescription.trim();
+    const nextEventId = editEventId === 'none' ? null : editEventId;
+
+    if (!cleanTitle) {
+      setEditError('כותרת הדרישה היא שדה חובה.');
+      return;
+    }
+
+    const previousMetadata = editingRequest.metadata ?? {};
+    const mergedMetadata: RequestMetadata = {
+      ...previousMetadata,
+      category: editCategory || undefined,
+      priority: editPriority || undefined,
+    };
+
+    setIsEditSubmitting(true);
+    setEditError(null);
+
+    const { error: updateError } = await supabase
+      .from('requests')
+      .update({
+        title: cleanTitle,
+        description: cleanDescription || null,
+        request_type: editCategory,
+        event_id: nextEventId,
+        metadata: mergedMetadata,
+      })
+      .eq('id', editingRequest.id);
+
+    setIsEditSubmitting(false);
+
+    if (updateError) {
+      logSupabaseError('Request edit failed', updateError);
+      setEditError('לא ניתן לעדכן את הדרישה. ייתכן שנדרשת מדיניות RLS מתאימה ב-Supabase.');
+      return;
+    }
+
+    void createAuditLog(supabase, {
+      userId: dbProfile.id,
+      userName: dbProfile.name,
+      userRole: dbProfile.role,
+      actionType: 'request_updated',
+      entityType: 'request',
+      entityId: editingRequest.id,
+      previousValue: {
+        title: editingRequest.title,
+        description: editingRequest.description,
+        request_type: editingRequest.request_type,
+        priority: editingRequest.metadata?.priority ?? null,
+        event_id: editingRequest.event_id ?? null,
+      },
+      newValue: {
+        title: cleanTitle,
+        description: cleanDescription || null,
+        request_type: editCategory,
+        priority: editPriority,
+        event_id: nextEventId,
+      },
+    });
+
+    setEditingRequest(null);
+    setSuccess('הדרישה עודכנה.');
     await loadRequests();
   };
 
@@ -1026,6 +1130,7 @@ export default function RequestsPage() {
             const isLoadingComments = loadingCommentsId === request.id;
             const isSubmittingComment = submittingCommentId === request.id;
             const canDeleteClosed = canDeleteRequest(request);
+            const canEdit = canEditRequest(request);
             const isDeleting = deletingRequestId === request.id;
 
             return (
@@ -1136,8 +1241,20 @@ export default function RequestsPage() {
                   </div>
                 )}
 
-                {canDeleteClosed && (
-                  <div className="flex justify-start border-t border-[rgba(2,1,8,0.08)] pt-3">
+                {(canEdit || canDeleteClosed) && (
+                  <div className="flex flex-wrap justify-start gap-2 border-t border-[rgba(2,1,8,0.08)] pt-3">
+                    {canEdit && (
+                      <GlossyButton
+                        type="button"
+                        variant="slate"
+                        size="sm"
+                        onClick={() => openEditRequest(request)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                        ערוך
+                      </GlossyButton>
+                    )}
+                    {canDeleteClosed && (
                     <GlossyButton
                       type="button"
                       variant="slate"
@@ -1149,6 +1266,7 @@ export default function RequestsPage() {
                       {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                       מחק
                     </GlossyButton>
+                    )}
                   </div>
                 )}
 
@@ -1235,6 +1353,111 @@ export default function RequestsPage() {
               </GlassCard>
             );
           })}
+        </div>
+      )}
+
+      {editingRequest && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/20 p-3 sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="request-edit-title"
+          onClick={closeEditRequest}
+        >
+          <div
+            className="w-full max-w-2xl rounded-3xl border border-white/72 bg-white/92 shadow-[0_24px_70px_rgba(2,1,8,0.18)] backdrop-blur-2xl"
+            onClick={event => event.stopPropagation()}
+            dir="rtl"
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-[rgba(2,1,8,0.08)] px-5 py-4">
+              <div>
+                <h2 id="request-edit-title" className="text-lg font-black text-[#020108]">עריכת דרישה</h2>
+                <p className="mt-1 text-xs font-semibold text-[#667085]">עדכון פרטי הדרישה בלי לשנות סטטוס, מטפל או היסטוריית טיפול.</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeEditRequest}
+                disabled={isEditSubmitting}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 text-[#020108] transition hover:border-[#FF6B02]/30 hover:bg-[#FF6B02]/10 disabled:opacity-50"
+                aria-label="סגירת עריכת דרישה"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditRequest} className="grid max-h-[75vh] gap-4 overflow-y-auto px-5 py-5 lg:grid-cols-2">
+              {editError && (
+                <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-700 lg:col-span-2">
+                  {editError}
+                </div>
+              )}
+
+              <label className="block space-y-2 lg:col-span-2">
+                <span className="block text-xs font-black text-[#344054]">כותרת</span>
+                <input
+                  required
+                  value={editTitle}
+                  onChange={event => setEditTitle(event.target.value)}
+                  className="command-input"
+                  disabled={isEditSubmitting}
+                />
+              </label>
+
+              <label className="block space-y-2 lg:col-span-2">
+                <span className="block text-xs font-black text-[#344054]">פירוט</span>
+                <textarea
+                  value={editDescription}
+                  onChange={event => setEditDescription(event.target.value)}
+                  className="command-input min-h-28 resize-none"
+                  disabled={isEditSubmitting}
+                />
+              </label>
+
+              <label className="block space-y-2">
+                <span className="block text-xs font-black text-[#344054]">קטגוריה</span>
+                <select value={editCategory} onChange={event => setEditCategory(event.target.value as RequestCategory)} className="command-select" disabled={isEditSubmitting}>
+                  {categories.map(item => <option key={item} value={item}>{item}</option>)}
+                </select>
+              </label>
+
+              <label className="block space-y-2">
+                <span className="block text-xs font-black text-[#344054]">עדיפות</span>
+                <select value={editPriority} onChange={event => setEditPriority(event.target.value as RequestPriority)} className="command-select" disabled={isEditSubmitting}>
+                  {priorities.map(item => <option key={item} value={item}>{item}</option>)}
+                </select>
+              </label>
+
+              <label className="block space-y-2 lg:col-span-2">
+                <span className="block text-xs font-black text-[#344054]">שייך למופע</span>
+                <select
+                  value={editEventId}
+                  onChange={event => setEditEventId(event.target.value)}
+                  className="command-select"
+                  disabled={isEditSubmitting}
+                >
+                  <option value="none">ללא שיוך</option>
+                  {editingRequest.event_id && !eventOptions.some(event => event.id === editingRequest.event_id) && (
+                    <option value={editingRequest.event_id}>מופע נוכחי</option>
+                  )}
+                  {eventOptions.map(event => (
+                    <option key={event.id} value={event.id}>
+                      {event.title} — {event.starts_at ? formatDateTime(event.starts_at) : 'ללא זמן'}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div className="flex flex-col gap-2 border-t border-[rgba(2,1,8,0.08)] pt-4 lg:col-span-2 sm:flex-row">
+                <GlossyButton type="submit" variant="orange" size="lg" disabled={isEditSubmitting} className="flex-1">
+                  {isEditSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                  שמור שינויים
+                </GlossyButton>
+                <GlossyButton type="button" variant="slate" size="lg" onClick={closeEditRequest} disabled={isEditSubmitting} className="flex-1">
+                  ביטול
+                </GlossyButton>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

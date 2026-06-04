@@ -6,13 +6,15 @@ export type AuditActionType =
   | 'request_assigned'
   | 'request_comment_added'
   | 'request_deleted'
+  | 'request_updated'
   | 'task_created'
   | 'task_updated'
   | 'task_status_changed'
   | 'task_deleted'
   | 'event_created'
   | 'event_status_changed'
-  | 'event_deleted';
+  | 'event_deleted'
+  | 'event_updated';
 
 interface CreateAuditLogParams {
   userId: string;

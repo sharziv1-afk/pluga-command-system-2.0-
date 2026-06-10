@@ -38,11 +38,13 @@ interface AdminUserProfile {
   name: string;
   role: string;
   unit_id: string | null;
+  commanded_unit_id: string | null;
   permission_level: number;
   role_approval_status: 'pending' | 'approved' | 'rejected';
   status: 'active' | 'pending' | 'blocked' | 'inactive';
   created_at: string;
   units: { name: string } | null;
+  commanded_units: { name: string } | null;
 }
 
 export default function AdminPage() {
@@ -60,6 +62,7 @@ export default function AdminPage() {
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editRole, setEditRole] = useState('');
   const [editUnitId, setEditUnitId] = useState<string>('none');
+  const [editCommandedUnitId, setEditCommandedUnitId] = useState<string>('none');
   const [editPermissionLevel, setEditPermissionLevel] = useState<number>(0);
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
@@ -73,7 +76,10 @@ export default function AdminPage() {
         const [{ data: rolesData }, { data: unitsData }, { data: usersData, error: usersError }] = await Promise.all([
           supabase.from('roles').select('name').order('permission_level', { ascending: false }),
           supabase.from('units').select('id,name').order('created_at', { ascending: true }),
-          supabase.from('users').select('*, units(name)').order('created_at', { ascending: false })
+          supabase
+            .from('users')
+            .select('*, units(name), commanded_units:units!users_commanded_unit_id_fkey(name)')
+            .order('created_at', { ascending: false })
         ]);
 
         if (rolesData) setRoles(rolesData);
@@ -215,6 +221,7 @@ export default function AdminPage() {
     setEditingUserId(user.id);
     setEditRole(user.role);
     setEditUnitId(user.unit_id || 'none');
+    setEditCommandedUnitId(user.commanded_unit_id || 'none');
     setEditPermissionLevel(user.permission_level);
   };
 
@@ -228,7 +235,9 @@ export default function AdminPage() {
     setRlsError(null);
 
     const mappedUnitId = editUnitId === 'none' ? null : editUnitId;
+    const mappedCommandedUnitId = editCommandedUnitId === 'none' ? null : editCommandedUnitId;
     const unitName = units.find(u => u.id === mappedUnitId)?.name || null;
+    const commandedUnitName = units.find(u => u.id === mappedCommandedUnitId)?.name || null;
 
     try {
       const { error } = await supabase
@@ -236,6 +245,7 @@ export default function AdminPage() {
         .update({
           role: editRole,
           unit_id: mappedUnitId,
+          commanded_unit_id: mappedCommandedUnitId,
           permission_level: editPermissionLevel,
           updated_at: new Date().toISOString()
         })
@@ -256,8 +266,10 @@ export default function AdminPage() {
           ...p, 
           role: editRole, 
           unit_id: mappedUnitId, 
+          commanded_unit_id: mappedCommandedUnitId,
           permission_level: editPermissionLevel,
-          units: unitName ? { name: unitName } : null
+          units: unitName ? { name: unitName } : null,
+          commanded_units: commandedUnitName ? { name: commandedUnitName } : null
         } : p)
       );
       setEditingUserId(null);
@@ -317,7 +329,7 @@ export default function AdminPage() {
                         </GlossyButton>
                       </div>
 
-                      <div className="grid gap-3 sm:grid-cols-3">
+                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                         <label className="block space-y-1.5">
                           <span className="block text-[11px] font-black text-[#344054]">תפקיד</span>
                           <select
@@ -341,6 +353,22 @@ export default function AdminPage() {
                             className="command-select min-h-10 text-xs"
                           >
                             <option value="none">ללא</option>
+                            {units.map((u) => (
+                              <option key={u.id} value={u.id}>
+                                {u.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <label className="block space-y-1.5">
+                          <span className="block text-[11px] font-black text-[#344054]">יחידה בפיקוד</span>
+                          <select
+                            value={editCommandedUnitId}
+                            onChange={(e) => setEditCommandedUnitId(e.target.value)}
+                            className="command-select min-h-10 text-xs"
+                          >
+                            <option value="none">-- ללא --</option>
                             {units.map((u) => (
                               <option key={u.id} value={u.id}>
                                 {u.name}
@@ -386,6 +414,12 @@ export default function AdminPage() {
                           <span>תפקיד: <strong className="text-[#FF6B02]">{req.role}</strong></span>
                           <span>•</span>
                           <span>מסגרת: <strong className="text-[#020108]">{req.units?.name || 'פלוגה'}</strong></span>
+                          {req.commanded_unit_id && (
+                            <>
+                              <span>•</span>
+                              <span>בפיקוד: <strong className="text-[#020108]">{req.commanded_units?.name || 'לא מזוהה'}</strong></span>
+                            </>
+                          )}
                           <span>•</span>
                           <span>דוא״ל: <strong className="text-slate-600 font-mono">{req.email}</strong></span>
                           <span>•</span>
@@ -451,7 +485,9 @@ export default function AdminPage() {
                     <div className="space-y-1">
                       <span className="block text-xs font-black text-[#020108]">{req.name}</span>
                       <span className="block text-[10px] text-[#667085] font-bold">
-                        {req.role} • {req.units?.name || 'פלוגה'} • הרשאה {req.permission_level}
+                        {req.role} • {req.units?.name || 'פלוגה'}
+                        {req.commanded_unit_id ? ` • בפיקוד: ${req.commanded_units?.name || 'לא מזוהה'}` : ''}
+                        {' '}• הרשאה {req.permission_level}
                       </span>
                     </div>
                     <StatusBadge status={req.role_approval_status === 'approved' ? 'אושר' : 'נדחה'} />

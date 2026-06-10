@@ -15,14 +15,25 @@ export type AuditActionType =
   | 'event_status_changed'
   | 'event_deleted'
   | 'event_updated'
-  | 'forum_post_created';
+  | 'forum_post_created'
+  | 'forum_post_updated'
+  | 'forum_daily_summary_created'
+  | 'forum_daily_summary_updated'
+  | 'forum_daily_summary_closed'
+  | 'forum_daily_report_created'
+  | 'forum_daily_report_updated'
+  | 'forum_daily_report_submitted'
+  | 'forum_daily_report_closed'
+  | 'forum_daily_report_reopened'
+  | 'forum_daily_report_reset'
+  | 'forum_daily_report_deleted';
 
 interface CreateAuditLogParams {
   userId: string;
   userName: string;
   userRole: string;
   actionType: AuditActionType;
-  entityType: 'request' | 'task' | 'event' | 'forum_post';
+  entityType: 'request' | 'task' | 'event' | 'forum_post' | 'forum_daily_summary' | 'forum_daily_report';
   entityId: string;
   previousValue?: Record<string, unknown> | null;
   newValue?: Record<string, unknown> | null;

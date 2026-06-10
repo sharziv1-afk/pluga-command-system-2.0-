@@ -29,6 +29,7 @@ import type { DbTask } from '@/lib/types';
 type TaskStatus = 'open' | 'in_progress' | 'blocked' | 'completed' | 'cancelled';
 type TaskPriority = 'רגילה' | 'חשובה' | 'דחופה' | 'קריטית';
 type TaskTab = 'all' | 'mine' | 'assigned' | 'open' | 'in_progress' | 'completed';
+type TaskQuickFilter = 'none' | 'mine' | 'urgent' | 'stuck';
 
 type DbProfile = {
   id: string;
@@ -179,6 +180,21 @@ function filterTaskByTab(task: TaskView, tab: TaskTab, profileId: string | undef
   }
 }
 
+function filterTaskByQuickFilter(task: TaskView, filter: TaskQuickFilter, profileId: string | undefined) {
+  switch (filter) {
+    case 'mine': return task.created_by === profileId || task.assigned_to === profileId;
+    case 'urgent': return task.priority === 'דחופה' || task.priority === 'קריטית';
+    case 'stuck': return task.status === 'blocked';
+    default: return true;
+  }
+}
+
+const taskQuickFilters: { id: Exclude<TaskQuickFilter, 'none'>; label: string }[] = [
+  { id: 'mine', label: 'שלי' },
+  { id: 'urgent', label: 'דחוף' },
+  { id: 'stuck', label: 'תקוע' },
+];
+
 function logSupabaseError(message: string, error: { message?: string; code?: string; details?: string; hint?: string }) {
   if (process.env.NODE_ENV !== 'development') return;
   console.error(message, { message: error.message, code: error.code, details: error.details, hint: error.hint });
@@ -200,6 +216,7 @@ export default function TasksPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TaskTab>('all');
+  const [quickFilter, setQuickFilter] = useState<TaskQuickFilter>('none');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('רגילה');
@@ -373,8 +390,11 @@ export default function TasksPage() {
   }, [tasks, dbProfile?.id]);
 
   const visibleTasks = useMemo(
-    () => tasks.filter(task => filterTaskByTab(task, activeTab, dbProfile?.id)),
-    [activeTab, tasks, dbProfile?.id],
+    () => tasks.filter(task => (
+      filterTaskByTab(task, activeTab, dbProfile?.id)
+      && filterTaskByQuickFilter(task, quickFilter, dbProfile?.id)
+    )),
+    [activeTab, quickFilter, tasks, dbProfile?.id],
   );
 
   const editAssigneeOptions = useMemo(() => {
@@ -797,6 +817,24 @@ export default function TasksPage() {
                 <span className="mr-2 rounded-full bg-white/70 px-2 py-0.5 text-[10px] text-[#020108]">{tabCounts[tab.id] ?? 0}</span>
               </button>
             ))}
+            <span className="mx-1 hidden w-px self-stretch bg-[rgba(2,1,8,0.10)] sm:block" />
+            {taskQuickFilters.map(filter => (
+              <button
+                key={filter.id}
+                type="button"
+                onClick={() => setQuickFilter(current => (current === filter.id ? 'none' : filter.id))}
+                className={`rounded-full border px-3 py-2 text-xs font-bold transition ${
+                  quickFilter === filter.id
+                    ? 'border-[#FF6B02]/40 bg-[#FF6B02]/12 text-[#C54F00]'
+                    : 'border-[rgba(2,1,8,0.10)] bg-white/60 text-[#667085] hover:border-[#FF6B02]/30'
+                }`}
+              >
+                {filter.label}
+              </button>
+            ))}
+            <span className="self-center text-xs font-bold text-[#667085]">
+              מציג {visibleTasks.length} מתוך {tasks.length} משימות
+            </span>
           </div>
 
           <div className="flex gap-2">

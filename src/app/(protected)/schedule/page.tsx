@@ -5,6 +5,7 @@ import {
   CalendarClock,
   CalendarDays,
   CheckCircle2,
+  Clipboard,
   Clock3,
   Loader2,
   MapPin,
@@ -930,6 +931,49 @@ export default function SchedulePage() {
     await loadEvents();
   };
 
+  const copyTomorrowSchedule = async () => {
+    const tomorrowKey = addDaysToDateKey(getJerusalemDateKey(new Date()), 1);
+    const tomorrowEvents = events
+      .filter(event => event.status !== 'cancelled' && getJerusalemDateKey(event.starts_at) === tomorrowKey)
+      .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
+
+    const tomorrowLabel = new Date(`${tomorrowKey}T12:00:00`).toLocaleDateString('he-IL', {
+      timeZone: 'Asia/Jerusalem',
+      weekday: 'long',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+
+    const lines = [`🗓️ *לו״ז פלוגתי למחר — ${tomorrowLabel}*`, '─'.repeat(22)];
+
+    if (tomorrowEvents.length === 0) {
+      lines.push('אין מופעים מתוכננים למחר.');
+    } else {
+      tomorrowEvents.forEach(event => {
+        const start = formatTime(event.starts_at);
+        const end = formatTime(event.ends_at);
+        const timeRange = end ? `${start}–${end}` : start;
+        lines.push('', `🕐 ${timeRange} · *${event.title}*`);
+        const details = [
+          eventTypeLabels[event.event_type],
+          event.location || null,
+          event.responsibleName ? `אחראי: ${event.responsibleName}` : null,
+        ].filter(Boolean);
+        if (details.length) lines.push(details.join(' · '));
+      });
+    }
+
+    lines.push('', '─'.repeat(22), '_"המשימה מעל הכול — והאנשים בראש"_');
+
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      setSuccess('לו״ז מחר הועתק — מוכן להדבקה ב-WhatsApp.');
+    } catch {
+      setError('לא ניתן להעתיק אוטומטית. אפשר לסמן ולהעתיק ידנית.');
+    }
+  };
+
   const activeEventTasksCount = eventTasks.filter(task => ['open', 'in_progress', 'blocked'].includes(task.status)).length;
   const completedEventTasksCount = eventTasks.filter(task => task.status === 'completed').length;
   const activeEventRequestsCount = eventRequests.filter(request => ['open', 'in_progress', 'approved'].includes(request.status)).length;
@@ -983,7 +1027,11 @@ export default function SchedulePage() {
             ))}
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <GlossyButton variant="slate" size="sm" onClick={() => void copyTomorrowSchedule()} disabled={isLoading}>
+              <Clipboard className="h-4 w-4" />
+              העתק לו״ז מחר
+            </GlossyButton>
             <GlossyButton variant="slate" size="sm" onClick={() => void loadEvents()} disabled={isLoading}>
               <RefreshCw className="h-4 w-4" />
               רענן

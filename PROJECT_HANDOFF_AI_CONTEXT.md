@@ -2,9 +2,9 @@
 
 Authoritative technical handoff for AI agents and developers continuing work on `pluga-command-system`.
 
-**Last updated:** 2026-06-04
-**Milestone:** Request + Event Editing Phase 1
-**Last feature commit:** `e002163 Add request and event editing`
+**Last updated:** 2026-06-10
+**Milestone:** Forum hierarchical daily reports + Forum UX polish
+**Last feature commit:** `f5c1e40 Add hierarchical forum daily reports`
 
 ---
 
@@ -23,19 +23,18 @@ Authoritative technical handoff for AI agents and developers continuing work on 
 ## Git Log (last 12 commits)
 
 ```
-9d25c8b Complete docs review: add commit naming guardrail and Quick Create details  ← latest (docs)
+f5c1e40 Add hierarchical forum daily reports                                          ← latest feature
+f47812b Add Supabase-backed Forum Phase 1
+93eae89 Align project docs with editing milestone
+9d25c8b Complete docs review: add commit naming guardrail and Quick Create details
 769ea01 Update project handoff after editing milestone
-e002163 Add request and event editing                                                ← latest feature
+e002163 Add request and event editing
 dd2da33 Add dashboard quick create modals
 3e12d3e Add Supabase dashboard summaries
 07a565e Fix audit action count in documentation
 66dea44 Update project handoff after closed-items milestone
 ac47d00 Add closed item deletion and schedule auto-complete
 097bf60 Link requests to schedule events
-29d445d Polish schedule weekly view
-066145e Add basic task editing
-8788a9c Link tasks to schedule events
-836d176 Add Events and Schedule v1
 ```
 
 ---
@@ -99,6 +98,11 @@ Implemented in `src/app/(auth)/login/page.tsx`, `src/app/auth/callback/route.ts`
 | `005_request_event_link.sql` | `requests.event_id → events(id) ON DELETE SET NULL` + index | Requests ↔ Events |
 | `006_closed_items_delete_rls.sql` | Replaces C6 + F8; adds events delete policy | Supersedes 002 for those two policies |
 | `007_request_creator_update_rls.sql` | Adds `"requests: creator update own"` for request creator update | Events did not need this; G7 existed in 002 |
+| `008_forum_rls.sql` | RLS section H for `public.forum_posts` | Forum Phase 1 (posts tab) |
+| `009_forum_daily_summaries.sql` | `forum_daily_summaries` prototype | **Legacy** — superseded by 010; do not build on it |
+| `010_forum_hierarchical_daily_reports.sql` | `forum_daily_reports` table + RLS J1–J5 | Current forum daily model |
+| `011_forum_daily_reports_commander_insert.sql` | Commander insert-for-subordinate policy | Strengthened: owner must be active + approved |
+| `012_forum_daily_reports_delete_policy.sql` | Delete policy for daily reports | Commander OR creator OR owner |
 
 ### RLS sections in 002_rls_policies.sql
 
@@ -389,23 +393,68 @@ Event detail modal includes:
 
 ---
 
+## Forum Module — Full State
+
+File: `src/app/(protected)/forum/page.tsx`
+Tables: `public.forum_posts` (008), `public.forum_daily_reports` (010–012)
+Reference UX demo: https://thepluton.vercel.app/ — **UX/product-flow inspiration only**. Mock single-browser SPA; never treat it as schema/permissions truth.
+
+### Posts tab (Forum Phase 1, commit f47812b)
+
+- Create post (title/body), pin (commander only), edit own post (commander edits all + pin), RLS-gated visibility, audit (`forum_post_created` / `forum_post_updated`).
+
+### Daily hierarchical reports tab (commit f5c1e40 + UX polish)
+
+**Model (`forum_daily_reports`, migration 010):**
+- `report_level`: `squad` | `platoon` | `company` | `staff`
+- `staff_role`: `medic` (חופ״ל) | `assistant_commander` (ע. מ״פ) | `logistics_nco` (רס״פ) | `deputy_commander` (סמ״פ)
+- `status`: `draft` → `in_progress` → `submitted` → `closed` (reopen: closed → in_progress)
+- Report content lives in `content jsonb` (squad: 15 keys incl. `present_count`/`total_count`; staff: `name`/`notes`; company: 5 schedule/summary keys). Adding content keys is additive — no migration needed.
+- Unique per `(report_date, report_level, owner_user_id)`.
+- `metadata` carries provenance and workflow info: `created_for_by_commander`, `returned_note`/`returned_by`/`returned_by_name`/`returned_at`/`returned_from_status`, `reset_*` fields.
+
+**RLS:** owner select/insert/update own (J1–J3), commander select/update all (J4–J5), commander insert-for-active-approved-owner (011), delete = commander OR creator OR owner (012). Same-platoon/company visibility is **UI-gated** until a real unit hierarchy mapping exists.
+
+**UI:**
+- Date selector (Jerusalem timezone) + date picker input.
+- Master-detail: grouped side list (מחלקות 1–4, מפל״ג, פלוגה, דוחות קיימים) with status chips + dots, "נדרש שיוך" chip for unmapped entities, "הוחזר לדרג מטה" chip for returned reports.
+- **Read-view report card** (default when a report exists): icon sections per field, prominent מצבה `present/total` highlight for squad/platoon, "ערוך דוח" button switches to the form mode; "ביטול עריכה" reverts the draft. Closed reports are read-only.
+- Returned-report banner: when `status = in_progress` and `metadata.returned_note` exists, an amber banner shows the note, who returned it, and when.
+- Workflow buttons: שמור (draft→in_progress), הגש לדרג הבא (→submitted), אשר ושחרר (commander, submitted→closed), החזר לדרג מטה (commander, submitted→in_progress + metadata), סגור, פתח נעילה (reopen), אפס דוח (reset to draft, content cleared, metadata records reset), מחק דוח (advanced actions area, RLS 012).
+- Owner-mapping guard: no report can be created for an unmapped platoon/staff entity; commander must pick an explicit owner via "צור דוח עבור משתמש".
+- WhatsApp output: short/detailed toggle, emoji + bold formatting, canonical order (platoons → מפל״ג → company), motto footer `_"המשימה מעל הכול — והאנשים בראש"_`, copy to clipboard. Company-level save persists the **detailed** text to `whatsapp_text`.
+
+### Known forum limitations
+
+- Full מ״כ→מ״מ→מ״פ collection flow requires real mapped users — not fully verifiable with a single dev user.
+- No unit hierarchy mapping in DB yet → platoon/company visibility is UI-gated; DB guard is owner-self + commander-all only.
+- Real hierarchy RLS is a future phase (needs verified unit mapping first).
+- Platoon labels in WhatsApp output are ordinal (מחלקה 1..N by creation order), not unit-mapped.
+
+---
+
 ## Audit Trail — Full State
 
 File: `src/lib/audit.ts`
 Table: `public.audit_logs`
 
-### AuditActionType (as of e002163) — 14 total
+### AuditActionType (as of f5c1e40) — 26 total
 
 ```
 request_created | request_status_changed | request_assigned
 request_comment_added | request_deleted | request_updated
 task_created | task_updated | task_status_changed | task_deleted
 event_created | event_status_changed | event_deleted | event_updated
+forum_post_created | forum_post_updated
+forum_daily_summary_created | forum_daily_summary_updated | forum_daily_summary_closed
+forum_daily_report_created | forum_daily_report_updated | forum_daily_report_submitted
+forum_daily_report_closed | forum_daily_report_reopened | forum_daily_report_reset
+forum_daily_report_deleted
 ```
 
 ### entityType
 
-`'request' | 'task' | 'event'`
+`'request' | 'task' | 'event' | 'forum_post' | 'forum_daily_summary' | 'forum_daily_report'`
 
 ### Rules
 
@@ -423,11 +472,11 @@ event_created | event_status_changed | event_deleted | event_updated
 Do **not** delete or rewrite it without mapping dependencies. The following still use it:
 
 - Old `Task`, `LogisticsRequest`, `ForumSummary`, `AuditLog`, `Gap` types in `src/lib/types.ts`.
-- `Forum` feature tab (still mock/localStorage).
 - `AuditTab.tsx` (reads localStorage, not `public.audit_logs`).
 - Gap tracking features (mock/localStorage).
+- `/forum` still reads `currentUser` from AppContext for the profile lookup (like all modules) — but its data layer is fully Supabase-backed since f47812b/f5c1e40.
 
-The DB-backed modules (Requests, Tasks, Events) use their own local types and direct Supabase calls, completely bypassing AppContext.
+The DB-backed modules (Requests, Tasks, Events, Forum) use their own local types and direct Supabase calls for data.
 
 ---
 
@@ -436,7 +485,7 @@ The DB-backed modules (Requests, Tasks, Events) use their own local types and di
 | Area | Debt |
 |------|------|
 | AppContext | Demo/localStorage still active |
-| Forum | Still mock/localStorage |
+| Forum | Unit hierarchy mapping missing → platoon/company visibility UI-gated; hierarchy RLS future phase; full multi-echelon flow needs real users |
 | AuditTab | Reads localStorage, not DB |
 | types.ts | Old Task/LogisticsRequest types alongside DB types |
 | Task assigned user | No status-only expanded update (RLS limitation) |
@@ -474,11 +523,11 @@ The DB-backed modules (Requests, Tasks, Events) use their own local types and di
 
 ## Prompt for New Claude Session
 
-Continue `pluga-command-system` / "המפקד". Last commit: `e002163 Add request and event editing`. Stack: Next.js 16 (src/proxy.ts NOT middleware.ts), React 19, TypeScript, Tailwind 4, Supabase Auth/PostgreSQL/RLS. Auth: hybrid email+password / Email OTP. Working modules: Dashboard (Supabase summaries + Quick Create), Requests (full workflow + event link + closed deletion + Editing Phase 1), Tasks (Supabase + editing Phase 1 + event link + closed deletion), Events/Schedule (timeline, week grid, auto-complete, event link, closed deletion + Editing Phase 1). Migrations 001-007 all run in Supabase. Audit: 14 actions, best-effort. AppContext/forum still localStorage. No service role in frontend. No middleware.ts. Read README, PROJECT_HANDOFF_AI_CONTEXT, PROJECT_SUMMARY, AGENTS, CLAUDE before writing any code.
+Continue `pluga-command-system` / "המפקד". Last feature commit: `f5c1e40 Add hierarchical forum daily reports`. Stack: Next.js 16 (src/proxy.ts NOT middleware.ts), React 19, TypeScript, Tailwind 4, Supabase Auth/PostgreSQL/RLS. Auth: hybrid email+password / Email OTP. Working modules: Dashboard (Supabase summaries + Quick Create), Requests (full workflow + event link + closed deletion + Editing Phase 1), Tasks (Supabase + editing Phase 1 + event link + closed deletion + quick filter chips), Events/Schedule (timeline, week grid, auto-complete, closed deletion + Editing Phase 1 + copy-tomorrow WhatsApp), Forum (posts tab + hierarchical daily reports: 4 levels, read-view card, owner-mapping guard, submit/close/reopen/return/reset/delete, WhatsApp short/detailed output). Migrations 001–012 all run in Supabase (009 is legacy). Audit: 26 actions, best-effort. Forum visibility is UI-gated until real unit hierarchy mapping; hierarchy RLS is a future phase. Reference demo https://thepluton.vercel.app/ is UX inspiration only. No service role in frontend. No middleware.ts. Read README, PROJECT_HANDOFF_AI_CONTEXT, PROJECT_SUMMARY, AGENTS, CLAUDE before writing any code.
 
 ## Prompt for New Codex Session
 
-Open `C:\Users\Maltak 123\Desktop\pluga-command-system` on branch `main`. Read README.md, PROJECT_HANDOFF_AI_CONTEXT.md, PROJECT_SUMMARY.md, AGENTS.md, CLAUDE.md first. Last feature commit: `e002163`. Uses Next.js 16 src/proxy.ts (not middleware.ts). Supabase migrations 001–007 all run manually. Key guardrails: keep Hebrew RTL, keep Light Gloss Command System, no service role in frontend, no AppContext/localStorage delete without dependency mapping, no npm audit fix --force. All three main modules (Requests, Tasks, Events) are Supabase-backed with event_id links, audit trail, closed-item deletion, and Editing Phase 1. Dashboard has real Supabase data + Quick Create. Forum and audit UI are still mock/localStorage.
+Open `C:\Users\Maltak 123\Desktop\pluga-command-system` on branch `main`. Read README.md, PROJECT_HANDOFF_AI_CONTEXT.md, PROJECT_SUMMARY.md, AGENTS.md, CLAUDE.md first. Last feature commit: `f5c1e40`. Uses Next.js 16 src/proxy.ts (not middleware.ts). Supabase migrations 001–012 all run manually (009 legacy prototype — do not build on it). Key guardrails: keep Hebrew RTL, keep Light Gloss Command System, no service role in frontend, no AppContext/localStorage delete without dependency mapping, no npm audit fix --force. Supabase-backed modules: Requests, Tasks, Events, Forum (posts + hierarchical daily reports with read-view card, owner-mapping guard, full status workflow, WhatsApp output). Dashboard has real Supabase data + Quick Create. AuditTab UI is still mock/localStorage. Forum platoon/company visibility is UI-gated until real unit hierarchy mapping exists.
 
 ---
 

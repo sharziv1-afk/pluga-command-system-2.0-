@@ -3,21 +3,38 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
+  AlertTriangle,
+  BarChart3,
+  BookOpen,
+  CalendarClock,
   CalendarDays,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Clipboard,
   FileText,
+  HeartPulse,
+  ListChecks,
   Lock,
+  Megaphone,
   MessageSquare,
+  Package,
   Pencil,
   Pin,
   RefreshCw,
   Save,
+  Scale,
   Send,
+  Shield,
+  Star,
+  Stethoscope,
+  Target,
   Trash2,
+  Undo2,
+  User,
+  Users,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { GlossyButton } from '@/components/ui/GlossyButton';
 import { SkeletonCard } from '@/components/ui/Skeleton';
@@ -175,6 +192,30 @@ const staffNodes: Array<{ id: StaffRole; label: string; roleHints: string[] }> =
   { id: 'assistant_commander', label: 'ע. מ״פ', roleHints: ['ע. מ"פ', 'ע מ"פ', 'עוזר'] },
   { id: 'logistics_nco', label: 'רס״פ', roleHints: ['רס"פ', 'לוגיסט'] },
   { id: 'deputy_commander', label: 'סמ״פ', roleHints: ['סמ"פ'] },
+];
+
+const squadReadSections: Array<{ key: keyof SquadContent; label: string; icon: LucideIcon; wide?: boolean }> = [
+  { key: 'personnel', label: 'כוח אדם', icon: Users },
+  { key: 'readiness', label: 'כוננות', icon: Shield },
+  { key: 'welfare', label: 'ת״ש', icon: HeartPulse },
+  { key: 'medical', label: 'רפואה', icon: Stethoscope },
+  { key: 'safety', label: 'בטיחות', icon: AlertTriangle },
+  { key: 'discipline', label: 'משמעת', icon: Scale },
+  { key: 'logistics', label: 'לוגיסטיקה', icon: Package },
+  { key: 'personal_requests', label: 'בקשות אישיות', icon: MessageSquare },
+  { key: 'plan_vs_actual', label: 'תכנון מול ביצוע', icon: BarChart3 },
+  { key: 'network_and_knowledge', label: 'רשת / ניהול ריאלי / פרגון / שימור ידע', icon: BookOpen, wide: true },
+  { key: 'daily_lessons', label: 'לקחים יומי', icon: Target },
+  { key: 'next_actions', label: 'פעולות להמשך', icon: ListChecks },
+  { key: 'personal_note', label: 'התייחסות אישית', icon: User, wide: true },
+];
+
+const companyReadSections: Array<{ key: keyof CompanyContent; label: string; icon: LucideIcon }> = [
+  { key: 'commander_opening', label: 'פתיחת מ״פ', icon: Megaphone },
+  { key: 'company_summary', label: 'סיכום פלוגתי', icon: FileText },
+  { key: 'tomorrow_schedule', label: 'לו״ז פלוגתי למחר', icon: CalendarDays },
+  { key: 'parallel_schedule', label: 'לו״ז מקביל', icon: CalendarClock },
+  { key: 'commander_closing', label: 'דגשי מ״פ', icon: Star },
 ];
 
 function normalizeRole(role: string) {
@@ -336,6 +377,7 @@ export default function ForumPage() {
   const [commanderReportLevel, setCommanderReportLevel] = useState<ReportLevel>('squad');
   const [commanderStaffRole, setCommanderStaffRole] = useState<StaffRole>('medic');
   const [whatsappMode, setWhatsappMode] = useState<'short' | 'detailed'>('short');
+  const [isEditingReport, setIsEditingReport] = useState(false);
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const profilePermissionLevel = dbProfile?.permission_level ?? getPermissionLevelForRole(currentUser?.role ?? '');
@@ -738,6 +780,7 @@ export default function ForumPage() {
 
   useEffect(() => {
     setReportDraft(draftFromReport(selectedReport));
+    setIsEditingReport(false);
   }, [selectedReport?.id, selectedReport]);
 
   useEffect(() => {
@@ -1600,6 +1643,71 @@ export default function ForumPage() {
     }
 
     const displayedStatus = selectedReport?.status ?? 'draft';
+    const isReadView = Boolean(selectedReport) && !isEditingReport;
+    const readContent = { ...emptyReportDraft(), ...(selectedReport?.content ?? {}) };
+    const returnedInfo = selectedReport && selectedReport.status === 'in_progress' && selectedReport.metadata?.returned_note
+      ? {
+          note: String(selectedReport.metadata.returned_note),
+          byName: typeof selectedReport.metadata.returned_by_name === 'string' ? selectedReport.metadata.returned_by_name : null,
+          at: typeof selectedReport.metadata.returned_at === 'string' ? selectedReport.metadata.returned_at : null,
+        }
+      : null;
+
+    const renderReadSection = (Icon: LucideIcon, label: string, value: string, wide = false) => (
+      <div key={label} className={`rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/70 p-4 ${wide ? 'sm:col-span-2' : ''}`}>
+        <div className="mb-2 flex items-center gap-2">
+          <Icon className="h-4 w-4 shrink-0 text-[#FF6B02]" />
+          <span className="text-sm font-black text-[#020108]">{label}</span>
+        </div>
+        <p className={`whitespace-pre-wrap text-sm leading-6 ${value.trim() ? 'font-semibold text-[#344054]' : 'font-bold text-[#98A2B3]'}`}>
+          {value.trim() || '—'}
+        </p>
+      </div>
+    );
+
+    const renderReadView = () => {
+      if (selectedNode.level === 'staff') {
+        return (
+          <div className="tactical-glass-card rounded-3xl p-5">
+            <h3 className="mb-4 text-lg font-black text-[#020108]">דיווח מפל״ג מקצועי</h3>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {renderReadSection(User, 'שם', readContent.name)}
+              {renderReadSection(FileText, 'התייחסות/דיווח', readContent.notes, true)}
+            </div>
+          </div>
+        );
+      }
+
+      if (selectedNode.level === 'company') {
+        return (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {companyReadSections.map(section => renderReadSection(section.icon, section.label, readContent[section.key], section.key === 'company_summary' || section.key === 'commander_closing'))}
+          </div>
+        );
+      }
+
+      return (
+        <div className="space-y-4">
+          <div className="tactical-glass-card rounded-3xl p-5">
+            <div className="flex items-center gap-4">
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#FF6B02]/10 text-[#FF6B02]">
+                <Users className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-sm font-black text-[#667085]">מצבת חיילים</p>
+                <p className="font-mono text-3xl font-black text-[#FF6B02]" dir="ltr">
+                  {readContent.present_count.trim() || '—'}/{readContent.total_count.trim() || '—'}
+                </p>
+              </div>
+              <span className="mr-auto text-sm font-bold text-[#667085]">נוכחים / סד״כ בבסיס</span>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {squadReadSections.map(section => renderReadSection(section.icon, section.label, readContent[section.key], section.wide))}
+          </div>
+        </div>
+      );
+    };
 
     return (
       <div className="space-y-5">
@@ -1611,7 +1719,21 @@ export default function ForumPage() {
           <span className={`rounded-full border px-4 py-2 text-sm font-black ${statusTone(displayedStatus)}`}>{statusLabel(displayedStatus)}</span>
         </div>
 
-        {selectedNode.level === 'staff' ? (
+        {returnedInfo && (
+          <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <Undo2 className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+            <div className="text-sm font-bold text-amber-800">
+              <span className="block font-black">הדוח הוחזר לדרג מטה</span>
+              <span>
+                {returnedInfo.note}
+                {returnedInfo.byName ? ` · ע״י ${returnedInfo.byName}` : ''}
+                {returnedInfo.at ? ` · ${formatDate(returnedInfo.at)}` : ''}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {isReadView ? renderReadView() : selectedNode.level === 'staff' ? (
           <div className="tactical-glass-card rounded-3xl p-5">
             <h3 className="mb-4 text-lg font-black text-[#020108]">דיווח מפל״ג מקצועי</h3>
             <label className="mb-4 block">
@@ -1677,10 +1799,31 @@ export default function ForumPage() {
                 הגש לדרג הבא
               </GlossyButton>
             )}
-            <GlossyButton variant="orange" onClick={() => void saveSelectedReport()} disabled={isDailySaving || isSelectedReportReadOnly || selectedReport?.status === 'closed'}>
-              <Save className="h-4 w-4" />
-              {isDailySaving ? 'שומר...' : 'שמור'}
-            </GlossyButton>
+            {isReadView ? (
+              <GlossyButton variant="orange" onClick={() => setIsEditingReport(true)} disabled={isDailySaving || isSelectedReportReadOnly || selectedReport?.status === 'closed'}>
+                <Pencil className="h-4 w-4" />
+                ערוך דוח
+              </GlossyButton>
+            ) : (
+              <>
+                <GlossyButton variant="orange" onClick={() => void saveSelectedReport()} disabled={isDailySaving || isSelectedReportReadOnly || selectedReport?.status === 'closed'}>
+                  <Save className="h-4 w-4" />
+                  {isDailySaving ? 'שומר...' : 'שמור'}
+                </GlossyButton>
+                {selectedReport && (
+                  <GlossyButton
+                    variant="slate"
+                    onClick={() => {
+                      setReportDraft(draftFromReport(selectedReport));
+                      setIsEditingReport(false);
+                    }}
+                    disabled={isDailySaving}
+                  >
+                    ביטול עריכה
+                  </GlossyButton>
+                )}
+              </>
+            )}
             {canResetSelectedReport && (
               <GlossyButton variant="slate" onClick={() => void resetSelectedReport()} disabled={isDailySaving}>
                 <RefreshCw className="h-4 w-4" />
@@ -1773,6 +1916,8 @@ export default function ForumPage() {
                 const isActive = selectedNode?.id === node.id;
                 const previousNode = dailyNodes[index - 1];
                 const shouldShowGroup = index === 0 || previousNode?.group !== node.group;
+                const needsMapping = Boolean(node.requiresOwnerMapping && !report);
+                const wasReturned = Boolean(report?.status === 'in_progress' && report.metadata?.returned_note);
                 return (
                   <Fragment key={node.id}>
                     {shouldShowGroup && (
@@ -1789,12 +1934,19 @@ export default function ForumPage() {
                         <span className="min-w-0">
                           <span className="block text-sm font-black text-[#020108]">{node.label}</span>
                           <span className="mt-1 block text-xs font-bold leading-relaxed text-[#667085]">
-                            {node.requiresOwnerMapping && !report ? 'דורש שיוך משתמש / אין דוח מחלקתי משויך' : node.description}
+                            {needsMapping ? 'נדרש שיוך משתמש — עדיין לא משויך בעל תפקיד לגורם הזה' : node.description}
                           </span>
                         </span>
-                        <span className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-black ${statusTone(report?.status)}`}>
-                          <span className={`ml-1 inline-block h-2 w-2 rounded-full ${statusDotTone(report?.status)}`} />
-                          {statusLabel(report?.status)}
+                        <span className="flex shrink-0 flex-col items-end gap-1">
+                          <span className={`rounded-full border px-3 py-1.5 text-[11px] font-black ${statusTone(needsMapping ? undefined : report?.status)}`}>
+                            <span className={`ml-1 inline-block h-2 w-2 rounded-full ${statusDotTone(needsMapping ? undefined : report?.status)}`} />
+                            {needsMapping ? 'נדרש שיוך' : statusLabel(report?.status)}
+                          </span>
+                          {wasReturned && (
+                            <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-700">
+                              הוחזר לדרג מטה
+                            </span>
+                          )}
                         </span>
                       </span>
                     </button>

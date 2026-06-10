@@ -23,5 +23,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Closed item deletion is Phase 1 only (creator + commander). Do not add unit/hierarchy logic without planning.
 - Request editing (Phase 1) allows creator or commander to edit: title, description, category, priority, event_id. Do not add status, assigned_to, or unit_id editing without planning.
 - Event editing (Phase 1) allows creator or commander to edit: title, description, event_type, starts_at, ends_at, location, responsible_user_id. Status is not an editable field in the form. Exception: `handleEditEvent` auto-reopens a `completed` event to `scheduled` when the new time is in the future (records `reopened_from_completed: true` in audit). `cancelled` events are never auto-reopened. Do not add status as an editable field without explicit planning.
+- Forum Phase 1 posts are Supabase-backed through `forum_posts` and `008_forum_rls.sql`. Creators can edit their own posts; commanders can edit all posts. Keep `forum_post_created` and `forum_post_updated` audit best-effort.
+- Forum daily reports use `forum_daily_reports` from migrations 010-012. Migration 009 (`forum_daily_summaries`) is legacy/prototype and should not be used as the main model.
+- Forum daily report slots must stay separated by report/owner/date/unit/staff identity. Do not fall back to `report_level` alone for platoon/staff selection.
+- If a forum slot has no reliable owner mapping, show a user-mapping requirement instead of creating a report under the wrong owner.
+- Real MK -> MM -> MP hierarchy mapping and hierarchy RLS are future work. Do not fake hierarchy permissions in UI or RLS without an explicit data model and planning.
 - Do not add recurring events, drag/drop, cron jobs, Supabase Edge Functions, or Supabase Realtime without an explicit feature request and planning session.
 - Commit messages must be descriptive and specific (e.g., `Add request and event editing`, `Update project handoff after editing milestone`). Do not use generic names like `update`, `fix`, `changes`, or a hash alone.

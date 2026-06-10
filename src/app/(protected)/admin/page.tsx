@@ -76,10 +76,7 @@ export default function AdminPage() {
         const [{ data: rolesData }, { data: unitsData }, { data: usersData, error: usersError }] = await Promise.all([
           supabase.from('roles').select('name').order('permission_level', { ascending: false }),
           supabase.from('units').select('id,name').order('created_at', { ascending: true }),
-          supabase
-            .from('users')
-            .select('*, units(name), commanded_units:units!users_commanded_unit_id_fkey(name)')
-            .order('created_at', { ascending: false })
+          supabase.from('users').select('*').order('created_at', { ascending: false })
         ]);
 
         if (rolesData) setRoles(rolesData);
@@ -94,7 +91,16 @@ export default function AdminPage() {
             setRlsError(`שגיאת מסד נתונים: ${usersError.message}`);
           }
         } else if (usersData) {
-          setProfilesList(usersData as AdminUserProfile[]);
+          const unitMap = new Map((unitsData || []).map((unit) => [unit.id, unit.name]));
+          const mappedUsers = usersData.map((user) => ({
+            ...user,
+            units: user.unit_id ? { name: unitMap.get(user.unit_id) || 'לא מזוהה' } : null,
+            commanded_units: user.commanded_unit_id
+              ? { name: unitMap.get(user.commanded_unit_id) || 'לא מזוהה' }
+              : null
+          }));
+
+          setProfilesList(mappedUsers as AdminUserProfile[]);
         }
       } catch (err) {
         console.error('Failed to load admin data:', err);

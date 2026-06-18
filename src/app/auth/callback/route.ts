@@ -145,7 +145,7 @@ export async function GET(request: Request) {
         role: 'pending',
         unit_id: null,
         permission_level: 0,
-        has_completed_onboarding: false,
+        has_completed_onboarding: true,
         role_approval_status: 'pending',
         status: 'pending',
         last_login_at: now,

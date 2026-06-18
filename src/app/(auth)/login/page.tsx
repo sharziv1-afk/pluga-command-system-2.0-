@@ -51,9 +51,28 @@ const fallbackRoles: RoleOption[] = [
   { name: 'מ״מ 3' },
   { name: 'מ״מ 4' },
   { name: 'מ״כ 1א' },
+  { name: 'מ״כ 1ב' },
+  { name: 'מ״כ 1ג' },
+  { name: 'מ״כ 1ד' },
   { name: 'מ״כ 2א' },
+  { name: 'מ״כ 2ב' },
+  { name: 'מ״כ 2ג' },
+  { name: 'מ״כ 2ד' },
   { name: 'מ״כ 3א' },
+  { name: 'מ״כ 3ב' },
+  { name: 'מ״כ 3ג' },
+  { name: 'מ״כ 3ד' },
   { name: 'מ״כ 4א' },
+  { name: 'מ״כ 4ב' },
+  { name: 'מ״כ 4ג' },
+  { name: 'מ״כ 4ד' },
+  { name: 'סמל 1' },
+  { name: 'סמל 2' },
+  { name: 'סמל 3' },
+  { name: 'סמל 4' },
+  { name: 'ב.קוד / נהג' },
+  { name: 'ב.קוד' },
+  { name: 'נהג' },
 ];
 
 const fallbackUnits: UnitOption[] = [
@@ -67,6 +86,33 @@ const fallbackUnits: UnitOption[] = [
   { id: null, name: 'קשר' },
   { id: null, name: 'רכב' },
 ];
+
+function normalizeIdentityName(value: string) {
+  return value.trim().replace(/[״"]/g, '"').replace(/[׳']/g, "'");
+}
+
+function getUnitOptionValue(unit: UnitOption) {
+  return unit.id ?? `fallback:${unit.name}`;
+}
+
+function getPersistableUnitId(unitValue: string) {
+  if (unitValue === 'none' || unitValue.startsWith('fallback:')) return null;
+  return unitValue;
+}
+
+function getPreferredUnitNameForRole(role: string): string | null {
+  const normalizedRole = normalizeIdentityName(role);
+  const platoonMatch = normalizedRole.match(/^(?:מ"מ|מ"כ|סמל) ([1-4])/);
+
+  if (platoonMatch) return `מחלקה ${platoonMatch[1]}`;
+  if (['מ"פ', 'סמ"פ', 'ע. מ"פ'].includes(normalizedRole)) return 'פלוגה';
+  if (normalizedRole.includes('רס"פ') || normalizedRole.includes('לוגיסטיקה')) return 'לוגיסטיקה';
+  if (normalizedRole === 'חובש פלוגתי') return 'רפואה';
+  if (normalizedRole === 'קשר פלוגתי') return 'קשר';
+  if (normalizedRole.includes('ב.קוד') || normalizedRole.includes('נהג')) return 'רכב';
+
+  return null;
+}
 
 function getProfileRedirectPath(profile: AppUserProfile): string {
   if (!profile.has_completed_onboarding) return '/onboarding';
@@ -109,7 +155,7 @@ export default function LoginPage() {
   const [otpCode, setOtpCode] = useState('');
   const [fullName, setFullName] = useState('');
   const [selectedRole, setSelectedRole] = useState(fallbackRoles[0].name);
-  const [selectedUnitId, setSelectedUnitId] = useState<string>('none');
+  const [selectedUnitId, setSelectedUnitId] = useState<string>(getUnitOptionValue(fallbackUnits[0]));
   const [registrationDraft, setRegistrationDraft] = useState<RegistrationDraft | null>(null);
   const [roleOptions, setRoleOptions] = useState<RoleOption[]>(fallbackRoles);
   const [unitOptions, setUnitOptions] = useState<UnitOption[]>(fallbackUnits);
@@ -145,14 +191,27 @@ export default function LoginPage() {
       if (units?.length) {
         setUnitOptions(units);
         setSelectedUnitId((currentUnitId) => {
-          if (currentUnitId !== 'none' && units.some((unit) => unit.id === currentUnitId)) return currentUnitId;
-          return units[0].id ?? 'none';
+          if (units.some((unit) => getUnitOptionValue(unit) === currentUnitId)) return currentUnitId;
+          return getUnitOptionValue(units[0]);
         });
       }
     }
 
     loadIdentityOptions();
   }, []);
+
+  useEffect(() => {
+    if (authMode !== 'register') return;
+
+    const preferredUnitName = getPreferredUnitNameForRole(selectedRole);
+    const preferredUnit = unitOptions.find((unit) => unit.name === preferredUnitName);
+
+    if (!preferredUnit) return;
+
+    const preferredUnitValue = getUnitOptionValue(preferredUnit);
+
+    setSelectedUnitId((currentUnitId) => currentUnitId === preferredUnitValue ? currentUnitId : preferredUnitValue);
+  }, [authMode, selectedRole, unitOptions]);
 
   useEffect(() => {
     if (cooldownSeconds <= 0) return;
@@ -307,7 +366,7 @@ export default function LoginPage() {
 
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedName = fullName.trim();
-    const selectedUnit = selectedUnitId === 'none' ? null : selectedUnitId;
+    const selectedUnit = getPersistableUnitId(selectedUnitId);
 
     if (!normalizedName) {
       setError('שם מלא הוא שדה חובה');
@@ -765,7 +824,7 @@ export default function LoginPage() {
                         disabled={isSendingOtp}
                       >
                         {unitOptions.map((unit) => (
-                          <option key={unit.id ?? unit.name} value={unit.id ?? 'none'}>
+                          <option key={unit.id ?? unit.name} value={getUnitOptionValue(unit)}>
                             {unit.name}
                           </option>
                         ))}

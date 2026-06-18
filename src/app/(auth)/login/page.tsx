@@ -403,7 +403,6 @@ export default function LoginPage() {
         email: normalizedEmail,
         options: {
           shouldCreateUser: true,
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=/onboarding`,
         },
       });
 

@@ -116,6 +116,7 @@ export default function LoginPage() {
   const [devEmail, setDevEmail] = useState(isDevelopment ? 'dev@pluga.local' : '');
   const [devPassword, setDevPassword] = useState(isDevelopment ? 'Dev123456!' : '');
   const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isSendingReset, setIsSendingReset] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
@@ -174,6 +175,42 @@ export default function LoginPage() {
     setShowRegConfirmPassword(false);
     setMessage(null);
     setError(null);
+  };
+
+  const handlePasswordResetRequest = async () => {
+    if (isSendingReset) return;
+
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setError('אימייל לא תקין');
+      return;
+    }
+
+    setIsSendingReset(true);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const redirectTo = `${window.location.origin}/auth/callback?next=/reset-password`;
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+        redirectTo,
+      });
+
+      if (resetError) {
+        logDevelopmentError('Password reset email failed', resetError);
+        setError('לא הצלחנו לשלוח קישור איפוס. נסה שוב.');
+        return;
+      }
+
+      setEmail(normalizedEmail);
+      setMessage('אם האימייל קיים במערכת, נשלח אליו קישור לאיפוס סיסמה');
+    } catch (unknownError) {
+      logDevelopmentError('Password reset email crashed', unknownError as { message?: string; code?: string; details?: string; hint?: string });
+      setError('לא הצלחנו לשלוח קישור איפוס. נסה שוב.');
+    } finally {
+      setIsSendingReset(false);
+    }
   };
 
   const handleExistingUserLogin = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -584,7 +621,7 @@ export default function LoginPage() {
                 variant="orange"
                 size="lg"
                 className="w-full justify-center"
-                disabled={isLoggingIn}
+                disabled={isLoggingIn || isSendingReset}
               >
                 {isLoggingIn ? (
                   <>
@@ -595,6 +632,21 @@ export default function LoginPage() {
                   'התחבר למערכת'
                 )}
               </GlossyButton>
+              <button
+                type="button"
+                onClick={handlePasswordResetRequest}
+                disabled={isSendingReset || isLoggingIn}
+                className="flex min-h-10 w-full items-center justify-center rounded-2xl text-xs font-black text-[#667085] transition-colors hover:text-[#FF6B02] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSendingReset ? (
+                  <>
+                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                    שולח קישור לאיפוס סיסמה...
+                  </>
+                ) : (
+                  'שכחתי סיסמה'
+                )}
+              </button>
             </form>
           )}
 

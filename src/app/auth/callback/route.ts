@@ -25,12 +25,18 @@ function logCallbackEvent(message: string, details?: Record<string, unknown>) {
   console.log('[auth/callback]', message, details ?? '');
 }
 
+function getSafeNextPath(value: string | null): string | null {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return null;
+  return value;
+}
+
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
   const error = requestUrl.searchParams.get('error');
   const errorCode = requestUrl.searchParams.get('error_code');
   const errorDescription = requestUrl.searchParams.get('error_description');
+  const safeNextPath = getSafeNextPath(requestUrl.searchParams.get('next'));
   const origin = requestUrl.origin;
 
   logCallbackEvent('callback URL received', {
@@ -40,6 +46,7 @@ export async function GET(request: Request) {
     error,
     errorCode,
     errorDescription,
+    next: safeNextPath,
   });
 
   if (error || errorCode || errorDescription) {
@@ -74,6 +81,11 @@ export async function GET(request: Request) {
   }
 
   logCallbackEvent('exchangeCodeForSession succeeded');
+
+  if (safeNextPath === '/reset-password') {
+    logCallbackEvent('redirecting to password reset flow');
+    return NextResponse.redirect(`${origin}${safeNextPath}`);
+  }
 
   const { data: authData, error: userError } = await supabase.auth.getUser();
   const authUser = authData.user;

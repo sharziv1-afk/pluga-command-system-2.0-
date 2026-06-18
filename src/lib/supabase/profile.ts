@@ -1,5 +1,6 @@
 import { createSupabaseBrowserClient } from './browser';
 import { Profile, RoleType, FrameType, UserStatusType } from '../types';
+import { logSupabaseError } from './error';
 
 export interface DbUserProfile {
   id: string;
@@ -13,7 +14,28 @@ export interface DbUserProfile {
   role_approval_status: 'pending' | 'approved' | 'rejected';
   status: 'active' | 'pending' | 'blocked' | 'inactive';
   created_at: string;
-  units: { name: string } | null;
+  unit_name?: string | null;
+  units?: { name: string } | null;
+}
+
+async function attachUnitName(dbUser: DbUserProfile): Promise<DbUserProfile> {
+  if (!dbUser.unit_id) return { ...dbUser, unit_name: null, units: null };
+
+  const supabase = createSupabaseBrowserClient();
+  const { data: unit, error } = await supabase
+    .from('units')
+    .select('name')
+    .eq('id', dbUser.unit_id)
+    .maybeSingle<{ name: string }>();
+
+  if (error) {
+    logSupabaseError('Current profile unit lookup failed', error, {
+      profileId: dbUser.id,
+      unitId: dbUser.unit_id,
+    });
+  }
+
+  return { ...dbUser, unit_name: unit?.name ?? null, units: unit ? { name: unit.name } : null };
 }
 
 export async function fetchCurrentProfile(): Promise<Profile | null> {
@@ -27,7 +49,7 @@ export async function fetchCurrentProfile(): Promise<Profile | null> {
 
     const { data: dbUser, error: dbError } = await supabase
       .from('users')
-      .select('*, units(name)')
+      .select('*')
       .eq('auth_user_id', user.id)
       .maybeSingle<DbUserProfile>();
 
@@ -36,7 +58,7 @@ export async function fetchCurrentProfile(): Promise<Profile | null> {
       if (user.email) {
         const { data: fallbackUser, error: fallbackError } = await supabase
           .from('users')
-          .select('*, units(name)')
+          .select('*')
           .eq('email', user.email.toLowerCase().trim())
           .maybeSingle<DbUserProfile>();
 
@@ -48,13 +70,13 @@ export async function fetchCurrentProfile(): Promise<Profile | null> {
               .update({ auth_user_id: user.id })
               .eq('id', fallbackUser.id);
           }
-          return mapDbUserToProfile(fallbackUser);
+          return mapDbUserToProfile(await attachUnitName(fallbackUser));
         }
       }
       return null;
     }
 
-    return mapDbUserToProfile(dbUser);
+    return mapDbUserToProfile(await attachUnitName(dbUser));
   } catch (error) {
     console.error('Error fetching current profile:', error);
     return null;

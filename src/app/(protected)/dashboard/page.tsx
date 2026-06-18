@@ -26,6 +26,7 @@ import { createAuditLog } from '@/lib/audit';
 import { useApp } from '@/lib/context/AppContext';
 import { getPermissionLevelForRole } from '@/lib/permissions';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
+import { logSupabaseError } from '@/lib/supabase/error';
 import type { DbAuditLog, DbEvent, DbTask } from '@/lib/types';
 
 type RequestStatus = 'open' | 'in_progress' | 'approved' | 'rejected' | 'completed' | 'cancelled';
@@ -41,7 +42,8 @@ type DbProfile = {
   role: string;
   unit_id: string | null;
   permission_level: number;
-  units: { name: string } | null;
+  unit_name?: string | null;
+  units?: { name: string } | null;
 };
 
 type DashboardRequest = {
@@ -435,11 +437,6 @@ function getOpenTasks(data: DashboardData) {
     .slice(0, 5);
 }
 
-function logSupabaseError(message: string, error: { message?: string; code?: string; details?: string; hint?: string }) {
-  if (process.env.NODE_ENV !== 'development') return;
-  console.error(message, { message: error.message, code: error.code, details: error.details, hint: error.hint });
-}
-
 const emptyDashboardData: DashboardData = {
   profile: null,
   requests: [],
@@ -473,15 +470,45 @@ export default function DashboardPage() {
     setIsLoading(true);
     const nextData: DashboardData = { ...emptyDashboardData, errors: [] };
 
-    const { data: profileData, error: profileError } = await supabase
+    const { data: profileRow, error: profileError } = await supabase
       .from('users')
-      .select('id,name,email,role,unit_id,permission_level,units(name)')
+      .select('id,name,email,role,unit_id,permission_level')
       .eq('id', currentUser.id)
       .maybeSingle<DbProfile>();
 
     if (profileError) {
-      logSupabaseError('Dashboard profile lookup failed', profileError);
+      logSupabaseError('Dashboard profile lookup failed', profileError, {
+        currentUserId: currentUser.id,
+        currentUserEmail: currentUser.email,
+      });
       nextData.errors.push('טעינת פרופיל המשתמש נכשלה.');
+    }
+
+    let profileData = profileRow;
+
+    if (!profileData) {
+      nextData.errors.push('לא נמצא פרופיל פעיל בטבלת המשתמשים. ייתכן שנדרש שיוך או אישור מנהל.');
+    }
+
+    if (profileData?.unit_id) {
+      const { data: unitData, error: unitError } = await supabase
+        .from('units')
+        .select('name')
+        .eq('id', profileData.unit_id)
+        .maybeSingle<{ name: string }>();
+
+      if (unitError) {
+        logSupabaseError('Dashboard profile unit lookup failed', unitError, {
+          profileId: profileData.id,
+          unitId: profileData.unit_id,
+        });
+      }
+
+      profileData = {
+        ...profileData,
+        unit_name: unitData?.name ?? null,
+        units: unitData ? { name: unitData.name } : null,
+      };
     }
 
     nextData.profile = profileData ?? null;

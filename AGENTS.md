@@ -28,5 +28,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Forum daily report slots must stay separated by report/owner/date/unit/staff identity. Do not fall back to `report_level` alone for platoon/staff selection.
 - If a forum slot has no reliable owner mapping, show a user-mapping requirement instead of creating a report under the wrong owner.
 - Real MK -> MM -> MP hierarchy mapping and hierarchy RLS are future work. Do not fake hierarchy permissions in UI or RLS without an explicit data model and planning.
+- `users.unit_id` and `users.commanded_unit_id` both reference `units`. Do not use embedded `units(...)` selects from `users`; load units separately and map client-side.
+- `supabase/migrations/013_add_commanded_unit_id.sql` adds `users.commanded_unit_id` as hierarchy foundation only. It was reportedly run manually. Do not rerun without a direct reason.
+- `commanded_unit_id` is not yet wired into forum visibility or real hierarchy RLS.
+- Forgot Password is implemented through `supabase.auth.resetPasswordForEmail(...)`, `next=/reset-password` in the auth callback, and `/reset-password` with `supabase.auth.updateUser({ password })`.
 - Do not add recurring events, drag/drop, cron jobs, Supabase Edge Functions, or Supabase Realtime without an explicit feature request and planning session.
 - Commit messages must be descriptive and specific (e.g., `Add request and event editing`, `Update project handoff after editing milestone`). Do not use generic names like `update`, `fix`, `changes`, or a hash alone.

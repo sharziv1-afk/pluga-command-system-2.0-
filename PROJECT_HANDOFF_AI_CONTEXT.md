@@ -2,9 +2,9 @@
 
 Authoritative technical handoff for AI agents and developers continuing work on `pluga-command-system`.
 
-**Last updated:** 2026-06-10  
-**Milestone:** Forum Phase 1 + hierarchical daily reports + Forum UX polish  
-**Latest commit:** `2dfcff7 Polish forum UX and update handoff docs`
+**Last updated:** 2026-06-18  
+**Milestone:** Step 1 docs sync after commanded-unit, cleanup, password reset, and user/unit lookup hotfixes  
+**Latest commit:** `73ed3a5 Fix ambiguous user unit lookups across protected pages`
 
 ## Identity
 
@@ -14,19 +14,21 @@ Authoritative technical handoff for AI agents and developers continuing work on 
 - Local path: `C:\Users\Maltak 123\Desktop\pluga-command-system`
 - GitHub: `https://github.com/sharziv1-afk/pluga-command-system-2.0-.git`
 - Branch: `main`
-- Expected state: `origin/main` updated, working tree clean
+- Expected state: `origin/main` up to date, working tree clean
 
 ## Latest Git State
 
 ```text
+73ed3a5 Fix ambiguous user unit lookups across protected pages
+717bcc9 Fix dashboard profile lookup and add password reset flow
+96ae49b Remove orphaned legacy prototype shell and split session context
+5b5adc5 Fix admin commanded unit mapping
+7b8050f Add commanded unit assignment to admin panel
+96dc36e Update project handoff after forum UX milestone
 2dfcff7 Polish forum UX and update handoff docs
 f5c1e40 Add hierarchical forum daily reports
 f47812b Add Supabase-backed Forum Phase 1
 93eae89 Align project docs with editing milestone
-9d25c8b Complete docs review: add commit naming guardrail and Quick Create details
-769ea01 Update project handoff after editing milestone
-e002163 Add request and event editing
-dd2da33 Add dashboard quick create modals
 ```
 
 ## Stack
@@ -64,10 +66,11 @@ Hybrid auth:
 
 - Existing user: email + password.
 - First registration: Email OTP -> verify OTP -> set password -> create `public.users` profile -> onboarding.
+- Forgot Password: login sends `supabase.auth.resetPasswordForEmail(...)`, callback exchanges the code, and `/reset-password` updates via `supabase.auth.updateUser({ password })`.
 - Dev Login exists only in non-production.
 - Magic Link callback remains as fallback.
 
-Do not touch auth callback, Supabase clients, or proxy unless a direct verified auth bug requires it.
+Do not touch auth callback, Supabase clients, or proxy unless a direct verified auth bug requires it. Current reset callback behavior depends on `next=/reset-password`.
 
 ## Supabase State
 
@@ -109,6 +112,16 @@ All SQL is manual-only. Do not run SQL automatically.
 | `010_forum_hierarchical_daily_reports.sql` | `forum_daily_reports` + owner/commander RLS | Current forum daily model |
 | `011_forum_daily_reports_commander_insert.sql` | Commander can create report for another active approved owner | Additive policy |
 | `012_forum_daily_reports_delete_policy.sql` | Delete policy for daily reports | Commander OR creator OR owner |
+| `013_add_commanded_unit_id.sql` | Adds `users.commanded_unit_id` and `idx_users_commanded_unit_id` | Run manually per user report; foundation only |
+
+### Migration 013 Notes
+
+- `users.unit_id` represents the user's membership unit.
+- `users.commanded_unit_id` represents the unit the user commands.
+- Migration 013 was reportedly run manually in Supabase.
+- Do not rerun it without a direct reason.
+- It is not yet wired into real hierarchy RLS.
+- Forum visibility is not yet wired to `commanded_unit_id`.
 
 ## RLS Model
 
@@ -121,6 +134,27 @@ All SQL is manual-only. Do not run SQL automatically.
 
 Do not implement fake hierarchy in RLS. Build explicit unit/user mapping first.
 
+## Users / Units Lookup Rule
+
+After migration 013, `users` has two foreign keys to `units`:
+
+```text
+unit_id
+commanded_unit_id
+```
+
+Supabase/PostgREST embedded selects like `units(name)` from `users` are ambiguous and can fail with `PGRST201`.
+
+Current rule:
+
+- Do not use embedded `units(...)` from `users`.
+- Load users without unit embeds.
+- Load units separately by `unit_id`, using batch `.in('id', unitIds)` for lists.
+- Map unit names client-side.
+- Use shared Supabase error logging so `message`, `code`, `details`, `hint`, `status`, and context are visible instead of `{}`.
+
+This was fixed globally in `73ed3a5 Fix ambiguous user unit lookups across protected pages`, after the initial dashboard fix in `717bcc9`.
+
 ## Dashboard
 
 File: `src/app/(protected)/dashboard/page.tsx`
@@ -128,6 +162,8 @@ File: `src/app/(protected)/dashboard/page.tsx`
 Current state:
 
 - Loads profile, requests, tasks, events, audit logs, users.
+- Profile/unit lookup no longer embeds `units(name)` from `users`; unit names are loaded separately.
+- Missing profile states show a clearer message instead of an opaque console error.
 - Summary stat cards.
 - Attention list.
 - Today's schedule.
@@ -361,15 +397,55 @@ Do not delete or rewrite it without dependency mapping. Some legacy/demo areas s
 
 DB-backed modules use direct Supabase calls, but AppContext remains part of the shell/user context.
 
+## Admin Commanded Unit
+
+Commits:
+
+```text
+7b8050f Add commanded unit assignment to admin panel
+5b5adc5 Fix admin commanded unit mapping
+```
+
+Current state:
+
+- Admin supports editing `commanded_unit_id`.
+- Dropdown label: `יחידה בפיקוד`.
+- Can choose a unit or `-- ללא --`.
+- Save updates `commanded_unit_id`.
+- If present, user cards display `בפיקוד: [unit name]`.
+- Users and units are loaded separately and mapped client-side to avoid FK-name dependency.
+
+## Password Reset
+
+Commit: `717bcc9 Fix dashboard profile lookup and add password reset flow`
+
+- Login includes `שכחתי סיסמה`.
+- Uses `supabase.auth.resetPasswordForEmail(...)`.
+- Success message is generic and does not reveal whether an email exists.
+- Adds route `/reset-password`.
+- Reset page includes new password, confirmation, show/hide password, basic validation, and `supabase.auth.updateUser({ password })`.
+- Auth callback supports `next=/reset-password` after `exchangeCodeForSession`.
+- Build includes 18 routes because of `/reset-password`.
+
+## Step 0 Cleanup
+
+Commit: `96ae49b Remove orphaned legacy prototype shell and split session context`
+
+- Removed 17 orphaned prototype/demo files.
+- Removed old demo CRUD state.
+- `src/lib/context/AppContext.tsx` is now session-only: `currentUser`, `isLoading`, and Supabase -> localStorage fallback.
+- `src/lib/permissions.ts` and `src/lib/types.ts` were cleaned of dead legacy exports/types.
+- `tsc`, `lint`, and `build` passed after cleanup.
+
 ## Known Technical Debt
 
 | Area | Debt |
 | --- | --- |
-| AppContext | Demo/localStorage state still active |
+| AppContext | Session context remains shared shell dependency |
 | AuditTab | Still not fully real `audit_logs` |
-| Forum | Unit hierarchy mapping missing; visibility partly UI-gated |
+| Forum | Unit hierarchy mapping missing; visibility partly UI-gated; not wired to `commanded_unit_id` yet |
 | RLS | Real hierarchy RLS not built |
-| Users/Roles | Real MK/MM/MP/staff mapping needed |
+| Users/Roles | Real MK/MM/MP/staff mapping and `commanded_unit_id` assignment needed |
 | Requests | Edit Phase 1 excludes assigned_to/status/unit_id |
 | Tasks | Assigned-user status-only permissions not solved |
 | Events | No recurring/drag-drop/calendar integration |
@@ -383,6 +459,7 @@ DB-backed modules use direct Supabase calls, but AppContext remains part of the 
 
 - Create/approve real users for MK, MM, MP, and staff roles.
 - Assign real role/unit to each user.
+- Assign `commanded_unit_id` where needed through Admin.
 - QA full chain with real accounts.
 
 ### Phase B - Hierarchy mapping
@@ -423,7 +500,26 @@ DB-backed modules use direct Supabase calls, but AppContext remains part of the 
 8. Reference demo is inspiration only.
 9. Forum hierarchy must not be faked in RLS.
 10. Prefer additive migrations.
+11. Do not embed `units(...)` from `users`; load units separately because both `unit_id` and `commanded_unit_id` reference `units`.
+
+## Current Roadmap
+
+```text
+Step 0 - Cleanup orphaned legacy prototype shell - DONE in 96ae49b
+Hotfix A - Password reset + Dashboard profile lookup - DONE in 717bcc9
+Hotfix B - Global users/units ambiguity fix - DONE in 73ed3a5
+Step 1 - Sync docs with 013 + cleanup + hotfix milestones - CURRENT
+Step 2 - Real Users QA setup
+Step 3 - Forum wiring to commanded_unit_id
+Step 4 - Hierarchical RLS policies
+Step 5 - Full MK -> MM -> MP QA
+Step 6 - UI/mobile conservative polish
+Step 7 - dashboard / command center polish
+```
 
 ## Prompt for New Claude/Codex Session
 
 Continue `pluga-command-system` / "המפקד". First read `README.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`, `PROJECT_SUMMARY.md`, `AGENTS.md`, and `CLAUDE.md`. Latest commit should be `2dfcff7 Polish forum UX and update handoff docs`; previous important commits are `f5c1e40 Add hierarchical forum daily reports` and `f47812b Add Supabase-backed Forum Phase 1`. Stack: Next.js 16 with `src/proxy.ts` (not `middleware.ts`), React 19, TypeScript, Tailwind 4, Supabase Auth/PostgreSQL/RLS. Forum posts and hierarchical daily reports are Supabase-backed. Migrations 001-012 were run manually; 009 is legacy/prototype; 010+ is the current forum daily model. Do not run SQL automatically, do not use service role client-side, do not rewrite old migrations, preserve Hebrew RTL and Light Gloss Command System, and ask before commit/push. Next major phase is real users + hierarchy mapping + real hierarchy RLS.
+## Current Session Prompt Override
+
+Continue `pluga-command-system` / "המפקד". First read `README.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`, `PROJECT_SUMMARY.md`, `AGENTS.md`, and `CLAUDE.md`. Latest commit should be `73ed3a5 Fix ambiguous user unit lookups across protected pages`; recent important commits include `717bcc9 Fix dashboard profile lookup and add password reset flow`, `96ae49b Remove orphaned legacy prototype shell and split session context`, `5b5adc5 Fix admin commanded unit mapping`, `7b8050f Add commanded unit assignment to admin panel`, `2dfcff7 Polish forum UX and update handoff docs`, `f5c1e40 Add hierarchical forum daily reports`, and `f47812b Add Supabase-backed Forum Phase 1`. Stack: Next.js 16 with `src/proxy.ts` (not `middleware.ts`), React 19, TypeScript, Tailwind 4, Supabase Auth/PostgreSQL/RLS. Forum posts and hierarchical daily reports are Supabase-backed. Migrations 001-013 were run manually per project handoff; 009 is legacy/prototype; 010+ is the current forum daily model; 013 adds `users.commanded_unit_id` as foundation only. Do not run SQL automatically, do not use service role client-side, do not rewrite old migrations, preserve Hebrew RTL and Light Gloss Command System, do not embed `units(...)` from `users`, and ask before commit/push. Next major phase is real users QA, forum wiring to `commanded_unit_id`, hierarchy mapping, and real hierarchy RLS.

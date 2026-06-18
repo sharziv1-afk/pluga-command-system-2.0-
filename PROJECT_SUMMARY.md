@@ -1,5 +1,29 @@
 # Project Summary - pluga-command-system
 
+## Current Snapshot - 2026-06-18
+
+**Product:** `pluga-command-system` / "המפקד"  
+**Branch:** `main`  
+**Latest commit:** `73ed3a5 Fix ambiguous user unit lookups across protected pages`  
+**Git state:** `origin/main` up to date, working tree clean
+
+**Recent important commits:**
+
+```text
+73ed3a5 Fix ambiguous user unit lookups across protected pages
+717bcc9 Fix dashboard profile lookup and add password reset flow
+96ae49b Remove orphaned legacy prototype shell and split session context
+5b5adc5 Fix admin commanded unit mapping
+7b8050f Add commanded unit assignment to admin panel
+96dc36e Update project handoff after forum UX milestone
+2dfcff7 Polish forum UX and update handoff docs
+f5c1e40 Add hierarchical forum daily reports
+f47812b Add Supabase-backed Forum Phase 1
+93eae89 Align project docs with editing milestone
+```
+
+This snapshot supersedes the older 2026-06-10 snapshot below.
+
 ## Current Snapshot - 2026-06-10
 
 **Product:** `pluga-command-system` / "המפקד"  
@@ -21,8 +45,10 @@ The reference demo at `https://thepluton.vercel.app/` is UX/product-flow inspira
 ### Foundation
 
 - Hybrid Auth: email+password for existing users, Email OTP + password setup for first registration, Dev Login in development, Magic Link callback fallback.
+- Forgot Password flow: login sends reset email, callback exchanges the code, and `/reset-password` updates the password.
 - Role-based interface for approved active users.
 - Admin Panel for user approval and role/unit/permission management.
+- Admin commanded-unit assignment through `commanded_unit_id`.
 - Profile page.
 - Light Gloss Command System: bright background, glass cards, orange `#FF6B02`, dark `#020108`, Hebrew RTL.
 - Protected routes through `src/proxy.ts`.
@@ -30,6 +56,7 @@ The reference demo at `https://thepluton.vercel.app/` is UX/product-flow inspira
 ### Dashboard
 
 - Supabase-backed dashboard reads requests, tasks, events, audit logs, and users.
+- Profile/unit lookup avoids ambiguous `users -> units` embeds after migration 013.
 - Summary cards, attention list, today's schedule, open tasks, recent activity.
 - Quick Create for request/task/event with best-effort audit and refresh.
 
@@ -151,6 +178,50 @@ Current UX:
 - Reset report clears content and returns to draft.
 - Advanced delete exists via migration 012.
 
+### Commanded Unit Foundation
+
+Migration: `013_add_commanded_unit_id.sql`  
+Commits: `7b8050f`, `5b5adc5`
+
+- Adds `users.commanded_unit_id`.
+- `unit_id` is the user's membership unit.
+- `commanded_unit_id` is the unit the user commands.
+- Adds `idx_users_commanded_unit_id`.
+- Reportedly run manually in Supabase.
+- Foundation only: not yet real hierarchy RLS and not yet wired into forum visibility.
+- Admin can set/clear the commanded unit through `יחידה בפיקוד`.
+
+### Password Reset Hotfix
+
+Commit: `717bcc9 Fix dashboard profile lookup and add password reset flow`
+
+- Login includes `שכחתי סיסמה`.
+- Uses `supabase.auth.resetPasswordForEmail(...)`.
+- Shows a generic success message so email existence is not exposed.
+- Adds `/reset-password`.
+- Reset page supports password confirmation, show/hide password, validation, and `supabase.auth.updateUser({ password })`.
+- Auth callback supports `next=/reset-password` after code exchange.
+- Build includes 18 routes after this route was added.
+
+### Users / Units Ambiguity Hotfix
+
+Commit: `73ed3a5 Fix ambiguous user unit lookups across protected pages`
+
+- Root issue: after migration 013, `users` has both `unit_id` and `commanded_unit_id` foreign keys to `units`.
+- Supabase/PostgREST embedded selects like `units(name)` from `users` can fail with `PGRST201`.
+- Dashboard, Tasks, Schedule, Requests, and Forum now load users without `units(...)`, load units separately, and map names client-side.
+- Shared Supabase error logging now reports useful error fields instead of `{}`.
+
+### Step 0 Cleanup
+
+Commit: `96ae49b Remove orphaned legacy prototype shell and split session context`
+
+- Removed 17 orphaned prototype/demo files.
+- Reduced `AppContext.tsx` to session-only context: `currentUser`, `isLoading`, and Supabase -> localStorage fallback.
+- Removed old demo CRUD state.
+- Cleaned dead legacy exports/types from `permissions.ts` and `types.ts`.
+- `tsc`, `lint`, and `build` passed after cleanup.
+
 ## Migrations Run Manually
 
 | Migration | Purpose | Status |
@@ -168,8 +239,11 @@ Current UX:
 | `010_forum_hierarchical_daily_reports.sql` | Current daily reports model | run |
 | `011_forum_daily_reports_commander_insert.sql` | Commander create-for-subordinate | run |
 | `012_forum_daily_reports_delete_policy.sql` | Daily report delete policy | run |
+| `013_add_commanded_unit_id.sql` | `users.commanded_unit_id` + index | run manually per user report |
 
 Migration 009 is legacy/prototype. The current forum model is 010+.
+
+Migration 013 is foundation only. Do not rerun it without a direct reason. Do not build hierarchy RLS from it until real QA users and flow validation exist.
 
 ## Audit Actions
 
@@ -217,6 +291,7 @@ Audit is best-effort: calls use `void createAuditLog(...)` and failures must not
 | AppContext remains until dependency mapping | It still supports legacy/demo areas |
 | Forum hierarchy is UI-gated for now | Real unit hierarchy mapping is missing |
 | Reference demo is inspiration only | It is not Supabase/RLS truth |
+| Do not embed `units(...)` from `users` | `unit_id` and `commanded_unit_id` both reference `units` |
 
 ## Known Limitations
 
@@ -224,6 +299,8 @@ Audit is best-effort: calls use `void createAuditLog(...)` and failures must not
 - Full hierarchy mapping is not built yet.
 - Real hierarchy RLS is a future phase.
 - Some forum visibility is UI-gated.
+- `commanded_unit_id` is foundation only.
+- Forum is not yet wired to `commanded_unit_id`.
 - `009_forum_daily_summaries.sql` is legacy/prototype.
 - AuditTab still reads localStorage.
 - AppContext still contains demo/localStorage state.
@@ -234,10 +311,24 @@ Audit is best-effort: calls use `void createAuditLog(...)` and failures must not
 
 ## Recommended Next Phases
 
+```text
+Step 0 - Cleanup orphaned legacy prototype shell - DONE in 96ae49b
+Hotfix A - Password reset + Dashboard profile lookup - DONE in 717bcc9
+Hotfix B - Global users/units ambiguity fix - DONE in 73ed3a5
+Step 1 - Sync docs with 013 + cleanup + hotfix milestones - CURRENT
+Step 2 - Real Users QA setup
+Step 3 - Forum wiring to commanded_unit_id
+Step 4 - Hierarchical RLS policies
+Step 5 - Full MK -> MM -> MP QA
+Step 6 - UI/mobile conservative polish
+Step 7 - dashboard / command center polish
+```
+
 ### Phase A - Real users QA setup
 
 - Create/approve real users for MK, MM, MP, and staff roles.
 - Assign real role/unit to every user.
+- Assign `commanded_unit_id` where needed through Admin.
 - Manually QA the full daily forum chain.
 
 ### Phase B - Hierarchy mapping

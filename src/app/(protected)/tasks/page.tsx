@@ -24,6 +24,7 @@ import { createAuditLog } from '@/lib/audit';
 import { useApp } from '@/lib/context/AppContext';
 import { getPermissionLevelForRole } from '@/lib/permissions';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
+import { logSupabaseError } from '@/lib/supabase/error';
 import type { DbTask } from '@/lib/types';
 
 type TaskStatus = 'open' | 'in_progress' | 'blocked' | 'completed' | 'cancelled';
@@ -47,7 +48,6 @@ type TaskUser = {
   email: string;
   role: string;
   unit_id: string | null;
-  units: { name: string } | null;
 };
 
 type EventOption = {
@@ -195,11 +195,6 @@ const taskQuickFilters: { id: Exclude<TaskQuickFilter, 'none'>; label: string }[
   { id: 'stuck', label: 'תקוע' },
 ];
 
-function logSupabaseError(message: string, error: { message?: string; code?: string; details?: string; hint?: string }) {
-  if (process.env.NODE_ENV !== 'development') return;
-  console.error(message, { message: error.message, code: error.code, details: error.details, hint: error.hint });
-}
-
 export default function TasksPage() {
   const { currentUser, isLoading: isContextLoading } = useApp();
   const [dbProfile, setDbProfile] = useState<DbProfile | null>(null);
@@ -250,21 +245,39 @@ export default function TasksPage() {
     setError(null);
 
     try {
-      const { data: profileData, error: profileError } = await supabase
+      const { data: profileRow, error: profileError } = await supabase
         .from('users')
-        .select('id,name,email,role,unit_id,permission_level,units(name)')
+        .select('id,name,email,role,unit_id,permission_level')
         .eq('id', currentUser.id)
         .maybeSingle<DbProfile>();
 
       if (profileError) {
-        logSupabaseError('Tasks profile lookup failed', profileError);
+        logSupabaseError('Tasks profile lookup failed', profileError, { currentUserId: currentUser.id });
         setError('לא נמצא פרופיל משתמש. יש להתחבר מחדש.');
         return;
       }
 
-      if (!profileData) {
+      if (!profileRow) {
         setError('לא נמצא פרופיל משתמש. יש להתחבר מחדש.');
         return;
+      }
+
+      let profileData = profileRow;
+      if (profileData.unit_id) {
+        const { data: unitData, error: unitError } = await supabase
+          .from('units')
+          .select('name')
+          .eq('id', profileData.unit_id)
+          .maybeSingle<{ name: string }>();
+
+        if (unitError) {
+          logSupabaseError('Tasks profile unit lookup failed', unitError, {
+            profileId: profileData.id,
+            unitId: profileData.unit_id,
+          });
+        }
+
+        profileData = { ...profileData, units: unitData ? { name: unitData.name } : null };
       }
 
       setDbProfile(profileData);
@@ -334,7 +347,7 @@ export default function TasksPage() {
       if (isCommanderRole(profileData.role, profileData.permission_level)) {
         const { data: activeUsers, error: usersError } = await supabase
           .from('users')
-          .select('id,name,email,role,unit_id,units(name)')
+          .select('id,name,email,role,unit_id')
           .eq('status', 'active')
           .eq('role_approval_status', 'approved')
           .order('name', { ascending: true })

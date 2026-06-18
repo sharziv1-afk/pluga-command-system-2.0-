@@ -27,6 +27,7 @@ import { createAuditLog } from '@/lib/audit';
 import { useApp } from '@/lib/context/AppContext';
 import { getPermissionLevelForRole } from '@/lib/permissions';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
+import { logSupabaseError } from '@/lib/supabase/error';
 
 type RequestStatus = 'open' | 'in_progress' | 'approved' | 'rejected' | 'completed' | 'cancelled';
 type RequestCategory = 'לוגיסטיקה' | 'רפואה' | 'קשר' | 'רכב' | 'כוח אדם' | 'אחר';
@@ -219,11 +220,6 @@ function formatEventTimeLabel(startsAt: string | null, endsAt: string | null) {
   return end ? `${start}–${end}` : start;
 }
 
-function logSupabaseError(message: string, error: { message?: string; code?: string; details?: string; hint?: string }) {
-  if (process.env.NODE_ENV !== 'development') return;
-  console.error(message, { message: error.message, code: error.code, details: error.details, hint: error.hint });
-}
-
 function getAssigneeDisplayName(user: Pick<AssigneeUser, 'name' | 'email'>) {
   return user.name || user.email;
 }
@@ -305,20 +301,38 @@ export default function RequestsPage() {
     setAssigneeLoadError(null);
 
     try {
-      const { data: profileData, error: profileError } = await supabase
+      const { data: profileRow, error: profileError } = await supabase
         .from('users')
-        .select('id,name,role,unit_id,permission_level,units(name)')
+        .select('id,name,role,unit_id,permission_level')
         .eq('id', currentUser.id)
         .maybeSingle<DbProfile>();
 
       if (profileError) {
-        logSupabaseError('Requests profile lookup failed', profileError);
+        logSupabaseError('Requests profile lookup failed', profileError, { currentUserId: currentUser.id });
         setError('לא נמצא פרופיל משתמש. יש להתחבר מחדש.');
         return;
       }
-      if (!profileData) {
+      if (!profileRow) {
         setError('לא נמצא פרופיל משתמש. יש להתחבר מחדש.');
         return;
+      }
+
+      let profileData = profileRow;
+      if (profileData.unit_id) {
+        const { data: unitData, error: unitError } = await supabase
+          .from('units')
+          .select('name')
+          .eq('id', profileData.unit_id)
+          .maybeSingle<{ name: string }>();
+
+        if (unitError) {
+          logSupabaseError('Requests profile unit lookup failed', unitError, {
+            profileId: profileData.id,
+            unitId: profileData.unit_id,
+          });
+        }
+
+        profileData = { ...profileData, units: unitData ? { name: unitData.name } : null };
       }
       setDbProfile(profileData);
 
@@ -326,7 +340,7 @@ export default function RequestsPage() {
       if (isCommanderRole(profileData.role, profileData.permission_level)) {
         const { data: usersData, error: usersError } = await supabase
           .from('users')
-          .select('id,name,email,role,unit_id,units(name)')
+          .select('id,name,email,role,unit_id')
           .eq('status', 'active')
           .eq('role_approval_status', 'approved')
           .order('name', { ascending: true })
@@ -336,7 +350,32 @@ export default function RequestsPage() {
           logSupabaseError('Assignable users load failed', usersError);
           setAssigneeLoadError('לא ניתן לטעון רשימת מטפלים');
         } else {
-          assignableUsers = usersData ?? [];
+          const rawAssignable = usersData ?? [];
+          const assignableUnitIds = [
+            ...new Set(rawAssignable.map(user => user.unit_id).filter((id): id is string => Boolean(id))),
+          ];
+
+          let assignableUnitNames: Record<string, string> = {};
+          if (assignableUnitIds.length > 0) {
+            const { data: unitsData, error: unitsError } = await supabase
+              .from('units')
+              .select('id,name')
+              .in('id', assignableUnitIds)
+              .returns<Array<{ id: string; name: string }>>();
+
+            if (unitsError) {
+              logSupabaseError('Assignable users unit lookup failed', unitsError);
+            } else {
+              assignableUnitNames = Object.fromEntries((unitsData ?? []).map(unit => [unit.id, unit.name]));
+            }
+          }
+
+          assignableUsers = rawAssignable.map(user => ({
+            ...user,
+            units: user.unit_id && assignableUnitNames[user.unit_id]
+              ? { name: assignableUnitNames[user.unit_id] }
+              : null,
+          }));
         }
       }
       setAssigneeUsers(assignableUsers);

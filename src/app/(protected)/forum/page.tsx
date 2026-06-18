@@ -42,6 +42,7 @@ import { createAuditLog } from '@/lib/audit';
 import { useApp } from '@/lib/context/AppContext';
 import { getPermissionLevelForRole } from '@/lib/permissions';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
+import { logSupabaseError } from '@/lib/supabase/error';
 
 type ForumTab = 'posts' | 'daily';
 type ReportLevel = 'squad' | 'platoon' | 'company' | 'staff';
@@ -55,7 +56,6 @@ type DbProfile = {
   role: string;
   unit_id: string | null;
   permission_level: number;
-  units: { name: string } | null;
 };
 
 type ForumPostRow = {
@@ -339,11 +339,6 @@ function statusDotTone(status: ReportStatus | undefined) {
   if (status === 'submitted') return 'bg-emerald-500';
   if (status === 'in_progress') return 'bg-[#FF6B02]';
   return 'bg-[#98A2B3]';
-}
-
-function logSupabaseError(message: string, error: { message?: string; code?: string; details?: string; hint?: string }) {
-  if (process.env.NODE_ENV !== 'development') return;
-  console.error(message, { message: error.message, code: error.code, details: error.details, hint: error.hint });
 }
 
 export default function ForumPage() {
@@ -657,7 +652,7 @@ export default function ForumPage() {
 
     const { data: profileData, error: profileError } = await supabase
       .from('users')
-      .select('id,name,email,role,unit_id,permission_level,units(name)')
+      .select('id,name,email,role,unit_id,permission_level')
       .eq('id', currentUser.id)
       .maybeSingle<DbProfile>();
 
@@ -749,7 +744,7 @@ export default function ForumPage() {
 
     const { data, error: usersError } = await supabase
       .from('users')
-      .select('id,name,email,role,unit_id,units(name)')
+      .select('id,name,email,role,unit_id')
       .eq('status', 'active')
       .eq('role_approval_status', 'approved')
       .order('name', { ascending: true })
@@ -761,7 +756,28 @@ export default function ForumPage() {
       return;
     }
 
-    setOwnerOptions(data ?? []);
+    const rawOwners = data ?? [];
+    const ownerUnitIds = [...new Set(rawOwners.map(owner => owner.unit_id).filter((id): id is string => Boolean(id)))];
+
+    let ownerUnitNames: Record<string, string> = {};
+    if (ownerUnitIds.length > 0) {
+      const { data: unitsData, error: unitsError } = await supabase
+        .from('units')
+        .select('id,name')
+        .in('id', ownerUnitIds)
+        .returns<UnitLookup[]>();
+
+      if (unitsError) {
+        logSupabaseError('Forum daily report owner unit lookup failed', unitsError);
+      } else {
+        ownerUnitNames = Object.fromEntries((unitsData ?? []).map(unit => [unit.id, unit.name]));
+      }
+    }
+
+    setOwnerOptions(rawOwners.map(owner => ({
+      ...owner,
+      units: owner.unit_id && ownerUnitNames[owner.unit_id] ? { name: ownerUnitNames[owner.unit_id] } : null,
+    })));
   }, [canSeeAll, supabase]);
 
   useEffect(() => {

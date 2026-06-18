@@ -154,6 +154,16 @@ export default function AdminPage() {
     setRlsError(null);
 
     const calculatedLevel = getPermissionLevelForRole(role);
+    const targetUser = profilesList.find((p) => p.id === userId);
+
+    // Guardrail: never approve a user that has no valid role or no unit assigned.
+    // A placeholder profile (role 'pending'/unsupported, unit_id null) yields permission_level 0.
+    // The commander must edit role + unit first, then approve.
+    if (!targetUser?.unit_id || calculatedLevel === 0) {
+      setRlsError('לא ניתן לאשר משתמש ללא תפקיד תקין ומסגרת. יש ללחוץ "ערוך", להגדיר תפקיד ויחידה, לשמור, ואז לאשר.');
+      setIsActionSubmitting(null);
+      return;
+    }
 
     try {
       const { error } = await supabase

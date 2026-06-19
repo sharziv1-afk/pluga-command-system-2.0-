@@ -47,6 +47,34 @@ interface AdminUserProfile {
   commanded_units: { name: string } | null;
 }
 
+// Normalize Hebrew gershayim (״) and ASCII double-quote so role strings match
+// regardless of which variant was stored at registration time.
+function normalizeRoleName(role: string): string {
+  return role.replace(/["״]/g, '"').trim();
+}
+
+// Membership unit (מסגרת) suggested from the requested role.
+function suggestMembershipUnitName(role: string): string | null {
+  const n = normalizeRoleName(role);
+  const platoon = n.match(/^(?:מ"מ|מ"כ|סמל) ([1-4])/);
+  if (platoon) return `מחלקה ${platoon[1]}`;
+  if (n === 'מ"פ' || n === 'סמ"פ' || n === 'ע. מ"פ') return 'פלוגה';
+  if (n.includes('רס"פ') || n.includes('לוגיסטיקה')) return 'לוגיסטיקה';
+  if (n === 'חובש פלוגתי') return 'רפואה';
+  if (n === 'קשר פלוגתי') return 'קשר';
+  if (n.includes('ב.קוד') || n.includes('נהג')) return 'רכב';
+  return null;
+}
+
+// Commanded unit (יחידה בפיקוד) suggested only for unit commanders.
+function suggestCommandedUnitName(role: string): string | null {
+  const n = normalizeRoleName(role);
+  if (n === 'מ"פ' || n === 'סמ"פ') return 'פלוגה';
+  const platoon = n.match(/^מ"מ ([1-4])/);
+  if (platoon) return `מחלקה ${platoon[1]}`;
+  return null;
+}
+
 export default function AdminPage() {
   const { currentUser, isLoading: isContextLoading } = useApp();
   
@@ -233,17 +261,31 @@ export default function AdminPage() {
     }
   };
 
+  const resolveUnitIdByName = (name: string | null) =>
+    name ? units.find((u) => u.name === name)?.id ?? null : null;
+
   const startEditing = (user: AdminUserProfile) => {
+    // Match the stored role to the canonical option so the select renders it
+    // even if the saved value used a different gershayim/quote variant.
+    const canonicalRole = roles.find((r) => normalizeRoleName(r.name) === normalizeRoleName(user.role))?.name ?? user.role;
+
     setEditingUserId(user.id);
-    setEditRole(user.role);
-    setEditUnitId(user.unit_id || 'none');
-    setEditCommandedUnitId(user.commanded_unit_id || 'none');
-    setEditPermissionLevel(user.permission_level);
+    setEditRole(canonicalRole);
+    // DB value wins; otherwise prefill a suggestion derived from the role.
+    setEditUnitId(user.unit_id || resolveUnitIdByName(suggestMembershipUnitName(user.role)) || 'none');
+    setEditCommandedUnitId(user.commanded_unit_id || resolveUnitIdByName(suggestCommandedUnitName(user.role)) || 'none');
+    setEditPermissionLevel(user.permission_level > 0 ? user.permission_level : getPermissionLevelForRole(user.role));
   };
 
   const handleRoleChange = (selectedRole: string) => {
+    const suggestedUnitId = resolveUnitIdByName(suggestMembershipUnitName(selectedRole));
+    const suggestedCommandedUnitId = resolveUnitIdByName(suggestCommandedUnitName(selectedRole));
+
     setEditRole(selectedRole);
     setEditPermissionLevel(getPermissionLevelForRole(selectedRole));
+    // Re-suggest only when the new role maps to a unit; keep current choice otherwise.
+    if (suggestedUnitId) setEditUnitId(suggestedUnitId);
+    if (suggestedCommandedUnitId) setEditCommandedUnitId(suggestedCommandedUnitId);
   };
 
   const saveEdit = async (userId: string) => {

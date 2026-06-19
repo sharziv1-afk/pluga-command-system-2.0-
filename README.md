@@ -1,6 +1,6 @@
 # pluga-command-system - "המפקד"
 
-## Milestone Snapshot - 2026-06-18
+## Milestone Snapshot - 2026-06-19
 
 `pluga-command-system` / **"המפקד"** is a Hebrew RTL company command-management system for command teams. It is built with Next.js 16 App Router, React 19, TypeScript, Tailwind CSS 4, Supabase Auth/PostgreSQL/RLS, and GitHub. Future deployment target: Vercel.
 
@@ -10,23 +10,51 @@
 
 ```text
 Latest commit:
-73ed3a5 Fix ambiguous user unit lookups across protected pages
+9acd397 Prefill admin edit form from role with suggestions
 
-Previous important commits:
-717bcc9 Fix dashboard profile lookup and add password reset flow
-96ae49b Remove orphaned legacy prototype shell and split session context
-5b5adc5 Fix admin commanded unit mapping
-7b8050f Add commanded unit assignment to admin panel
-96dc36e Update project handoff after forum UX milestone
-2dfcff7 Polish forum UX and update handoff docs
-f5c1e40 Add hierarchical forum daily reports
-f47812b Add Supabase-backed Forum Phase 1
-93eae89 Align project docs with editing milestone
+Previous important commits (Auth/Admin approval checkpoint):
+7d52c40 Require real unit id during registration
+f1a2d33 Block approving users without valid role and unit
+c7b8cf1 Use OTP code flow for registration
+21123d6 Fix magic link registration redirect
+6996160 Fix registration role unit mapping
+c03db56 Fix has_completed_onboarding after registration
+c8c5884 Sync project docs after profile lookup hotfixes
+73ed3a5 Fix ambiguous user unit lookups across protected pages
 ```
 
 - Branch: `main`
 - `origin/main`: up to date
 - Working tree: clean
+
+## Auth / Admin Approval Checkpoint - 2026-06-19
+
+End-to-end registration → approval flow validated manually. Summary of the flow as it now works:
+
+- **Registration is OTP-code-only** (`c7b8cf1`): user fills name/email/password/role/unit, gets an email code, types it, profile is created in `public.users`. `emailRedirectTo` was removed so the magic-link/callback path no longer competes and cannot create placeholder profiles. The callback is reserved for password reset.
+- **`has_completed_onboarding=true`** is set at registration (`c03db56`), so approved users reach `/dashboard` instead of looping back to `/onboarding`.
+- **Role→unit mapping at registration** (`6996160`, `7d52c40`): מ"מ N→מחלקה N, מ"כ/סמל N→מחלקה N, מ"פ/סמ"פ/ע.מ"פ→פלוגה, חובש→רפואה, קשר→קשר, רס"פ/לוגיסטיקה→לוגיסטיקה, ב.קוד/נהג→רכב. Registration now requires a real `unit_id` when the role maps to a unit.
+- **Pending users** see "ממתין לאישור מ״פ" and do not get system access (RLS gates on `status='active'` + `role_approval_status='approved'`).
+- **Admin edit prefill** (`9acd397`): opening edit for a pending user prefills תפקיד (with gershayim normalization so the role select matches), and suggests מסגרת / יחידה בפיקוד / רמת הרשאה by role when the DB value is empty. Existing DB values always win; the commander can override everything before approval.
+- **Admin approval guardrail** (`f1a2d33`): approval is blocked if the user has no valid role or no `unit_id`. The commander must edit + save role/unit first.
+
+### Manual Supabase SQL applied (2026-06-19) — recorded in migration 014
+
+`public.units` and `public.roles` had RLS enabled in the live DB without a SELECT policy, so the client received zero rows and the registration/Admin unit/role dropdowns were empty. The following was applied manually in the Supabase SQL Editor and is now recorded in `supabase/migrations/014_reference_data_read_policies.sql`:
+
+```sql
+-- units / roles are non-sensitive reference data; allow client read.
+alter table public.units enable row level security;
+create policy "units: public read" on public.units for select to anon, authenticated using (true);
+alter table public.roles enable row level security;
+create policy "roles: public read" on public.roles for select to anon, authenticated using (true);
+```
+
+After this, unit/role selectors load and Admin approval works end-to-end.
+
+### Manual QA passed (2026-06-19)
+
+Registration OTP → pending-approval screen → Admin edit/save/approval → approved-user login → Tasks → Requests → Forum daily/leading forum — all verified manually.
 
 ## Tech Stack
 
@@ -221,6 +249,7 @@ Run SQL manually in Supabase SQL Editor only. Do not run SQL automatically.
 | `011_forum_daily_reports_commander_insert.sql` | Commander can create report for another active approved owner | run |
 | `012_forum_daily_reports_delete_policy.sql` | Advanced delete policy for `forum_daily_reports`: commander OR creator OR owner | run |
 | `013_add_commanded_unit_id.sql` | Adds `users.commanded_unit_id` and `idx_users_commanded_unit_id`; separates membership unit from commanded unit | run manually per user report |
+| `014_reference_data_read_policies.sql` | `units: public read` + `roles: public read` SELECT policies so client selectors load | run manually 2026-06-19; recorded for sync |
 
 Migration 009 is kept for history only. The current forum daily model is 010+.
 

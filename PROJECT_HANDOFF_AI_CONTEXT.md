@@ -2,9 +2,9 @@
 
 Authoritative technical handoff for AI agents and developers continuing work on `pluga-command-system`.
 
-**Last updated:** 2026-06-18  
-**Milestone:** Step 1 docs sync after commanded-unit, cleanup, password reset, and user/unit lookup hotfixes  
-**Latest commit:** `73ed3a5 Fix ambiguous user unit lookups across protected pages`
+**Last updated:** 2026-06-19  
+**Milestone:** Auth/Admin approval checkpoint — OTP-code registration, role/unit mapping, admin prefill+guardrail, reference-data RLS  
+**Latest commit:** `9acd397 Prefill admin edit form from role with suggestions`
 
 ## Identity
 
@@ -19,17 +19,43 @@ Authoritative technical handoff for AI agents and developers continuing work on 
 ## Latest Git State
 
 ```text
+9acd397 Prefill admin edit form from role with suggestions
+7d52c40 Require real unit id during registration
+f1a2d33 Block approving users without valid role and unit
+c7b8cf1 Use OTP code flow for registration
+21123d6 Fix magic link registration redirect
+6996160 Fix registration role unit mapping
+c03db56 Fix has_completed_onboarding after registration
+c8c5884 Sync project docs after profile lookup hotfixes
 73ed3a5 Fix ambiguous user unit lookups across protected pages
-717bcc9 Fix dashboard profile lookup and add password reset flow
-96ae49b Remove orphaned legacy prototype shell and split session context
-5b5adc5 Fix admin commanded unit mapping
-7b8050f Add commanded unit assignment to admin panel
-96dc36e Update project handoff after forum UX milestone
-2dfcff7 Polish forum UX and update handoff docs
-f5c1e40 Add hierarchical forum daily reports
-f47812b Add Supabase-backed Forum Phase 1
-93eae89 Align project docs with editing milestone
 ```
+
+## Auth / Admin Approval Checkpoint (2026-06-19)
+
+Registration → approval flow, validated end-to-end manually.
+
+- **Registration: OTP-code-only** (`c7b8cf1`). User fills name/email/password/role/unit → email code → `verifyRegistrationCode` upserts `public.users`. `emailRedirectTo` removed from the registration `signInWithOtp` so the magic-link/callback path no longer creates placeholder profiles; the callback is reserved for password reset.
+- **`has_completed_onboarding=true`** at registration (`c03db56`) — fixes the `/onboarding` redirect loop.
+- **Role→unit mapping** (`6996160`, `7d52c40`): מ"מ/מ"כ/סמל N→מחלקה N, מ"פ/סמ"פ/ע.מ"פ→פלוגה, חובש→רפואה, קשר→קשר, רס"פ/לוגיסטיקה→לוגיסטיקה, ב.קוד/נהג→רכב. Registration requires a real `unit_id` when the role maps to a unit.
+- **Admin prefill** (`9acd397`): role select prefilled with gershayim normalization; מסגרת / יחידה בפיקוד / רמת הרשאה suggested by role when the DB value is empty (DB value always wins; fully overridable before approval).
+- **Admin guardrail** (`f1a2d33`): approval blocked without a valid role + `unit_id`.
+
+### Manual Supabase SQL applied 2026-06-19 (recorded in migration 014)
+
+`public.units` / `public.roles` had RLS enabled in live without a SELECT policy → client got zero rows → registration/Admin unit/role selectors were empty. Applied manually:
+
+```sql
+alter table public.units enable row level security;
+create policy "units: public read" on public.units for select to anon, authenticated using (true);
+alter table public.roles enable row level security;
+create policy "roles: public read" on public.roles for select to anon, authenticated using (true);
+```
+
+Now recorded in `supabase/migrations/014_reference_data_read_policies.sql` (idempotent). After applying, selectors load and Admin approval works.
+
+### Manual QA passed 2026-06-19
+
+Registration OTP → pending-approval → Admin edit/save/approval → approved-user login → Tasks → Requests → Forum daily/leading forum.
 
 ## Stack
 
@@ -113,6 +139,7 @@ All SQL is manual-only. Do not run SQL automatically.
 | `011_forum_daily_reports_commander_insert.sql` | Commander can create report for another active approved owner | Additive policy |
 | `012_forum_daily_reports_delete_policy.sql` | Delete policy for daily reports | Commander OR creator OR owner |
 | `013_add_commanded_unit_id.sql` | Adds `users.commanded_unit_id` and `idx_users_commanded_unit_id` | Run manually per user report; foundation only |
+| `014_reference_data_read_policies.sql` | `units: public read` + `roles: public read` SELECT policies | Run manually 2026-06-19; recorded for DB/repo sync |
 
 ### Migration 013 Notes
 

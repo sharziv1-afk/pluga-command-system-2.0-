@@ -1,28 +1,52 @@
 # Project Summary - pluga-command-system
 
-## Current Snapshot - 2026-06-18
+## Current Snapshot - 2026-06-19
 
 **Product:** `pluga-command-system` / "המפקד"  
 **Branch:** `main`  
-**Latest commit:** `73ed3a5 Fix ambiguous user unit lookups across protected pages`  
+**Latest commit:** `9acd397 Prefill admin edit form from role with suggestions`  
 **Git state:** `origin/main` up to date, working tree clean
 
-**Recent important commits:**
+**Recent important commits (Auth/Admin approval checkpoint):**
 
 ```text
+9acd397 Prefill admin edit form from role with suggestions
+7d52c40 Require real unit id during registration
+f1a2d33 Block approving users without valid role and unit
+c7b8cf1 Use OTP code flow for registration
+21123d6 Fix magic link registration redirect
+6996160 Fix registration role unit mapping
+c03db56 Fix has_completed_onboarding after registration
+c8c5884 Sync project docs after profile lookup hotfixes
 73ed3a5 Fix ambiguous user unit lookups across protected pages
-717bcc9 Fix dashboard profile lookup and add password reset flow
-96ae49b Remove orphaned legacy prototype shell and split session context
-5b5adc5 Fix admin commanded unit mapping
-7b8050f Add commanded unit assignment to admin panel
-96dc36e Update project handoff after forum UX milestone
-2dfcff7 Polish forum UX and update handoff docs
-f5c1e40 Add hierarchical forum daily reports
-f47812b Add Supabase-backed Forum Phase 1
-93eae89 Align project docs with editing milestone
 ```
 
-This snapshot supersedes the older 2026-06-10 snapshot below.
+This snapshot supersedes the older 2026-06-18 / 2026-06-10 snapshots below.
+
+## Auth / Admin Approval Checkpoint - 2026-06-19
+
+Full registration → approval flow validated manually.
+
+- **OTP-code-only registration** (`c7b8cf1`): no more magic-link placeholder profiles; callback reserved for password reset.
+- **`has_completed_onboarding=true`** at registration (`c03db56`): fixes the `/onboarding` loop.
+- **Role→unit mapping** (`6996160`, `7d52c40`): מ"מ/מ"כ/סמל N→מחלקה N, מ"פ/סמ"פ/ע.מ"פ→פלוגה, חובש→רפואה, קשר→קשר, רס"פ→לוגיסטיקה, ב.קוד/נהג→רכב; registration requires a real `unit_id` when applicable.
+- **Pending users** see "ממתין לאישור מ״פ"; no access until approved.
+- **Admin prefill** (`9acd397`): role prefilled with gershayim normalization; מסגרת / יחידה בפיקוד / רמת הרשאה suggested by role when DB value empty; DB value wins; full override before approval.
+- **Admin guardrail** (`f1a2d33`): approval blocked without valid role + unit.
+
+### Manual Supabase SQL applied 2026-06-19 (migration 014)
+
+`units` / `roles` had RLS enabled in live without a SELECT policy → client got zero rows → unit/role selectors empty. Applied manually: `units: public read` + `roles: public read` (`for select to anon, authenticated using (true)`). Recorded in `supabase/migrations/014_reference_data_read_policies.sql`.
+
+### Manual QA passed 2026-06-19
+
+Registration OTP, pending-approval screen, Admin edit/save/approval, approved-user login, Tasks, Requests, Forum daily/leading forum — all verified manually.
+
+### Deferred
+
+requests RLS gap · `is_commander` hardening (`search_path`) · additional UI/Forum polish requested by user · Real users QA · docs polish.
+
+This snapshot supersedes the older 2026-06-18 / 2026-06-10 snapshots below.
 
 ## Current Snapshot - 2026-06-10
 

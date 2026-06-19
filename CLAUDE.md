@@ -4,19 +4,22 @@ Project-specific notes for Claude Code:
 
 - Read `README.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`, `PROJECT_SUMMARY.md`, `AGENTS.md`, and this file before making changes.
 - Current branch should be `main`.
-- Latest expected commit after the profile lookup hotfixes:
+- Latest expected commit after the Auth/Admin approval checkpoint:
 
 ```text
+9acd397 Prefill admin edit form from role with suggestions
+7d52c40 Require real unit id during registration
+f1a2d33 Block approving users without valid role and unit
+c7b8cf1 Use OTP code flow for registration
+21123d6 Fix magic link registration redirect
+6996160 Fix registration role unit mapping
+c03db56 Fix has_completed_onboarding after registration
+c8c5884 Sync project docs after profile lookup hotfixes
 73ed3a5 Fix ambiguous user unit lookups across protected pages
-717bcc9 Fix dashboard profile lookup and add password reset flow
-96ae49b Remove orphaned legacy prototype shell and split session context
-5b5adc5 Fix admin commanded unit mapping
-7b8050f Add commanded unit assignment to admin panel
-96dc36e Update project handoff after forum UX milestone
-2dfcff7 Polish forum UX and update handoff docs
-f5c1e40 Add hierarchical forum daily reports
-f47812b Add Supabase-backed Forum Phase 1
 ```
+
+- Auth/Admin approval flow is OTP-code-only registration (no magic-link placeholders), `has_completed_onboarding=true` at registration, role→unit mapping at registration, pending users see "ממתין לאישור מ״פ", Admin prefills role (gershayim-normalized) and suggests מסגרת/יחידה בפיקוד/רמת הרשאה by role, and an Admin guardrail blocks approval without a valid role + unit.
+- Migration `014_reference_data_read_policies.sql` adds `units: public read` + `roles: public read` SELECT policies. Applied manually in live Supabase on 2026-06-19 (the unit/role dropdowns were empty because RLS was enabled without a read policy). Recorded for sync; do not rerun blindly.
 
 ## Non-negotiable Guardrails
 

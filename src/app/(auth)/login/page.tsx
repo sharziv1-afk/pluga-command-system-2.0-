@@ -100,6 +100,16 @@ function getPersistableUnitId(unitValue: string) {
   return unitValue;
 }
 
+function getRegistrationUnitId(role: string, unitValue: string, units: UnitOption[]) {
+  const preferredUnitName = getPreferredUnitNameForRole(role);
+
+  if (preferredUnitName) {
+    return units.find((unit) => unit.name === preferredUnitName)?.id ?? null;
+  }
+
+  return getPersistableUnitId(unitValue);
+}
+
 function getPreferredUnitNameForRole(role: string): string | null {
   const normalizedRole = normalizeIdentityName(role);
   const platoonMatch = normalizedRole.match(/^(?:מ"מ|מ"כ|סמל) ([1-4])/);
@@ -366,7 +376,8 @@ export default function LoginPage() {
 
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedName = fullName.trim();
-    const selectedUnit = getPersistableUnitId(selectedUnitId);
+    const selectedUnit = getRegistrationUnitId(selectedRole, selectedUnitId, unitOptions);
+    const preferredUnitName = getPreferredUnitNameForRole(selectedRole);
 
     if (!normalizedName) {
       setError('שם מלא הוא שדה חובה');
@@ -390,6 +401,11 @@ export default function LoginPage() {
     }
     if (!selectedRole) {
       setError('תפקיד מבוקש הוא שדה חובה');
+      return;
+    }
+
+    if (preferredUnitName && !selectedUnit) {
+      setError('לא ניתן להשלים הרשמה כי המסגרת שנבחרה לא נטענה מהמערכת. רענן את הדף ונסה שוב.');
       return;
     }
 

@@ -6,6 +6,7 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { GlossyButton } from '@/components/ui/GlossyButton';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
+import { logSupabaseError } from '@/lib/supabase/error';
 import { useApp } from '@/lib/context/AppContext';
 import { getPermissionLevelForRole } from '@/lib/permissions';
 import { 
@@ -85,6 +86,7 @@ export default function AdminPage() {
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isActionSubmitting, setIsActionSubmitting] = useState<string | null>(null);
   const [rlsError, setRlsError] = useState<string | null>(null);
+  const [referenceDataError, setReferenceDataError] = useState<string | null>(null);
 
   // Inline edit state
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
@@ -99,9 +101,14 @@ export default function AdminPage() {
     async function loadAdminData() {
       setIsLoadingData(true);
       setRlsError(null);
+      setReferenceDataError(null);
 
       try {
-        const [{ data: rolesData }, { data: unitsData }, { data: usersData, error: usersError }] = await Promise.all([
+        const [
+          { data: rolesData, error: rolesError },
+          { data: unitsData, error: unitsError },
+          { data: usersData, error: usersError }
+        ] = await Promise.all([
           supabase.from('roles').select('name').order('permission_level', { ascending: false }),
           supabase.from('units').select('id,name').order('created_at', { ascending: true }),
           supabase.from('users').select('*').order('created_at', { ascending: false })
@@ -109,6 +116,19 @@ export default function AdminPage() {
 
         if (rolesData) setRoles(rolesData);
         if (unitsData) setUnits(unitsData);
+
+        // Reference data (roles/units) feeds the edit dropdowns. A failed load or an
+        // empty list leaves those selects silently blank, so surface a non-blocking
+        // warning. Distinguish a real load error from an empty result for diagnosis.
+        if (rolesError || unitsError) {
+          logSupabaseError('Admin reference data fetch error', rolesError || unitsError, {
+            roles: !!rolesError,
+            units: !!unitsError
+          });
+          setReferenceDataError('בעיה בטעינת תפקידים/מסגרות — רשימות הבחירה בעריכה עשויות להופיע ריקות. נסה לרענן את הדף; אם הבעיה נמשכת, ייתכן שנדרשת בדיקת הרשאות במערכת.');
+        } else if (!rolesData?.length || !unitsData?.length) {
+          setReferenceDataError('בעיה בטעינת תפקידים/מסגרות — רשימות הבחירה בעריכה עשויות להופיע ריקות. נסה לרענן את הדף; אם הבעיה נמשכת, ייתכן שנדרשת בדיקת הרשאות במערכת.');
+        }
 
         if (usersError) {
           console.error('Database users fetch error:', usersError);
@@ -354,6 +374,13 @@ export default function AdminPage() {
         <div className="flex items-start gap-2.5 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm leading-relaxed text-red-800">
           <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{rlsError}</span>
+        </div>
+      )}
+
+      {referenceDataError && (
+        <div className="flex items-start gap-2.5 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm leading-relaxed text-amber-800">
+          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{referenceDataError}</span>
         </div>
       )}
 

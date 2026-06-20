@@ -1,7 +1,6 @@
 import React from 'react';
 import { GlassCard } from './GlassCard';
 import { GlossyButton } from './GlossyButton';
-import { Skeleton } from './Skeleton';
 import { LucideIcon, HelpCircle } from 'lucide-react';
 
 interface EmptyStateProps {
@@ -34,11 +33,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         {description}
       </p>
 
-      <div className="mb-6 grid w-full max-w-sm grid-cols-2 gap-2" aria-hidden="true">
-        <Skeleton className="h-16 rounded-2xl" />
-        <Skeleton className="h-16 rounded-2xl" />
-      </div>
-      
       {actionText && onAction && (
         <GlossyButton variant="orange" onClick={onAction}>
           {actionText}

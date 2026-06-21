@@ -1,15 +1,20 @@
 # Project Summary - pluga-command-system
 
-## Current Snapshot - 2026-06-19
+## Current Snapshot - 2026-06-21
 
 **Product:** `pluga-command-system` / "המפקד"  
 **Branch:** `main`  
-**Latest commit:** `9acd397 Prefill admin edit form from role with suggestions`  
+**Latest commit:** `650353f Polish small dashboard forum and task UI issues`  
 **Git state:** `origin/main` up to date, working tree clean
 
-**Recent important commits (Auth/Admin approval checkpoint):**
+**Recent important commits:**
 
 ```text
+650353f Polish small dashboard forum and task UI issues
+d33c401 Remove decorative empty state skeletons
+2cb5f4e Ignore local Claude tooling in ESLint
+f364cdf Show admin reference data load warning
+0d967cd Sync auth admin approval checkpoint docs
 9acd397 Prefill admin edit form from role with suggestions
 7d52c40 Require real unit id during registration
 f1a2d33 Block approving users without valid role and unit
@@ -21,7 +26,17 @@ c8c5884 Sync project docs after profile lookup hotfixes
 73ed3a5 Fix ambiguous user unit lookups across protected pages
 ```
 
-This snapshot supersedes the older 2026-06-18 / 2026-06-10 snapshots below.
+This snapshot supersedes the older 2026-06-19 / 2026-06-18 / 2026-06-10 snapshots below.
+
+## UI Polish Checkpoint - 2026-06-21
+
+Commit `650353f` closed three small QA-verified UI fixes:
+
+- Dashboard activity log translates raw keys for `request_updated`, `forum_daily_report_created`, and `forum_daily_report_submitted`.
+- Tasks hides the empty state while the create-task form is open.
+- Forum regular post edit button has `min-w-[96px] shrink-0 whitespace-nowrap px-4`, so `ערוך` is no longer clipped.
+
+Validation before commit: `npm run lint`, `npx tsc -p tsconfig.json --noEmit`, `npm run build`, and Chrome QA for the three affected flows.
 
 ## Auth / Admin Approval Checkpoint - 2026-06-19
 
@@ -40,7 +55,7 @@ Full registration → approval flow validated manually.
 
 ### Manual QA passed 2026-06-19
 
-Registration OTP, pending-approval screen, Admin edit/save/approval, approved-user login, Tasks, Requests, Forum daily/leading forum — all verified manually.
+Registration OTP, pending-approval screen, Admin edit/save/approval, approved-user login, Tasks, Requests, and Forum basic smoke/navigation were verified manually. Deeper Forum Daily QA on 2026-06-21 found owner-mapping issues documented below.
 
 ### Deferred
 
@@ -202,6 +217,21 @@ Current UX:
 - Reset report clears content and returns to draft.
 - Advanced delete exists via migration 012.
 
+### Forum Daily Reports - Owner Mapping Diagnosis (2026-06-21)
+
+Deep QA and Code X diagnosis found that the daily leading forum still needs a mapping fix before real use:
+
+- Most commander structural slots show "requires user mapping".
+- `platoonNodes` are static labels only and do not carry real unit UUIDs.
+- Commander `dailyNodes` create structural slots such as `platoon_1-summary`, but those slots have no `ownerUserId`, no `unitId`, and no structural key.
+- Every existing `forum_daily_reports` row becomes a `dynamicReportNode` under "existing reports".
+- `findReportForNode` can match by `reportId`, owner/report level, or current-user ownership. It cannot match an unmapped structural platoon slot by unit/role label.
+- Sgan Shuli exists as MM 1 / Platoon 1 and has a report, but the structural "Platoon 1 - MM summary" slot cannot identify him, so his report appears under "existing reports".
+- Owner dropdown loads only `active + approved` users. If key users are missing, verify DB/RLS/user approval state, but do not start with DB population.
+- WhatsApp preview is generated from `dailyReports`, not all structural slots, so empty platoons 2/3/4 can be omitted and platoon labels are index-based.
+
+Recommended next step: implement a UI-only owner/slot matching layer, keep "existing reports" as fallback, and defer DB/RLS/hierarchy work until after a Supabase snapshot.
+
 ### Commanded Unit Foundation
 
 Migration: `013_add_commanded_unit_id.sql`  
@@ -321,6 +351,10 @@ Audit is best-effort: calls use `void createAuditLog(...)` and failures must not
 
 - Full MK -> MM -> MP flow requires real mapped users per role and platoon/squad.
 - Full hierarchy mapping is not built yet.
+- Forum daily structural slots do not yet auto-match existing reports by owner/unit.
+- "Existing reports" fallback is required for unmatched/legacy daily reports.
+- WhatsApp preview does not yet render from the full mapped slot structure.
+- Forum daily has UX polish debt: dev-facing UI-gated text, destructive delete confirmation, panel visibility, placeholders/labels, and lifecycle button relevance.
 - Real hierarchy RLS is a future phase.
 - Some forum visibility is UI-gated.
 - `commanded_unit_id` is foundation only.
@@ -339,13 +373,15 @@ Audit is best-effort: calls use `void createAuditLog(...)` and failures must not
 Step 0 - Cleanup orphaned legacy prototype shell - DONE in 96ae49b
 Hotfix A - Password reset + Dashboard profile lookup - DONE in 717bcc9
 Hotfix B - Global users/units ambiguity fix - DONE in 73ed3a5
-Step 1 - Sync docs with 013 + cleanup + hotfix milestones - CURRENT
-Step 2 - Real Users QA setup
-Step 3 - Forum wiring to commanded_unit_id
-Step 4 - Hierarchical RLS policies
-Step 5 - Full MK -> MM -> MP QA
-Step 6 - UI/mobile conservative polish
-Step 7 - dashboard / command center polish
+Step 1 - Sync docs with 013 + cleanup + hotfix milestones - DONE
+Step 2 - Forum daily UI-only owner/slot matching layer - NEXT
+Step 3 - WhatsApp preview from mapped slots/platoons
+Step 4 - Remove dev-facing daily forum text + confirm destructive delete
+Step 5 - Real Users QA setup
+Step 6 - Forum wiring to commanded_unit_id
+Step 7 - Hierarchical RLS policies
+Step 8 - Full MK -> MM -> MP QA
+Step 9 - UI/mobile conservative polish
 ```
 
 ### Phase A - Real users QA setup

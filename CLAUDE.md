@@ -4,9 +4,14 @@ Project-specific notes for Claude Code:
 
 - Read `README.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`, `PROJECT_SUMMARY.md`, `AGENTS.md`, and this file before making changes.
 - Current branch should be `main`.
-- Latest expected commit after the Auth/Admin approval checkpoint:
+- Latest expected commit after the 2026-06-21 UI polish checkpoint:
 
 ```text
+650353f Polish small dashboard forum and task UI issues
+d33c401 Remove decorative empty state skeletons
+2cb5f4e Ignore local Claude tooling in ESLint
+f364cdf Show admin reference data load warning
+0d967cd Sync auth admin approval checkpoint docs
 9acd397 Prefill admin edit form from role with suggestions
 7d52c40 Require real unit id during registration
 f1a2d33 Block approving users without valid role and unit
@@ -20,6 +25,8 @@ c8c5884 Sync project docs after profile lookup hotfixes
 
 - Auth/Admin approval flow is OTP-code-only registration (no magic-link placeholders), `has_completed_onboarding=true` at registration, role→unit mapping at registration, pending users see "ממתין לאישור מ״פ", Admin prefills role (gershayim-normalized) and suggests מסגרת/יחידה בפיקוד/רמת הרשאה by role, and an Admin guardrail blocks approval without a valid role + unit.
 - Migration `014_reference_data_read_policies.sql` adds `units: public read` + `roles: public read` SELECT policies. Applied manually in live Supabase on 2026-06-19 (the unit/role dropdowns were empty because RLS was enabled without a read policy). Recorded for sync; do not rerun blindly.
+- Commit `650353f` closed small QA UI fixes: Dashboard activity translation keys, Tasks empty-state hiding while create form is open, and Forum regular post `ערוך` button min-width.
+- Forum Daily Owner Mapping Diagnosis (2026-06-21): structural platoon slots are static placeholders without `ownerUserId`/`unitId`; existing reports fall under "existing reports". The next recommended fix is a UI-only owner/slot matching layer before DB/RLS work.
 
 ## Non-negotiable Guardrails
 
@@ -34,6 +41,8 @@ c8c5884 Sync project docs after profile lookup hotfixes
 - Migration 013 adds `users.commanded_unit_id` as foundation only. It was reportedly run manually; do not rerun without a direct reason.
 - `users.unit_id` and `users.commanded_unit_id` both reference `units`; do not embed `units(...)` from `users`. Load units separately and map client-side.
 - Do not touch Auth callback, proxy, Supabase schema, or migrations unless the task explicitly requires it.
+- Do not remove the Forum daily "existing reports" fallback until legacy/unmatched reports are understood.
+- Do not start Forum daily repair with DB population/RLS. First implement slot matching in UI and verify with Chrome QA.
 - Audit actions are best-effort and must not block workflows.
 - Commit and push only with explicit user approval.
 
@@ -63,6 +72,8 @@ c8c5884 Sync project docs after profile lookup hotfixes
 - Unit hierarchy mapping is not complete.
 - Some forum visibility is UI-gated.
 - Forum is not yet wired to `commanded_unit_id`.
+- Forum daily structural slots do not yet auto-match existing reports by owner/unit; Sgan Shuli / MM 1 / Platoon 1 currently appears under "existing reports" instead of the Platoon 1 summary slot.
+- WhatsApp preview is generated from `dailyReports`, not the full mapped slot list, so empty platoons may be omitted.
 - Real hierarchy RLS is a future phase.
 - The reference demo `https://thepluton.vercel.app/` is UX inspiration only, not schema or permissions truth.
 
@@ -89,11 +100,13 @@ forum_daily_report_reset
 Step 0 - Cleanup orphaned legacy prototype shell - DONE in 96ae49b
 Hotfix A - Password reset + Dashboard profile lookup - DONE in 717bcc9
 Hotfix B - Global users/units ambiguity fix - DONE in 73ed3a5
-Step 1 - Sync docs with 013 + cleanup + hotfix milestones - CURRENT
-Step 2 - Real Users QA setup
-Step 3 - Forum wiring to commanded_unit_id
-Step 4 - Hierarchical RLS policies
-Step 5 - Full MK -> MM -> MP QA
-Step 6 - UI/mobile conservative polish
-Step 7 - dashboard / command center polish
+Step 1 - Sync docs with 013 + cleanup + hotfix milestones - DONE
+Step 2 - Forum daily UI-only owner/slot matching layer - NEXT
+Step 3 - WhatsApp preview from mapped slots/platoons
+Step 4 - Remove dev-facing daily forum text + confirm destructive delete
+Step 5 - Real Users QA setup
+Step 6 - Forum wiring to commanded_unit_id
+Step 7 - Hierarchical RLS policies
+Step 8 - Full MK -> MM -> MP QA
+Step 9 - UI/mobile conservative polish
 ```

@@ -27,6 +27,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Forum daily reports use `forum_daily_reports` from migrations 010-012. Migration 009 (`forum_daily_summaries`) is legacy/prototype and should not be used as the main model.
 - Forum daily report slots must stay separated by report/owner/date/unit/staff identity. Do not fall back to `report_level` alone for platoon/staff selection.
 - If a forum slot has no reliable owner mapping, show a user-mapping requirement instead of creating a report under the wrong owner.
+- Forum Daily Owner Mapping Diagnosis (2026-06-21): latest checkpoint is `650353f Polish small dashboard forum and task UI issues`. Structural commander slots such as `platoon_1-summary` are currently static placeholders without `ownerUserId`/`unitId`; existing reports become fallback nodes under "existing reports". Do not delete that fallback. The next preferred fix is a UI-only mapping layer that enriches structural slots from active/approved owner options and unit/role labels before any DB/RLS work.
+- For the next forum daily fix, do not start with DB population, do not change RLS, and do not wire `commanded_unit_id` into security without a Supabase snapshot and explicit planning.
+- WhatsApp preview currently renders from `dailyReports`, not all mapped structural slots; empty platoons can be omitted. Fix it only after slot mapping is reliable.
 - Real MK -> MM -> MP hierarchy mapping and hierarchy RLS are future work. Do not fake hierarchy permissions in UI or RLS without an explicit data model and planning.
 - `users.unit_id` and `users.commanded_unit_id` both reference `units`. Do not use embedded `units(...)` selects from `users`; load units separately and map client-side.
 - `supabase/migrations/013_add_commanded_unit_id.sql` adds `users.commanded_unit_id` as hierarchy foundation only. It was reportedly run manually. Do not rerun without a direct reason.

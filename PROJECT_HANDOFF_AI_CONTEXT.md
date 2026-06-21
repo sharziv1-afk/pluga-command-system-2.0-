@@ -2,9 +2,10 @@
 
 Authoritative technical handoff for AI agents and developers continuing work on `pluga-command-system`.
 
-**Last updated:** 2026-06-19  
-**Milestone:** Auth/Admin approval checkpoint — OTP-code registration, role/unit mapping, admin prefill+guardrail, reference-data RLS  
-**Latest commit:** `9acd397 Prefill admin edit form from role with suggestions`
+**Last updated:** 2026-06-21  
+**Milestone:** UI polish checkpoint + Forum daily owner-mapping diagnosis  
+**Latest commit:** `650353f Polish small dashboard forum and task UI issues`
+**Current milestone override:** UI polish checkpoint + Forum daily owner-mapping diagnosis
 
 ## Identity
 
@@ -19,6 +20,11 @@ Authoritative technical handoff for AI agents and developers continuing work on 
 ## Latest Git State
 
 ```text
+650353f Polish small dashboard forum and task UI issues
+d33c401 Remove decorative empty state skeletons
+2cb5f4e Ignore local Claude tooling in ESLint
+f364cdf Show admin reference data load warning
+0d967cd Sync auth admin approval checkpoint docs
 9acd397 Prefill admin edit form from role with suggestions
 7d52c40 Require real unit id during registration
 f1a2d33 Block approving users without valid role and unit
@@ -55,7 +61,19 @@ Now recorded in `supabase/migrations/014_reference_data_read_policies.sql` (idem
 
 ### Manual QA passed 2026-06-19
 
-Registration OTP → pending-approval → Admin edit/save/approval → approved-user login → Tasks → Requests → Forum daily/leading forum.
+Registration OTP → pending-approval → Admin edit/save/approval → approved-user login → Tasks → Requests → Forum basic smoke/navigation. Deeper Forum Daily QA on 2026-06-21 found the owner-mapping issues documented below.
+
+## UI Polish Checkpoint (2026-06-21)
+
+Commit: `650353f Polish small dashboard forum and task UI issues`
+
+Included fixes:
+
+- Dashboard activity log translates recently exposed raw audit keys: `request_updated`, `forum_daily_report_created`, and `forum_daily_report_submitted`.
+- Tasks hides the empty state while the create-task form is open, then restores it when the form closes.
+- Forum regular post edit button uses `min-w-[96px] shrink-0 whitespace-nowrap px-4` so the Hebrew `ערוך` label is not clipped.
+
+Validation before commit: `npm run lint`, `npx tsc -p tsconfig.json --noEmit`, `npm run build`, and Chrome QA for the three affected flows.
 
 ## Stack
 
@@ -352,6 +370,52 @@ Current UX:
 - Advanced delete remains available according to migration 012.
 - WhatsApp short/detailed output and copy are available.
 
+### Forum Daily Reports - Owner Mapping Diagnosis (2026-06-21)
+
+Code X diagnosis files read:
+
+- `src/app/(protected)/forum/page.tsx`
+- `supabase/migrations/010_forum_hierarchical_daily_reports.sql`
+- `supabase/migrations/011_forum_daily_reports_commander_insert.sql`
+- `supabase/migrations/012_forum_daily_reports_delete_policy.sql`
+
+Findings:
+
+- `platoonNodes` are static IDs/labels for platoons 1-4. They do not carry real unit UUIDs.
+- For commanders, `dailyNodes` creates structural slots like `${platoon.id}-summary` (`level: 'platoon'`) and `${platoon.id}-squads` (`level: 'squad'`).
+- Those structural platoon slots have `requiresOwnerMapping: true`, but no `ownerUserId`, `unitId`, `platoon_unit_id`, or structural report key.
+- `dynamicReportNodes` are created for every existing `dailyReports` row and grouped under "existing reports"; those nodes do have `reportId`, `ownerUserId`, and `unitId`.
+- `loadOwnerOptions` queries `users` with `status = active` and `role_approval_status = approved`; it does not filter by unit/role/platoon. A small dropdown likely means DB data/RLS/user approval state needs verification.
+- `loadDailyReports` queries `forum_daily_reports` by `report_date` only, ordered by `report_level` and `created_at`; it does not join users/units.
+- `findReportForNode` can match by `reportId`, by `report_level + owner_user_id + staffRole`, or by owned/current-user paths. It cannot match an unmapped structural platoon slot by unit or role label.
+
+Why Sgan Shuli falls under "existing reports":
+
+- QA showed Sgan Shuli exists as an active owner label like `Sgan Shuli - MM 1 - Platoon 1` and has a report for 2026-06-21.
+- The structural slot "Platoon 1 - MM summary" is only a placeholder with `requiresOwnerMapping: true`; it lacks `ownerUserId`/`unitId`.
+- Therefore `findReportForNode` returns `null` for that slot.
+- The same report is still loaded from `forum_daily_reports`, becomes a `dynamicReportNode`, and appears under "existing reports".
+
+Diagnosis:
+
+- Primary issue: UI/code mapping-model gap.
+- Possible secondary issue: DB/RLS/roster completeness, because owner options only include active+approved users.
+- Do not start with DB population or RLS changes. First implement a UI-only owner/slot matching layer.
+
+Recommended first implementation:
+
+1. Enrich structural slots using active/approved `ownerOptions` and role/unit labels.
+2. Map MM 1 / Platoon 1 to the structural "Platoon 1 - MM summary" slot with `ownerUserId`/`unitId`.
+3. Let `findReportForNode` match enriched slots by owner/report_level.
+4. Keep "existing reports" as a fallback for unmatched/legacy reports; hide reports from fallback only after they matched a structural slot.
+
+WhatsApp link:
+
+- `generateWhatsappText` currently iterates over `dailyReports`, not structural `dailyNodes`.
+- Empty platoons 2/3/4 are omitted when no report exists.
+- Platoon labels are assigned by array index, not by `platoon_unit_id`/unit name.
+- Fix after structural matching so WhatsApp can be generated from mapped slots.
+
 ### Forum Product Intent
 
 - MK reports.
@@ -471,6 +535,9 @@ Commit: `96ae49b Remove orphaned legacy prototype shell and split session contex
 | AppContext | Session context remains shared shell dependency |
 | AuditTab | Still not fully real `audit_logs` |
 | Forum | Unit hierarchy mapping missing; visibility partly UI-gated; not wired to `commanded_unit_id` yet |
+| Forum daily owner mapping | Structural platoon slots do not yet auto-match existing reports by owner/unit; fallback "existing reports" is still required |
+| Forum WhatsApp preview | Generated from `dailyReports`, not all mapped slots; empty platoons may be omitted |
+| Forum daily UX polish | Dev-facing UI-gated text, destructive delete confirmation, panel visibility, placeholders/labels, and lifecycle button relevance need follow-up |
 | RLS | Real hierarchy RLS not built |
 | Users/Roles | Real MK/MM/MP/staff mapping and `commanded_unit_id` assignment needed |
 | Requests | Edit Phase 1 excludes assigned_to/status/unit_id |
@@ -535,18 +602,26 @@ Commit: `96ae49b Remove orphaned legacy prototype shell and split session contex
 Step 0 - Cleanup orphaned legacy prototype shell - DONE in 96ae49b
 Hotfix A - Password reset + Dashboard profile lookup - DONE in 717bcc9
 Hotfix B - Global users/units ambiguity fix - DONE in 73ed3a5
-Step 1 - Sync docs with 013 + cleanup + hotfix milestones - CURRENT
-Step 2 - Real Users QA setup
-Step 3 - Forum wiring to commanded_unit_id
-Step 4 - Hierarchical RLS policies
-Step 5 - Full MK -> MM -> MP QA
-Step 6 - UI/mobile conservative polish
-Step 7 - dashboard / command center polish
+Step 1 - Sync docs with 013 + cleanup + hotfix milestones - DONE
+Step 2 - Forum daily UI-only owner/slot matching layer - NEXT
+Step 3 - WhatsApp preview from mapped slots/platoons
+Step 4 - Remove dev-facing daily forum text + confirm destructive delete
+Step 5 - Real Users QA setup
+Step 6 - Forum wiring to commanded_unit_id
+Step 7 - Hierarchical RLS policies
+Step 8 - Full MK -> MM -> MP QA
+Step 9 - UI/mobile conservative polish
 ```
 
-## Prompt for New Claude/Codex Session
+## Old Prompt for New Claude/Codex Session (superseded)
 
 Continue `pluga-command-system` / "המפקד". First read `README.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`, `PROJECT_SUMMARY.md`, `AGENTS.md`, and `CLAUDE.md`. Latest commit should be `2dfcff7 Polish forum UX and update handoff docs`; previous important commits are `f5c1e40 Add hierarchical forum daily reports` and `f47812b Add Supabase-backed Forum Phase 1`. Stack: Next.js 16 with `src/proxy.ts` (not `middleware.ts`), React 19, TypeScript, Tailwind 4, Supabase Auth/PostgreSQL/RLS. Forum posts and hierarchical daily reports are Supabase-backed. Migrations 001-012 were run manually; 009 is legacy/prototype; 010+ is the current forum daily model. Do not run SQL automatically, do not use service role client-side, do not rewrite old migrations, preserve Hebrew RTL and Light Gloss Command System, and ask before commit/push. Next major phase is real users + hierarchy mapping + real hierarchy RLS.
-## Current Session Prompt Override
+## Current 2026-06-21 Prompt Override
+
+Use this current prompt and treat older prompt text above as superseded:
+
+Continue `pluga-command-system` / "המפקד". First read `README.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`, `PROJECT_SUMMARY.md`, `AGENTS.md`, and `CLAUDE.md`. Latest commit should be `650353f Polish small dashboard forum and task UI issues`. The next recommended task is a UI-only mapping layer for Forum daily structural slots: enrich platoon slots from active/approved owner options and unit/role labels, make Sgan Shuli / MM 1 / Platoon 1 match the "Platoon 1 - MM summary" slot, keep "existing reports" as fallback for unmatched legacy reports, and do not start with DB population/RLS. Stack: Next.js 16 with `src/proxy.ts` (not `middleware.ts`), React 19, TypeScript, Tailwind 4, Supabase Auth/PostgreSQL/RLS. SQL is manual only; preserve Hebrew RTL and Light Gloss Command System; do not touch Auth/proxy/Supabase/RLS without explicit scope; ask before commit/push.
+
+## Previous Session Prompt Override (superseded)
 
 Continue `pluga-command-system` / "המפקד". First read `README.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`, `PROJECT_SUMMARY.md`, `AGENTS.md`, and `CLAUDE.md`. Latest commit should be `73ed3a5 Fix ambiguous user unit lookups across protected pages`; recent important commits include `717bcc9 Fix dashboard profile lookup and add password reset flow`, `96ae49b Remove orphaned legacy prototype shell and split session context`, `5b5adc5 Fix admin commanded unit mapping`, `7b8050f Add commanded unit assignment to admin panel`, `2dfcff7 Polish forum UX and update handoff docs`, `f5c1e40 Add hierarchical forum daily reports`, and `f47812b Add Supabase-backed Forum Phase 1`. Stack: Next.js 16 with `src/proxy.ts` (not `middleware.ts`), React 19, TypeScript, Tailwind 4, Supabase Auth/PostgreSQL/RLS. Forum posts and hierarchical daily reports are Supabase-backed. Migrations 001-013 were run manually per project handoff; 009 is legacy/prototype; 010+ is the current forum daily model; 013 adds `users.commanded_unit_id` as foundation only. Do not run SQL automatically, do not use service role client-side, do not rewrite old migrations, preserve Hebrew RTL and Light Gloss Command System, do not embed `units(...)` from `users`, and ask before commit/push. Next major phase is real users QA, forum wiring to `commanded_unit_id`, hierarchy mapping, and real hierarchy RLS.

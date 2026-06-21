@@ -193,6 +193,7 @@ const eventStatusLabels: Record<DbEvent['status'], string> = {
 
 const auditActionLabels: Record<string, string> = {
   request_created: 'נפתחה דרישה',
+  request_updated: 'עודכנה דרישה',
   request_status_changed: 'סטטוס דרישה עודכן',
   request_assigned: 'שויך מטפל לדרישה',
   request_comment_added: 'נוספה תגובה לדרישה',
@@ -204,6 +205,8 @@ const auditActionLabels: Record<string, string> = {
   event_created: 'נוצר מופע',
   event_status_changed: 'סטטוס מופע עודכן',
   event_deleted: 'מופע נמחק',
+  forum_daily_report_created: 'נוצר דיווח פורום מוביל',
+  forum_daily_report_submitted: 'הוגש דיווח פורום מוביל',
 };
 
 const typeLabels: Record<DashboardItemType, string> = {

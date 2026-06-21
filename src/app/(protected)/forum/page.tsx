@@ -1531,7 +1531,7 @@ export default function ForumPage() {
                     <h3 className="text-xl font-black leading-tight text-[#020108]">{post.title}</h3>
                   </div>
                   {canEditPost(post) && editingPostId !== post.id && (
-                    <GlossyButton variant="slate" size="sm" onClick={() => startEditPost(post)} disabled={isSubmitting}>
+                    <GlossyButton variant="slate" size="sm" onClick={() => startEditPost(post)} disabled={isSubmitting} className="min-w-[96px] shrink-0 whitespace-nowrap px-4">
                       <Pencil className="h-4 w-4" />
                       ערוך
                     </GlossyButton>

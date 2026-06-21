@@ -999,7 +999,7 @@ export default function TasksPage() {
           <SkeletonCard />
           <SkeletonCard />
         </div>
-      ) : visibleTasks.length === 0 ? (
+      ) : visibleTasks.length === 0 && !isFormOpen ? (
         <div className="py-10">
           <EmptyState
             icon={ClipboardList}

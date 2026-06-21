@@ -222,6 +222,24 @@ function normalizeRole(role: string) {
   return role.replace(/[״׳´"“”]/g, '"');
 }
 
+function findPlatoonSummaryOwner(
+  owners: ReportOwnerOption[],
+  platoonLabel: string,
+): ReportOwnerOption | null {
+  const platoonNumber = normalizeRole(platoonLabel).match(/מחלקה\s*([1-4])/)?.[1];
+  if (!platoonNumber) return null;
+
+  const rolePattern = new RegExp(`מ"מ\\s*${platoonNumber}(?:\\D|$)`);
+  const unitPattern = new RegExp(`מחלקה\\s*${platoonNumber}(?:\\D|$)`);
+
+  return owners.find((owner) => {
+    const identityLabel = normalizeRole(
+      [owner.name, owner.role, owner.units?.name].filter(Boolean).join(' '),
+    );
+    return rolePattern.test(identityLabel) && unitPattern.test(identityLabel);
+  }) ?? null;
+}
+
 function isCommanderRole(role: string, permissionLevel: number) {
   const normalizedRole = normalizeRole(role);
   const inferredLevel = getPermissionLevelForRole(normalizedRole);
@@ -385,7 +403,25 @@ export default function ForumPage() {
 
   const dailyNodes = useMemo<DailyNode[]>(() => {
     if (canSeeAll) {
-      const dynamicReportNodes: DailyNode[] = dailyReports.map(report => ({
+      const platoonSummaryOwners = new Map(
+        platoonNodes.map((platoon) => [
+          platoon.id,
+          findPlatoonSummaryOwner(ownerOptions, platoon.label),
+        ]),
+      );
+      const matchedPlatoonSummaryOwnerIds = new Set(
+        [...platoonSummaryOwners.values()]
+          .filter((owner): owner is ReportOwnerOption => owner !== null)
+          .map((owner) => owner.id),
+      );
+      const dynamicReportNodes: DailyNode[] = dailyReports
+        .filter(
+          (report) =>
+            report.report_level !== 'platoon' ||
+            !report.owner_user_id ||
+            !matchedPlatoonSummaryOwnerIds.has(report.owner_user_id),
+        )
+        .map(report => ({
         id: `report-${report.id}`,
         label: ownerLabels.get(report.owner_user_id ?? '') ?? 'דוח קיים',
         description: `${report.report_level === 'staff' ? staffNodes.find(staff => staff.id === report.staff_role)?.label ?? 'מפל״ג' : report.report_level} · ${report.metadata?.created_for_by_commander ? 'נוצר ע״י מפקד' : 'דוח קיים'}`,
@@ -396,10 +432,12 @@ export default function ForumPage() {
         reportId: report.id,
         ownerUserId: report.owner_user_id,
         unitId: report.platoon_unit_id ?? report.squad_unit_id ?? report.company_unit_id,
-      }));
+        }));
 
       return [
-        ...platoonNodes.flatMap(platoon => [
+        ...platoonNodes.flatMap(platoon => {
+          const summaryOwner = platoonSummaryOwners.get(platoon.id) ?? null;
+          return [
           {
             id: `${platoon.id}-summary`,
             label: `${platoon.label} · סיכום מ״מ`,
@@ -407,7 +445,9 @@ export default function ForumPage() {
             level: 'platoon' as const,
             group: platoon.label,
             owned: false,
-            requiresOwnerMapping: true,
+            ownerUserId: summaryOwner?.id,
+            unitId: summaryOwner?.unit_id,
+            requiresOwnerMapping: !summaryOwner,
           },
           {
             id: `${platoon.id}-squads`,
@@ -418,7 +458,8 @@ export default function ForumPage() {
             owned: false,
             requiresOwnerMapping: true,
           },
-        ]),
+          ];
+        }),
         ...staffNodes.map(staff => ({
           id: `staff-${staff.id}`,
           label: staff.label,
@@ -502,7 +543,7 @@ export default function ForumPage() {
       group: 'אישי',
       owned: true,
     }];
-  }, [canSeeAll, currentUser?.role, dailyReports, dbProfile?.id, dbProfile?.role, ownerLabels, staffRole]);
+  }, [canSeeAll, currentUser?.role, dailyReports, dbProfile?.id, dbProfile?.role, ownerLabels, ownerOptions, staffRole]);
 
   const selectedNode = dailyNodes.find(node => node.id === selectedNodeId) ?? dailyNodes[0];
 

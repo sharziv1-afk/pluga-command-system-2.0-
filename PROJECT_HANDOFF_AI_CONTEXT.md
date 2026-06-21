@@ -3,9 +3,9 @@
 Authoritative technical handoff for AI agents and developers continuing work on `pluga-command-system`.
 
 **Last updated:** 2026-06-21  
-**Milestone:** UI polish checkpoint + Forum daily owner-mapping diagnosis  
-**Latest commit:** `650353f Polish small dashboard forum and task UI issues`
-**Current milestone override:** UI polish checkpoint + Forum daily owner-mapping diagnosis
+**Milestone:** Forum daily owner mapping + panel scroll checkpoint  
+**Latest commit:** `62fd8fe Scroll forum daily slot selections into view`
+**Current milestone override:** Forum daily owner mapping + panel scroll checkpoint
 
 ## Identity
 
@@ -20,6 +20,9 @@ Authoritative technical handoff for AI agents and developers continuing work on 
 ## Latest Git State
 
 ```text
+62fd8fe Scroll forum daily slot selections into view
+1c7414c Map forum daily platoon owners to structural slots
+9c49135 Document forum daily mapping diagnosis
 650353f Polish small dashboard forum and task UI issues
 d33c401 Remove decorative empty state skeletons
 2cb5f4e Ignore local Claude tooling in ESLint
@@ -35,6 +38,17 @@ c03db56 Fix has_completed_onboarding after registration
 c8c5884 Sync project docs after profile lookup hotfixes
 73ed3a5 Fix ambiguous user unit lookups across protected pages
 ```
+
+## Forum Daily Checkpoint (2026-06-21)
+
+Latest checkpoint: `62fd8fe Scroll forum daily slot selections into view`. Two UI-only changes in `src/app/(protected)/forum/page.tsx` — no DB/SQL/RLS/Auth/Supabase/proxy/WhatsApp/lifecycle changes.
+
+- **Owner mapping** (`1c7414c`): a local helper enriches structural platoon summary slots from active/approved owner options. Match requires **both** role מ״מ N **and** unit מחלקה N (gershayim-normalized); a matched slot receives `ownerUserId` + `unitId` and `requiresOwnerMapping: false`, and `findReportForNode` resolves its report. A platoon report already matched to a structural slot is filtered out of the "דוחות קיימים" fallback so it is not shown twice. Result: סגן שולי (מ״מ 1 / מחלקה 1) appears under "מחלקה 1 · סיכום מ״מ" and no longer under "דוחות קיימים". Platoons 2-4 stay unmapped (`requiresOwnerMapping: true`) when no matching user exists. The "דוחות קיימים" fallback is preserved for unmatched/legacy reports.
+- **Panel scroll** (`62fd8fe`): the daily slot list and the report panel form a two-column grid only at `xl` (≥1280px); below that they stack, so the panel sat far below the slot list with no feedback on click. `handleSelectDailyNode` now sets the selected node and, in a `requestAnimationFrame`, calls `reportPanelRef.current?.scrollIntoView({ block: 'nearest', behavior: prefersReducedMotion ? 'auto' : 'smooth' })`. `block: 'nearest'` is a no-op when the panel is already visible (wide desktop), so wide desktop does not jump; sub-XL/single-column scrolls the panel into view. Runs only on click (not on mount or auto-select); `window.matchMedia` is read inside the browser-only handler.
+
+Validation before commit: `npm run lint` (0 errors), `npx tsc -p tsconfig.json --noEmit`, `npm run build`, Claude review, and focused Chrome QA for both mapping and scroll.
+
+**Known state and next task:** the forum leader-daily view is materially better but not yet ready for full daily use. The next major task is **Carry Forward / Rollover** — "create a new day based on yesterday" — which must be planned before any code. Still open: no rollover/carry-forward; dev-facing "UI-gated..." text needs cleanup; WhatsApp preview shows "1 דיווחים נטענו" and omits empty platoons 2-4; missing fields ("לו״ז מחר", "חריגים/פערים"); labels/placeholders/lifecycle polish. Guardrails: do not start DB population before a snapshot/diagnosis, do not change RLS without a snapshot, do not delete the "דוחות קיימים" fallback, and plan carry-forward before writing code.
 
 ## Auth / Admin Approval Checkpoint (2026-06-19)
 
@@ -620,7 +634,7 @@ Continue `pluga-command-system` / "המפקד". First read `README.md`, `PROJECT
 
 Use this current prompt and treat older prompt text above as superseded:
 
-Continue `pluga-command-system` / "המפקד". First read `README.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`, `PROJECT_SUMMARY.md`, `AGENTS.md`, and `CLAUDE.md`. Latest commit should be `650353f Polish small dashboard forum and task UI issues`. The next recommended task is a UI-only mapping layer for Forum daily structural slots: enrich platoon slots from active/approved owner options and unit/role labels, make Sgan Shuli / MM 1 / Platoon 1 match the "Platoon 1 - MM summary" slot, keep "existing reports" as fallback for unmatched legacy reports, and do not start with DB population/RLS. Stack: Next.js 16 with `src/proxy.ts` (not `middleware.ts`), React 19, TypeScript, Tailwind 4, Supabase Auth/PostgreSQL/RLS. SQL is manual only; preserve Hebrew RTL and Light Gloss Command System; do not touch Auth/proxy/Supabase/RLS without explicit scope; ask before commit/push.
+Continue `pluga-command-system` / "המפקד". First read `README.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`, `PROJECT_SUMMARY.md`, `AGENTS.md`, and `CLAUDE.md`. Latest commit should be `62fd8fe Scroll forum daily slot selections into view`; recent forum daily checkpoints are `1c7414c Map forum daily platoon owners to structural slots` and `9c49135 Document forum daily mapping diagnosis`. Forum daily now: platoon summary slots are UI-mapped from active/approved owners (role מ״מ N + unit מחלקה N), so סגן שולי / מ״מ 1 / מחלקה 1 shows under "מחלקה 1 · סיכום מ״מ" and not under "דוחות קיימים"; platoons 2-4 stay unmapped without a matching user; the "דוחות קיימים" fallback is preserved; and slot clicks scroll the report panel into view for sub-XL/single-column. The next recommended task is **Carry Forward / Rollover** — "create a new day based on yesterday" — which must be planned before any code; do not start it with DB population or RLS changes, and take a Supabase snapshot before any data/security work. Stack: Next.js 16 with `src/proxy.ts` (not `middleware.ts`), React 19, TypeScript, Tailwind 4, Supabase Auth/PostgreSQL/RLS. SQL is manual only; preserve Hebrew RTL and Light Gloss Command System; do not touch Auth/proxy/Supabase/RLS without explicit scope; do not delete the "דוחות קיימים" fallback; ask before commit/push.
 
 ## Previous Session Prompt Override (superseded)
 

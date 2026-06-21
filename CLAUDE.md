@@ -4,9 +4,12 @@ Project-specific notes for Claude Code:
 
 - Read `README.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`, `PROJECT_SUMMARY.md`, `AGENTS.md`, and this file before making changes.
 - Current branch should be `main`.
-- Latest expected commit after the 2026-06-21 UI polish checkpoint:
+- Latest expected commit after the 2026-06-21 forum daily mapping + scroll checkpoint:
 
 ```text
+62fd8fe Scroll forum daily slot selections into view
+1c7414c Map forum daily platoon owners to structural slots
+9c49135 Document forum daily mapping diagnosis
 650353f Polish small dashboard forum and task UI issues
 d33c401 Remove decorative empty state skeletons
 2cb5f4e Ignore local Claude tooling in ESLint
@@ -26,7 +29,7 @@ c8c5884 Sync project docs after profile lookup hotfixes
 - Auth/Admin approval flow is OTP-code-only registration (no magic-link placeholders), `has_completed_onboarding=true` at registration, role→unit mapping at registration, pending users see "ממתין לאישור מ״פ", Admin prefills role (gershayim-normalized) and suggests מסגרת/יחידה בפיקוד/רמת הרשאה by role, and an Admin guardrail blocks approval without a valid role + unit.
 - Migration `014_reference_data_read_policies.sql` adds `units: public read` + `roles: public read` SELECT policies. Applied manually in live Supabase on 2026-06-19 (the unit/role dropdowns were empty because RLS was enabled without a read policy). Recorded for sync; do not rerun blindly.
 - Commit `650353f` closed small QA UI fixes: Dashboard activity translation keys, Tasks empty-state hiding while create form is open, and Forum regular post `ערוך` button min-width.
-- Forum Daily Owner Mapping Diagnosis (2026-06-21): structural platoon slots are static placeholders without `ownerUserId`/`unitId`; existing reports fall under "existing reports". The next recommended fix is a UI-only owner/slot matching layer before DB/RLS work.
+- Forum Daily owner mapping + scroll (2026-06-21, `1c7414c` + `62fd8fe`): the UI-only owner/slot matching layer is implemented. Structural platoon summary slots are enriched from active/approved owners (match requires role מ״מ N + unit מחלקה N); a matched slot gets `ownerUserId`/`unitId` and is filtered out of "דוחות קיימים", so סגן שולי / מ״מ 1 / מחלקה 1 now shows under "מחלקה 1 · סיכום מ״מ" only. Platoons 2-4 stay unmapped without a matching user; the "דוחות קיימים" fallback is preserved. Slot clicks scroll the report panel into view (`scrollIntoView({ block: 'nearest' })`) for sub-XL/single-column. Next recommended task: Carry Forward / Rollover ("create a new day based on yesterday") — plan before code; do not start with DB population/RLS.
 
 ## Non-negotiable Guardrails
 
@@ -101,7 +104,9 @@ Step 0 - Cleanup orphaned legacy prototype shell - DONE in 96ae49b
 Hotfix A - Password reset + Dashboard profile lookup - DONE in 717bcc9
 Hotfix B - Global users/units ambiguity fix - DONE in 73ed3a5
 Step 1 - Sync docs with 013 + cleanup + hotfix milestones - DONE
-Step 2 - Forum daily UI-only owner/slot matching layer - NEXT
+Step 2 - Forum daily UI-only owner/slot matching layer - DONE in 1c7414c
+Step 2b - Forum daily slot-click scroll-into-view (sub-XL panel visibility) - DONE in 62fd8fe
+Step 2c - Carry Forward / Rollover ("create a new day based on yesterday") - NEXT (plan before code; no DB population/RLS to start)
 Step 3 - WhatsApp preview from mapped slots/platoons
 Step 4 - Remove dev-facing daily forum text + confirm destructive delete
 Step 5 - Real Users QA setup

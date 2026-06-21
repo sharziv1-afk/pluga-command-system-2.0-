@@ -10,9 +10,12 @@
 
 ```text
 Latest commit:
-650353f Polish small dashboard forum and task UI issues
+62fd8fe Scroll forum daily slot selections into view
 
 Previous important commits:
+1c7414c Map forum daily platoon owners to structural slots
+9c49135 Document forum daily mapping diagnosis
+650353f Polish small dashboard forum and task UI issues
 d33c401 Remove decorative empty state skeletons
 2cb5f4e Ignore local Claude tooling in ESLint
 f364cdf Show admin reference data load warning
@@ -31,6 +34,19 @@ c8c5884 Sync project docs after profile lookup hotfixes
 - Branch: `main`
 - `origin/main`: up to date
 - Working tree: clean
+
+## Forum Daily Checkpoint - 2026-06-21
+
+Latest checkpoint: `62fd8fe Scroll forum daily slot selections into view`.
+
+Today's forum daily work (UI-only, no DB/RLS/Auth changes):
+
+- **Owner mapping** (`1c7414c`): platoon summary slots are enriched from active/approved owner options. A user whose role is מ״מ N and unit is מחלקה N is matched to the `מחלקה N · סיכום מ״מ` slot — e.g. סגן שולי (מ״מ 1 / מחלקה 1) now appears under "מחלקה 1 · סיכום מ״מ" and no longer also appears under "דוחות קיימים". Platoons 2-4 stay unmapped when no matching user exists. The "דוחות קיימים" fallback is preserved for unmatched/legacy reports.
+- **Panel scroll** (`62fd8fe`): clicking a daily slot scrolls the report panel into view via `scrollIntoView({ block: 'nearest' })` (smooth, or instant under `prefers-reduced-motion`). This fixes the sub-XL / single-column case where the slot list is on top and the panel was far below. Wide desktop (≥1280px, two columns) does not jump.
+
+Validation: `npm run lint` (0 errors), `npx tsc -p tsconfig.json --noEmit`, `npm run build`, Claude review, and focused Chrome QA for both mapping and scroll.
+
+**Known state:** the forum leader-daily view is better but not yet ready for full daily use. Next major task: **Carry Forward / Rollover** ("create a new day based on yesterday") — plan before coding. Still open: no rollover yet; dev-facing "UI-gated..." text needs cleanup; WhatsApp preview shows "1 דיווחים נטענו" and omits empty platoons 2-4; missing fields ("לו״ז מחר", "חריגים/פערים"); labels/placeholders/lifecycle polish. Guardrails: no DB population before a snapshot/diagnosis, no RLS changes without a snapshot, do not delete the "דוחות קיימים" fallback, and plan carry-forward before writing code.
 
 ## UI Polish Checkpoint - 2026-06-21
 

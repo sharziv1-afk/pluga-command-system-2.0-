@@ -4,12 +4,15 @@
 
 **Product:** `pluga-command-system` / "המפקד"  
 **Branch:** `main`  
-**Latest commit:** `650353f Polish small dashboard forum and task UI issues`  
+**Latest commit:** `62fd8fe Scroll forum daily slot selections into view`  
 **Git state:** `origin/main` up to date, working tree clean
 
 **Recent important commits:**
 
 ```text
+62fd8fe Scroll forum daily slot selections into view
+1c7414c Map forum daily platoon owners to structural slots
+9c49135 Document forum daily mapping diagnosis
 650353f Polish small dashboard forum and task UI issues
 d33c401 Remove decorative empty state skeletons
 2cb5f4e Ignore local Claude tooling in ESLint
@@ -27,6 +30,17 @@ c8c5884 Sync project docs after profile lookup hotfixes
 ```
 
 This snapshot supersedes the older 2026-06-19 / 2026-06-18 / 2026-06-10 snapshots below.
+
+## Forum Daily Checkpoint - 2026-06-21
+
+Latest checkpoint: `62fd8fe`. Two UI-only forum daily changes (no DB/SQL/RLS/Auth/proxy):
+
+- **Owner mapping** (`1c7414c`): platoon summary slots enriched from active/approved owners. Match requires both role מ״מ N and unit מחלקה N; matched user gets `ownerUserId`/`unitId` and is filtered out of "דוחות קיימים". סגן שולי (מ״מ 1 / מחלקה 1) → "מחלקה 1 · סיכום מ״מ", not duplicated under "דוחות קיימים". Platoons 2-4 stay unmapped without a matching user. Fallback preserved.
+- **Panel scroll** (`62fd8fe`): slot click scrolls the report panel into view (`scrollIntoView({ block: 'nearest' })`, smooth / instant under `prefers-reduced-motion`). Fixes sub-XL single-column visibility; wide desktop does not jump.
+
+Validation: lint (0 errors), tsc, build, Claude review, focused Chrome QA (mapping + scroll).
+
+Known state: forum leader-daily improved but not yet fully daily-ready. Next major task: **Carry Forward / Rollover** (plan first). Open items: no rollover; dev-facing "UI-gated..." text; WhatsApp preview "1 דיווחים נטענו" + empty platoons 2-4 omitted; missing "לו״ז מחר" / "חריגים/פערים"; labels/placeholders/lifecycle polish. Guardrails: no DB population/RLS change before a snapshot, keep the "דוחות קיימים" fallback, plan carry-forward before coding.
 
 ## UI Polish Checkpoint - 2026-06-21
 

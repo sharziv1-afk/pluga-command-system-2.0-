@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   AlertTriangle,
@@ -380,6 +380,7 @@ export default function ForumPage() {
   const [selectedDate, setSelectedDate] = useState(() => getJerusalemDateString());
   const [dailyReports, setDailyReports] = useState<DailyReportRow[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState('own-report');
+  const reportPanelRef = useRef<HTMLElement>(null);
   const [reportDraft, setReportDraft] = useState<ReportDraft>(() => emptyReportDraft());
   const [isDailyLoading, setIsDailyLoading] = useState(false);
   const [isDailySaving, setIsDailySaving] = useState(false);
@@ -546,6 +547,20 @@ export default function ForumPage() {
   }, [canSeeAll, currentUser?.role, dailyReports, dbProfile?.id, dbProfile?.role, ownerLabels, ownerOptions, staffRole]);
 
   const selectedNode = dailyNodes.find(node => node.id === selectedNodeId) ?? dailyNodes[0];
+
+  const handleSelectDailyNode = (event: React.MouseEvent<HTMLButtonElement>) => {
+    const nodeId = event.currentTarget.dataset.nodeId;
+    if (!nodeId) return;
+
+    setSelectedNodeId(nodeId);
+    requestAnimationFrame(() => {
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      reportPanelRef.current?.scrollIntoView({
+        block: 'nearest',
+        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+      });
+    });
+  };
 
   const findReportForNode = useCallback((node: DailyNode | undefined) => {
     if (!node || node.level === 'whatsapp') return null;
@@ -1984,7 +1999,8 @@ export default function ForumPage() {
                     )}
                     <button
                       type="button"
-                      onClick={() => setSelectedNodeId(node.id)}
+                      data-node-id={node.id}
+                      onClick={handleSelectDailyNode}
                       className={`w-full rounded-2xl border px-4 py-3 text-right transition ${isActive ? 'border-[#FF6B02]/35 bg-[#FF6B02]/10 shadow-[0_12px_28px_rgba(255,107,2,0.12)]' : 'border-[rgba(2,1,8,0.08)] bg-white/70 hover:bg-white'}`}
                     >
                       <span className="flex items-start justify-between gap-3">
@@ -2013,7 +2029,7 @@ export default function ForumPage() {
             </div>
           </aside>
 
-          <main className="min-w-0 space-y-4">
+          <main ref={reportPanelRef} className="min-w-0 space-y-4">
             {selectedNode && (
               <div className="tactical-glass-card rounded-3xl p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

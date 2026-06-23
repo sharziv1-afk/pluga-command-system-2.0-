@@ -24,7 +24,7 @@ export default function ProtectedLayout({
           onToggleSidebar={() => setIsSidebarOpen((value) => !value)}
         />
 
-        <main className="min-h-0 flex-1 min-w-0 max-w-full overflow-x-hidden overflow-y-auto p-4 sm:p-6 xl:p-8 custom-scrollbar">
+        <main className="min-h-0 flex-1 min-w-0 max-w-full overflow-x-hidden overflow-y-auto p-4 sm:p-5 xl:p-6 custom-scrollbar">
           <PageTransition>{children}</PageTransition>
         </main>
       </div>

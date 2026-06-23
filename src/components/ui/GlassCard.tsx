@@ -17,7 +17,7 @@ export const GlassCard: React.FC<GlassCardProps> = ({
   return (
     <div
       className={cn(
-        "tactical-glass-card p-5 sm:p-6",
+        "tactical-glass-card p-4 sm:p-5",
         glossHighlight && "tactical-gloss-highlight",
         glow === 'cyan' && "tactical-glow-cyan",
         glow === 'orange' && "tactical-glow-orange",

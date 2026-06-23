@@ -137,8 +137,8 @@ textarea {
   backdrop-filter: blur(18px) saturate(160%);
   -webkit-backdrop-filter: blur(18px) saturate(160%);
   border: 1px solid var(--tactical-border);
-  box-shadow: 0 18px 50px rgba(2, 1, 8, 0.08);
-  border-radius: 24px;
+  box-shadow: 0 14px 36px rgba(2, 1, 8, 0.07);
+  border-radius: 18px;
   transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease, background-color 160ms ease;
 }
 
@@ -150,7 +150,7 @@ textarea {
 
 .tactical-glass-card:hover {
   border-color: var(--tactical-border-hover);
-  box-shadow: 0 22px 60px rgba(2, 1, 8, 0.1);
+  box-shadow: 0 18px 44px rgba(2, 1, 8, 0.09);
   transform: translateY(-1px);
 }
 
@@ -273,11 +273,11 @@ textarea {
 
 .command-icon-button {
   display: inline-flex;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2.25rem;
+  height: 2.25rem;
   align-items: center;
   justify-content: center;
-  border-radius: 1rem;
+  border-radius: 0.875rem;
   border: 1px solid rgba(2, 1, 8, 0.1);
   background: rgba(255, 255, 255, 0.72);
   color: #667085;
@@ -340,7 +340,7 @@ textarea {
 }
 
 .command-input {
-  min-height: 48px;
+  min-height: 44px;
   width: 100%;
   border-radius: 16px;
   border: 1px solid rgba(2, 1, 8, 0.1);
@@ -364,7 +364,7 @@ textarea {
 }
 
 .command-select {
-  min-height: 48px;
+  min-height: 44px;
   width: 100%;
   border-radius: 16px;
   border: 1px solid rgba(2, 1, 8, 0.1);

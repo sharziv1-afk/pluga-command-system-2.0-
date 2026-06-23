@@ -36,9 +36,9 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, onNavigate })
 
   return (
     <aside className={cn('relative z-30 flex h-svh shrink-0 select-none flex-col border-e border-[rgba(2,1,8,0.10)] bg-white/72 text-right shadow-[0_18px_50px_rgba(2,1,8,0.08)] backdrop-blur-2xl', className)}>
-      <div className="border-b border-[rgba(2,1,8,0.08)] p-5">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#FF6B02]/22 bg-[#FF6B02]/10 text-[#FF6B02]">
+      <div className="border-b border-[rgba(2,1,8,0.08)] p-4">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#FF6B02]/22 bg-[#FF6B02]/10 text-[#FF6B02]">
             <Shield className="h-5 w-5" />
           </div>
           <div>
@@ -47,13 +47,13 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, onNavigate })
           </div>
         </div>
 
-        <div className="mt-4 flex items-center gap-2">
+        <div className="mt-3 flex items-center gap-2">
           <ThemeToggle />
           <QuickHelp />
         </div>
       </div>
 
-      <nav className="flex-1 space-y-1.5 overflow-y-auto px-3 py-5 custom-scrollbar">
+      <nav className="flex-1 space-y-1 overflow-y-auto px-2.5 py-4 custom-scrollbar">
         {filteredNavigationItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.path || (pathname === '/' && item.path === '/dashboard');
@@ -64,7 +64,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, onNavigate })
               href={item.path}
               onClick={onNavigate}
               className={cn(
-                'group flex min-h-11 items-center gap-3 rounded-2xl border px-3 text-sm font-bold transition-all duration-150',
+                'group flex min-h-10 items-center gap-2.5 rounded-xl border px-3 text-[13px] font-bold transition-all duration-150',
                 isActive
                   ? 'border-[#FF6B02]/24 bg-[#FF6B02]/12 text-[#C54F00] shadow-[0_10px_24px_rgba(255,107,2,0.10)]'
                   : 'border-transparent text-[#667085] hover:border-[rgba(2,1,8,0.08)] hover:bg-white/72 hover:text-[#020108]'
@@ -82,12 +82,12 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, onNavigate })
         })}
       </nav>
 
-      <div className="border-t border-[rgba(2,1,8,0.08)] p-4">
-        <div className="mb-3">
+      <div className="border-t border-[rgba(2,1,8,0.08)] p-3">
+        <div className="mb-2">
           <SystemStatusPanel />
         </div>
 
-        <div className="flex items-center justify-between rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/70 p-3">
+        <div className="flex items-center justify-between rounded-xl border border-[rgba(2,1,8,0.08)] bg-white/70 p-2.5">
           {isLoading ? (
             <div className="flex w-full items-center gap-2 animate-pulse py-1">
               <div className="h-8 w-8 rounded-xl bg-[#EEF1F5]" />
@@ -99,7 +99,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, onNavigate })
           ) : (
             <>
               <div className="flex min-w-0 items-center gap-2">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[rgba(2,1,8,0.08)] bg-[#EEF1F5] text-[#667085]">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[rgba(2,1,8,0.08)] bg-[#EEF1F5] text-[#667085]">
                   <User className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">

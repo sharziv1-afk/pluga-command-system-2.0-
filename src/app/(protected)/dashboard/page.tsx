@@ -92,6 +92,13 @@ type SummaryCard = {
   tone: 'orange' | 'blue' | 'green' | 'slate' | 'red';
 };
 
+type CommandBrief = {
+  title: string;
+  text: string;
+  tone: 'attention' | 'steady' | 'empty';
+  items: string[];
+};
+
 type DashboardData = {
   profile: DbProfile | null;
   requests: DashboardRequest[];
@@ -192,22 +199,38 @@ const eventStatusLabels: Record<DbEvent['status'], string> = {
 };
 
 const auditActionLabels: Record<string, string> = {
-  request_created: 'נפתחה דרישה',
-  request_updated: 'עודכנה דרישה',
+  request_created: 'דרישה חדשה נפתחה',
+  request_updated: 'דרישה עודכנה',
+  request_completed: 'דרישה הושלמה',
   request_status_changed: 'סטטוס דרישה עודכן',
   request_assigned: 'שויך מטפל לדרישה',
   request_comment_added: 'נוספה תגובה לדרישה',
   request_deleted: 'דרישה נמחקה',
-  task_created: 'נוצרה משימה',
+  task_created: 'משימה חדשה נוצרה',
+  task_updated: 'משימה עודכנה',
+  task_completed: 'משימה הושלמה',
   task_status_changed: 'סטטוס משימה עודכן',
-  task_updated: 'משימה נערכה',
   task_deleted: 'משימה נמחקה',
-  event_created: 'נוצר מופע',
+  event_created: 'מופע חדש נוסף ללו״ז',
+  event_updated: 'מופע לו״ז עודכן',
+  event_completed: 'מופע לו״ז הושלם',
   event_status_changed: 'סטטוס מופע עודכן',
   event_deleted: 'מופע נמחק',
-  forum_daily_report_created: 'נוצר דיווח פורום מוביל',
-  forum_daily_report_submitted: 'הוגש דיווח פורום מוביל',
+  forum_daily_report_carried_forward: 'דוח פורום גולגל ליום הבא',
+  forum_daily_report_closed: 'דוח פורום נסגר',
+  forum_daily_report_updated: 'דוח פורום עודכן',
+  forum_daily_report_reopened: 'דוח פורום נפתח לעריכה מחדש',
+  forum_daily_report_created: 'דוח פורום נוצר',
+  forum_daily_report_submitted: 'דוח פורום הוגש',
+  forum_daily_report_reset: 'דוח פורום אופס',
+  forum_daily_report_deleted: 'דוח פורום נמחק',
+  forum_post_created: 'פוסט חדש פורסם בפורום',
+  forum_post_updated: 'פוסט פורום עודכן',
 };
+
+function formatAuditAction(actionType: string) {
+  return auditActionLabels[actionType] ?? 'עדכון מערכת';
+}
 
 const typeLabels: Record<DashboardItemType, string> = {
   request: 'דרישה',
@@ -353,6 +376,51 @@ function buildSummaryCards(data: DashboardData, profileId: string | null): Summa
       tone: 'slate',
     },
   ];
+}
+
+function buildCommandBrief(
+  data: DashboardData,
+  attentionItems: DashboardItem[],
+  todayEvents: DbEvent[],
+): CommandBrief {
+  const openRequests = data.requests.filter(isActiveRequest).length;
+  const activeTasks = data.tasks.filter(isActiveTask);
+  const urgentRequests = data.requests.filter(request => isActiveRequest(request) && isUrgentRequest(request)).length;
+  const blockedTasks = activeTasks.filter(task => task.status === 'blocked').length;
+  const overdueTasks = activeTasks.filter(task => isOverdueTask(task)).length;
+  const activeTodayEvents = todayEvents.filter(event => event.status !== 'completed' && event.status !== 'cancelled').length;
+
+  const items = [
+    urgentRequests > 0 ? `${urgentRequests} דרישות בעדיפות גבוהה` : null,
+    blockedTasks > 0 ? `${blockedTasks} משימות תקועות` : null,
+    overdueTasks > 0 ? `${overdueTasks} משימות באיחור` : null,
+    activeTodayEvents > 0 ? `${activeTodayEvents} מופעים היום` : null,
+  ].filter(Boolean) as string[];
+
+  if (attentionItems.length > 0) {
+    return {
+      title: 'תדריך מפקד: קשב נדרש',
+      text: `${attentionItems.length} פריטים דורשים טיפול או מעקב לפני שממשיכים לשגרה.`,
+      tone: 'attention',
+      items: items.length > 0 ? items.slice(0, 3) : ['פתח את רשימת הטיפול כדי לתעדף את ההמשך'],
+    };
+  }
+
+  if (openRequests > 0 || activeTasks.length > 0 || activeTodayEvents > 0) {
+    return {
+      title: 'תדריך מפקד: תמונת מצב יציבה',
+      text: `אין כרגע פריטים דחופים. ${openRequests} דרישות פעילות, ${activeTasks.length} משימות פתוחות ו-${activeTodayEvents} מופעים היום.`,
+      tone: 'steady',
+      items: items.length > 0 ? items.slice(0, 3) : ['אפשר להמשיך מעקב שוטף מהכרטיסים למטה'],
+    };
+  }
+
+  return {
+    title: 'תדריך מפקד: אין עומס פתוח',
+    text: 'אין כרגע דרישות, משימות או מופעים פעילים. אפשר לפתוח פריט חדש לפי צורך.',
+    tone: 'empty',
+    items: ['הכפתורים למעלה זמינים לפתיחה מהירה'],
+  };
 }
 
 function buildAttentionItems(data: DashboardData): DashboardItem[] {
@@ -627,6 +695,10 @@ export default function DashboardPage() {
     () => Object.values(dashboardData.usersById).sort((a, b) => (a.name || a.email || '').localeCompare(b.name || b.email || '', 'he')),
     [dashboardData.usersById],
   );
+  const commandBrief = useMemo(
+    () => buildCommandBrief(dashboardData, attentionItems, todayEvents),
+    [dashboardData, attentionItems, todayEvents],
+  );
 
   const resetQuickForms = () => {
     setRequestForm(defaultRequestForm);
@@ -875,7 +947,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6 text-right">
+    <div className="space-y-5 text-right">
       <PageHeader
         title="דשבורד פיקודי"
         subtitle="תמונת מצב עדכנית של הפלוגה, המשימות, הדרישות והלו״ז"
@@ -926,13 +998,15 @@ export default function DashboardPage() {
         </GlassCard>
       )}
 
+      <CommandBriefCard brief={commandBrief} />
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
         {summaryCards.map(card => (
           <SummaryMetricCard key={card.title} card={card} />
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)]">
         <GlassCard className="space-y-4" glow="orange">
           <SectionHeader icon={RadioTower} title="דרוש טיפול" actionHref="/requests" actionLabel="לניהול" />
           {attentionItems.length > 0 ? (
@@ -963,7 +1037,7 @@ export default function DashboardPage() {
         </GlassCard>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <GlassCard className="space-y-4">
           <SectionHeader icon={CheckSquare} title="משימות פתוחות" actionHref="/tasks" actionLabel="כל המשימות" />
           {openTasks.length > 0 ? (
@@ -990,6 +1064,38 @@ export default function DashboardPage() {
       </div>
 
     </div>
+  );
+}
+
+function CommandBriefCard({ brief }: { brief: CommandBrief }) {
+  const isAttention = brief.tone === 'attention';
+  const isEmpty = brief.tone === 'empty';
+
+  return (
+    <GlassCard
+      className={`border-[#FF6B02]/18 bg-white/70 ${isAttention ? 'shadow-[0_16px_40px_rgba(255,107,2,0.12)]' : ''}`}
+      glossHighlight={false}
+    >
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 gap-3">
+          <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border ${isAttention ? toneClasses.red : isEmpty ? toneClasses.slate : toneClasses.orange}`}>
+            {isAttention ? <AlertTriangle className="h-5 w-5" /> : <RadioTower className="h-5 w-5" />}
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-sm font-black text-[#020108]">{brief.title}</h2>
+            <p className="mt-1 max-w-3xl text-xs font-semibold leading-relaxed text-[#667085] sm:text-[13px]">{brief.text}</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2 lg:justify-end">
+          {brief.items.map(item => (
+            <span key={item} className="rounded-full border border-[rgba(2,1,8,0.08)] bg-white/76 px-3 py-1.5 text-[11px] font-black text-[#344054]">
+              {item}
+            </span>
+          ))}
+        </div>
+      </div>
+    </GlassCard>
   );
 }
 
@@ -1469,7 +1575,7 @@ function AuditLogRow({ log }: { log: DbAuditLog }) {
     <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/64 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
-          <span className="block text-sm font-black text-[#020108]">{auditActionLabels[log.action_type] ?? log.action_type}</span>
+          <span className="block text-sm font-black text-[#020108]">{formatAuditAction(log.action_type)}</span>
           <span className="block text-xs font-semibold text-[#667085]">
             {log.user_name || 'משתמש'} · {log.user_role || 'תפקיד לא ידוע'}
           </span>

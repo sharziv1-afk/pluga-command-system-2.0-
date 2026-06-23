@@ -28,8 +28,8 @@ export const GlossyButton: React.FC<GlossyButtonProps> = ({
         
         // Sizes
         size === 'sm' && "text-xs min-h-9 px-3 rounded-xl",
-        size === 'md' && "text-sm min-h-11 px-5 rounded-2xl",
-        size === 'lg' && "text-sm min-h-12 px-6 rounded-2xl",
+        size === 'md' && "text-sm min-h-10 px-4 rounded-xl",
+        size === 'lg' && "text-sm min-h-11 px-5 rounded-2xl",
         
         className
       )}

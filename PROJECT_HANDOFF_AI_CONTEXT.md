@@ -2,10 +2,10 @@
 
 Authoritative technical handoff for AI agents and developers continuing work on `pluga-command-system`.
 
-**Last updated:** 2026-06-21  
-**Milestone:** Forum daily owner mapping + panel scroll checkpoint  
-**Latest commit:** `62fd8fe Scroll forum daily slot selections into view`
-**Current milestone override:** Forum daily owner mapping + panel scroll checkpoint
+**Last updated:** 2026-06-23  
+**Milestone:** Forum daily Auto Carry Forward (rollover) checkpoint  
+**Latest commit:** `c991be2 Carry forward closed forum daily reports`
+**Current milestone override:** Forum daily Auto Carry Forward (rollover) checkpoint
 
 ## Identity
 
@@ -20,6 +20,8 @@ Authoritative technical handoff for AI agents and developers continuing work on 
 ## Latest Git State
 
 ```text
+c991be2 Carry forward closed forum daily reports
+813ef48 Document forum daily scroll checkpoint
 62fd8fe Scroll forum daily slot selections into view
 1c7414c Map forum daily platoon owners to structural slots
 9c49135 Document forum daily mapping diagnosis
@@ -38,6 +40,21 @@ c03db56 Fix has_completed_onboarding after registration
 c8c5884 Sync project docs after profile lookup hotfixes
 73ed3a5 Fix ambiguous user unit lookups across protected pages
 ```
+
+## Forum Daily Auto Carry Forward (2026-06-23)
+
+Latest checkpoint: `c991be2 Carry forward closed forum daily reports`. Code-only change in `src/app/(protected)/forum/page.tsx` + one audit-type addition in `src/lib/audit.ts`. No DB/SQL/RLS/Auth/proxy/schema/migration changes.
+
+- **Trigger:** `closeSelectedReport` — only on `status='closed'` (commander approve-close). Not on save/submit/return/reopen/reset/delete.
+- **Behavior:** a local helper `carryForwardClosedReport(sourceReport)` computes `shiftDateString(report_date, 1)` (Asia/Jerusalem) and inserts a new **draft** for the same `owner_user_id`/`report_level`/`staff_role`/unit fields, copying `content` and `summary_text`. `parent_report_id` is null, `whatsapp_text` null, and `metadata` carries `carried_forward_from_report_id` / `carried_forward_from_date` / `carried_forward_created_at` (plus preserved `node_id`/`node_label`/`ui_gated_scope` only).
+- **History safety:** the closed report stays at its own date — never overwritten, moved, reset, or deleted. `reopen` still edits the historical report, not tomorrow's draft.
+- **No duplicates / no overwrite:** plain `insert` (no `upsert`). The `unique(report_date, report_level, owner_user_id)` violation (`23505`) is skipped silently; other errors are logged best-effort only.
+- **Fire-and-forget best-effort:** `void carryForwardClosedReport(...).catch(...)` — close never waits on rollover and a rollover failure never makes the close appear to fail; feedback stays "הדיווח נסגר".
+- **Audit:** new action `forum_daily_report_carried_forward` (`audit_logs.action_type` has no CHECK, so the new value is safe at runtime).
+- **Close UX:** the native `window.confirm` was removed from report close only (delete/reset confirms unchanged).
+- **RLS note:** the rollover insert relies on existing policies — owner-self insert (010 J2) and commander insert-for-owner (011). No RLS change was made. If a future environment returns `42501` on the rollover insert, stop and verify 011 is applied (do not change RLS without a snapshot).
+
+Validation: `npm run lint` (0 errors), `npx tsc -p tsconfig.json --noEmit`, `npm run build`, and Chrome QA — closing 22/06 created a 23/06 draft (content copied, 22/06 stayed closed/historical, no duplicate). Repeat QA after the confirm removal: 23/06→24/06 with `POST forum_daily_reports 201`, no freeze, no `42501`/`23505`/app errors (only a known Chrome-extension error, not the app).
 
 ## Forum Daily Checkpoint (2026-06-21)
 
@@ -630,11 +647,11 @@ Step 9 - UI/mobile conservative polish
 ## Old Prompt for New Claude/Codex Session (superseded)
 
 Continue `pluga-command-system` / "המפקד". First read `README.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`, `PROJECT_SUMMARY.md`, `AGENTS.md`, and `CLAUDE.md`. Latest commit should be `2dfcff7 Polish forum UX and update handoff docs`; previous important commits are `f5c1e40 Add hierarchical forum daily reports` and `f47812b Add Supabase-backed Forum Phase 1`. Stack: Next.js 16 with `src/proxy.ts` (not `middleware.ts`), React 19, TypeScript, Tailwind 4, Supabase Auth/PostgreSQL/RLS. Forum posts and hierarchical daily reports are Supabase-backed. Migrations 001-012 were run manually; 009 is legacy/prototype; 010+ is the current forum daily model. Do not run SQL automatically, do not use service role client-side, do not rewrite old migrations, preserve Hebrew RTL and Light Gloss Command System, and ask before commit/push. Next major phase is real users + hierarchy mapping + real hierarchy RLS.
-## Current 2026-06-21 Prompt Override
+## Current 2026-06-23 Prompt Override
 
 Use this current prompt and treat older prompt text above as superseded:
 
-Continue `pluga-command-system` / "המפקד". First read `README.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`, `PROJECT_SUMMARY.md`, `AGENTS.md`, and `CLAUDE.md`. Latest commit should be `62fd8fe Scroll forum daily slot selections into view`; recent forum daily checkpoints are `1c7414c Map forum daily platoon owners to structural slots` and `9c49135 Document forum daily mapping diagnosis`. Forum daily now: platoon summary slots are UI-mapped from active/approved owners (role מ״מ N + unit מחלקה N), so סגן שולי / מ״מ 1 / מחלקה 1 shows under "מחלקה 1 · סיכום מ״מ" and not under "דוחות קיימים"; platoons 2-4 stay unmapped without a matching user; the "דוחות קיימים" fallback is preserved; and slot clicks scroll the report panel into view for sub-XL/single-column. The next recommended task is **Carry Forward / Rollover** — "create a new day based on yesterday" — which must be planned before any code; do not start it with DB population or RLS changes, and take a Supabase snapshot before any data/security work. Stack: Next.js 16 with `src/proxy.ts` (not `middleware.ts`), React 19, TypeScript, Tailwind 4, Supabase Auth/PostgreSQL/RLS. SQL is manual only; preserve Hebrew RTL and Light Gloss Command System; do not touch Auth/proxy/Supabase/RLS without explicit scope; do not delete the "דוחות קיימים" fallback; ask before commit/push.
+Continue `pluga-command-system` / "המפקד". First read `README.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`, `PROJECT_SUMMARY.md`, `AGENTS.md`, and `CLAUDE.md`. Latest commit should be `c991be2 Carry forward closed forum daily reports`; recent forum daily checkpoints are `813ef48 Document forum daily scroll checkpoint`, `62fd8fe Scroll forum daily slot selections into view`, and `1c7414c Map forum daily platoon owners to structural slots`. Forum daily now also has **Auto Carry Forward**: closing a report (`status='closed'`) auto-creates a next-Jerusalem-day draft for the same owner/level/unit with copied content (fire-and-forget best-effort; no upsert; duplicate `23505` skipped; `metadata.carried_forward_from_*`; audit `forum_daily_report_carried_forward`); the historical closed report is preserved and `reopen` still edits it, not tomorrow's draft; the native `window.confirm` was removed from report close only (delete/reset confirms stay). The rollover insert relies on existing RLS (010 J2 owner-self + 011 commander-for-owner) — no RLS change was made; if a future environment returns `42501`, stop and verify 011 before any RLS work. Recommended next tasks (UI/text polish, no DB/RLS): remove dev-facing "UI-gated..." text; fix WhatsApp preview grammar + empty platoons 2-4; add missing fields (לו״ז מחר, חריגים/פערים); labels/placeholders/lifecycle polish; optionally replace the remaining destructive native confirms (delete/reset) with in-site UI after a separate decision. Stack: Next.js 16 with `src/proxy.ts` (not `middleware.ts`), React 19, TypeScript, Tailwind 4, Supabase Auth/PostgreSQL/RLS. SQL is manual only; preserve Hebrew RTL and Light Gloss Command System; do not touch Auth/proxy/Supabase/RLS without explicit scope; do not delete the "דוחות קיימים" fallback; ask before commit/push.
 
 ## Previous Session Prompt Override (superseded)
 

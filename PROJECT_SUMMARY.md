@@ -4,12 +4,14 @@
 
 **Product:** `pluga-command-system` / "המפקד"  
 **Branch:** `main`  
-**Latest commit:** `62fd8fe Scroll forum daily slot selections into view`  
+**Latest commit:** `c991be2 Carry forward closed forum daily reports`  
 **Git state:** `origin/main` up to date, working tree clean
 
 **Recent important commits:**
 
 ```text
+c991be2 Carry forward closed forum daily reports
+813ef48 Document forum daily scroll checkpoint
 62fd8fe Scroll forum daily slot selections into view
 1c7414c Map forum daily platoon owners to structural slots
 9c49135 Document forum daily mapping diagnosis
@@ -30,6 +32,17 @@ c8c5884 Sync project docs after profile lookup hotfixes
 ```
 
 This snapshot supersedes the older 2026-06-19 / 2026-06-18 / 2026-06-10 snapshots below.
+
+## Forum Daily Auto Carry Forward - 2026-06-23
+
+`c991be2`: closing a forum daily report (`status='closed'`) auto-creates a next-Jerusalem-day **draft** for the same owner/level/unit.
+
+- Copies `content` (+`summary_text`); `metadata.carried_forward_from_*` links to the source.
+- Historical closed report preserved (no overwrite/move/delete); no `upsert`; duplicate `23505` skipped silently.
+- Fire-and-forget best-effort: rollover never blocks or fails the close.
+- Audit action `forum_daily_report_carried_forward`. Close UX dropped the native `window.confirm` (delete/reset confirms unchanged); feedback stays "הדיווח נסגר".
+
+QA: lint/tsc/build green; Chrome QA 22/06→23/06 (content copied, 22/06 stayed closed); repeat QA 23/06→24/06 with `POST 201`, no freeze, no `42501`/`23505`/app errors.
 
 ## Forum Daily Checkpoint - 2026-06-21
 

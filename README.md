@@ -10,9 +10,11 @@
 
 ```text
 Latest commit:
-62fd8fe Scroll forum daily slot selections into view
+c991be2 Carry forward closed forum daily reports
 
 Previous important commits:
+813ef48 Document forum daily scroll checkpoint
+62fd8fe Scroll forum daily slot selections into view
 1c7414c Map forum daily platoon owners to structural slots
 9c49135 Document forum daily mapping diagnosis
 650353f Polish small dashboard forum and task UI issues
@@ -34,6 +36,21 @@ c8c5884 Sync project docs after profile lookup hotfixes
 - Branch: `main`
 - `origin/main`: up to date
 - Working tree: clean
+
+## Forum Daily Auto Carry Forward - 2026-06-23
+
+Latest checkpoint: `c991be2 Carry forward closed forum daily reports`.
+
+When a forum daily report is closed (`status='closed'`), the system auto-creates a new **draft** for the next Jerusalem day for the same owner/level/unit:
+
+- Copies `content` (and `summary_text` when present); `metadata` carries `carried_forward_from_report_id` / `carried_forward_from_date` / `carried_forward_created_at`.
+- The historical closed report is preserved at its own date — never overwritten, moved, or deleted.
+- No `upsert`; the `unique(report_date, report_level, owner_user_id)` duplicate (`23505`) is skipped silently.
+- Rollover is **fire-and-forget best-effort**: it never blocks the close and a failure never makes the close appear to fail.
+- Adds audit action `forum_daily_report_carried_forward`.
+- Close UX no longer uses a native `window.confirm` (delete/reset confirms unchanged); the close feedback stays "הדיווח נסגר".
+
+Validation: lint (0 errors), tsc, build, and Chrome QA — closing 22/06 created a 23/06 draft (content copied, 22/06 stayed closed/historical), and the repeat QA after the confirm removal had 23/06→24/06 with `POST forum_daily_reports 201`, no freeze, no `42501`/`23505`/app errors.
 
 ## Forum Daily Checkpoint - 2026-06-21
 

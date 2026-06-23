@@ -4,9 +4,11 @@ Project-specific notes for Claude Code:
 
 - Read `README.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`, `PROJECT_SUMMARY.md`, `AGENTS.md`, and this file before making changes.
 - Current branch should be `main`.
-- Latest expected commit after the 2026-06-21 forum daily mapping + scroll checkpoint:
+- Latest expected commit after the 2026-06-23 forum daily Auto Carry Forward checkpoint:
 
 ```text
+c991be2 Carry forward closed forum daily reports
+813ef48 Document forum daily scroll checkpoint
 62fd8fe Scroll forum daily slot selections into view
 1c7414c Map forum daily platoon owners to structural slots
 9c49135 Document forum daily mapping diagnosis
@@ -29,7 +31,8 @@ c8c5884 Sync project docs after profile lookup hotfixes
 - Auth/Admin approval flow is OTP-code-only registration (no magic-link placeholders), `has_completed_onboarding=true` at registration, role→unit mapping at registration, pending users see "ממתין לאישור מ״פ", Admin prefills role (gershayim-normalized) and suggests מסגרת/יחידה בפיקוד/רמת הרשאה by role, and an Admin guardrail blocks approval without a valid role + unit.
 - Migration `014_reference_data_read_policies.sql` adds `units: public read` + `roles: public read` SELECT policies. Applied manually in live Supabase on 2026-06-19 (the unit/role dropdowns were empty because RLS was enabled without a read policy). Recorded for sync; do not rerun blindly.
 - Commit `650353f` closed small QA UI fixes: Dashboard activity translation keys, Tasks empty-state hiding while create form is open, and Forum regular post `ערוך` button min-width.
-- Forum Daily owner mapping + scroll (2026-06-21, `1c7414c` + `62fd8fe`): the UI-only owner/slot matching layer is implemented. Structural platoon summary slots are enriched from active/approved owners (match requires role מ״מ N + unit מחלקה N); a matched slot gets `ownerUserId`/`unitId` and is filtered out of "דוחות קיימים", so סגן שולי / מ״מ 1 / מחלקה 1 now shows under "מחלקה 1 · סיכום מ״מ" only. Platoons 2-4 stay unmapped without a matching user; the "דוחות קיימים" fallback is preserved. Slot clicks scroll the report panel into view (`scrollIntoView({ block: 'nearest' })`) for sub-XL/single-column. Next recommended task: Carry Forward / Rollover ("create a new day based on yesterday") — plan before code; do not start with DB population/RLS.
+- Forum Daily owner mapping + scroll (2026-06-21, `1c7414c` + `62fd8fe`): the UI-only owner/slot matching layer is implemented. Structural platoon summary slots are enriched from active/approved owners (match requires role מ״מ N + unit מחלקה N); a matched slot gets `ownerUserId`/`unitId` and is filtered out of "דוחות קיימים", so סגן שולי / מ״מ 1 / מחלקה 1 now shows under "מחלקה 1 · סיכום מ״מ" only. Platoons 2-4 stay unmapped without a matching user; the "דוחות קיימים" fallback is preserved. Slot clicks scroll the report panel into view (`scrollIntoView({ block: 'nearest' })`) for sub-XL/single-column.
+- Forum Daily Auto Carry Forward (2026-06-23, `c991be2`): closing a report (`status='closed'`) auto-creates a next-Jerusalem-day **draft** for the same owner/level/unit, copying `content` + `summary_text`, with `metadata.carried_forward_from_*` and audit action `forum_daily_report_carried_forward`. Plain `insert` (no upsert); duplicate `23505` skipped silently; rollover is fire-and-forget best-effort and never blocks/fails the close. The historical closed report is preserved (reopen still edits it, not tomorrow's draft). The native `window.confirm` was removed from report close only (delete/reset confirms unchanged). No DB/SQL/RLS changes — relies on existing 010 J2 + 011 insert policies; if `42501` ever appears on the rollover insert, stop and verify 011. Next recommended tasks (UI/text polish, no DB/RLS): remove dev-facing "UI-gated..." text; WhatsApp preview grammar + empty platoons; missing fields (לו״ז מחר, חריגים/פערים); labels/placeholders/lifecycle polish.
 
 ## Non-negotiable Guardrails
 
@@ -106,7 +109,7 @@ Hotfix B - Global users/units ambiguity fix - DONE in 73ed3a5
 Step 1 - Sync docs with 013 + cleanup + hotfix milestones - DONE
 Step 2 - Forum daily UI-only owner/slot matching layer - DONE in 1c7414c
 Step 2b - Forum daily slot-click scroll-into-view (sub-XL panel visibility) - DONE in 62fd8fe
-Step 2c - Carry Forward / Rollover ("create a new day based on yesterday") - NEXT (plan before code; no DB population/RLS to start)
+Step 2c - Carry Forward / Rollover ("create a new day based on yesterday") - DONE in c991be2
 Step 3 - WhatsApp preview from mapped slots/platoons
 Step 4 - Remove dev-facing daily forum text + confirm destructive delete
 Step 5 - Real Users QA setup

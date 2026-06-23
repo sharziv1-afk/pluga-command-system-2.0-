@@ -290,7 +290,7 @@ export default function TasksPage() {
 
       if (tasksError) {
         logSupabaseError('Tasks load failed', tasksError);
-        setError('לא ניתן לטעון משימות. ייתכן שנדרשת מדיניות RLS ל-public.tasks.');
+        setError('לא ניתן לטעון את המשימות כרגע. נסה לרענן את הדף בעוד רגע.');
         return;
       }
 
@@ -538,7 +538,7 @@ export default function TasksPage() {
 
     if (insertError || !createdTask) {
       if (insertError) logSupabaseError('Task create failed', insertError);
-      setError('לא הצלחנו ליצור משימה. אם זו שגיאת הרשאות, יש להריץ RLS ל-public.tasks ב-Supabase.');
+      setError('לא הצלחנו ליצור את המשימה. בדוק שיש לך הרשאה לפעולה זו ונסה שוב.');
       return;
     }
 
@@ -651,7 +651,7 @@ export default function TasksPage() {
 
     if (updateError) {
       logSupabaseError('Task edit failed', updateError);
-      setError('לא ניתן לעדכן את המשימה. ייתכן שמדיניות RLS מאפשרת עריכה רק ליוצר המשימה או למפקד.');
+      setError('לא ניתן לעדכן את המשימה. עריכה אפשרית רק ליוצר המשימה או למפקד.');
       return;
     }
 
@@ -711,7 +711,7 @@ export default function TasksPage() {
 
     if (updateError) {
       logSupabaseError('Task status update failed', updateError);
-      setError('לא ניתן לעדכן סטטוס משימה. ייתכן שנדרשת מדיניות RLS לעדכון public.tasks.');
+      setError('לא ניתן לעדכן את סטטוס המשימה כרגע. נסה שוב בעוד רגע.');
       return;
     }
 
@@ -753,7 +753,7 @@ export default function TasksPage() {
 
     if (deleteError) {
       logSupabaseError('Task delete failed', deleteError);
-      setError('לא ניתן למחוק את המשימה. ייתכן שנדרשת מדיניות RLS למחיקת משימות סגורות.');
+      setError('לא ניתן למחוק את המשימה. בדוק שיש לך הרשאה למחוק משימה זו.');
       return;
     }
 
@@ -785,7 +785,7 @@ export default function TasksPage() {
     <div className="space-y-6">
       <PageHeader
         title="משימות ובקרה פלוגתית"
-        subtitle="ניהול משימות מול Supabase: פתיחה, הקצאה, מעקב סטטוס ובקרת ביצוע בסיסית."
+        subtitle="ניהול משימות: פתיחה, הקצאה, מעקב סטטוס ובקרת ביצוע בסיסית."
       />
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -1004,7 +1004,7 @@ export default function TasksPage() {
           <EmptyState
             icon={ClipboardList}
             title="אין משימות להצגה"
-            description="לא קיימות משימות בטאב הנוכחי, או שמדיניות RLS עדיין לא מאפשרת צפייה במשימות."
+            description="אין משימות להצגה בטאב הנוכחי."
             actionText="צור משימה חדשה"
             onAction={() => setIsFormOpen(true)}
           />

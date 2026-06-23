@@ -132,11 +132,6 @@ function getProfileRedirectPath(profile: AppUserProfile): string {
   return '/pending-approval';
 }
 
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  return String(error);
-}
-
 function isRateLimitError(error: { message?: string; code?: string; status?: number } | null) {
   const message = error?.message?.toLowerCase() ?? '';
   const code = error?.code?.toLowerCase() ?? '';
@@ -144,14 +139,15 @@ function isRateLimitError(error: { message?: string; code?: string; status?: num
   return error?.status === 429 || code.includes('rate') || message.includes('rate') || message.includes('too many');
 }
 
-function logDevelopmentError(message: string, error: { message?: string; code?: string; details?: string; hint?: string } | null) {
+function logDevelopmentError(message: string, error: unknown) {
   if (process.env.NODE_ENV !== 'development') return;
 
+  const details = error as { message?: string; code?: string; details?: string; hint?: string } | null;
   console.error(message, {
-    message: error?.message,
-    code: error?.code,
-    details: error?.details,
-    hint: error?.hint,
+    message: details?.message,
+    code: details?.code,
+    details: details?.details,
+    hint: details?.hint,
   });
 }
 
@@ -302,7 +298,7 @@ export default function LoginPage() {
       if (signInError) {
         const isInvalidCreds = signInError.message.toLowerCase().includes('invalid login credentials') ||
                                signInError.status === 400;
-        setError(isInvalidCreds ? 'המייל או הסיסמה אינם נכונים' : `שגיאת התחברות: ${signInError.message}`);
+        setError(isInvalidCreds ? 'המייל או הסיסמה אינם נכונים' : 'לא הצלחנו להשלים את ההתחברות כרגע. נסה שוב בעוד רגע.');
         logDevelopmentError('Existing user login failed', signInError);
         return;
       }
@@ -331,7 +327,7 @@ export default function LoginPage() {
       }
 
       if (profileError) {
-        setError(`לא ניתן לקרוא פרופיל משתמש: ${profileError.message}`);
+        setError('לא ניתן לטעון את פרטי המשתמש כרגע. נסה שוב בעוד רגע.');
         return;
       }
 
@@ -364,7 +360,8 @@ export default function LoginPage() {
 
       window.location.href = getProfileRedirectPath(profile);
     } catch (unknownError) {
-      setError(`התחברות נכשלה: ${getErrorMessage(unknownError)}`);
+      logDevelopmentError('Existing user login threw', unknownError);
+      setError('ההתחברות נכשלה כרגע. נסה שוב בעוד רגע.');
     } finally {
       setIsLoggingIn(false);
     }
@@ -426,7 +423,7 @@ export default function LoginPage() {
         setError(
           isRateLimitError(signInError)
             ? 'נשלחו יותר מדי קודים. נסה שוב מאוחר יותר.'
-            : `לא הצלחנו לשלוח קוד אימות: ${signInError.message}`
+            : 'לא הצלחנו לשלוח קוד אימות כרגע. נסה שוב בעוד רגע.'
         );
         return;
       }
@@ -443,7 +440,8 @@ export default function LoginPage() {
       setCooldownSeconds(60);
       setMessage('שלחנו קוד אימות למייל.');
     } catch (unknownError) {
-      setError(`לא הצלחנו לשלוח קוד אימות: ${getErrorMessage(unknownError)}`);
+      logDevelopmentError('Registration OTP send threw', unknownError);
+      setError('לא הצלחנו לשלוח קוד אימות כרגע. נסה שוב בעוד רגע.');
     } finally {
       setIsSendingOtp(false);
     }
@@ -479,7 +477,7 @@ export default function LoginPage() {
 
         if (passwordError) {
           logDevelopmentError('Password update failed', passwordError);
-          setError(`אימות הקוד הצליח, אך הגדרת הסיסמה נכשלה: ${passwordError.message}`);
+          setError('אימות הקוד הצליח, אך הגדרת הסיסמה נכשלה. נסה שוב בעוד רגע.');
           return;
         }
       }
@@ -505,7 +503,7 @@ export default function LoginPage() {
         .maybeSingle<{ id: string }>();
 
       if (lookupError) {
-        setError(`לא ניתן לבדוק פרופיל קיים: ${lookupError.message}`);
+        setError('לא ניתן לבדוק את פרטי המשתמש כרגע. נסה שוב בעוד רגע.');
         return;
       }
 
@@ -515,13 +513,14 @@ export default function LoginPage() {
 
       if (result.error) {
         logDevelopmentError('Registration profile upsert failed', result.error);
-        setError(`לא הצלחנו ליצור או לעדכן פרופיל ב-public.users: ${result.error.message}`);
+        setError('לא הצלחנו ליצור או לעדכן את פרטי המשתמש. נסה שוב בעוד רגע.');
         return;
       }
 
       window.location.href = '/onboarding';
     } catch (unknownError) {
-      setError(`אימות הקוד נכשל: ${getErrorMessage(unknownError)}`);
+      logDevelopmentError('Registration OTP verify threw', unknownError);
+      setError('אימות הקוד נכשל. בדוק את הקוד ונסה שוב.');
     } finally {
       setIsVerifyingOtp(false);
     }
@@ -546,7 +545,7 @@ export default function LoginPage() {
       });
 
       if (signInError) {
-        setDevError(`כניסת פיתוח נכשלה: ${signInError.message}`);
+        setDevError('כניסת הפיתוח נכשלה. בדוק את פרטי ההתחברות ונסה שוב.');
         return;
       }
 
@@ -554,7 +553,7 @@ export default function LoginPage() {
       const authUser = userData.user;
 
       if (userError || !authUser) {
-        setDevError('כניסת פיתוח הצליחה, אבל לא נמצא משתמש Supabase תקין.');
+        setDevError('כניסת הפיתוח הצליחה, אבל לא נמצא משתמש תקין.');
         return;
       }
 
@@ -565,18 +564,19 @@ export default function LoginPage() {
         .maybeSingle<AppUserProfile>();
 
       if (profileError) {
-        setDevError(`לא ניתן לקרוא פרופיל מ-public.users: ${profileError.message}`);
+        setDevError('לא ניתן לקרוא את פרטי המשתמש כרגע.');
         return;
       }
 
       if (!profile) {
-        setDevError('לא נמצא פרופיל ב-public.users');
+        setDevError('לא נמצא פרופיל משתמש מתאים.');
         return;
       }
 
       window.location.href = getProfileRedirectPath(profile);
     } catch (unknownError) {
-      setDevError(`כניסת פיתוח נכשלה: ${getErrorMessage(unknownError)}`);
+      logDevelopmentError('Development login threw', unknownError);
+      setDevError('כניסת הפיתוח נכשלה. נסה שוב בעוד רגע.');
     } finally {
       setIsDevSubmitting(false);
     }
@@ -932,7 +932,7 @@ export default function LoginPage() {
               <div className="mb-3">
                 <h2 className="text-sm font-black text-[#020108]">כניסת פיתוח זמנית</h2>
                 <p className="mt-1 text-xs font-semibold leading-relaxed text-[#667085]">
-                  מיועד לפיתוח מקומי בלבד, כדי להיכנס בלי לשלוח מיילים בזמן מגבלת Supabase.
+                  מיועד לפיתוח מקומי בלבד, כדי להיכנס בלי לשלוח מיילים בזמן בדיקות.
                 </p>
               </div>
 

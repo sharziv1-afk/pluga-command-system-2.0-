@@ -388,7 +388,7 @@ export default function RequestsPage() {
 
       if (requestsError) {
         logSupabaseError('Requests load failed', requestsError);
-        setError('לא ניתן לטעון בקשות. ייתכן שנדרשת מדיניות RLS מתאימה ב-Supabase.');
+        setError('לא ניתן לטעון את הבקשות כרגע. נסה לרענן את הדף בעוד רגע.');
         return;
       }
 
@@ -572,7 +572,7 @@ export default function RequestsPage() {
       if (insertError) {
         logSupabaseError('Request create failed', insertError);
       }
-      setError('לא הצלחנו לפתוח בקשה. אם זו שגיאת הרשאות, יש לעדכן RLS ב-Supabase.');
+      setError('לא הצלחנו לפתוח את הבקשה. בדוק שיש לך הרשאה לפעולה זו ונסה שוב.');
       return;
     }
     void createAuditLog(supabase, {
@@ -658,7 +658,7 @@ export default function RequestsPage() {
 
     if (updateError) {
       logSupabaseError('Request edit failed', updateError);
-      setEditError('לא ניתן לעדכן את הדרישה. ייתכן שנדרשת מדיניות RLS מתאימה ב-Supabase.');
+      setEditError('לא ניתן לעדכן את הדרישה כרגע. נסה שוב בעוד רגע.');
       return;
     }
 
@@ -710,7 +710,7 @@ export default function RequestsPage() {
     setUpdatingStatusId(null);
     if (updateError) {
       logSupabaseError('Request status update failed', updateError);
-      setError('לא ניתן לעדכן סטטוס. ייתכן שנדרשת מדיניות RLS מתאימה ב-Supabase.');
+      setError('לא ניתן לעדכן את הסטטוס כרגע. נסה שוב בעוד רגע.');
       return;
     }
     void createAuditLog(supabase, {
@@ -797,7 +797,7 @@ export default function RequestsPage() {
     setDeletingRequestId(null);
     if (deleteError) {
       logSupabaseError('Request delete failed', deleteError);
-      setError('לא ניתן למחוק את הדרישה. ייתכן שנדרשת מדיניות RLS למחיקת בקשות סגורות.');
+      setError('לא ניתן למחוק את הדרישה. בדוק שיש לך הרשאה למחוק בקשה זו.');
       return;
     }
 

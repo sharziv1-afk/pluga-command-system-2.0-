@@ -940,7 +940,7 @@ export default function DashboardPage() {
               {attentionItems.map(item => <AttentionItemCard key={`${item.type}-${item.id}`} item={item} />)}
             </div>
           ) : (
-            <CompactEmptyState title="אין פריטים דחופים כרגע" text="לא נמצאו דרישות דחופות, משימות תקועות או מופעים שמתחילים בקרוב לפי ההרשאות שלך." />
+            <CompactEmptyState title="אין פריטים דחופים כרגע" text="לא נמצאו דרישות דחופות, משימות תקועות או מופעים שמתחילים בקרוב." />
           )}
         </GlassCard>
 
@@ -958,7 +958,7 @@ export default function DashboardPage() {
               ))}
             </div>
           ) : (
-            <CompactEmptyState title="אין מופעים להיום" text="לא נמצאו מופעים מתוכננים להיום לפי RLS וההרשאות שלך." />
+            <CompactEmptyState title="אין מופעים להיום" text="לא נמצאו מופעים מתוכננים להיום." />
           )}
         </GlassCard>
       </div>
@@ -984,7 +984,7 @@ export default function DashboardPage() {
               {dashboardData.auditLogs.map(log => <AuditLogRow key={log.id} log={log} />)}
             </div>
           ) : (
-            <CompactEmptyState title="אין פעילות להצגה" text="כאשר audit_logs יהיו זמינים לפי RLS, הפעולות האחרונות יופיעו כאן." />
+            <CompactEmptyState title="אין פעילות להצגה" text="פעולות אחרונות במערכת יופיעו כאן." />
           )}
         </GlassCard>
       </div>

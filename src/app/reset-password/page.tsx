@@ -8,11 +8,6 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { GlossyButton } from '@/components/ui/GlossyButton';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  return String(error);
-}
-
 export default function ResetPasswordPage() {
   const router = useRouter();
   const [password, setPassword] = useState('');
@@ -67,14 +62,16 @@ export default function ResetPasswordPage() {
       const { error: updateError } = await supabase.auth.updateUser({ password });
 
       if (updateError) {
-        setError(`עדכון הסיסמה נכשל: ${updateError.message || 'נסה שוב'}`);
+        console.error('Password reset update failed:', updateError);
+        setError('עדכון הסיסמה נכשל. נסה שוב בעוד רגע.');
         return;
       }
 
       setMessage('הסיסמה עודכנה בהצלחה. מעביר לדשבורד...');
       window.setTimeout(() => router.replace('/dashboard'), 900);
     } catch (unknownError) {
-      setError(`עדכון הסיסמה נכשל: ${getErrorMessage(unknownError)}`);
+      console.error('Password reset update threw:', unknownError);
+      setError('עדכון הסיסמה נכשל. נסה שוב בעוד רגע.');
     } finally {
       setIsSubmitting(false);
     }

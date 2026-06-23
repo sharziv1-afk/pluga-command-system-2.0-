@@ -453,7 +453,7 @@ export default function ForumPage() {
           {
             id: `${platoon.id}-squads`,
             label: `${platoon.label} · דיווחי מ״כים`,
-            description: 'דיווחי כיתות קיימים לפי RLS',
+            description: 'דיווחי כיתות קיימים',
             level: 'squad' as const,
             group: platoon.label,
             owned: false,
@@ -496,7 +496,7 @@ export default function ForumPage() {
         {
           id: 'platoon-squads',
           label: 'דיווחי מ״כים במחלקה שלי',
-          description: 'מוצג לפי RLS/שיוך יחידה זמין',
+          description: 'מוצג לפי שיוך יחידה זמין',
           level: 'squad',
           group: 'המחלקה שלי',
           owned: false,
@@ -733,7 +733,7 @@ export default function ForumPage() {
     if (postsError) {
       logSupabaseError('Forum posts load failed', postsError);
       setPosts([]);
-      setError('לא ניתן לטעון את הפורום כרגע. בדוק שמיגרציית 008 הורצה ב-Supabase.');
+      setError('לא ניתן לטעון את הפורום כרגע. נסה לרענן את הדף בעוד רגע.');
       setIsLoading(false);
       return;
     }
@@ -783,7 +783,7 @@ export default function ForumPage() {
       logSupabaseError('Forum daily reports load failed', loadError);
       setDailyReports([]);
       setReportDraft(emptyReportDraft());
-      setDailyError('לא ניתן לטעון את הדיווחים היומיים. יש להריץ ידנית את מיגרציית 010 ב-Supabase.');
+      setDailyError('לא ניתן לטעון את הדיווחים היומיים כרגע. נסה שוב בעוד רגע.');
       setIsDailyLoading(false);
       return;
     }
@@ -896,7 +896,7 @@ export default function ForumPage() {
 
     if (insertError || !createdPost) {
       if (insertError) logSupabaseError('Forum post insert failed', insertError);
-      setFormError('לא ניתן לפרסם את הפוסט כרגע. בדוק הרשאות RLS או נסה שוב.');
+      setFormError('לא ניתן לפרסם את הפוסט כרגע. בדוק הרשאות או נסה שוב.');
       setIsSubmitting(false);
       return;
     }
@@ -975,7 +975,7 @@ export default function ForumPage() {
 
     if (updateError) {
       logSupabaseError('Forum post update failed', updateError);
-      setEditPostError('לא ניתן לעדכן את הפוסט כרגע. בדוק הרשאות RLS או נסה שוב.');
+      setEditPostError('לא ניתן לעדכן את הפוסט כרגע. בדוק הרשאות או נסה שוב.');
       setIsSubmitting(false);
       return;
     }
@@ -1080,7 +1080,7 @@ export default function ForumPage() {
         setDailyError('כבר קיים דיווח לתאריך הזה. טוען מחדש.');
         await loadDailyReports(selectedDate);
       } else {
-        setDailyError('לא ניתן לפתוח דיווח כרגע. בדוק הרשאות RLS או נסה שוב.');
+        setDailyError('לא ניתן לפתוח דיווח כרגע. בדוק הרשאות או נסה שוב.');
       }
       setIsDailySaving(false);
       return;
@@ -1154,7 +1154,7 @@ export default function ForumPage() {
 
       if (createError || !createdReport) {
         if (createError) logSupabaseError('Forum daily report draft create failed', createError);
-        setDailyError('לא ניתן לשמור את הטיוטה כרגע. בדוק הרשאות RLS או נסה שוב.');
+        setDailyError('לא ניתן לשמור את הטיוטה כרגע. בדוק הרשאות או נסה שוב.');
         setIsDailySaving(false);
         return;
       }
@@ -1191,7 +1191,7 @@ export default function ForumPage() {
 
     if (updateError) {
       logSupabaseError('Forum daily report update failed', updateError);
-      setDailyError('לא ניתן לשמור את הדיווח כרגע. בדוק הרשאות RLS או נסה שוב.');
+      setDailyError('לא ניתן לשמור את הדיווח כרגע. בדוק הרשאות או נסה שוב.');
       setIsDailySaving(false);
       return;
     }
@@ -1491,7 +1491,7 @@ export default function ForumPage() {
 
     if (resetError) {
       logSupabaseError('Forum daily report reset failed', resetError);
-      setDailyError('לא ניתן לאפס את הדיווח כרגע. בדוק הרשאות RLS או נסה שוב.');
+      setDailyError('לא ניתן לאפס את הדיווח כרגע. בדוק הרשאות או נסה שוב.');
       setIsDailySaving(false);
       return;
     }
@@ -1543,7 +1543,7 @@ export default function ForumPage() {
 
     if (deleteError) {
       logSupabaseError('Forum daily report delete failed', deleteError);
-      setDailyError('לא ניתן למחוק את הדיווח כרגע. יש לוודא שמיגרציית 012 הורצה ידנית ב-Supabase.');
+      setDailyError('לא ניתן למחוק את הדיווח כרגע. נסה שוב בעוד רגע.');
       setIsDailySaving(false);
       return;
     }
@@ -1629,7 +1629,7 @@ export default function ForumPage() {
       <section className="space-y-4">
         <div>
           <h2 className="text-lg font-black text-[#020108]">עדכונים אחרונים</h2>
-          <p className="text-sm font-bold text-[#667085]">{posts.length} פוסטים זמינים לפי הרשאות RLS</p>
+          <p className="text-sm font-bold text-[#667085]">{posts.length} פוסטים זמינים לך</p>
         </div>
 
         {posts.length === 0 ? (
@@ -1918,7 +1918,7 @@ export default function ForumPage() {
         )}
 
         <div className="tactical-glass-card flex flex-col gap-3 rounded-3xl p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-sm font-bold text-[#667085]">היררכיית מחלקות מלאה זמנית UI-gated עד mapping יחידות אמין ב־DB.</div>
+          <div className="text-sm font-bold text-[#667085]">היררכיית המחלקות המלאה תוצג כאן לאחר שיוך משתמשים ליחידות.</div>
           <div className="flex flex-wrap gap-2">
             {selectedReport?.status === 'closed' && (
               <span className="inline-flex items-center gap-2 rounded-full border border-[rgba(2,1,8,0.08)] bg-white/80 px-4 py-2 text-sm font-black text-[#020108]">

@@ -4,9 +4,9 @@ import { cn } from '@/lib/utils';
 
 export const SystemStatusPanel: React.FC<{ className?: string }> = ({ className }) => {
   const items = [
-    { label: 'מצב מערכת: פיתוח', icon: Code2 },
-    { label: 'Supabase מחובר', icon: Database },
-    { label: 'Demo / Dev Mode', icon: CheckCircle2 },
+    { label: 'מצב מערכת: תקין', icon: CheckCircle2 },
+    { label: 'חיבור לנתונים פעיל', icon: Database },
+    { label: 'גרסה פעילה', icon: Code2 },
   ];
 
   return (

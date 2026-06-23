@@ -353,7 +353,7 @@ export default function SchedulePage() {
 
       if (eventsError) {
         logSupabaseError('Events load failed', eventsError);
-        setError('לא ניתן לטעון מופעים. ייתכן שצריך להריץ את 003_events_schema.sql ואת RLS section G ב-Supabase.');
+        setError('לא ניתן לטעון את הלו״ז כרגע. נסה לרענן את הדף בעוד רגע.');
         return;
       }
 
@@ -688,7 +688,7 @@ export default function SchedulePage() {
 
     if (insertError || !createdEvent) {
       if (insertError) logSupabaseError('Event create failed', insertError);
-      setError('לא הצלחנו ליצור מופע. אם זו שגיאת הרשאות, יש להריץ את RLS section G ב-Supabase.');
+      setError('לא הצלחנו ליצור את המופע. בדוק שיש לך הרשאה לפעולה זו ונסה שוב.');
       return;
     }
 
@@ -805,7 +805,7 @@ export default function SchedulePage() {
 
     if (updateError) {
       logSupabaseError('Event edit failed', updateError);
-      setEditEventError('לא ניתן לעדכן את המופע. ייתכן שנדרשת מדיניות RLS מתאימה ב-Supabase.');
+      setEditEventError('לא ניתן לעדכן את המופע כרגע. נסה שוב בעוד רגע.');
       return;
     }
 
@@ -878,7 +878,7 @@ export default function SchedulePage() {
 
     if (updateError) {
       logSupabaseError('Event status update failed', updateError);
-      setError('לא ניתן לעדכן סטטוס מופע. ייתכן שנדרשת מדיניות RLS לעדכון public.events.');
+      setError('לא ניתן לעדכן את סטטוס המופע כרגע. נסה שוב בעוד רגע.');
       return;
     }
 

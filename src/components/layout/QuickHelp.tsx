@@ -42,7 +42,7 @@ export const QuickHelp: React.FC = () => {
 
             <div className="mt-3 space-y-2 text-xs font-semibold leading-relaxed text-[#667085]">
               <p>זו גרסה מוקדמת של המפקד.</p>
-              <p>הכניסה זמינה במצב פיתוח, ותהליכי אימות מייל נבדקים לפי מגבלות Supabase.</p>
+              <p>הכניסה כוללת אימות באמצעות קוד חד-פעמי שנשלח למייל.</p>
               <p>משימות, דרישות ופורום יחוברו בשלבים הבאים.</p>
               <p className="rounded-2xl border border-[#FF6B02]/20 bg-[#FF6B02]/10 px-3 py-2 text-[#9A4600]">
                 אין במערכת מידע מבצעי אמיתי.

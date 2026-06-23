@@ -134,9 +134,9 @@ export default function AdminPage() {
           console.error('Database users fetch error:', usersError);
           // "בינתיים אפשר להציג error ברור: נדרשת מדיניות RLS נוספת לניהול משתמשים"
           if (usersError.code === '42501') {
-            setRlsError('נדרשת מדיניות RLS (Row Level Security) נוספת לניהול משתמשים. אנא ודא שהרצת את קוד ה-SQL המתאים בסופבייס.');
+            setRlsError('אין לך הרשאה מתאימה לניהול משתמשים כרגע. פנה למנהל המערכת.');
           } else {
-            setRlsError(`שגיאת מסד נתונים: ${usersError.message}`);
+            setRlsError('לא ניתן לטעון את רשימת המשתמשים כרגע. נסה שוב בעוד רגע.');
           }
         } else if (usersData) {
           const unitMap = new Map((unitsData || []).map((unit) => [unit.id, unit.name]));
@@ -227,15 +227,15 @@ export default function AdminPage() {
       if (error) {
         console.error('Failed to approve user:', error);
         if (error.code === '42501') {
-          setRlsError('נדרשת מדיניות RLS (Row Level Security) נוספת לניהול משתמשים. אנא ודא שהרצת את קוד ה-SQL המתאים בסופבייס.');
+          setRlsError('אין לך הרשאה מתאימה לניהול משתמשים כרגע. פנה למנהל המערכת.');
         } else {
-          setRlsError(`שגיאת עדכון: ${error.message}`);
+          setRlsError('הפעולה נכשלה. נסה שוב בעוד רגע.');
         }
         return;
       }
 
       // Local state update
-      setProfilesList(prev => 
+      setProfilesList(prev =>
         prev.map(p => p.id === userId ? { ...p, status: 'active', role_approval_status: 'approved', permission_level: calculatedLevel } : p)
       );
     } catch (err) {
@@ -263,9 +263,9 @@ export default function AdminPage() {
       if (error) {
         console.error('Failed to reject user:', error);
         if (error.code === '42501') {
-          setRlsError('נדרשת מדיניות RLS (Row Level Security) נוספת לניהול משתמשים. אנא ודא שהרצת את קוד ה-SQL המתאים בסופבייס.');
+          setRlsError('אין לך הרשאה מתאימה לניהול משתמשים כרגע. פנה למנהל המערכת.');
         } else {
-          setRlsError(`שגיאת עדכון: ${error.message}`);
+          setRlsError('הפעולה נכשלה. נסה שוב בעוד רגע.');
         }
         return;
       }
@@ -332,9 +332,9 @@ export default function AdminPage() {
       if (error) {
         console.error('Failed to save profile edits:', error);
         if (error.code === '42501') {
-          setRlsError('נדרשת מדיניות RLS (Row Level Security) נוספת לניהול משתמשים. אנא ודא שהרצת את קוד ה-SQL המתאים בסופבייס.');
+          setRlsError('אין לך הרשאה מתאימה לניהול משתמשים כרגע. פנה למנהל המערכת.');
         } else {
-          setRlsError(`שגיאת עדכון: ${error.message}`);
+          setRlsError('הפעולה נכשלה. נסה שוב בעוד רגע.');
         }
         return;
       }

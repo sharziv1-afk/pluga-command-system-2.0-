@@ -26,7 +26,8 @@ export type AuditActionType =
   | 'forum_daily_report_closed'
   | 'forum_daily_report_reopened'
   | 'forum_daily_report_reset'
-  | 'forum_daily_report_deleted';
+  | 'forum_daily_report_deleted'
+  | 'forum_daily_report_carried_forward';
 
 interface CreateAuditLogParams {
   userId: string;

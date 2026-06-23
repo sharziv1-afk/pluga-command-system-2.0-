@@ -1250,9 +1250,73 @@ export default function ForumPage() {
     await loadDailyReports(selectedDate);
   };
 
+  const carryForwardClosedReport = async (sourceReport: DailyReportRow): Promise<void> => {
+    if (!dbProfile || !sourceReport.owner_user_id) return;
+
+    const nextDate = shiftDateString(sourceReport.report_date, 1);
+
+    const sourceMetadata = sourceReport.metadata ?? {};
+    const carriedMetadata: Record<string, unknown> = {
+      carried_forward_from_report_id: sourceReport.id,
+      carried_forward_from_date: sourceReport.report_date,
+      carried_forward_created_at: new Date().toISOString(),
+    };
+    if (typeof sourceMetadata.node_id === 'string') carriedMetadata.node_id = sourceMetadata.node_id;
+    if (typeof sourceMetadata.node_label === 'string') carriedMetadata.node_label = sourceMetadata.node_label;
+    if (sourceMetadata.ui_gated_scope !== undefined) carriedMetadata.ui_gated_scope = sourceMetadata.ui_gated_scope;
+
+    const { data: carriedReport, error: carryError } = await supabase
+      .from('forum_daily_reports')
+      .insert({
+        report_date: nextDate,
+        company_unit_id: sourceReport.company_unit_id,
+        platoon_unit_id: sourceReport.platoon_unit_id,
+        squad_unit_id: sourceReport.squad_unit_id,
+        report_level: sourceReport.report_level,
+        staff_role: sourceReport.staff_role,
+        parent_report_id: null,
+        created_by: dbProfile.id,
+        owner_user_id: sourceReport.owner_user_id,
+        status: 'draft',
+        content: sourceReport.content,
+        summary_text: sourceReport.summary_text,
+        whatsapp_text: null,
+        metadata: carriedMetadata,
+      })
+      .select('id')
+      .single<{ id: string }>();
+
+    if (carryError) {
+      // 23505 = unique(report_date, report_level, owner_user_id): a next-day report already
+      // exists. Never overwrite it; skip silently. Other errors are logged best-effort only.
+      if (carryError.code !== '23505') {
+        logSupabaseError('Forum daily report carry-forward failed', carryError);
+      }
+      return;
+    }
+
+    void createAuditLog(supabase, {
+      userId: dbProfile.id,
+      userName: dbProfile.name,
+      userRole: dbProfile.role,
+      actionType: 'forum_daily_report_carried_forward',
+      entityType: 'forum_daily_report',
+      entityId: carriedReport?.id ?? sourceReport.id,
+      previousValue: {
+        source_report_id: sourceReport.id,
+        source_date: sourceReport.report_date,
+      },
+      newValue: {
+        new_report_id: carriedReport?.id ?? null,
+        target_date: nextDate,
+        owner_user_id: sourceReport.owner_user_id,
+        report_level: sourceReport.report_level,
+      },
+    });
+  };
+
   const closeSelectedReport = async () => {
     if (!selectedReport || !dbProfile || !canSeeAll) return;
-    if (!window.confirm('האם לסגור את הדיווח הנבחר?')) return;
 
     setIsDailySaving(true);
     setDailyError(null);
@@ -1279,6 +1343,13 @@ export default function ForumPage() {
       entityId: selectedReport.id,
       previousValue: { status: selectedReport.status },
       newValue: { status: 'closed' },
+    });
+
+    // Auto carry-forward: create tomorrow's draft for the same owner. Fire-and-forget and
+    // best-effort only — close must never wait on it, and a rollover failure must never make
+    // the close itself appear to fail. The helper handles all of its own errors internally.
+    void carryForwardClosedReport(selectedReport).catch(carryError => {
+      logSupabaseError('Forum daily report carry-forward threw', carryError);
     });
 
     setDailySuccess('הדיווח נסגר');

@@ -162,9 +162,12 @@ type ReportOwnerOption = {
   units: { name: string } | null;
 };
 
-const reportFields: Array<{ key: keyof SquadContent; label: string }> = [
-  { key: 'present_count', label: 'מצבת חיילים — נוכחים' },
-  { key: 'total_count', label: 'מצבת חיילים — סד״כ' },
+const squadManpowerFields: Array<{ key: keyof SquadContent; label: string }> = [
+  { key: 'present_count', label: 'נוכחים' },
+  { key: 'total_count', label: 'סד״כ' },
+];
+
+const squadPrimaryFields: Array<{ key: keyof SquadContent; label: string }> = [
   { key: 'personnel', label: 'כוח אדם' },
   { key: 'readiness', label: 'כוננות' },
   { key: 'welfare', label: 'ת״ש' },
@@ -174,9 +177,12 @@ const reportFields: Array<{ key: keyof SquadContent; label: string }> = [
   { key: 'logistics', label: 'לוגיסטיקה' },
   { key: 'personal_requests', label: 'בקשות אישיות' },
   { key: 'plan_vs_actual', label: 'תכנון מול ביצוע' },
-  { key: 'network_and_knowledge', label: 'רשת / ניהול ריאלי / פרגון / שימור ידע' },
-  { key: 'daily_lessons', label: 'לקחים יומי' },
   { key: 'next_actions', label: 'פעולות להמשך' },
+];
+
+const squadSecondaryFields: Array<{ key: keyof SquadContent; label: string; wide?: boolean }> = [
+  { key: 'network_and_knowledge', label: 'רשת / ריאלי / פרגון / שימור ידע', wide: true },
+  { key: 'daily_lessons', label: 'לקחים יומי' },
   { key: 'personal_note', label: 'התייחסות אישית' },
 ];
 
@@ -1788,6 +1794,7 @@ export default function ForumPage() {
     const displayedStatus = selectedReport?.status ?? 'draft';
     const isReadView = Boolean(selectedReport) && !isEditingReport;
     const readContent = { ...emptyReportDraft(), ...(selectedReport?.content ?? {}) };
+    const hasSecondaryContent = squadSecondaryFields.some(field => readContent[field.key].trim().length > 0);
     const returnedInfo = selectedReport && selectedReport.status === 'in_progress' && selectedReport.metadata?.returned_note
       ? {
           note: String(selectedReport.metadata.returned_note),
@@ -1904,16 +1911,66 @@ export default function ForumPage() {
             ))}
           </div>
         ) : (
-          <div className="tactical-glass-card rounded-3xl p-5">
-            <h3 className="mb-4 text-lg font-black text-[#020108]">{selectedNode.level === 'platoon' ? 'סיכום מ״מ / מחלקה' : 'דיווח מ״כ / כיתה'}</h3>
-            <div className="grid gap-4 lg:grid-cols-2">
-              {reportFields.map(field => (
-                <label key={field.key} className={field.key === 'network_and_knowledge' || field.key === 'personal_note' ? 'block lg:col-span-2' : 'block'}>
-                  <span className="mb-2 block text-sm font-black text-[#020108]">{field.label}</span>
-                  <textarea value={reportDraft[field.key]} onChange={event => updateDraft(field.key, event.target.value)} className="command-input min-h-24 resize-none" disabled={isDailySaving || isSelectedReportReadOnly} />
-                </label>
-              ))}
+          <div className="space-y-4">
+            <div className="tactical-glass-card rounded-3xl p-5">
+              <div className="flex items-center gap-4">
+                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#FF6B02]/10 text-[#FF6B02]">
+                  <Users className="h-6 w-6" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-black text-[#020108]">מצבת חיילים</p>
+                  <p className="font-mono text-3xl font-black text-[#FF6B02]" dir="ltr">
+                    {reportDraft.present_count.trim() || '—'}/{reportDraft.total_count.trim() || '—'}
+                  </p>
+                </div>
+                <span className="mr-auto hidden text-sm font-bold text-[#667085] sm:block">נוכחים / סד״כ בבסיס</span>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-3 border-t border-[rgba(2,1,8,0.08)] pt-4">
+                {squadManpowerFields.map(field => (
+                  <label key={field.key} className="block">
+                    <span className="mb-1 block text-xs font-black text-[#667085]">{field.label}</span>
+                    <input
+                      value={reportDraft[field.key]}
+                      onChange={event => updateDraft(field.key, event.target.value)}
+                      inputMode="numeric"
+                      placeholder="0"
+                      className="command-input w-full text-center font-mono text-lg font-black text-[#020108]"
+                      disabled={isDailySaving || isSelectedReportReadOnly}
+                    />
+                  </label>
+                ))}
+              </div>
             </div>
+
+            <div className="tactical-glass-card rounded-3xl p-5">
+              <h3 className="mb-4 text-lg font-black text-[#020108]">{selectedNode.level === 'platoon' ? 'סיכום מ״מ / מחלקה' : 'דיווח מ״כ / כיתה'}</h3>
+              <div className="grid gap-4 lg:grid-cols-2">
+                {squadPrimaryFields.map(field => (
+                  <label key={field.key} className="block">
+                    <span className="mb-2 block text-sm font-black text-[#020108]">{field.label}</span>
+                    <textarea value={reportDraft[field.key]} onChange={event => updateDraft(field.key, event.target.value)} className="command-input min-h-20 resize-none" disabled={isDailySaving || isSelectedReportReadOnly} />
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <details className="tactical-glass-card group rounded-3xl p-5" open={hasSecondaryContent}>
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+                <span className="text-lg font-black text-[#020108]">הרחבות וסיכום</span>
+                <span className="flex shrink-0 items-center gap-1.5 text-sm font-black text-[#667085]">
+                  <span className="group-open:hidden">פרטים נוספים ▾</span>
+                  <span className="hidden group-open:inline">הסתר פרטים ▴</span>
+                </span>
+              </summary>
+              <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                {squadSecondaryFields.map(field => (
+                  <label key={field.key} className={field.wide ? 'block lg:col-span-2' : 'block'}>
+                    <span className="mb-2 block text-sm font-black text-[#020108]">{field.label}</span>
+                    <textarea value={reportDraft[field.key]} onChange={event => updateDraft(field.key, event.target.value)} className="command-input min-h-24 resize-none" disabled={isDailySaving || isSelectedReportReadOnly} />
+                  </label>
+                ))}
+              </div>
+            </details>
           </div>
         )}
 

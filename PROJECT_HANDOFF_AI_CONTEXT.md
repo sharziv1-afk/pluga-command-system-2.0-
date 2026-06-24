@@ -2,10 +2,10 @@
 
 Authoritative technical handoff for AI agents and developers continuing work on `pluga-command-system`.
 
-**Last updated:** 2026-06-23  
-**Milestone:** Forum daily Auto Carry Forward (rollover) checkpoint  
-**Latest commit:** `c991be2 Carry forward closed forum daily reports`
-**Current milestone override:** Forum daily Auto Carry Forward (rollover) checkpoint
+**Last updated:** 2026-06-24  
+**Milestone:** Forum Daily Phase A (layout/density) checkpoint; next major work is Tracking Module Phase B  
+**Latest commit:** `1d37472 Simplify forum daily report layout and density`
+**Current milestone override:** Forum Daily Phase A checkpoint + Tracking Module Phase B kickoff (see "NEXT MAJOR WORK" below)
 
 ## Identity
 
@@ -20,6 +20,10 @@ Authoritative technical handoff for AI agents and developers continuing work on 
 ## Latest Git State
 
 ```text
+1d37472 Simplify forum daily report layout and density
+788cd0d Polish interface density and dashboard command brief
+890da65 Polish user-facing empty states and system copy
+d6e5932 Document forum daily carry forward
 c991be2 Carry forward closed forum daily reports
 813ef48 Document forum daily scroll checkpoint
 62fd8fe Scroll forum daily slot selections into view
@@ -40,6 +44,53 @@ c03db56 Fix has_completed_onboarding after registration
 c8c5884 Sync project docs after profile lookup hotfixes
 73ed3a5 Fix ambiguous user unit lookups across protected pages
 ```
+
+## Forum Daily Phase A - Layout & Density (2026-06-24)
+
+Commit: `1d37472 Simplify forum daily report layout and density`. Single-file UI-only change in `src/app/(protected)/forum/page.tsx`. No DB/SQL/RLS/Auth/proxy changes.
+
+- **Manpower card:** `מצבת חיילים` is a full-width central card. Edit mode shows a large live ratio (`{present_count}/{total_count}`, falls back to `—`) above the two underlying inputs (labeled `נוכחים`/`סד״כ`, placeholder `0`). Field names/content schema (`present_count`, `total_count`) and save/update logic are unchanged.
+- **Primary fields:** squad/platoon fields render in a 2-column grid on desktop (`lg:grid-cols-2`), 1 column on mobile.
+- **Secondary fields:** reflection/extra fields (`רשת/ריאלי/פרגון/שימור ידע`, `לקחים יומי`, `התייחסות אישית`) moved into a native `<details>` section labelled "הרחבות וסיכום" with an explicit "פרטים נוספים ▾" / "הסתר פרטים ▴" summary toggle. Auto-`open` when the report already has content in those fields, collapsed when empty — no hidden data.
+- **Action bar:** verified (not changed) to wrap correctly with `flex-wrap` down to 390px; no horizontal overflow.
+- **Untouched:** `carryForwardClosedReport`, `generateWhatsappText`, `shiftDateString`, `findPlatoonSummaryOwner`, `findReportForNode`, `loadDailyReports`, save/submit/close/reopen/reset/delete/return handlers, `createAuditLog`, all `supabase.from(...)` calls, locked/closed state, WhatsApp preview, date navigation.
+- **QA:** Chrome-checked at 1117px (desktop), 768px (tablet), 500px (narrow), and 390px (mobile). No blocking issues, no app console errors. Minor non-blocking polish noted: the date input is slightly tight at 390px, and the disclosure glyph is small — neither blocks commit.
+- **Validation:** `npm run lint` (0 errors), `npx tsc -p tsconfig.json --noEmit`, `npm run build` — all green before commit and push.
+
+## NEXT MAJOR WORK: Tracking Module - Phase B (Technical Execution Plan)
+
+Tracking is the next core module, but **Phase B (planning only) starts now — not code.** Do not write Tracking DB/RLS/migration/UI code before this plan is reviewed and approved.
+
+**Collaboration model going forward:**
+
+- **ChatGPT** - orchestrator / writes prompts / commander role.
+- **Code X** - primary implementer once a plan is approved.
+- **Claude Code** - deep technical planning, documentation, periodic review.
+- **Claude Chrome** - visual QA against the live app and the reference demo.
+
+**Decisions already locked (do not re-open without reason):**
+
+- Tracking is a core module, spreadsheet-style: rows = soldiers, columns = exercises/qualifications/checks, cells = status.
+- Soldiers come from a dedicated `soldiers`/personnel table — **not** `users`. Not every soldier is a system user; the existing `users` table represents commanders/staff, not the full roster.
+- Export starts as CSV (client-side, no new dependency). Real Excel (`xlsx`) and Google Sheets API are later, not MVP.
+- Initial status set (per reference demo, not the earlier "הושלם/לא הושלם" draft): `empty`/`ריק`, `passed`/`עבר`, `failed`/`לא עבר`, `makeup`/`השלמה`.
+
+**Open decisions — must close in Phase B, before any migration draft:**
+
+1. Does מ״כ edit their own squad's tracking, or view-only at first (until a reliable squad model exists)?
+2. Is "squad" (כיתה) a free-text `squad_label`, or a dedicated `squads` table?
+3. Is מספר אישי (personal number) required on a soldier record?
+4. Are soldiers hard-deleted or marked inactive?
+5. Is Tracking one company-wide board, or multiple boards (per subject/unit)?
+6. Is CSV export always the full dataset, or only the currently filtered view?
+
+**Phase B sequence (in order, no skipping):**
+
+1. Re-verify existing schema/migrations/RLS patterns: `units`, `roles`, `is_commander()` (`002_rls_policies.sql`), `audit_logs`, and how Tasks/Requests/Events already load+mutate+audit through Supabase.
+2. Propose a data model: `soldiers`, `tracking_items` (columns/exercises), `tracking_records` (cells), and decide whether `tracking_boards` is needed for MVP or later.
+3. Propose an RLS plan mirroring `002_rls_policies.sql` conventions (commander sees/edits all; platoon commander scoped to their unit; squad-commander scope per open decision #1) — **draft only, not applied**.
+4. Resolve the 6 open decisions above with the product owner.
+5. Only then prepare a migration draft for review. SQL stays manual-only; nothing is auto-run.
 
 ## Forum Daily Auto Carry Forward (2026-06-23)
 
@@ -634,7 +685,10 @@ Step 0 - Cleanup orphaned legacy prototype shell - DONE in 96ae49b
 Hotfix A - Password reset + Dashboard profile lookup - DONE in 717bcc9
 Hotfix B - Global users/units ambiguity fix - DONE in 73ed3a5
 Step 1 - Sync docs with 013 + cleanup + hotfix milestones - DONE
-Step 2 - Forum daily UI-only owner/slot matching layer - NEXT
+Step 2 - Forum daily UI-only owner/slot matching layer - DONE in 1c7414c
+Step 2b - Forum daily slot-click scroll-into-view - DONE in 62fd8fe
+Step 2c - Carry Forward / Rollover - DONE in c991be2
+Step 2d - Forum Daily Phase A (layout/density, UI-only) - DONE in 1d37472
 Step 3 - WhatsApp preview from mapped slots/platoons
 Step 4 - Remove dev-facing daily forum text + confirm destructive delete
 Step 5 - Real Users QA setup
@@ -644,10 +698,18 @@ Step 8 - Full MK -> MM -> MP QA
 Step 9 - UI/mobile conservative polish
 ```
 
+## Tracking Module Roadmap
+
+```text
+Tracking Phase A - Product decisions locked (spreadsheet style, dedicated soldiers table, CSV-first export, initial status set) - DONE
+Tracking Phase B - Technical Execution Plan (data model + RLS plan + open decisions) - NEXT
+Tracking Phase C - MVP implementation (after Phase B review/approval) - NOT STARTED
+```
+
 ## Old Prompt for New Claude/Codex Session (superseded)
 
 Continue `pluga-command-system` / "המפקד". First read `README.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`, `PROJECT_SUMMARY.md`, `AGENTS.md`, and `CLAUDE.md`. Latest commit should be `2dfcff7 Polish forum UX and update handoff docs`; previous important commits are `f5c1e40 Add hierarchical forum daily reports` and `f47812b Add Supabase-backed Forum Phase 1`. Stack: Next.js 16 with `src/proxy.ts` (not `middleware.ts`), React 19, TypeScript, Tailwind 4, Supabase Auth/PostgreSQL/RLS. Forum posts and hierarchical daily reports are Supabase-backed. Migrations 001-012 were run manually; 009 is legacy/prototype; 010+ is the current forum daily model. Do not run SQL automatically, do not use service role client-side, do not rewrite old migrations, preserve Hebrew RTL and Light Gloss Command System, and ask before commit/push. Next major phase is real users + hierarchy mapping + real hierarchy RLS.
-## Current 2026-06-23 Prompt Override
+## 2026-06-23 Prompt Override (superseded)
 
 Use this current prompt and treat older prompt text above as superseded:
 
@@ -656,3 +718,13 @@ Continue `pluga-command-system` / "המפקד". First read `README.md`, `PROJECT
 ## Previous Session Prompt Override (superseded)
 
 Continue `pluga-command-system` / "המפקד". First read `README.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`, `PROJECT_SUMMARY.md`, `AGENTS.md`, and `CLAUDE.md`. Latest commit should be `73ed3a5 Fix ambiguous user unit lookups across protected pages`; recent important commits include `717bcc9 Fix dashboard profile lookup and add password reset flow`, `96ae49b Remove orphaned legacy prototype shell and split session context`, `5b5adc5 Fix admin commanded unit mapping`, `7b8050f Add commanded unit assignment to admin panel`, `2dfcff7 Polish forum UX and update handoff docs`, `f5c1e40 Add hierarchical forum daily reports`, and `f47812b Add Supabase-backed Forum Phase 1`. Stack: Next.js 16 with `src/proxy.ts` (not `middleware.ts`), React 19, TypeScript, Tailwind 4, Supabase Auth/PostgreSQL/RLS. Forum posts and hierarchical daily reports are Supabase-backed. Migrations 001-013 were run manually per project handoff; 009 is legacy/prototype; 010+ is the current forum daily model; 013 adds `users.commanded_unit_id` as foundation only. Do not run SQL automatically, do not use service role client-side, do not rewrite old migrations, preserve Hebrew RTL and Light Gloss Command System, do not embed `units(...)` from `users`, and ask before commit/push. Next major phase is real users QA, forum wiring to `commanded_unit_id`, hierarchy mapping, and real hierarchy RLS.
+
+## Current 2026-06-24 Prompt Override
+
+Use this current prompt and treat older prompt text above as superseded:
+
+Continue `pluga-command-system` / "המפקד". First read `README.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`, `PROJECT_SUMMARY.md`, `AGENTS.md`, and `CLAUDE.md`. Latest commit is `1d37472 Simplify forum daily report layout and density` (Forum Daily Phase A: layout/density redesign of the report form, UI-only, single file `src/app/(protected)/forum/page.tsx`, no DB/RLS/Auth/proxy changes, lint/tsc/build green, Chrome-QA'd at 1117/768/500/390px). Forum Daily before that already has Auto Carry Forward (`c991be2`), slot-click scroll (`62fd8fe`), and owner/slot matching (`1c7414c`) — all still intact and unchanged by Phase A.
+
+**Next major work is the Tracking Module, but only Phase B (Technical Execution Plan) — no Tracking code, DB, RLS, or migration yet.** Collaboration model: ChatGPT orchestrates/writes prompts, Code X implements once a plan is approved, Claude Code does deep planning/documentation/periodic review, Claude Chrome does visual QA against the live app and the reference demo. Decisions already locked: Tracking is spreadsheet-style (rows = soldiers, columns = exercises/qualifications, cells = status); soldiers come from a dedicated `soldiers` table, not `users`; export starts as CSV, Excel/Sheets API later; initial statuses are `empty/ריק`, `passed/עבר`, `failed/לא עבר`, `makeup/השלמה`. Open decisions to close in Phase B: מ״כ edit-vs-view scope, squad as free text vs a `squads` table, whether personal number is required, soldier delete vs inactive, one board vs many, and whether CSV export is full-dataset or filtered-view. See "NEXT MAJOR WORK: Tracking Module - Phase B" in this file for the full sequence. Do not write Tracking DB/RLS/migration/UI code before that plan is reviewed and approved.
+
+Stack: Next.js 16 with `src/proxy.ts` (not `middleware.ts`), React 19, TypeScript, Tailwind 4, Supabase Auth/PostgreSQL/RLS. SQL is manual only; preserve Hebrew RTL and Light Gloss Command System; do not touch Auth/proxy/Supabase/RLS without explicit scope; do not delete the "דוחות קיימים" forum fallback; do not start Tracking implementation before Phase B approval; ask before commit/push.

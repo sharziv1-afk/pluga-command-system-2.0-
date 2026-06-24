@@ -1,5 +1,76 @@
 # Project Summary - pluga-command-system
 
+## Current Snapshot - 2026-06-24
+
+**Product:** `pluga-command-system` / "המפקד"  
+**Branch:** `main`  
+**Latest commit:** `1d37472 Simplify forum daily report layout and density`  
+**Git state:** `origin/main` up to date, working tree clean
+
+**Recent important commits:**
+
+```text
+1d37472 Simplify forum daily report layout and density
+788cd0d Polish interface density and dashboard command brief
+890da65 Polish user-facing empty states and system copy
+d6e5932 Document forum daily carry forward
+c991be2 Carry forward closed forum daily reports
+813ef48 Document forum daily scroll checkpoint
+62fd8fe Scroll forum daily slot selections into view
+1c7414c Map forum daily platoon owners to structural slots
+```
+
+This snapshot supersedes the 2026-06-21 snapshot (and older) below.
+
+## Forum Daily Phase A - Layout & Density (2026-06-24)
+
+`1d37472`. UI-only redesign of the daily report form, single file changed: `src/app/(protected)/forum/page.tsx`.
+
+- Manpower card is full-width and central; edit mode shows a live large `נוכחים/סד״כ` ratio above the two underlying inputs (placeholder `0`); same `present_count`/`total_count` fields, no schema change.
+- Primary fields: 2-column grid on desktop, 1 column on mobile.
+- Secondary/reflection fields: collapsible "פרטים נוספים / הסתר פרטים" section, auto-open when it already has content, collapsed when empty.
+- Action bar verified to wrap correctly down to 390px; locked/closed state, WhatsApp preview, and date navigation unchanged.
+- QA: Chrome at 1117px / 768px / 500px / 390px — no blocking issues. Minor non-blocking polish left: date input slightly tight at 390px, `▾` glyph small.
+- Validation: lint/tsc/build all green.
+- Not touched: DB/RLS/SQL, Auth, proxy, rollover/carry-forward, WhatsApp generation, date navigation, slot matching, owner mapping, audit, Supabase queries/mutations.
+
+## Tracking Module - Roadmap Reset (2026-06-24)
+
+Next major product work is the **Tracking Module**, but only **Phase B (Technical Execution Plan)** starts now — no Tracking code, DB, RLS, or migration yet.
+
+**Collaboration model going forward:**
+
+- ChatGPT - orchestrator / writes prompts / commander role.
+- Code X - primary implementer once a plan is approved.
+- Claude Code - deep technical planning, documentation, periodic review.
+- Claude Chrome - visual QA against the live app and the reference demo.
+
+**Decisions already locked:**
+
+- Tracking is a core module, spreadsheet-style: rows = soldiers, columns = exercises/qualifications/checks, cells = status.
+- Soldiers come from a dedicated `soldiers`/personnel table — **not** `users` (not every soldier is a system user).
+- Export starts as CSV; real Excel (xlsx) and Google Sheets API are later, not MVP.
+- Initial status set (per demo): `empty/ריק`, `passed/עבר`, `failed/לא עבר`, `makeup/השלמה`.
+
+**Open decisions (must close in Phase B, before any migration draft):**
+
+- Does מ״כ edit their own squad's tracking, or view-only at first?
+- Is "squad" (כיתה) a free-text `squad_label`, or a dedicated `squads` table?
+- Is מספר אישי (personal number) required?
+- Are soldiers hard-deleted or marked inactive?
+- Is Tracking one company-wide board, or multiple boards?
+- Is CSV export always the full dataset, or only the currently filtered view?
+
+**Phase B must finish before code:**
+
+1. Re-verify existing schema/migrations/RLS patterns (`units`, `roles`, `is_commander()`, `audit_logs`).
+2. Propose a data model (`soldiers`, `tracking_items`, `tracking_records`, and decide on `tracking_boards`).
+3. Propose an RLS plan mirroring `002_rls_policies.sql` patterns (draft only, not applied).
+4. Resolve the open decisions above.
+5. Only then prepare a migration draft for review — still not auto-run.
+
+See `PROJECT_HANDOFF_AI_CONTEXT.md` for the full technical version of this plan.
+
 ## Current Snapshot - 2026-06-21
 
 **Product:** `pluga-command-system` / "המפקד"  
@@ -401,7 +472,10 @@ Step 0 - Cleanup orphaned legacy prototype shell - DONE in 96ae49b
 Hotfix A - Password reset + Dashboard profile lookup - DONE in 717bcc9
 Hotfix B - Global users/units ambiguity fix - DONE in 73ed3a5
 Step 1 - Sync docs with 013 + cleanup + hotfix milestones - DONE
-Step 2 - Forum daily UI-only owner/slot matching layer - NEXT
+Step 2 - Forum daily UI-only owner/slot matching layer - DONE in 1c7414c
+Step 2b - Forum daily slot-click scroll-into-view - DONE in 62fd8fe
+Step 2c - Carry Forward / Rollover - DONE in c991be2
+Step 2d - Forum Daily Phase A (layout/density, UI-only) - DONE in 1d37472
 Step 3 - WhatsApp preview from mapped slots/platoons
 Step 4 - Remove dev-facing daily forum text + confirm destructive delete
 Step 5 - Real Users QA setup
@@ -409,6 +483,14 @@ Step 6 - Forum wiring to commanded_unit_id
 Step 7 - Hierarchical RLS policies
 Step 8 - Full MK -> MM -> MP QA
 Step 9 - UI/mobile conservative polish
+```
+
+## Tracking Module Roadmap
+
+```text
+Tracking Phase A - Product decisions locked (spreadsheet style, dedicated soldiers table, CSV-first export, initial status set) - DONE
+Tracking Phase B - Technical Execution Plan (data model + RLS plan + open decisions) - NEXT
+Tracking Phase C - MVP implementation (after Phase B review/approval) - NOT STARTED
 ```
 
 ### Phase A - Real users QA setup

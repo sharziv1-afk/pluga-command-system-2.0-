@@ -1,6 +1,6 @@
 # pluga-command-system - "המפקד"
 
-## Milestone Snapshot - 2026-06-21
+## Milestone Snapshot - 2026-06-24
 
 `pluga-command-system` / **"המפקד"** is a Hebrew RTL company command-management system for command teams. It is built with Next.js 16 App Router, React 19, TypeScript, Tailwind CSS 4, Supabase Auth/PostgreSQL/RLS, and GitHub. Future deployment target: Vercel.
 
@@ -10,9 +10,13 @@
 
 ```text
 Latest commit:
-c991be2 Carry forward closed forum daily reports
+1d37472 Simplify forum daily report layout and density
 
 Previous important commits:
+788cd0d Polish interface density and dashboard command brief
+890da65 Polish user-facing empty states and system copy
+d6e5932 Document forum daily carry forward
+c991be2 Carry forward closed forum daily reports
 813ef48 Document forum daily scroll checkpoint
 62fd8fe Scroll forum daily slot selections into view
 1c7414c Map forum daily platoon owners to structural slots
@@ -51,6 +55,18 @@ When a forum daily report is closed (`status='closed'`), the system auto-creates
 - Close UX no longer uses a native `window.confirm` (delete/reset confirms unchanged); the close feedback stays "הדיווח נסגר".
 
 Validation: lint (0 errors), tsc, build, and Chrome QA — closing 22/06 created a 23/06 draft (content copied, 22/06 stayed closed/historical), and the repeat QA after the confirm removal had 23/06→24/06 with `POST forum_daily_reports 201`, no freeze, no `42501`/`23505`/app errors.
+
+## Forum Daily Phase A - Layout & Density - 2026-06-24
+
+Commit: `1d37472 Simplify forum daily report layout and density`. UI-only, single file (`src/app/(protected)/forum/page.tsx`).
+
+- Manpower (`מצבת חיילים`) is a full-width central card; edit mode shows a large live `נוכחים/סד״כ` ratio above the two underlying inputs (placeholder `0`) — same `present_count`/`total_count` fields and content schema.
+- Primary squad/platoon fields moved to a 2-column grid on desktop, 1 column on mobile.
+- Secondary/reflection fields moved into a collapsible "פרטים נוספים / הסתר פרטים" section — open automatically when it already has content, collapsed when empty.
+- Sidebar status badges, locked/closed state, WhatsApp preview, and date navigation are unchanged.
+- QA: Chrome-checked at 1117px / 768px / 500px / 390px — no blocking issues, no console app errors. Minor non-blocking polish noted (date input slightly tight at 390px; `▾` glyph small).
+- Validation: lint (0 errors), tsc, build — all green.
+- Not touched: DB/RLS/SQL, Auth, proxy, rollover/carry-forward, WhatsApp generation, date navigation, slot matching, owner mapping, audit, Supabase queries/mutations.
 
 ## Forum Daily Checkpoint - 2026-06-21
 
@@ -468,7 +484,10 @@ Step 0 - Cleanup orphaned legacy prototype shell - DONE in 96ae49b
 Hotfix A - Password reset + Dashboard profile lookup - DONE in 717bcc9
 Hotfix B - Global users/units ambiguity fix - DONE in 73ed3a5
 Step 1 - Sync docs with 013 + cleanup + hotfix milestones - DONE
-Step 2 - Forum daily UI-only owner/slot matching layer - NEXT
+Step 2 - Forum daily UI-only owner/slot matching layer - DONE in 1c7414c
+Step 2b - Forum daily slot-click scroll-into-view - DONE in 62fd8fe
+Step 2c - Carry Forward / Rollover - DONE in c991be2
+Step 2d - Forum Daily Phase A (layout/density, UI-only) - DONE in 1d37472
 Step 3 - WhatsApp preview from mapped slots/platoons
 Step 4 - Remove dev-facing daily forum text + confirm destructive delete
 Step 5 - Real Users QA setup
@@ -477,6 +496,16 @@ Step 7 - Hierarchical RLS policies
 Step 8 - Full MK -> MM -> MP QA
 Step 9 - UI/mobile conservative polish
 ```
+
+## Tracking Module Roadmap
+
+```text
+Tracking Phase A - Product decisions locked (spreadsheet style, dedicated soldiers table, CSV-first export, initial status set) - DONE
+Tracking Phase B - Technical Execution Plan (data model + RLS plan + open decisions) - NEXT
+Tracking Phase C - MVP implementation (after Phase B review/approval) - NOT STARTED
+```
+
+See `PROJECT_HANDOFF_AI_CONTEXT.md` for the full Tracking Phase B plan, open decisions, and the ChatGPT/Code X/Claude Code/Chrome Claude collaboration model.
 
 ### Phase A - Real users QA setup
 

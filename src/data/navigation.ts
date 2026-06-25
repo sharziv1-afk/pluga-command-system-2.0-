@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   MessageSquare,
   Shield,
+  Table2,
   Truck,
   User,
 } from 'lucide-react';
@@ -34,6 +35,11 @@ export const navigationItems = [
     name: 'פורום מוביל',
     path: '/forum',
     icon: MessageSquare,
+  },
+  {
+    name: 'מעקב',
+    path: '/tracking',
+    icon: Table2,
   },
   {
     name: 'אישור משתמשים',

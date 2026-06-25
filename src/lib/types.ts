@@ -71,3 +71,48 @@ export interface DbEvent {
   updated_at: string;
 }
 
+export type TrackingStatus = 'empty' | 'passed' | 'failed' | 'makeup';
+
+export interface DbSoldier {
+  id: string;
+  full_name: string;
+  personal_number: string | null;
+  unit_id: string;
+  squad_label: string | null;
+  role_label: string | null;
+  notes: string | null;
+  is_active: boolean;
+  metadata: Record<string, unknown>;
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbTrackingItem {
+  id: string;
+  title: string;
+  description: string | null;
+  category: string;
+  subject: string | null;
+  sort_order: number;
+  is_active: boolean;
+  metadata: Record<string, unknown>;
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbTrackingRecord {
+  id: string;
+  soldier_id: string;
+  tracking_item_id: string;
+  status: TrackingStatus;
+  note: string | null;
+  metadata: Record<string, unknown>;
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+}

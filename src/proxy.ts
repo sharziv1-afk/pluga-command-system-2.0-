@@ -10,6 +10,7 @@ const protectedRoutes = [
   '/requests',
   '/schedule',
   '/tasks',
+  '/tracking',
 ];
 
 function isProtectedRoute(pathname: string) {
@@ -71,5 +72,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/dashboard/:path*', '/forum/:path*', '/help/:path*', '/profile/:path*', '/requests/:path*', '/schedule/:path*', '/tasks/:path*'],
+  matcher: ['/admin/:path*', '/dashboard/:path*', '/forum/:path*', '/help/:path*', '/profile/:path*', '/requests/:path*', '/schedule/:path*', '/tasks/:path*', '/tracking/:path*'],
 };

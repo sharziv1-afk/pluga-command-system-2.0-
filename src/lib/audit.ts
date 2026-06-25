@@ -27,14 +27,30 @@ export type AuditActionType =
   | 'forum_daily_report_reopened'
   | 'forum_daily_report_reset'
   | 'forum_daily_report_deleted'
-  | 'forum_daily_report_carried_forward';
+  | 'forum_daily_report_carried_forward'
+  | 'tracking_soldier_created'
+  | 'tracking_soldier_updated'
+  | 'tracking_item_created'
+  | 'tracking_item_updated'
+  | 'tracking_record_updated'
+  | 'tracking_exported_csv';
 
 interface CreateAuditLogParams {
   userId: string;
   userName: string;
   userRole: string;
   actionType: AuditActionType;
-  entityType: 'request' | 'task' | 'event' | 'forum_post' | 'forum_daily_summary' | 'forum_daily_report';
+  entityType:
+    | 'request'
+    | 'task'
+    | 'event'
+    | 'forum_post'
+    | 'forum_daily_summary'
+    | 'forum_daily_report'
+    | 'tracking_soldier'
+    | 'tracking_item'
+    | 'tracking_record'
+    | 'tracking_export';
   entityId: string;
   previousValue?: Record<string, unknown> | null;
   newValue?: Record<string, unknown> | null;

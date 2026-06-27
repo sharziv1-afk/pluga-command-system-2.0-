@@ -570,25 +570,57 @@ export default function TrackingPage() {
     record: DbTrackingRecord | undefined,
   ) => {
     const cellKey = `${soldier.id}:${item.id}`;
+    if (updatingCellKey === cellKey) return;
+
     const previousStatus = record?.status ?? 'empty';
     const nextStatus = getNextStatus(previousStatus);
+    const previousRecords = records;
+    const nowIso = new Date().toISOString();
+    const optimisticRecord: DbTrackingRecord = record
+      ? {
+          ...record,
+          status: nextStatus,
+          updated_by: currentUserId,
+          updated_at: nowIso,
+        }
+      : {
+          id: `pending-${cellKey}`,
+          soldier_id: soldier.id,
+          tracking_item_id: item.id,
+          status: nextStatus,
+          note: null,
+          metadata: {},
+          created_by: currentUserId,
+          updated_by: currentUserId,
+          created_at: nowIso,
+          updated_at: nowIso,
+        };
 
     setErrorMessage(null);
     setSuccessMessage(null);
     setUpdatingCellKey(cellKey);
+    setRecords(current => (
+      record
+        ? current.map(itemRecord => (itemRecord.id === record.id ? optimisticRecord : itemRecord))
+        : [optimisticRecord, ...current]
+    ));
 
     let entityId = record?.id ?? null;
     let operationError: unknown = null;
+    let savedRecord: DbTrackingRecord | null = null;
 
     if (record) {
-      const { error: updateError } = await supabase
+      const { data: updatedRecord, error: updateError } = await supabase
         .from('tracking_records')
         .update({
           status: nextStatus,
           updated_by: currentUserId,
         })
-        .eq('id', record.id);
+        .eq('id', record.id)
+        .select('id,soldier_id,tracking_item_id,status,note,metadata,created_by,updated_by,created_at,updated_at')
+        .single<DbTrackingRecord>();
 
+      savedRecord = updatedRecord ?? null;
       operationError = updateError;
     } else {
       const { data: createdRecord, error: insertError } = await supabase
@@ -601,16 +633,18 @@ export default function TrackingPage() {
           created_by: currentUserId,
           updated_by: currentUserId,
         })
-        .select('id,status')
-        .single<Pick<DbTrackingRecord, 'id' | 'status'>>();
+        .select('id,soldier_id,tracking_item_id,status,note,metadata,created_by,updated_by,created_at,updated_at')
+        .single<DbTrackingRecord>();
 
       entityId = createdRecord?.id ?? null;
+      savedRecord = createdRecord ?? null;
       operationError = insertError;
     }
 
     setUpdatingCellKey(null);
 
-    if (operationError || !entityId) {
+    if (operationError || !entityId || !savedRecord) {
+      setRecords(previousRecords);
       if (operationError) logSupabaseError('[tracking] tracking record update failed', operationError);
       setErrorMessage(getRlsAwareErrorMessage(
         operationError,
@@ -619,6 +653,12 @@ export default function TrackingPage() {
       ));
       return;
     }
+
+    setRecords(current => (
+      record
+        ? current.map(itemRecord => (itemRecord.id === savedRecord.id || itemRecord.id === record.id ? savedRecord : itemRecord))
+        : current.map(itemRecord => (itemRecord.id === optimisticRecord.id ? savedRecord : itemRecord))
+    ));
 
     if (currentUserId && currentUser) {
       void createAuditLog(supabase, {
@@ -642,7 +682,6 @@ export default function TrackingPage() {
     }
 
     setSuccessMessage(`סטטוס התא עודכן: ${statusLabels[nextStatus]}.`);
-    await loadTrackingData();
   };
 
   const headerActions = (
@@ -1134,13 +1173,10 @@ export default function TrackingPage() {
                             title="לחיצה מחליפה סטטוס"
                             onClick={() => void handleCycleCellStatus(soldier, item, record)}
                             disabled={isCellUpdating}
-                            className={`inline-flex min-h-8 min-w-20 items-center justify-center rounded-full border px-3 py-1 transition hover:shadow-sm disabled:cursor-wait disabled:opacity-70 ${statusStyles[status]}`}
+                            className={`inline-flex min-h-8 min-w-20 items-center justify-center gap-1.5 rounded-full border px-3 py-1 transition hover:shadow-sm disabled:cursor-wait disabled:opacity-70 ${statusStyles[status]}`}
                           >
-                            {isCellUpdating ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              statusLabels[status]
-                            )}
+                            {isCellUpdating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                            {statusLabels[status]}
                           </button>
                         </td>
                       );

@@ -619,3 +619,36 @@ option {
     linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
   opacity: 0.2;
 }
+
+/* ============================================================
+   Mobile-first form + touch foundation (Commit #1)
+   Reusable primitives for the mobile/touch baseline. Additive only.
+   ============================================================ */
+
+/* iOS Safari auto-zooms when a focused field's font-size is < 16px.
+   Force 16px on small screens so focusing any field never zooms the
+   viewport. !important is scoped to <=640px and mirrors the existing
+   global input rule above; desktop keeps its compact 14px. */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea,
+  .command-input,
+  .command-select {
+    font-size: 16px !important;
+  }
+}
+
+/* Touch baseline: 44x44 minimum hit area on coarse (touch) pointers
+   only. Fine pointers (mouse/trackpad) keep the compact desktop size.
+   .command-icon-button is shared by the mobile header buttons
+   (hamburger, theme toggle, help), so they enlarge together.
+   .touch-target is an opt-in primitive to apply per-element (e.g.
+   tracking cells, small action buttons) without resizing on desktop. */
+@media (pointer: coarse) {
+  .command-icon-button,
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

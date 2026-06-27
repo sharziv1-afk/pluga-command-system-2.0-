@@ -4,9 +4,13 @@ Project-specific notes for Claude Code:
 
 - Read `README.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`, `PROJECT_SUMMARY.md`, `AGENTS.md`, and this file before making changes.
 - Current branch should be `main`.
-- Latest expected commit after the 2026-06-24 Forum Daily Phase A (layout/density) checkpoint:
+- Latest expected commit after the 2026-06-27 Tracking Module Phase 1+2 checkpoint:
 
 ```text
+16da109 Add Tracking status cycling and soft delete controls
+334fec7 Add Tracking CRUD phase one
+f2be781 Add Tracking module schema, RLS, and read-only skeleton page
+a35ec03 Document forum daily layout checkpoint and tracking next steps
 1d37472 Simplify forum daily report layout and density
 788cd0d Polish interface density and dashboard command brief
 890da65 Polish user-facing empty states and system copy
@@ -17,20 +21,9 @@ c991be2 Carry forward closed forum daily reports
 1c7414c Map forum daily platoon owners to structural slots
 9c49135 Document forum daily mapping diagnosis
 650353f Polish small dashboard forum and task UI issues
-d33c401 Remove decorative empty state skeletons
-2cb5f4e Ignore local Claude tooling in ESLint
-f364cdf Show admin reference data load warning
-0d967cd Sync auth admin approval checkpoint docs
-9acd397 Prefill admin edit form from role with suggestions
-7d52c40 Require real unit id during registration
-f1a2d33 Block approving users without valid role and unit
-c7b8cf1 Use OTP code flow for registration
-21123d6 Fix magic link registration redirect
-6996160 Fix registration role unit mapping
-c03db56 Fix has_completed_onboarding after registration
-c8c5884 Sync project docs after profile lookup hotfixes
-73ed3a5 Fix ambiguous user unit lookups across protected pages
 ```
+
+(A docs-only checkpoint commit "Document Tracking checkpoint and restart handoff" may sit on top of `16da109` once this checkpoint is committed; the latest *code* commit stays `16da109`.)
 
 - Auth/Admin approval flow is OTP-code-only registration (no magic-link placeholders), `has_completed_onboarding=true` at registration, role→unit mapping at registration, pending users see "ממתין לאישור מ״פ", Admin prefills role (gershayim-normalized) and suggests מסגרת/יחידה בפיקוד/רמת הרשאה by role, and an Admin guardrail blocks approval without a valid role + unit.
 - Migration `014_reference_data_read_policies.sql` adds `units: public read` + `roles: public read` SELECT policies. Applied manually in live Supabase on 2026-06-19 (the unit/role dropdowns were empty because RLS was enabled without a read policy). Recorded for sync; do not rerun blindly.
@@ -38,7 +31,7 @@ c8c5884 Sync project docs after profile lookup hotfixes
 - Forum Daily owner mapping + scroll (2026-06-21, `1c7414c` + `62fd8fe`): the UI-only owner/slot matching layer is implemented. Structural platoon summary slots are enriched from active/approved owners (match requires role מ״מ N + unit מחלקה N); a matched slot gets `ownerUserId`/`unitId` and is filtered out of "דוחות קיימים", so סגן שולי / מ״מ 1 / מחלקה 1 now shows under "מחלקה 1 · סיכום מ״מ" only. Platoons 2-4 stay unmapped without a matching user; the "דוחות קיימים" fallback is preserved. Slot clicks scroll the report panel into view (`scrollIntoView({ block: 'nearest' })`) for sub-XL/single-column.
 - Forum Daily Auto Carry Forward (2026-06-23, `c991be2`): closing a report (`status='closed'`) auto-creates a next-Jerusalem-day **draft** for the same owner/level/unit, copying `content` + `summary_text`, with `metadata.carried_forward_from_*` and audit action `forum_daily_report_carried_forward`. Plain `insert` (no upsert); duplicate `23505` skipped silently; rollover is fire-and-forget best-effort and never blocks/fails the close. The historical closed report is preserved (reopen still edits it, not tomorrow's draft). The native `window.confirm` was removed from report close only (delete/reset confirms unchanged). No DB/SQL/RLS changes — relies on existing 010 J2 + 011 insert policies; if `42501` ever appears on the rollover insert, stop and verify 011.
 - Forum Daily Phase A — layout/density (2026-06-24, `1d37472`): UI-only, single file (`forum/page.tsx`). Manpower (`מצבת חיילים`) is a full-width central card; edit mode shows a live large `נוכחים/סד״כ` ratio above the same `present_count`/`total_count` inputs (placeholder `0`, no schema change). Primary fields are a 2-col desktop / 1-col mobile grid; secondary/reflection fields moved into a collapsible "פרטים נוספים ▾ / הסתר פרטים ▴" section, auto-open when it has content. Action bar wraps correctly to 390px. Lint/tsc/build green; Chrome-QA'd at 1117/768/500/390px, no blocking issues (minor non-blocking polish only: date input tight at 390px, disclosure glyph small). Did not touch rollover/carry-forward, WhatsApp generation, date navigation, slot matching, owner mapping, audit, or Supabase queries/mutations.
-- **NEXT MAJOR WORK — Tracking Module Phase B (planning only, no code yet):** spreadsheet-style module (rows = soldiers, columns = exercises/qualifications, cells = status) is the next core feature, but only the *Technical Execution Plan* starts now. Do not write Tracking DB/RLS/migration/UI code before this plan is reviewed and approved. Collaboration model: ChatGPT orchestrates/writes prompts, Code X implements once approved, Claude Code does deep planning/docs/periodic review, Claude Chrome does visual QA. Locked decisions: soldiers come from a dedicated `soldiers` table (not `users`, since not every soldier is a system user); export starts as CSV, Excel/Sheets API later; initial statuses are `empty/ריק`, `passed/עבר`, `failed/לא עבר`, `makeup/השלמה`. Open decisions to resolve in Phase B: מ״כ edit-vs-view scope, squad as free text vs a `squads` table, whether personal number is required, soldier delete vs inactive, one board vs many, CSV full-dataset vs filtered-view. Full sequence and rationale are in `PROJECT_HANDOFF_AI_CONTEXT.md` under "NEXT MAJOR WORK: Tracking Module - Phase B". Next recommended Forum tasks (UI/text polish, no DB/RLS, lower priority than Tracking Phase B): remove dev-facing "UI-gated..." text; WhatsApp preview grammar + empty platoons; missing fields (לו״ז מחר, חריגים/פערים); labels/placeholders/lifecycle polish.
+- **Tracking Module — Phase 1+2 IMPLEMENTED (2026-06-27, `f2be781` + `334fec7` + `16da109`):** the spreadsheet-style module is live. `/tracking` is a protected route with a "מעקב" nav item; tables `soldiers`/`tracking_items`/`tracking_records` exist in production with RLS (migration `015_tracking_mvp.sql`, applied manually). Helpers `current_app_user_id` / `current_tracking_unit_id` / `is_tracking_commander` / `can_edit_tracking_unit` use the real `public.users` columns (`role`/`name`/`status`/`role_approval_status`/`unit_id`/`commanded_unit_id`); ע. מ"פ gets Tracking-scoped full access via `is_tracking_commander` (the global `public.is_commander` was not changed). UI (`src/app/(protected)/tracking/page.tsx`): add soldier, add tracking item, soldiers×items spreadsheet, click-to-cycle cell status (`ריק → עבר → לא עבר → השלמה`; first click on an empty cell inserts a record with `status='passed'`), soft delete (`is_active=false`) for soldiers/items via an in-app confirm modal (no `window.confirm`). CSV export is a disabled placeholder; note editing and filters are not implemented. Audit actions `tracking_soldier_created/updated`, `tracking_item_created/updated`, `tracking_record_updated`, `tracking_exported_csv` (reserved) are in `src/lib/audit.ts`. QA: lint/tsc/build green; Claude reviews A; connected Browser QA A for CRUD Phase 1 and Phase 2 (after modal fix). **QA data left in production (do not delete without approval):** soldier `QA Cycling Test 001`, item `בוחן מסלול`, one `tracking_record` status `עבר`. **Tracking Phase 3 (CSV, note editing, filters, double-click/debounce, dbProfile attribution, write timeout, role-based UI gating, QA-data cleanup) is NOT started — do not start it without explicit approval.** Immediate next steps: verify Vercel deployment, decide on the QA data. Next recommended Forum tasks (UI/text polish, no DB/RLS, lower priority): remove dev-facing "UI-gated..." text; WhatsApp preview grammar + empty platoons; missing fields (לו״ז מחר, חריגים/פערים); labels/placeholders/lifecycle polish.
 
 ## Non-negotiable Guardrails
 
@@ -130,6 +123,11 @@ Step 9 - UI/mobile conservative polish
 
 ```text
 Tracking Phase A - Product decisions locked (spreadsheet style, dedicated soldiers table, CSV-first export, initial status set) - DONE
-Tracking Phase B - Technical Execution Plan (data model + RLS plan + open decisions) - NEXT
-Tracking Phase C - MVP implementation (after Phase B review/approval) - NOT STARTED
+Tracking Phase B - Technical Execution Plan (data model + RLS plan + open decisions) - DONE
+Tracking Phase C - MVP implementation - DONE
+  - C1 Schema + RLS + read-only skeleton - DONE in f2be781 (migration 015_tracking_mvp.sql)
+  - C2 CRUD Phase 1 (add soldier, add tracking item, table) - DONE in 334fec7
+  - C3 Phase 2 (cell status cycling + soft delete + in-app confirm modal) - DONE in 16da109
+Tracking Phase 3 - candidates (NOT started, require approval): CSV export, cell note editing, filters,
+  double-click/debounce, dbProfile attribution, write timeout, role-based UI gating, QA-data cleanup
 ```

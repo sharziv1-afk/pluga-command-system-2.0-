@@ -1,6 +1,6 @@
 # pluga-command-system - "המפקד"
 
-## Milestone Snapshot - 2026-06-24
+## Milestone Snapshot - 2026-06-27
 
 `pluga-command-system` / **"המפקד"** is a Hebrew RTL company command-management system for command teams. It is built with Next.js 16 App Router, React 19, TypeScript, Tailwind CSS 4, Supabase Auth/PostgreSQL/RLS, and GitHub. Future deployment target: Vercel.
 
@@ -9,10 +9,14 @@
 ## Latest Git State
 
 ```text
-Latest commit:
-1d37472 Simplify forum daily report layout and density
+Latest commit (pushed):
+16da109 Add Tracking status cycling and soft delete controls
 
 Previous important commits:
+334fec7 Add Tracking CRUD phase one
+f2be781 Add Tracking module schema, RLS, and read-only skeleton page
+a35ec03 Document forum daily layout checkpoint and tracking next steps
+1d37472 Simplify forum daily report layout and density
 788cd0d Polish interface density and dashboard command brief
 890da65 Polish user-facing empty states and system copy
 d6e5932 Document forum daily carry forward
@@ -22,24 +26,41 @@ c991be2 Carry forward closed forum daily reports
 1c7414c Map forum daily platoon owners to structural slots
 9c49135 Document forum daily mapping diagnosis
 650353f Polish small dashboard forum and task UI issues
-d33c401 Remove decorative empty state skeletons
-2cb5f4e Ignore local Claude tooling in ESLint
-f364cdf Show admin reference data load warning
-0d967cd Sync auth admin approval checkpoint docs
-9acd397 Prefill admin edit form from role with suggestions
-7d52c40 Require real unit id during registration
-f1a2d33 Block approving users without valid role and unit
-c7b8cf1 Use OTP code flow for registration
-21123d6 Fix magic link registration redirect
-6996160 Fix registration role unit mapping
-c03db56 Fix has_completed_onboarding after registration
-c8c5884 Sync project docs after profile lookup hotfixes
-73ed3a5 Fix ambiguous user unit lookups across protected pages
 ```
 
 - Branch: `main`
 - `origin/main`: up to date
 - Working tree: clean
+
+## Tracking Module - Phase 1+2 Checkpoint - 2026-06-27
+
+The **Tracking Module** (spreadsheet-style company tracking: rows = soldiers, columns = exercises/qualifications, cells = status) is now live in the app. Built across three commits:
+
+```text
+f2be781 Add Tracking module schema, RLS, and read-only skeleton page
+334fec7 Add Tracking CRUD phase one
+16da109 Add Tracking status cycling and soft delete controls
+```
+
+**Current capabilities (`/tracking`):**
+
+- `/tracking` is a protected route (`src/proxy.ts`) with a "מעקב" navigation item.
+- DB tables `soldiers`, `tracking_items`, `tracking_records` exist with RLS (migration `015_tracking_mvp.sql`, applied manually in production).
+- Add soldier (full name + unit required; personal number / squad / role / notes optional).
+- Add tracking item / column (title + category required).
+- Spreadsheet table of soldiers × tracking_items, with a sticky soldier column.
+- Cell status cycling on click: `ריק → עבר → לא עבר → השלמה → ריק`. The first click on an empty cell **inserts** a `tracking_records` row with `status='passed'`; later clicks **update** to the next status.
+- Soft delete for soldiers and tracking items (`is_active=false`, never a hard delete), confirmed through an **in-app modal** (no `window.confirm`) with cancel / X / Escape / overlay-click to dismiss.
+- "רשומות תאים" counter is based on active visible cells (`recordByCell.size`); status stat chips count empty/passed/failed/makeup correctly (empty includes cells with no record).
+- CSV export button is still a disabled placeholder; cell note editing and filters are not implemented.
+
+**Audit (best-effort):** `tracking_soldier_created`, `tracking_soldier_updated`, `tracking_item_created`, `tracking_item_updated`, `tracking_record_updated`, `tracking_exported_csv` (the last is reserved; CSV is not implemented yet).
+
+**QA:** `npm run lint` (0 errors, only the 78 pre-existing vendor warnings in `.agents/skills/impeccable/scripts/modern-screenshot.umd.js`), `npx tsc -p tsconfig.json --noEmit`, and `npm run build` all pass; `/tracking` builds as a route. Claude Code reviews returned A for the schema/snapshot, CRUD Phase 1, and Phase 2 (incl. the modal fix). Connected Browser QA returned A for CRUD Phase 1 and for Phase 2 after the modal fix; a console warning seen during automation is a Chrome-extension warning, not an app error. Vercel deployment still needs a quick verification after push.
+
+**QA data left in production (do not auto-delete):** soldier `QA Cycling Test 001`, tracking item `בוחן מסלול`, and one `tracking_record` with status `עבר`.
+
+**Technical debt / Phase 3 candidates:** CSV export; cell note editing; filters; the `handleCycleCellStatus` double-click/stale-state window (`setUpdatingCellKey(null)` fires before `loadTrackingData`); audit attribution via a dedicated `dbProfile` lookup instead of `AppContext`/`currentUser`; `withTimeout` wrapping on the write handlers (create/remove/cycle); role-based UI gating (RLS is the source of truth, so an unauthorized user may see a button and get a permission error); fuller mobile QA; and a decision on cleaning the QA data.
 
 ## Forum Daily Auto Carry Forward - 2026-06-23
 
@@ -146,7 +167,8 @@ Registration OTP → pending-approval screen → Admin edit/save/approval → ap
 - **Schedule / Events** - timeline, week grid, day tabs, event create/edit/status/delete, auto-complete for elapsed events, linked tasks/requests, and "copy tomorrow schedule" WhatsApp output.
 - **Forum - Posts Phase 1** - Supabase-backed `forum_posts`: create posts, edit posts, pinned posts for commanders, RLS-gated visibility, audit.
 - **Forum - Hierarchical Daily Reports** - Supabase-backed `forum_daily_reports`: fixed daily slots, read-view card, edit mode, date picker, create-for-subordinate, safe draft creation, submit/return/approve-close/reopen, reset report, advanced delete, WhatsApp short/detailed output and copy.
-- **Audit trail** - best-effort, non-blocking audit for request/task/event/forum actions.
+- **Tracking** - Supabase-backed `soldiers`/`tracking_items`/`tracking_records` with RLS: `/tracking` spreadsheet of soldiers × tracking items, add soldier, add tracking item, click-to-cycle cell status (`ריק → עבר → לא עבר → השלמה`), soft delete for soldiers/items via an in-app confirm modal, and best-effort audit. CSV export, note editing, and filters are not implemented yet.
+- **Audit trail** - best-effort, non-blocking audit for request/task/event/forum/tracking actions.
 
 Reference UX demo: `https://thepluton.vercel.app/`
 
@@ -334,6 +356,7 @@ Run SQL manually in Supabase SQL Editor only. Do not run SQL automatically.
 | `012_forum_daily_reports_delete_policy.sql` | Advanced delete policy for `forum_daily_reports`: commander OR creator OR owner | run |
 | `013_add_commanded_unit_id.sql` | Adds `users.commanded_unit_id` and `idx_users_commanded_unit_id`; separates membership unit from commanded unit | run manually per user report |
 | `014_reference_data_read_policies.sql` | `units: public read` + `roles: public read` SELECT policies so client selectors load | run manually 2026-06-19; recorded for sync |
+| `015_tracking_mvp.sql` | Tracking tables (`soldiers`, `tracking_items`, `tracking_records`), helpers (`current_app_user_id`, `current_tracking_unit_id`, `is_tracking_commander`, `can_edit_tracking_unit`), and RLS | run manually in production; ע. מ"פ gets full Tracking access via `is_tracking_commander` |
 
 Migration 009 is kept for history only. The current forum daily model is 010+.
 
@@ -387,6 +410,13 @@ forum_daily_report_closed
 forum_daily_report_reopened
 forum_daily_report_deleted
 forum_daily_report_reset
+forum_daily_report_carried_forward
+tracking_soldier_created
+tracking_soldier_updated
+tracking_item_created
+tracking_item_updated
+tracking_record_updated
+tracking_exported_csv
 ```
 
 ## Local Development
@@ -429,6 +459,7 @@ Protected via `src/proxy.ts`:
 /requests
 /schedule
 /forum
+/tracking
 /admin
 /profile
 /help
@@ -501,11 +532,16 @@ Step 9 - UI/mobile conservative polish
 
 ```text
 Tracking Phase A - Product decisions locked (spreadsheet style, dedicated soldiers table, CSV-first export, initial status set) - DONE
-Tracking Phase B - Technical Execution Plan (data model + RLS plan + open decisions) - NEXT
-Tracking Phase C - MVP implementation (after Phase B review/approval) - NOT STARTED
+Tracking Phase B - Technical Execution Plan (data model + RLS plan + open decisions) - DONE
+Tracking Phase C - MVP implementation - DONE in 015 + f2be781 + 334fec7 + 16da109
+  - C1 Schema + RLS + read-only skeleton - DONE in f2be781 (migration 015_tracking_mvp.sql)
+  - C2 CRUD Phase 1 (add soldier, add tracking item, table) - DONE in 334fec7
+  - C3 Phase 2 (cell status cycling + soft delete + in-app confirm modal) - DONE in 16da109
+Tracking Phase 3 - candidates (not started): CSV export, cell note editing, filters,
+  double-click/debounce, dbProfile attribution, write timeout, role-based UI gating, QA-data cleanup
 ```
 
-See `PROJECT_HANDOFF_AI_CONTEXT.md` for the full Tracking Phase B plan, open decisions, and the ChatGPT/Code X/Claude Code/Chrome Claude collaboration model.
+See `PROJECT_HANDOFF_AI_CONTEXT.md` for the full Tracking history, open decisions, and the ChatGPT/Code X/Claude Code/Chrome Claude collaboration model.
 
 ### Phase A - Real users QA setup
 

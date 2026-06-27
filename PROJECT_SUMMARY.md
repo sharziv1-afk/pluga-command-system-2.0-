@@ -1,26 +1,62 @@
 # Project Summary - pluga-command-system
 
-## Current Snapshot - 2026-06-24
+## Current Snapshot - 2026-06-27
 
 **Product:** `pluga-command-system` / "המפקד"  
 **Branch:** `main`  
-**Latest commit:** `1d37472 Simplify forum daily report layout and density`  
+**Latest commit:** `16da109 Add Tracking status cycling and soft delete controls`  
 **Git state:** `origin/main` up to date, working tree clean
 
 **Recent important commits:**
 
 ```text
+16da109 Add Tracking status cycling and soft delete controls
+334fec7 Add Tracking CRUD phase one
+f2be781 Add Tracking module schema, RLS, and read-only skeleton page
+a35ec03 Document forum daily layout checkpoint and tracking next steps
 1d37472 Simplify forum daily report layout and density
 788cd0d Polish interface density and dashboard command brief
 890da65 Polish user-facing empty states and system copy
 d6e5932 Document forum daily carry forward
 c991be2 Carry forward closed forum daily reports
-813ef48 Document forum daily scroll checkpoint
-62fd8fe Scroll forum daily slot selections into view
-1c7414c Map forum daily platoon owners to structural slots
 ```
 
-This snapshot supersedes the 2026-06-21 snapshot (and older) below.
+This snapshot supersedes the 2026-06-24 snapshot (and older) below.
+
+## Tracking Module - Phase 1+2 Implemented (2026-06-27)
+
+The Tracking Module moved from planning to a live MVP across three commits:
+
+```text
+f2be781 Add Tracking module schema, RLS, and read-only skeleton page
+334fec7 Add Tracking CRUD phase one
+16da109 Add Tracking status cycling and soft delete controls
+```
+
+**DB / RLS (`015_tracking_mvp.sql`, applied manually in production):**
+
+- Tables: `soldiers`, `tracking_items`, `tracking_records` (RLS enabled on all three).
+- Helpers: `current_app_user_id`, `current_tracking_unit_id`, `is_tracking_commander`, `can_edit_tracking_unit`.
+- Policies: commander insert/select/update on `soldiers`; active+approved select + commander insert/update on `tracking_items`; select-visible-soldiers + tracking-unit-editor insert/update on `tracking_records`. No delete policies (soft delete via `is_active=false`; tracking_records keep history).
+- ע. מ"פ (assistant company commander) gets full Tracking access through `is_tracking_commander`, because their `permission_level` is below 90 so `public.is_commander` alone is not enough. `public.is_commander` was **not** modified.
+
+**UI (`src/app/(protected)/tracking/page.tsx`):**
+
+- `/tracking` protected route + "מעקב" nav item.
+- Add soldier (full name + unit required), add tracking item (title + category required), unit picker from `public.units`.
+- Spreadsheet `soldiers × tracking_items` with a sticky soldier column; missing cells render as "ריק".
+- Cell status cycling: `empty/ריק → passed/עבר → failed/לא עבר → makeup/השלמה → empty/ריק`. First click on an empty cell inserts a `tracking_records` row with `status='passed'`; later clicks update to the next status.
+- Soft delete soldiers/items via an **in-app confirm modal** (no `window.confirm`; cancel/X/Escape/overlay-click dismiss; only "הסר" performs the soft delete).
+- "רשומות תאים" counter uses `recordByCell.size` (active visible cells only); status chips count empty/passed/failed/makeup with no double-counting.
+- CSV export remains a disabled placeholder; note editing and filters are not implemented.
+
+**Audit (best-effort):** `tracking_soldier_created`, `tracking_soldier_updated`, `tracking_item_created`, `tracking_item_updated`, `tracking_record_updated`, `tracking_exported_csv` (reserved). `audit_logs.action_type`/`entity_type` are `text` with no CHECK, so the new values are safe with no schema change.
+
+**QA:** lint (0 errors; only 78 pre-existing vendor warnings), tsc, and build all pass; `/tracking` builds. Claude Code reviews A for schema/snapshot, CRUD Phase 1, and Phase 2 (incl. modal fix). Connected Browser QA A for CRUD Phase 1 and for Phase 2 after the modal fix. Vercel deployment still needs a quick verification after push.
+
+**QA data left in production (do not auto-delete):** soldier `QA Cycling Test 001`, tracking item `בוחן מסלול`, one `tracking_record` with status `עבר`.
+
+**Technical debt / Phase 3 candidates:** CSV export; cell note editing; filters; `handleCycleCellStatus` double-click/stale-state window; `dbProfile`-based audit attribution instead of `AppContext`; `withTimeout` on write handlers; role-based UI gating; mobile QA; QA-data cleanup.
 
 ## Forum Daily Phase A - Layout & Density (2026-06-24)
 
@@ -392,6 +428,8 @@ Commit: `96ae49b Remove orphaned legacy prototype shell and split session contex
 | `011_forum_daily_reports_commander_insert.sql` | Commander create-for-subordinate | run |
 | `012_forum_daily_reports_delete_policy.sql` | Daily report delete policy | run |
 | `013_add_commanded_unit_id.sql` | `users.commanded_unit_id` + index | run manually per user report |
+| `014_reference_data_read_policies.sql` | `units: public read` + `roles: public read` | run manually 2026-06-19 |
+| `015_tracking_mvp.sql` | Tracking tables/helpers/RLS (`soldiers`, `tracking_items`, `tracking_records`) | run manually in production 2026-06 |
 
 Migration 009 is legacy/prototype. The current forum model is 010+.
 
@@ -426,6 +464,13 @@ forum_daily_report_closed
 forum_daily_report_reopened
 forum_daily_report_deleted
 forum_daily_report_reset
+forum_daily_report_carried_forward
+tracking_soldier_created
+tracking_soldier_updated
+tracking_item_created
+tracking_item_updated
+tracking_record_updated
+tracking_exported_csv
 ```
 
 Audit is best-effort: calls use `void createAuditLog(...)` and failures must not block the user workflow.
@@ -489,9 +534,16 @@ Step 9 - UI/mobile conservative polish
 
 ```text
 Tracking Phase A - Product decisions locked (spreadsheet style, dedicated soldiers table, CSV-first export, initial status set) - DONE
-Tracking Phase B - Technical Execution Plan (data model + RLS plan + open decisions) - NEXT
-Tracking Phase C - MVP implementation (after Phase B review/approval) - NOT STARTED
+Tracking Phase B - Technical Execution Plan (data model + RLS plan + open decisions) - DONE
+Tracking Phase C - MVP implementation - DONE
+  - C1 Schema + RLS + read-only skeleton - DONE in f2be781 (migration 015_tracking_mvp.sql)
+  - C2 CRUD Phase 1 (add soldier, add tracking item, table) - DONE in 334fec7
+  - C3 Phase 2 (cell status cycling + soft delete + in-app confirm modal) - DONE in 16da109
+Tracking Phase 3 - candidates (NOT started): CSV export, cell note editing, filters,
+  double-click/debounce, dbProfile attribution, write timeout, role-based UI gating, QA-data cleanup
 ```
+
+> Note: the "Phase A-E" list immediately below is the older **forum / hierarchy** roadmap; it predates and is unrelated to the Tracking Phase A/B/C labels above.
 
 ### Phase A - Real users QA setup
 

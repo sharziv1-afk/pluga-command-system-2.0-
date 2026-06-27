@@ -732,6 +732,7 @@ export default function SchedulePage() {
   const openEditEvent = (event: EventView) => {
     if (!canEditEvent(event)) return;
 
+    setSelectedEvent(null);
     setEditingEvent(event);
     setEditEventTitle(event.title);
     setEditEventDescription(event.description ?? '');

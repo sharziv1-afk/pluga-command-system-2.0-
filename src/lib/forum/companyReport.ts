@@ -245,9 +245,9 @@ export function buildCompanyReport(input: CompanyReportInput): CompanyReportResu
     const content = report.content;
     const final = isFinalStatus(report.status);
     const withContent = hasPlatoonContent(content);
-    const tag = !final && withContent ? ` · ${IN_PROGRESS_TAG}` : '';
-    lines.push(`• סטטוס: ${statusText(report.status)}${tag}`);
-    if (!final && withContent) {
+    const inProgressWithContent = !final && withContent;
+    lines.push(`• סטטוס: ${inProgressWithContent ? IN_PROGRESS_TAG : statusText(report.status)}`);
+    if (inProgressWithContent) {
       warnings.push(`${platoon.label}: הדוח עדיין בטיפול וטרם הוגש סופית.`);
     }
 
@@ -276,9 +276,9 @@ export function buildCompanyReport(input: CompanyReportInput): CompanyReportResu
       const content = report.content;
       const final = isFinalStatus(report.status);
       const withContent = hasPlatoonContent(content);
-      const tag = !final && withContent ? ` · ${IN_PROGRESS_TAG}` : '';
+      const statusDisplay = !final && withContent ? IN_PROGRESS_TAG : statusText(report.status);
       lines.push(
-        `• דוח ${index + 1} · סטטוס: ${statusText(report.status)}${tag}`,
+        `• דוח ${index + 1} · סטטוס: ${statusDisplay}`,
         `  מצבה: ${manpowerText(content)} · כוננות: ${valueOrDash(content, 'readiness')} · לוגיסטיקה: ${valueOrDash(content, 'logistics')}`,
       );
     });

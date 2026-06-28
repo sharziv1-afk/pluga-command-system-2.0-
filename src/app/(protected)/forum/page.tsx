@@ -39,6 +39,9 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { GlossyButton } from '@/components/ui/GlossyButton';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { createAuditLog } from '@/lib/audit';
+import type { AuditActionType } from '@/lib/audit';
+import { buildCompanyReport } from '@/lib/forum/companyReport';
+import type { CompanyReportInput } from '@/lib/forum/companyReport';
 import { useApp } from '@/lib/context/AppContext';
 import { getPermissionLevelForRole } from '@/lib/permissions';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
@@ -398,6 +401,15 @@ export default function ForumPage() {
   const [commanderStaffRole, setCommanderStaffRole] = useState<StaffRole>('medic');
   const [whatsappMode, setWhatsappMode] = useState<'short' | 'detailed'>('short');
   const [isEditingReport, setIsEditingReport] = useState(false);
+  const [companyDraftText, setCompanyDraftText] = useState('');
+  const [companyKeyGaps, setCompanyKeyGaps] = useState('');
+  const [companyManuallyEdited, setCompanyManuallyEdited] = useState(false);
+  const [companyGeneratedAt, setCompanyGeneratedAt] = useState<string | null>(null);
+  const [companyReportWarnings, setCompanyReportWarnings] = useState<string[]>([]);
+  const [isCompanyReportBusy, setIsCompanyReportBusy] = useState(false);
+  const [showCompanyRefreshConfirm, setShowCompanyRefreshConfirm] = useState(false);
+  const [showCompanyPreview, setShowCompanyPreview] = useState(false);
+  const lastHydratedCompanyReportId = useRef<string | null | undefined>(undefined);
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const profilePermissionLevel = dbProfile?.permission_level ?? getPermissionLevelForRole(currentUser?.role ?? '');
@@ -610,6 +622,14 @@ export default function ForumPage() {
       && (selectedNode.owned || selectedNode.ownerUserId || (canSeeAll && selectedNode.level === 'company')),
   );
   const isSelectedReportReadOnly = selectedReport?.status === 'closed' && !canReopenSelectedReport;
+
+  // The commander's own company-level report holds the distributable company summary
+  // (the new company_report_* keys live inside its content JSONB).
+  const companyReport = useMemo(
+    () => dailyReports.find(report => report.report_level === 'company' && report.owner_user_id === dbProfile?.id) ?? null,
+    [dailyReports, dbProfile?.id],
+  );
+  const isCompanyReportLocked = companyReport?.status === 'closed';
 
   const generateWhatsappText = useCallback((mode: 'short' | 'detailed' = whatsappMode) => {
     const divider = '─'.repeat(22);
@@ -860,6 +880,21 @@ export default function ForumPage() {
     setReportDraft(draftFromReport(selectedReport));
     setIsEditingReport(false);
   }, [selectedReport?.id, selectedReport]);
+
+  // Hydrate the company-report editor from its row, but only when the underlying
+  // report identity changes — so a content reload triggered by our own save never
+  // clobbers the commander's in-progress, unsaved typing in the draft textarea.
+  useEffect(() => {
+    const reportId = companyReport?.id ?? null;
+    if (lastHydratedCompanyReportId.current === reportId) return;
+    lastHydratedCompanyReportId.current = reportId;
+    const content = companyReport?.content ?? {};
+    setCompanyDraftText(typeof content.company_report_draft === 'string' ? content.company_report_draft : '');
+    setCompanyKeyGaps(typeof content.company_report_key_gaps === 'string' ? content.company_report_key_gaps : '');
+    setCompanyManuallyEdited(content.company_report_manually_edited === true);
+    setCompanyGeneratedAt(typeof content.company_report_generated_at === 'string' ? content.company_report_generated_at : null);
+    setCompanyReportWarnings([]);
+  }, [companyReport]);
 
   useEffect(() => {
     if (dailyNodes.some(node => node.id === selectedNodeId)) return;
@@ -1577,6 +1612,171 @@ export default function ForumPage() {
     setReportDraft(current => ({ ...current, [field]: value }));
   };
 
+  // ---- Company final report (דוח פלוגתי להפצה) -----------------------------------------
+  const buildCompanyReportInput = (gaps: string): CompanyReportInput => ({
+    reports: dailyReports,
+    formattedDate: formatSelectedDate(selectedDate),
+    platoons: platoonNodes.map((platoon, index) => ({
+      number: index + 1,
+      label: platoon.label,
+      ownerUserId: findPlatoonSummaryOwner(ownerOptions, platoon.label)?.id ?? null,
+    })),
+    staff: staffNodes.map(staff => ({ role: staff.id, label: staff.label })),
+    keyGaps: gaps,
+  });
+
+  // Every write to the company report content is a safe merge ({ ...existing, ...patch }) so
+  // commander_opening / tomorrow_schedule / parallel_schedule / commander_closing /
+  // company_summary are never overwritten. Creates the row on first use if missing.
+  const persistCompanyReportContent = async (
+    patch: Record<string, unknown>,
+    auditAction: AuditActionType,
+  ): Promise<DailyReportRow | null> => {
+    if (!dbProfile || !canSeeAll) {
+      setDailyError('רק מפקד יכול לבנות ולשמור את הדוח הפלוגתי.');
+      return null;
+    }
+
+    if (companyReport) {
+      const nextContent = { ...companyReport.content, ...patch };
+      const { error: updateError } = await supabase
+        .from('forum_daily_reports')
+        .update({ content: nextContent })
+        .eq('id', companyReport.id);
+      if (updateError) {
+        logSupabaseError('Forum company report save failed', updateError);
+        setDailyError('לא ניתן לשמור את הדוח הפלוגתי כרגע. בדוק הרשאות או נסה שוב.');
+        return null;
+      }
+      void createAuditLog(supabase, {
+        userId: dbProfile.id,
+        userName: dbProfile.name,
+        userRole: dbProfile.role,
+        actionType: auditAction,
+        entityType: 'forum_daily_report',
+        entityId: companyReport.id,
+        previousValue: { company_report_keys: Object.keys(patch) },
+        newValue: patch,
+      });
+      const updated: DailyReportRow = { ...companyReport, content: nextContent };
+      await loadDailyReports(selectedDate);
+      return updated;
+    }
+
+    // No company report yet — create one, preserving any company fields the commander
+    // has already typed in the structured form (reportDraft) and merging the patch on top.
+    const baseContent = { ...emptyReportDraft(), ...reportDraft, ...patch };
+    const { data: created, error: createError } = await supabase
+      .from('forum_daily_reports')
+      .insert({
+        report_date: selectedDate,
+        company_unit_id: dbProfile.unit_id,
+        platoon_unit_id: null,
+        squad_unit_id: null,
+        report_level: 'company',
+        staff_role: null,
+        parent_report_id: null,
+        created_by: dbProfile.id,
+        owner_user_id: dbProfile.id,
+        status: 'in_progress',
+        content: baseContent,
+        summary_text: typeof baseContent.company_summary === 'string' ? baseContent.company_summary : '',
+        whatsapp_text: null,
+        metadata: {
+          node_id: 'company-summary',
+          node_label: 'סיכום פלוגתי',
+          ui_gated_scope: true,
+          company_report: true,
+        },
+      })
+      .select('id,report_date,company_unit_id,platoon_unit_id,squad_unit_id,report_level,staff_role,parent_report_id,created_by,owner_user_id,status,content,summary_text,whatsapp_text,metadata,created_at,updated_at')
+      .single<DailyReportRow>();
+
+    if (createError || !created) {
+      if (createError) logSupabaseError('Forum company report create failed', createError);
+      setDailyError('לא ניתן ליצור את הדוח הפלוגתי כרגע. בדוק הרשאות או נסה שוב.');
+      return null;
+    }
+
+    void createAuditLog(supabase, {
+      userId: dbProfile.id,
+      userName: dbProfile.name,
+      userRole: dbProfile.role,
+      actionType: auditAction,
+      entityType: 'forum_daily_report',
+      entityId: created.id,
+      previousValue: null,
+      newValue: { created: true, company_report_keys: Object.keys(patch) },
+    });
+
+    await loadDailyReports(selectedDate);
+    return created;
+  };
+
+  const runCompanyReportGeneration = async (replaceDraft: boolean) => {
+    if (!canSeeAll || isCompanyReportLocked) return;
+    setIsCompanyReportBusy(true);
+    setDailyError(null);
+    setDailySuccess(null);
+
+    const result = buildCompanyReport(buildCompanyReportInput(companyKeyGaps));
+    const generatedAt = new Date().toISOString();
+    const patch: Record<string, unknown> = {
+      company_report_generated_text: result.text,
+      company_report_generated_at: generatedAt,
+      company_report_generated_from_report_ids: result.generatedFromReportIds,
+    };
+    if (replaceDraft) {
+      patch.company_report_draft = result.text;
+      patch.company_report_manually_edited = false;
+    }
+
+    const saved = await persistCompanyReportContent(patch, 'forum_company_report_generated');
+
+    setCompanyReportWarnings(result.warnings);
+    if (saved) {
+      setCompanyGeneratedAt(generatedAt);
+      if (replaceDraft) {
+        setCompanyDraftText(result.text);
+        setCompanyManuallyEdited(false);
+      }
+      setDailySuccess('הדוח הפלוגתי נבנה מהדיווחים.');
+    }
+    setIsCompanyReportBusy(false);
+  };
+
+  const handleBuildCompanyReport = () => {
+    if (isCompanyReportLocked) return;
+    // Guard the commander's manual edits: never silently replace an edited draft.
+    if (companyManuallyEdited && companyDraftText.trim().length > 0) {
+      setShowCompanyRefreshConfirm(true);
+      return;
+    }
+    void runCompanyReportGeneration(true);
+  };
+
+  const confirmCompanyRefresh = () => {
+    setShowCompanyRefreshConfirm(false);
+    void runCompanyReportGeneration(true);
+  };
+
+  const handleSaveCompanyDraft = async () => {
+    if (!canSeeAll || isCompanyReportLocked) return;
+    setIsCompanyReportBusy(true);
+    setDailyError(null);
+    setDailySuccess(null);
+    const saved = await persistCompanyReportContent(
+      {
+        company_report_draft: companyDraftText,
+        company_report_key_gaps: companyKeyGaps,
+        company_report_manually_edited: companyManuallyEdited,
+      },
+      'forum_company_report_saved',
+    );
+    if (saved) setDailySuccess('טיוטת הדוח הפלוגתי נשמרה.');
+    setIsCompanyReportBusy(false);
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -1710,6 +1910,103 @@ export default function ForumPage() {
           </div>
         )}
       </section>
+    </div>
+  );
+
+  const renderCompanyReportCard = () => (
+    <div className="tactical-glass-card rounded-3xl p-5">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#FF6B02]/10 text-[#FF6B02]">
+            <FileText className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-lg font-black text-[#020108]">דוח פלוגתי להפצה</h3>
+            <p className="mt-1 text-sm font-bold leading-relaxed text-[#667085]">
+              ריכוז אוטומטי של דוחות המ״מים והמפל״ג לטיוטה אחת לעריכה והפצה. הנוסח נבנה מהדיווחים בלבד — בלי AI.
+            </p>
+          </div>
+        </div>
+        {companyGeneratedAt && (
+          <span className="w-fit shrink-0 rounded-full border border-[rgba(2,1,8,0.08)] bg-white/80 px-3 py-1.5 text-xs font-black text-[#667085]">
+            נוצר לאחרונה: {formatDate(companyGeneratedAt)}
+          </span>
+        )}
+      </div>
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        <GlossyButton variant="orange" size="sm" onClick={handleBuildCompanyReport} disabled={isCompanyReportBusy || isDailySaving || isCompanyReportLocked}>
+          <RefreshCw className="h-4 w-4" />
+          {companyDraftText.trim() ? 'בנה מחדש מהדיווחים' : 'בנה דוח מהדיווחים'}
+        </GlossyButton>
+        <GlossyButton variant="slate" size="sm" onClick={handleBuildCompanyReport} disabled={isCompanyReportBusy || isDailySaving || isCompanyReportLocked || !companyDraftText.trim()}>
+          רענן מהדוחות
+        </GlossyButton>
+      </div>
+
+      {companyReportWarnings.length > 0 && (
+        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
+          <div className="mb-1 flex items-center gap-2 font-black">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            שים לב לפני הפצה
+          </div>
+          <ul className="list-disc space-y-1 pr-5">
+            {companyReportWarnings.map(warning => <li key={warning}>{warning}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {isCompanyReportLocked && (
+        <div className="mb-4 flex items-center gap-2 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/80 px-4 py-3 text-sm font-black text-[#020108]">
+          <Lock className="h-4 w-4 shrink-0 text-[#FF6B02]" />
+          הפורום נסגר. לעריכה נוספת יש לפתוח את נעילת הדוח הפלוגתי.
+        </div>
+      )}
+
+      <label className="block">
+        <span className="mb-2 block text-sm font-black text-[#020108]">נוסח להפצה (טיוטה לעריכה)</span>
+        <textarea
+          value={companyDraftText}
+          onChange={event => { setCompanyDraftText(event.target.value); setCompanyManuallyEdited(true); }}
+          className="command-input min-h-72 resize-y text-sm leading-6"
+          dir="rtl"
+          placeholder="לחץ על 'בנה דוח מהדיווחים' כדי לייצר טיוטה מהדוחות, או כתוב ידנית."
+          disabled={isCompanyReportBusy || isCompanyReportLocked}
+        />
+      </label>
+
+      <label className="mt-4 block">
+        <span className="mb-2 block text-sm font-black text-[#020108]">פערים מרכזיים (למילוי ידני)</span>
+        <textarea
+          value={companyKeyGaps}
+          onChange={event => setCompanyKeyGaps(event.target.value)}
+          className="command-input min-h-24 resize-y text-sm leading-6"
+          dir="rtl"
+          placeholder="פערים מרכזיים נכתבים ידנית ולא נגזרים אוטומטית. הם ישולבו בנוסח בעת בנייה/רענון."
+          disabled={isCompanyReportBusy || isCompanyReportLocked}
+        />
+      </label>
+
+      {companyManuallyEdited && !isCompanyReportLocked && (
+        <p className="mt-2 text-xs font-black text-[#C75200]">הטיוטה נערכה ידנית — רענון מהדוחות יבקש אישור לפני החלפה.</p>
+      )}
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <GlossyButton variant="orange" onClick={() => void handleSaveCompanyDraft()} disabled={isCompanyReportBusy || isDailySaving || isCompanyReportLocked}>
+          <Save className="h-4 w-4" />
+          {isCompanyReportBusy ? 'שומר...' : 'שמור טיוטה'}
+        </GlossyButton>
+        <GlossyButton variant="slate" size="sm" onClick={() => setShowCompanyPreview(value => !value)} disabled={isCompanyReportBusy}>
+          {showCompanyPreview ? 'הסתר תצוגה' : 'תצוגה מקדימה'}
+        </GlossyButton>
+      </div>
+
+      {showCompanyPreview && (
+        <div className="mt-4 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/70 p-4">
+          <div className="mb-2 text-xs font-black text-[#667085]">תצוגה מקדימה — נוסח להפצה</div>
+          <p className="whitespace-pre-wrap break-words text-sm leading-6 text-[#344054]" dir="rtl">{companyDraftText.trim() || '—'}</p>
+        </div>
+      )}
     </div>
   );
 
@@ -1973,6 +2270,8 @@ export default function ForumPage() {
             </details>
           </div>
         )}
+
+        {canSeeAll && selectedNode.level === 'company' && renderCompanyReportCard()}
 
         <div className="tactical-glass-card flex flex-col gap-3 rounded-3xl p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm font-bold text-[#667085]">היררכיית המחלקות המלאה תוצג כאן לאחר שיוך משתמשים ליחידות.</div>
@@ -2239,6 +2538,32 @@ export default function ForumPage() {
       {successMessage && activeTab === 'posts' && <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{successMessage}</div>}
 
       {activeTab === 'posts' ? renderPostsTab() : renderDailyTab()}
+
+      {showCompanyRefreshConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020108]/40 p-4" dir="rtl">
+          <div className="tactical-glass-card w-full max-w-md rounded-3xl p-6 shadow-[0_24px_60px_rgba(2,1,8,0.25)]">
+            <div className="mb-3 flex items-start gap-3">
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#FF6B02]/10 text-[#FF6B02]">
+                <RefreshCw className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-[#020108]">רענון הדוח הפלוגתי</h3>
+                <p className="mt-1 text-sm font-bold leading-relaxed text-[#667085]">
+                  יש לך טיוטה שנערכה ידנית. רענון מהדוחות יחליף את הטיוטה הנוכחית. להמשיך?
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <GlossyButton variant="slate" onClick={() => setShowCompanyRefreshConfirm(false)} disabled={isCompanyReportBusy}>
+                ביטול
+              </GlossyButton>
+              <GlossyButton variant="orange" onClick={confirmCompanyRefresh} disabled={isCompanyReportBusy}>
+                החלף ורענן
+              </GlossyButton>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

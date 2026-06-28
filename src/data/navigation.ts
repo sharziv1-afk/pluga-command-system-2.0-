@@ -12,7 +12,7 @@ import {
 
 export const navigationItems = [
   {
-    name: 'לוח בקרה',
+    name: 'לוח מפקד',
     path: '/dashboard',
     icon: LayoutDashboard,
   },

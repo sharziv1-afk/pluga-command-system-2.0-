@@ -88,8 +88,10 @@ type SummaryCard = {
   title: string;
   value: string;
   subtitle: string;
+  compactSubtitle: string;
   icon: React.ElementType;
   tone: 'orange' | 'blue' | 'green' | 'slate' | 'red';
+  href: string;
 };
 
 type CommandBrief = {
@@ -337,43 +339,55 @@ function buildSummaryCards(data: DashboardData, profileId: string | null): Summa
       title: 'דרישות פתוחות',
       value: String(openRequests.length),
       subtitle: 'פתוחות, בטיפול או מאושרות',
+      compactSubtitle: 'פתוחות / בטיפול',
       icon: ClipboardList,
       tone: 'orange',
+      href: '/requests',
     },
     {
       title: 'דרישות דחופות',
       value: String(urgentRequests.length),
       subtitle: 'עדיפות גבוהה או דחופה',
+      compactSubtitle: 'גבוהה / דחופה',
       icon: AlertTriangle,
       tone: urgentRequests.length > 0 ? 'red' : 'slate',
+      href: '/requests',
     },
     {
       title: 'משימות פתוחות',
       value: String(openTasks.length),
       subtitle: 'פתוחות, בתהליך או תקועות',
+      compactSubtitle: 'פתוחות / תקועות',
       icon: CheckSquare,
       tone: 'blue',
+      href: '/tasks',
     },
     {
       title: 'משימות באיחור',
       value: String(overdueTasks.length),
       subtitle: 'תאריך יעד עבר ועדיין פעילות',
+      compactSubtitle: 'יעד עבר',
       icon: Clock,
       tone: overdueTasks.length > 0 ? 'red' : 'green',
+      href: '/tasks',
     },
     {
       title: 'מופעים היום',
       value: String(todayEvents.length),
       subtitle: 'לפי שעון Asia/Jerusalem',
+      compactSubtitle: 'שעון ירושלים',
       icon: CalendarClock,
       tone: 'green',
+      href: '/schedule',
     },
     {
       title: 'פריטים לטיפול שלי',
       value: String(myItems.length),
       subtitle: 'שיוך ישיר או פריטים שיצרתי',
+      compactSubtitle: 'שיוך אישי',
       icon: UserRound,
       tone: 'slate',
+      href: '/tasks',
     },
   ];
 }
@@ -922,8 +936,8 @@ export default function DashboardPage() {
           <Skeleton className="h-20 flex-1 rounded-3xl" />
           <Skeleton className="hidden h-12 w-40 rounded-2xl sm:block" />
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
-          {Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="h-32 rounded-3xl" />)}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 xl:grid-cols-6">
+          {Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="h-28 rounded-3xl sm:h-32" />)}
         </div>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.8fr)]">
           <Skeleton className="h-96 rounded-3xl" />
@@ -936,7 +950,7 @@ export default function DashboardPage() {
   if (!currentUser) {
     return (
       <div className="space-y-6 text-right">
-        <PageHeader title="דשבורד פיקודי" subtitle="אנא התחבר למערכת כדי לראות תמונת מצב עדכנית." />
+        <PageHeader title="לוח מפקד" subtitle="אנא התחבר למערכת כדי לראות תמונת מצב עדכנית." />
         <GlassCard className="flex flex-col items-center justify-center py-12 text-center text-slate-500">
           <ShieldAlert className="mb-3 h-12 w-12 text-red-500" />
           <span className="text-sm font-black text-slate-500">לא נמצא פרופיל משתמש פעיל</span>
@@ -949,7 +963,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-5 text-right">
       <PageHeader
-        title="דשבורד פיקודי"
+        title="לוח מפקד"
         subtitle="תמונת מצב עדכנית של הפלוגה, המשימות, הדרישות והלו״ז"
         actions={
           <div className="relative flex flex-wrap justify-end gap-2">
@@ -991,7 +1005,7 @@ export default function DashboardPage() {
           <div className="flex items-start gap-3 text-right text-sm font-semibold text-red-700">
             <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
             <div>
-              <p className="font-black">חלק מנתוני הדשבורד לא נטענו.</p>
+              <p className="font-black">חלק מנתוני לוח המפקד לא נטענו.</p>
               <p className="mt-1 text-xs text-red-600">{dashboardData.errors.join(' ')}</p>
             </div>
           </div>
@@ -1000,7 +1014,7 @@ export default function DashboardPage() {
 
       <CommandBriefCard brief={commandBrief} />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-6">
         {summaryCards.map(card => (
           <SummaryMetricCard key={card.title} card={card} />
         ))}
@@ -1169,7 +1183,7 @@ function QuickCreateModal({
   };
 
   const subtitles: Record<QuickCreateType, string> = {
-    request: 'יצירת דרישה בסיסית בלי לצאת מהדשבורד',
+    request: 'יצירת דרישה בסיסית בלי לצאת מלוח המפקד',
     task: 'משימה קצרה עם שיוך, יעד ומופע אופציונלי',
     event: 'מופע לו״ז בסיסי עם זמן התחלה וסוג',
   };
@@ -1454,20 +1468,21 @@ function SummaryMetricCard({ card }: { card: SummaryCard }) {
   const Icon = card.icon;
 
   return (
-    <GlassCard className="min-h-32 p-4 sm:p-5">
-      <div className="flex h-full flex-col justify-between gap-4">
-        <div className="flex items-start justify-between gap-3">
-          <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border ${toneClasses[card.tone]}`}>
-            <Icon className="h-5 w-5" />
+    <Link href={card.href} className="group block h-full rounded-3xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#FF6B02]/20">
+      <GlassCard className="flex min-h-[108px] h-full flex-col justify-between gap-1.5 !p-2.5 transition group-active:scale-[0.99] sm:min-h-32 sm:gap-2 sm:!p-5">
+        <div className="flex items-start justify-between gap-2">
+          <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border transition group-hover:scale-105 sm:h-10 sm:w-10 ${toneClasses[card.tone]}`}>
+            <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
           </span>
-          <span className="text-xs font-black text-[#667085]">{card.title}</span>
+          <span className="min-w-0 text-right text-[13px] font-black leading-tight text-[#020108] sm:text-xs sm:text-[#667085]">{card.title}</span>
         </div>
-        <div>
-          <span className="block text-3xl font-black text-[#020108]">{card.value}</span>
-          <span className="mt-1 block text-xs font-semibold leading-relaxed text-[#667085]">{card.subtitle}</span>
+        <div className="min-w-0">
+          <span className="block text-[2rem] font-black leading-none text-[#020108] sm:text-3xl">{card.value}</span>
+          <span className="mt-1 block text-[11px] font-semibold leading-snug text-[#667085] sm:hidden">{card.compactSubtitle}</span>
+          <span className="mt-1 hidden text-xs font-semibold leading-relaxed text-[#667085] sm:block">{card.subtitle}</span>
         </div>
-      </div>
-    </GlassCard>
+      </GlassCard>
+    </Link>
   );
 }
 

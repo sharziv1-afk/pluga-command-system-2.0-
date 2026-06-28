@@ -408,6 +408,7 @@ export default function ForumPage() {
   const [companyReportWarnings, setCompanyReportWarnings] = useState<string[]>([]);
   const [isCompanyReportBusy, setIsCompanyReportBusy] = useState(false);
   const [showCompanyRefreshConfirm, setShowCompanyRefreshConfirm] = useState(false);
+  const [showCompanyPublishConfirm, setShowCompanyPublishConfirm] = useState(false);
   const [showCompanyPreview, setShowCompanyPreview] = useState(false);
   const lastHydratedCompanyReportId = useRef<string | null | undefined>(undefined);
 
@@ -1777,6 +1778,80 @@ export default function ForumPage() {
     setIsCompanyReportBusy(false);
   };
 
+  // Publish & close the whole daily forum: save the final draft, bulk-close every report for
+  // the day that is not already closed, then best-effort carry each closed report forward to a
+  // next-day draft (reusing the existing carryForwardClosedReport). Single-report close/reopen
+  // are untouched; there is no "reopen the whole forum" — reopen stays per-report.
+  const publishAndCloseForum = async () => {
+    if (!dbProfile || !canSeeAll) return;
+
+    setIsCompanyReportBusy(true);
+    setIsDailySaving(true);
+    setDailyError(null);
+    setDailySuccess(null);
+
+    // 1) Persist the current distribution draft so the closed company report is the final text.
+    const savedCompany = await persistCompanyReportContent(
+      {
+        company_report_draft: companyDraftText,
+        company_report_key_gaps: companyKeyGaps,
+        company_report_manually_edited: companyManuallyEdited,
+      },
+      'forum_company_report_saved',
+    );
+
+    if (!savedCompany) {
+      setIsCompanyReportBusy(false);
+      setIsDailySaving(false);
+      setShowCompanyPublishConfirm(false);
+      return;
+    }
+
+    // 2) Bulk-close every still-open report for this date (RLS limits this to permitted rows).
+    const { data: closedRows, error: closeError } = await supabase
+      .from('forum_daily_reports')
+      .update({ status: 'closed' })
+      .eq('report_date', selectedDate)
+      .neq('status', 'closed')
+      .select('id,report_date,company_unit_id,platoon_unit_id,squad_unit_id,report_level,staff_role,parent_report_id,created_by,owner_user_id,status,content,summary_text,whatsapp_text,metadata,created_at,updated_at');
+
+    if (closeError) {
+      logSupabaseError('Forum daily forum publish bulk-close failed', closeError);
+      setDailyError('לא ניתן לסגור את כל דוחות היום כרגע. בדוק הרשאות או נסה שוב.');
+      setIsCompanyReportBusy(false);
+      setIsDailySaving(false);
+      setShowCompanyPublishConfirm(false);
+      await loadDailyReports(selectedDate);
+      return;
+    }
+
+    const closed = (closedRows ?? []) as DailyReportRow[];
+
+    // 3) Carry each closed report forward — fire-and-forget, never blocks the publish.
+    closed.forEach(row => {
+      void carryForwardClosedReport(row).catch(carryError => {
+        logSupabaseError('Forum publish carry-forward threw', carryError);
+      });
+    });
+
+    void createAuditLog(supabase, {
+      userId: dbProfile.id,
+      userName: dbProfile.name,
+      userRole: dbProfile.role,
+      actionType: 'forum_daily_forum_published',
+      entityType: 'forum_daily_report',
+      entityId: savedCompany.id,
+      previousValue: { report_date: selectedDate },
+      newValue: { report_date: selectedDate, closed_count: closed.length },
+    });
+
+    setShowCompanyPublishConfirm(false);
+    setDailySuccess(`הפורום הופץ ונסגר. נסגרו ${closed.length} דוחות.`);
+    setIsCompanyReportBusy(false);
+    setIsDailySaving(false);
+    await loadDailyReports(selectedDate);
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -2007,6 +2082,17 @@ export default function ForumPage() {
           <p className="whitespace-pre-wrap break-words text-sm leading-6 text-[#344054]" dir="rtl">{companyDraftText.trim() || '—'}</p>
         </div>
       )}
+
+      <div className="mt-4 rounded-2xl border border-[#FF6B02]/20 bg-[#FF6B02]/5 p-4">
+        <div className="mb-1 text-sm font-black text-[#020108]">הפצה וסגירת פורום</div>
+        <p className="mb-3 text-xs font-bold leading-relaxed text-[#667085]">
+          שמירת הנוסח הסופי וסגירת כל דוחות היום לכלל הפלוגה. הדוחות ננעלים לקריאה בלבד; ניתן עדיין לפתוח דוח בודד מחדש לפי הצורך.
+        </p>
+        <GlossyButton variant="orange" onClick={() => setShowCompanyPublishConfirm(true)} disabled={isCompanyReportBusy || isDailySaving || isCompanyReportLocked}>
+          <Send className="h-4 w-4" />
+          הפץ וסגור פורום
+        </GlossyButton>
+      </div>
     </div>
   );
 
@@ -2559,6 +2645,32 @@ export default function ForumPage() {
               </GlossyButton>
               <GlossyButton variant="orange" onClick={confirmCompanyRefresh} disabled={isCompanyReportBusy}>
                 החלף ורענן
+              </GlossyButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCompanyPublishConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020108]/40 p-4" dir="rtl">
+          <div className="tactical-glass-card w-full max-w-md rounded-3xl p-6 shadow-[0_24px_60px_rgba(2,1,8,0.25)]">
+            <div className="mb-3 flex items-start gap-3">
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#FF6B02]/10 text-[#FF6B02]">
+                <Send className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-[#020108]">הפצה וסגירת פורום</h3>
+                <p className="mt-1 text-sm font-bold leading-relaxed text-[#667085]">
+                  פעולה זו תשמור את הנוסח הסופי ותסגור את כל דוחות היום לכלל הפלוגה. הדוחות ינעלו לקריאה בלבד. להמשיך?
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <GlossyButton variant="slate" onClick={() => setShowCompanyPublishConfirm(false)} disabled={isCompanyReportBusy}>
+                ביטול
+              </GlossyButton>
+              <GlossyButton variant="orange" onClick={() => void publishAndCloseForum()} disabled={isCompanyReportBusy}>
+                הפץ וסגור
               </GlossyButton>
             </div>
           </div>

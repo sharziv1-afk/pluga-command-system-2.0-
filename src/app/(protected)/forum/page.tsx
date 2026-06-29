@@ -882,14 +882,15 @@ export default function ForumPage() {
   // Hydrate the company-report editor meta from its row, but only when the underlying report
   // identity changes — so a content reload (e.g. our own save) never re-flags manual edits or
   // clobbers the commander's in-progress structured edits. The field values themselves live in
-  // reportDraft (synced by the effect above, same as a מ״מ report).
+  // reportDraft (synced by the effect above, same as a מ״מ report). The "rolled up at" stamp is
+  // an in-session indicator only (build fills the form without persisting), so it resets here.
   useEffect(() => {
     const reportId = companyReport?.id ?? null;
     if (lastHydratedCompanyReportId.current === reportId) return;
     lastHydratedCompanyReportId.current = reportId;
     const content = companyReport?.content ?? {};
     setCompanyManuallyEdited(content.company_report_manually_edited === true);
-    setCompanyGeneratedAt(typeof content.company_report_generated_at === 'string' ? content.company_report_generated_at : null);
+    setCompanyGeneratedAt(null);
     setCompanyReportWarnings([]);
   }, [companyReport]);
 

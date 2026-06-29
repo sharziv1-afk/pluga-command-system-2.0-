@@ -164,7 +164,13 @@ function manpowerText(content: Record<string, unknown>): string {
   return `${present || DASH}/${total || DASH}`;
 }
 
-function assignPlatoonReports(
+/**
+ * Resolve `report_level === 'platoon'` reports to their מ״מ 1-4 slot using the same
+ * owner-role/unit source of truth as `aggregateCompanyStructured` (owner_user_id first,
+ * `metadata.node_label` only as a last-resort fallback). Shared with the WhatsApp preview
+ * generator so both surfaces can never disagree on which report belongs to which platoon.
+ */
+export function assignPlatoonReports(
   reports: CompanyReportSource[],
   platoons: CompanyReportPlatoon[],
 ): { byNumber: Map<number, CompanyReportSource>; unidentified: CompanyReportSource[] } {

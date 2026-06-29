@@ -40,8 +40,8 @@ import { GlossyButton } from '@/components/ui/GlossyButton';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { createAuditLog } from '@/lib/audit';
 import type { AuditActionType } from '@/lib/audit';
-import { aggregateCompanyStructured } from '@/lib/forum/companyReport';
-import type { CompanyReportInput } from '@/lib/forum/companyReport';
+import { aggregateCompanyStructured, assignPlatoonReports } from '@/lib/forum/companyReport';
+import type { CompanyReportInput, CompanyReportPlatoon } from '@/lib/forum/companyReport';
 import { useApp } from '@/lib/context/AppContext';
 import { getPermissionLevelForRole } from '@/lib/permissions';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
@@ -705,14 +705,27 @@ export default function ForumPage() {
     if (dbProfile) lines.push(`👤 ${dbProfile.name} · ${dbProfile.role}`);
     lines.push(divider, `סטטוס כללי: ${dailyReports.length} דיווחים נטענו`);
 
-    const platoonReports = dailyReports.filter(report => report.report_level === 'platoon');
+    // Resolve platoon reports the same way the (QA-passed) structured company aggregation
+    // does: owner_user_id (מ״מ N role + מחלקה N unit) first, metadata.node_label only as a
+    // last-resort fallback. Never by array index/order — that swapped מחלקה 1/2 content.
+    const platoons: CompanyReportPlatoon[] = platoonNodes.map((platoon, index) => ({
+      number: index + 1,
+      label: platoon.label,
+      ownerUserId: findPlatoonSummaryOwner(ownerOptions, platoon.label)?.id ?? null,
+    }));
+    const { byNumber: platoonByNumber, unidentified: unidentifiedPlatoonReports } =
+      assignPlatoonReports(dailyReports, platoons);
     const squadReports = dailyReports.filter(report => report.report_level === 'squad');
 
-    if (platoonReports.length === 0 && squadReports.length === 0) {
+    if (
+      platoonByNumber.size === 0
+      && unidentifiedPlatoonReports.length === 0
+      && squadReports.length === 0
+    ) {
       lines.push('', 'מחלקות: טרם הוגשו דיווחים.');
     }
 
-    platoonReports.forEach((report, index) => {
+    const renderPlatoonReport = (label: string, report: { content: Record<string, unknown>; status: ReportStatus }) => {
       const content = { ...emptyReportDraft(), ...report.content };
       const manpower = content.present_count || content.total_count
         ? `${content.present_count || '—'}/${content.total_count || '—'}`
@@ -721,7 +734,7 @@ export default function ForumPage() {
       if (mode === 'short') {
         lines.push(
           '',
-          `*מחלקה ${index + 1}* · ${statusLabel(report.status)}`,
+          `*${label}* · ${statusLabel(report.status)}`,
           `👥 מצבה: ${manpower}`,
           `🛡️ כוננות: ${truncateForWhatsapp(content.readiness)}`,
           `📦 לוגיסטיקה: ${truncateForWhatsapp(content.logistics)}`,
@@ -730,7 +743,7 @@ export default function ForumPage() {
       } else {
         lines.push(
           '',
-          `*מחלקה ${index + 1}* · ${statusLabel(report.status)}`,
+          `*${label}* · ${statusLabel(report.status)}`,
           `👥 מצבה: ${manpower}`,
           `🧍 כוח אדם: ${content.personnel || '—'}`,
           `🩹 ת״ש: ${content.welfare || '—'}`,
@@ -742,6 +755,18 @@ export default function ForumPage() {
           `▶️ פעולות להמשך: ${content.next_actions || '—'}`,
         );
       }
+    };
+
+    platoons.forEach(platoon => {
+      const report = platoonByNumber.get(platoon.number);
+      if (!report) {
+        lines.push('', `*${platoon.label}* · טרם הוגש`);
+        return;
+      }
+      renderPlatoonReport(platoon.label, report);
+    });
+    unidentifiedPlatoonReports.forEach(report => {
+      renderPlatoonReport('מחלקה לא מזוהה', report);
     });
 
     lines.push('', '🧰 *מפל״ג*');
@@ -777,7 +802,7 @@ export default function ForumPage() {
     lines.push('', divider, '_"המשימה מעל הכול — והאנשים בראש"_');
 
     return lines.join('\n');
-  }, [dailyReports, dbProfile, selectedDate, whatsappMode]);
+  }, [dailyReports, dbProfile, ownerOptions, selectedDate, whatsappMode]);
 
   const copyWhatsappText = async () => {
     try {

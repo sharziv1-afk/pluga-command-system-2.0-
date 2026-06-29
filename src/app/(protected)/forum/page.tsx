@@ -40,7 +40,7 @@ import { GlossyButton } from '@/components/ui/GlossyButton';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { createAuditLog } from '@/lib/audit';
 import type { AuditActionType } from '@/lib/audit';
-import { buildCompanyReport } from '@/lib/forum/companyReport';
+import { aggregateCompanyStructured } from '@/lib/forum/companyReport';
 import type { CompanyReportInput } from '@/lib/forum/companyReport';
 import { useApp } from '@/lib/context/AppContext';
 import { getPermissionLevelForRole } from '@/lib/permissions';
@@ -401,15 +401,12 @@ export default function ForumPage() {
   const [commanderStaffRole, setCommanderStaffRole] = useState<StaffRole>('medic');
   const [whatsappMode, setWhatsappMode] = useState<'short' | 'detailed'>('short');
   const [isEditingReport, setIsEditingReport] = useState(false);
-  const [companyDraftText, setCompanyDraftText] = useState('');
-  const [companyKeyGaps, setCompanyKeyGaps] = useState('');
   const [companyManuallyEdited, setCompanyManuallyEdited] = useState(false);
   const [companyGeneratedAt, setCompanyGeneratedAt] = useState<string | null>(null);
   const [companyReportWarnings, setCompanyReportWarnings] = useState<string[]>([]);
   const [isCompanyReportBusy, setIsCompanyReportBusy] = useState(false);
   const [showCompanyRefreshConfirm, setShowCompanyRefreshConfirm] = useState(false);
   const [showCompanyPublishConfirm, setShowCompanyPublishConfirm] = useState(false);
-  const [showCompanyPreview, setShowCompanyPreview] = useState(false);
   const lastHydratedCompanyReportId = useRef<string | null | undefined>(undefined);
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
@@ -882,16 +879,15 @@ export default function ForumPage() {
     setIsEditingReport(false);
   }, [selectedReport?.id, selectedReport]);
 
-  // Hydrate the company-report editor from its row, but only when the underlying
-  // report identity changes — so a content reload triggered by our own save never
-  // clobbers the commander's in-progress, unsaved typing in the draft textarea.
+  // Hydrate the company-report editor meta from its row, but only when the underlying report
+  // identity changes — so a content reload (e.g. our own save) never re-flags manual edits or
+  // clobbers the commander's in-progress structured edits. The field values themselves live in
+  // reportDraft (synced by the effect above, same as a מ״מ report).
   useEffect(() => {
     const reportId = companyReport?.id ?? null;
     if (lastHydratedCompanyReportId.current === reportId) return;
     lastHydratedCompanyReportId.current = reportId;
     const content = companyReport?.content ?? {};
-    setCompanyDraftText(typeof content.company_report_draft === 'string' ? content.company_report_draft : '');
-    setCompanyKeyGaps(typeof content.company_report_key_gaps === 'string' ? content.company_report_key_gaps : '');
     setCompanyManuallyEdited(content.company_report_manually_edited === true);
     setCompanyGeneratedAt(typeof content.company_report_generated_at === 'string' ? content.company_report_generated_at : null);
     setCompanyReportWarnings([]);
@@ -1613,8 +1609,15 @@ export default function ForumPage() {
     setReportDraft(current => ({ ...current, [field]: value }));
   };
 
-  // ---- Company final report (דוח פלוגתי להפצה) -----------------------------------------
-  const buildCompanyReportInput = (gaps: string): CompanyReportInput => ({
+  // Same as updateDraft, but on the company report it also flags a manual edit so a later
+  // "רענן מהדוחות" asks for confirmation before overwriting the commander's changes.
+  const handleStructuredFieldChange = (field: keyof ReportDraft, value: string) => {
+    updateDraft(field, value);
+    if (selectedNode?.level === 'company') setCompanyManuallyEdited(true);
+  };
+
+  // ---- Company structured report (ריכוז פלוגתי בפורמט דוח מ״מ) --------------------------
+  const buildCompanyReportInput = (): CompanyReportInput => ({
     reports: dailyReports,
     formattedDate: formatSelectedDate(selectedDate),
     platoons: platoonNodes.map((platoon, index) => ({
@@ -1623,7 +1626,32 @@ export default function ForumPage() {
       ownerUserId: findPlatoonSummaryOwner(ownerOptions, platoon.label)?.id ?? null,
     })),
     staff: staffNodes.map(staff => ({ role: staff.id, label: staff.label })),
-    keyGaps: gaps,
+  });
+
+  // Snapshot the whole company structured form (aggregated + manual fields) for a merge-safe
+  // write — used when publishing so the closed company report holds the final structured data.
+  const companyContentPatchFromDraft = (): Record<string, unknown> => ({
+    present_count: reportDraft.present_count,
+    total_count: reportDraft.total_count,
+    personnel: reportDraft.personnel,
+    readiness: reportDraft.readiness,
+    welfare: reportDraft.welfare,
+    medical: reportDraft.medical,
+    safety: reportDraft.safety,
+    discipline: reportDraft.discipline,
+    logistics: reportDraft.logistics,
+    personal_requests: reportDraft.personal_requests,
+    plan_vs_actual: reportDraft.plan_vs_actual,
+    next_actions: reportDraft.next_actions,
+    network_and_knowledge: reportDraft.network_and_knowledge,
+    daily_lessons: reportDraft.daily_lessons,
+    personal_note: reportDraft.personal_note,
+    commander_closing: reportDraft.commander_closing,
+    commander_opening: reportDraft.commander_opening,
+    company_summary: reportDraft.company_summary,
+    tomorrow_schedule: reportDraft.tomorrow_schedule,
+    parallel_schedule: reportDraft.parallel_schedule,
+    company_report_manually_edited: companyManuallyEdited,
   });
 
   // Every write to the company report content is a safe merge ({ ...existing, ...patch }) so
@@ -1714,68 +1742,34 @@ export default function ForumPage() {
     return created;
   };
 
-  const runCompanyReportGeneration = async (replaceDraft: boolean) => {
-    if (!canSeeAll || isCompanyReportLocked) return;
-    setIsCompanyReportBusy(true);
-    setDailyError(null);
-    setDailySuccess(null);
-
-    const result = buildCompanyReport(buildCompanyReportInput(companyKeyGaps));
-    const generatedAt = new Date().toISOString();
-    const patch: Record<string, unknown> = {
-      company_report_generated_text: result.text,
-      company_report_generated_at: generatedAt,
-      company_report_generated_from_report_ids: result.generatedFromReportIds,
-    };
-    if (replaceDraft) {
-      patch.company_report_draft = result.text;
-      patch.company_report_manually_edited = false;
-    }
-
-    const saved = await persistCompanyReportContent(patch, 'forum_company_report_generated');
-
+  // Build/refresh: fill the structured company form from the platoon reports. Pure aggregation
+  // only — numbers summed, text fields rolled up per platoon. Fills the form in place (no DB
+  // write); the manual fields (דגשי מ״פ + the schedule/narrative block) are left untouched, and
+  // the commander reviews and persists with the normal "שמור".
+  const applyCompanyAggregation = () => {
+    if (isCompanyReportLocked) return;
+    const result = aggregateCompanyStructured(buildCompanyReportInput());
+    setReportDraft(current => ({ ...current, ...result.fields }));
+    setCompanyManuallyEdited(false);
+    setCompanyGeneratedAt(new Date().toISOString());
     setCompanyReportWarnings(result.warnings);
-    if (saved) {
-      setCompanyGeneratedAt(generatedAt);
-      if (replaceDraft) {
-        setCompanyDraftText(result.text);
-        setCompanyManuallyEdited(false);
-      }
-      setDailySuccess('הדוח הפלוגתי נבנה מהדיווחים.');
-    }
-    setIsCompanyReportBusy(false);
+    setDailyError(null);
+    setDailySuccess('הריכוז הפלוגתי עודכן מהדיווחים. בדוק/ערוך לפי הצורך ואז שמור.');
   };
 
   const handleBuildCompanyReport = () => {
     if (isCompanyReportLocked) return;
-    // Guard the commander's manual edits: never silently replace an edited draft.
-    if (companyManuallyEdited && companyDraftText.trim().length > 0) {
+    // Guard the commander's manual edits: never silently overwrite an edited form.
+    if (companyManuallyEdited) {
       setShowCompanyRefreshConfirm(true);
       return;
     }
-    void runCompanyReportGeneration(true);
+    applyCompanyAggregation();
   };
 
   const confirmCompanyRefresh = () => {
     setShowCompanyRefreshConfirm(false);
-    void runCompanyReportGeneration(true);
-  };
-
-  const handleSaveCompanyDraft = async () => {
-    if (!canSeeAll || isCompanyReportLocked) return;
-    setIsCompanyReportBusy(true);
-    setDailyError(null);
-    setDailySuccess(null);
-    const saved = await persistCompanyReportContent(
-      {
-        company_report_draft: companyDraftText,
-        company_report_key_gaps: companyKeyGaps,
-        company_report_manually_edited: companyManuallyEdited,
-      },
-      'forum_company_report_saved',
-    );
-    if (saved) setDailySuccess('טיוטת הדוח הפלוגתי נשמרה.');
-    setIsCompanyReportBusy(false);
+    applyCompanyAggregation();
   };
 
   // Publish & close the whole daily forum: save the final draft, bulk-close every report for
@@ -1790,13 +1784,9 @@ export default function ForumPage() {
     setDailyError(null);
     setDailySuccess(null);
 
-    // 1) Persist the current distribution draft so the closed company report is the final text.
+    // 1) Persist the current structured company form so the closed report holds the final data.
     const savedCompany = await persistCompanyReportContent(
-      {
-        company_report_draft: companyDraftText,
-        company_report_key_gaps: companyKeyGaps,
-        company_report_manually_edited: companyManuallyEdited,
-      },
+      companyContentPatchFromDraft(),
       'forum_company_report_saved',
     );
 
@@ -1988,42 +1978,48 @@ export default function ForumPage() {
     </div>
   );
 
-  const renderCompanyReportCard = () => (
+  // Top-of-form card for the company structured report: explains the auto-aggregation and
+  // exposes build/refresh, the "rolled up at" stamp, manual-edit hint, and aggregation warnings.
+  const renderCompanyAggregationHeader = () => (
     <div className="tactical-glass-card rounded-3xl p-5">
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#FF6B02]/10 text-[#FF6B02]">
             <FileText className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <h3 className="text-lg font-black text-[#020108]">דוח פלוגתי להפצה</h3>
+            <h3 className="text-lg font-black text-[#020108]">ריכוז פלוגתי מהמ״מים</h3>
             <p className="mt-1 text-sm font-bold leading-relaxed text-[#667085]">
-              ריכוז אוטומטי של דוחות המ״מים והמפל״ג לטיוטה אחת לעריכה והפצה. הנוסח נבנה מהדיווחים בלבד — בלי AI.
+              דוח פלוגתי מובנה באותו פורמט כמו דוח מ״מ. השדות מתמלאים אוטומטית מסיכומי המ״מים — בדוק, ערוך לפי הצורך ושמור. "דגשי מ״פ" נכתבים ידנית.
             </p>
           </div>
         </div>
         {companyGeneratedAt && (
           <span className="w-fit shrink-0 rounded-full border border-[rgba(2,1,8,0.08)] bg-white/80 px-3 py-1.5 text-xs font-black text-[#667085]">
-            נוצר לאחרונה: {formatDate(companyGeneratedAt)}
+            רוכז לאחרונה: {formatDate(companyGeneratedAt)}
           </span>
         )}
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2">
         <GlossyButton variant="orange" size="sm" onClick={handleBuildCompanyReport} disabled={isCompanyReportBusy || isDailySaving || isCompanyReportLocked}>
           <RefreshCw className="h-4 w-4" />
-          {companyDraftText.trim() ? 'בנה מחדש מהדיווחים' : 'בנה דוח מהדיווחים'}
+          {companyGeneratedAt ? 'בנה מחדש מהדיווחים' : 'בנה מהדיווחים'}
         </GlossyButton>
-        <GlossyButton variant="slate" size="sm" onClick={handleBuildCompanyReport} disabled={isCompanyReportBusy || isDailySaving || isCompanyReportLocked || !companyDraftText.trim()}>
+        <GlossyButton variant="slate" size="sm" onClick={handleBuildCompanyReport} disabled={isCompanyReportBusy || isDailySaving || isCompanyReportLocked}>
           רענן מהדוחות
         </GlossyButton>
       </div>
 
+      {companyManuallyEdited && !isCompanyReportLocked && (
+        <p className="mt-3 text-xs font-black text-[#C75200]">הדוח נערך ידנית — רענון מהדוחות יבקש אישור לפני החלפה.</p>
+      )}
+
       {companyReportWarnings.length > 0 && (
-        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
+        <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
           <div className="mb-1 flex items-center gap-2 font-black">
             <AlertCircle className="h-4 w-4 shrink-0" />
-            שים לב לפני הפצה
+            שים לב — פערים בדיווחים
           </div>
           <ul className="list-disc space-y-1 pr-5">
             {companyReportWarnings.map(warning => <li key={warning}>{warning}</li>)}
@@ -2032,67 +2028,51 @@ export default function ForumPage() {
       )}
 
       {isCompanyReportLocked && (
-        <div className="mb-4 flex items-center gap-2 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/80 px-4 py-3 text-sm font-black text-[#020108]">
+        <div className="mt-3 flex items-center gap-2 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/80 px-4 py-3 text-sm font-black text-[#020108]">
           <Lock className="h-4 w-4 shrink-0 text-[#FF6B02]" />
           הפורום נסגר. לעריכה נוספת יש לפתוח את נעילת הדוח הפלוגתי.
         </div>
       )}
+    </div>
+  );
 
-      <label className="block">
-        <span className="mb-2 block text-sm font-black text-[#020108]">נוסח להפצה (טיוטה לעריכה)</span>
-        <textarea
-          value={companyDraftText}
-          onChange={event => { setCompanyDraftText(event.target.value); setCompanyManuallyEdited(true); }}
-          className="command-input min-h-72 resize-y text-sm leading-6"
-          dir="rtl"
-          placeholder="לחץ על 'בנה דוח מהדיווחים' כדי לייצר טיוטה מהדוחות, או כתוב ידנית."
-          disabled={isCompanyReportBusy || isCompanyReportLocked}
-        />
-      </label>
-
-      <label className="mt-4 block">
-        <span className="mb-2 block text-sm font-black text-[#020108]">פערים מרכזיים (למילוי ידני)</span>
-        <textarea
-          value={companyKeyGaps}
-          onChange={event => setCompanyKeyGaps(event.target.value)}
-          className="command-input min-h-24 resize-y text-sm leading-6"
-          dir="rtl"
-          placeholder="פערים מרכזיים נכתבים ידנית ולא נגזרים אוטומטית. הם ישולבו בנוסח בעת בנייה/רענון."
-          disabled={isCompanyReportBusy || isCompanyReportLocked}
-        />
-      </label>
-
-      {companyManuallyEdited && !isCompanyReportLocked && (
-        <p className="mt-2 text-xs font-black text-[#C75200]">הטיוטה נערכה ידנית — רענון מהדוחות יבקש אישור לפני החלפה.</p>
-      )}
-
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <GlossyButton variant="orange" onClick={() => void handleSaveCompanyDraft()} disabled={isCompanyReportBusy || isDailySaving || isCompanyReportLocked}>
-          <Save className="h-4 w-4" />
-          {isCompanyReportBusy ? 'שומר...' : 'שמור טיוטה'}
-        </GlossyButton>
-        <GlossyButton variant="slate" size="sm" onClick={() => setShowCompanyPreview(value => !value)} disabled={isCompanyReportBusy}>
-          {showCompanyPreview ? 'הסתר תצוגה' : 'תצוגה מקדימה'}
-        </GlossyButton>
+  // Manual schedule/narrative block for the company report — kept for the WhatsApp output and
+  // never touched by the aggregation. Collapsed by default so the structured roll-up leads.
+  const renderCompanyScheduleSection = () => (
+    <details className="tactical-glass-card group rounded-3xl p-5">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+        <span className="text-lg font-black text-[#020108]">לו״ז ודגשים להפצה <span className="text-sm font-bold text-[#667085]">(ידני)</span></span>
+        <span className="flex shrink-0 items-center gap-1.5 text-sm font-black text-[#667085]">
+          <span className="group-open:hidden">פתח ▾</span>
+          <span className="hidden group-open:inline">סגור ▴</span>
+        </span>
+      </summary>
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        {([
+          ['commander_opening', 'פתיחת מ״פ'],
+          ['company_summary', 'סיכום פלוגתי'],
+          ['tomorrow_schedule', 'לו״ז פלוגתי למחר'],
+          ['parallel_schedule', 'לו״ז מקביל'],
+        ] as Array<[keyof ReportDraft, string]>).map(([field, label]) => (
+          <label key={field} className="block">
+            <span className="mb-2 block text-sm font-black text-[#020108]">{label}</span>
+            <textarea value={reportDraft[field]} onChange={event => handleStructuredFieldChange(field, event.target.value)} className="command-input min-h-20 resize-none" disabled={isDailySaving || isSelectedReportReadOnly} />
+          </label>
+        ))}
       </div>
+    </details>
+  );
 
-      {showCompanyPreview && (
-        <div className="mt-4 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/70 p-4">
-          <div className="mb-2 text-xs font-black text-[#667085]">תצוגה מקדימה — נוסח להפצה</div>
-          <p className="whitespace-pre-wrap break-words text-sm leading-6 text-[#344054]" dir="rtl">{companyDraftText.trim() || '—'}</p>
-        </div>
-      )}
-
-      <div className="mt-4 rounded-2xl border border-[#FF6B02]/20 bg-[#FF6B02]/5 p-4">
-        <div className="mb-1 text-sm font-black text-[#020108]">הפצה וסגירת פורום</div>
-        <p className="mb-3 text-xs font-bold leading-relaxed text-[#667085]">
-          שמירת הנוסח הסופי וסגירת כל דוחות היום לכלל הפלוגה. הדוחות ננעלים לקריאה בלבד; ניתן עדיין לפתוח דוח בודד מחדש לפי הצורך.
-        </p>
-        <GlossyButton variant="orange" onClick={() => setShowCompanyPublishConfirm(true)} disabled={isCompanyReportBusy || isDailySaving || isCompanyReportLocked}>
-          <Send className="h-4 w-4" />
-          הפץ וסגור פורום
-        </GlossyButton>
-      </div>
+  const renderCompanyPublishBlock = () => (
+    <div className="tactical-glass-card rounded-3xl border border-[#FF6B02]/20 bg-[#FF6B02]/5 p-5">
+      <div className="mb-1 text-sm font-black text-[#020108]">הפצה וסגירת פורום</div>
+      <p className="mb-3 text-xs font-bold leading-relaxed text-[#667085]">
+        שמירת הדוח הפלוגתי הסופי וסגירת כל דוחות היום לכלל הפלוגה. הדוחות ננעלים לקריאה בלבד; ניתן עדיין לפתוח דוח בודד מחדש לפי הצורך.
+      </p>
+      <GlossyButton variant="orange" onClick={() => setShowCompanyPublishConfirm(true)} disabled={isCompanyReportBusy || isDailySaving || isCompanyReportLocked}>
+        <Send className="h-4 w-4" />
+        הפץ וסגור פורום
+      </GlossyButton>
     </div>
   );
 
@@ -2213,8 +2193,30 @@ export default function ForumPage() {
 
       if (selectedNode.level === 'company') {
         return (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {companyReadSections.map(section => renderReadSection(section.icon, section.label, readContent[section.key], section.key === 'company_summary' || section.key === 'commander_closing'))}
+          <div className="space-y-4">
+            <div className="tactical-glass-card rounded-3xl p-5">
+              <div className="flex items-center gap-4">
+                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#FF6B02]/10 text-[#FF6B02]">
+                  <Users className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-sm font-black text-[#667085]">מצבת חיילים פלוגתית</p>
+                  <p className="font-mono text-3xl font-black text-[#FF6B02]" dir="ltr">
+                    {readContent.present_count.trim() || '—'}/{readContent.total_count.trim() || '—'}
+                  </p>
+                </div>
+                <span className="mr-auto text-sm font-bold text-[#667085]">נוכחים / סד״כ בבסיס</span>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {squadReadSections.map(section => renderReadSection(section.icon, section.label, readContent[section.key], section.wide))}
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {renderReadSection(Star, 'דגשי מ״פ', readContent.commander_closing, true)}
+              {companyReadSections
+                .filter(section => section.key !== 'commander_closing')
+                .map(section => renderReadSection(section.icon, section.label, readContent[section.key], section.key === 'company_summary'))}
+            </div>
           </div>
         );
       }
@@ -2278,35 +2280,24 @@ export default function ForumPage() {
               <textarea value={reportDraft.notes} onChange={event => updateDraft('notes', event.target.value)} className="command-input min-h-32 resize-none" disabled={isDailySaving || isSelectedReportReadOnly} />
             </label>
           </div>
-        ) : selectedNode.level === 'company' ? (
-          <div className="space-y-4">
-            {([
-              ['commander_opening', 'פתיחת מ״פ'],
-              ['company_summary', 'סיכום פלוגתי'],
-              ['tomorrow_schedule', 'לו״ז פלוגתי למחר'],
-              ['parallel_schedule', 'לו״ז מקביל'],
-              ['commander_closing', 'דגשי מ״פ'],
-            ] as Array<[keyof ReportDraft, string]>).map(([field, label]) => (
-              <label key={field} className="tactical-glass-card block rounded-3xl p-5">
-                <span className="mb-2 block text-sm font-black text-[#020108]">{label}</span>
-                <textarea value={reportDraft[field]} onChange={event => updateDraft(field, event.target.value)} className="command-input min-h-24 resize-none" disabled={isDailySaving || isSelectedReportReadOnly} />
-              </label>
-            ))}
-          </div>
         ) : (
           <div className="space-y-4">
+            {selectedNode.level === 'company' && renderCompanyAggregationHeader()}
+
             <div className="tactical-glass-card rounded-3xl p-5">
               <div className="flex items-center gap-4">
                 <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#FF6B02]/10 text-[#FF6B02]">
                   <Users className="h-6 w-6" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-black text-[#020108]">מצבת חיילים</p>
+                  <p className="text-sm font-black text-[#020108]">{selectedNode.level === 'company' ? 'מצבת חיילים פלוגתית' : 'מצבת חיילים'}</p>
                   <p className="font-mono text-3xl font-black text-[#FF6B02]" dir="ltr">
                     {reportDraft.present_count.trim() || '—'}/{reportDraft.total_count.trim() || '—'}
                   </p>
                 </div>
-                <span className="mr-auto hidden text-sm font-bold text-[#667085] sm:block">נוכחים / סד״כ בבסיס</span>
+                <span className="mr-auto hidden text-sm font-bold text-[#667085] sm:block">
+                  {selectedNode.level === 'company' ? 'נוכחים / סד״כ — סכום מהמחלקות' : 'נוכחים / סד״כ בבסיס'}
+                </span>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-3 border-t border-[rgba(2,1,8,0.08)] pt-4">
                 {squadManpowerFields.map(field => (
@@ -2314,7 +2305,7 @@ export default function ForumPage() {
                     <span className="mb-1 block text-xs font-black text-[#667085]">{field.label}</span>
                     <input
                       value={reportDraft[field.key]}
-                      onChange={event => updateDraft(field.key, event.target.value)}
+                      onChange={event => handleStructuredFieldChange(field.key, event.target.value)}
                       inputMode="numeric"
                       placeholder="0"
                       className="command-input w-full text-center font-mono text-lg font-black text-[#020108]"
@@ -2326,18 +2317,18 @@ export default function ForumPage() {
             </div>
 
             <div className="tactical-glass-card rounded-3xl p-5">
-              <h3 className="mb-4 text-lg font-black text-[#020108]">{selectedNode.level === 'platoon' ? 'סיכום מ״מ / מחלקה' : 'דיווח מ״כ / כיתה'}</h3>
+              <h3 className="mb-4 text-lg font-black text-[#020108]">{selectedNode.level === 'company' ? 'ריכוז פלוגתי מהמ״מים' : selectedNode.level === 'platoon' ? 'סיכום מ״מ / מחלקה' : 'דיווח מ״כ / כיתה'}</h3>
               <div className="grid gap-4 lg:grid-cols-2">
                 {squadPrimaryFields.map(field => (
                   <label key={field.key} className="block">
                     <span className="mb-2 block text-sm font-black text-[#020108]">{field.label}</span>
-                    <textarea value={reportDraft[field.key]} onChange={event => updateDraft(field.key, event.target.value)} className="command-input min-h-20 resize-none" disabled={isDailySaving || isSelectedReportReadOnly} />
+                    <textarea value={reportDraft[field.key]} onChange={event => handleStructuredFieldChange(field.key, event.target.value)} className="command-input min-h-20 resize-none" disabled={isDailySaving || isSelectedReportReadOnly} />
                   </label>
                 ))}
               </div>
             </div>
 
-            <details className="tactical-glass-card group rounded-3xl p-5" open={hasSecondaryContent}>
+            <details className="tactical-glass-card group rounded-3xl p-5" open={hasSecondaryContent || selectedNode.level === 'company'}>
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
                 <span className="text-lg font-black text-[#020108]">הרחבות וסיכום</span>
                 <span className="flex shrink-0 items-center gap-1.5 text-sm font-black text-[#667085]">
@@ -2349,15 +2340,23 @@ export default function ForumPage() {
                 {squadSecondaryFields.map(field => (
                   <label key={field.key} className={field.wide ? 'block lg:col-span-2' : 'block'}>
                     <span className="mb-2 block text-sm font-black text-[#020108]">{field.label}</span>
-                    <textarea value={reportDraft[field.key]} onChange={event => updateDraft(field.key, event.target.value)} className="command-input min-h-24 resize-none" disabled={isDailySaving || isSelectedReportReadOnly} />
+                    <textarea value={reportDraft[field.key]} onChange={event => handleStructuredFieldChange(field.key, event.target.value)} className="command-input min-h-24 resize-none" disabled={isDailySaving || isSelectedReportReadOnly} />
                   </label>
                 ))}
+                {selectedNode.level === 'company' && (
+                  <label className="block lg:col-span-2">
+                    <span className="mb-2 block text-sm font-black text-[#020108]">דגשי מ״פ <span className="text-xs font-bold text-[#667085]">(ידני — לא נגזר אוטומטית)</span></span>
+                    <textarea value={reportDraft.commander_closing} onChange={event => handleStructuredFieldChange('commander_closing', event.target.value)} className="command-input min-h-24 resize-none" disabled={isDailySaving || isSelectedReportReadOnly} />
+                  </label>
+                )}
               </div>
             </details>
+
+            {selectedNode.level === 'company' && renderCompanyScheduleSection()}
           </div>
         )}
 
-        {canSeeAll && selectedNode.level === 'company' && renderCompanyReportCard()}
+        {canSeeAll && selectedNode.level === 'company' && renderCompanyPublishBlock()}
 
         <div className="tactical-glass-card flex flex-col gap-3 rounded-3xl p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm font-bold text-[#667085]">היררכיית המחלקות המלאה תוצג כאן לאחר שיוך משתמשים ליחידות.</div>
@@ -2635,7 +2634,7 @@ export default function ForumPage() {
               <div>
                 <h3 className="text-lg font-black text-[#020108]">רענון הדוח הפלוגתי</h3>
                 <p className="mt-1 text-sm font-bold leading-relaxed text-[#667085]">
-                  יש לך טיוטה שנערכה ידנית. רענון מהדוחות יחליף את הטיוטה הנוכחית. להמשיך?
+                  ערכת ידנית את הדוח הפלוגתי. רענון מהדוחות יחליף את שדות הריכוז במצב העדכני מהמ״מים (דגשי מ״פ והלו״ז הידני יישמרו). להמשיך?
                 </p>
               </div>
             </div>

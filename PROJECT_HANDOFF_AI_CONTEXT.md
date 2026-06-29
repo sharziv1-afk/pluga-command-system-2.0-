@@ -2,10 +2,10 @@
 
 Authoritative technical handoff for AI agents and developers continuing work on `pluga-command-system`.
 
-**Last updated:** 2026-06-27  
-**Milestone:** Tracking Module Phase 1+2 implemented (schema/RLS + CRUD + status cycling + soft delete)  
-**Latest commit:** `16da109 Add Tracking status cycling and soft delete controls`
-**Current milestone override:** Tracking MVP live; next is a checkpoint/docs commit, Vercel verification, and (only on approval) Tracking Phase 3 (see "TRACKING MODULE - IMPLEMENTED (Phase 1+2)" below)
+**Last updated:** Forum Daily Structured Company Flow checkpoint  
+**Milestone:** Forum Daily Structured Company Flow completed (structured מ״פ report, deterministic aggregation, owner mapping, `created_by` vs `owner_user_id`, WhatsApp preview mapping, publish/close/reopen, read-only after close). Tracking Module Phase 1+2 also live.  
+**Latest commit:** `cdcd99f Fix forum WhatsApp preview platoon mapping` (matches `origin/main`)  
+**Current milestone override:** Forum Daily Structured Company Flow round closed and pushed. Next is a docs checkpoint commit, then P1 follow-ups (duplicate dynamic company node cleanup; unsaved company draft protection) — full plan in [`FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`](FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md). Tracking Phase 3 remains approval-gated.
 
 ## Identity
 
@@ -20,6 +20,19 @@ Authoritative technical handoff for AI agents and developers continuing work on 
 ## Latest Git State
 
 ```text
+cdcd99f Fix forum WhatsApp preview platoon mapping        <- HEAD / origin/main
+acd2345 Fix forum report ownership for commander-created slot reports
+92af9b9 Fix forum owner mapping for staff and squad placeholders
+5965615 Document forum QA owner mapping requirements
+604c8cd Polish structured company report state handling
+9699284 Improve forum company report dialog accessibility
+ba903b2 Fix forum date input state update
+996bccb Make company report a structured מ״מ-style form
+e8f2161 Add structured per-field company aggregator
+023fb96 Polish company report status line for in-progress reports
+43d4a08 Add publish and close flow for forum daily reports
+ba554e6 Add company final report editor to forum daily
+c82492c Add deterministic company report generator helpers
 16da109 Add Tracking status cycling and soft delete controls
 334fec7 Add Tracking CRUD phase one
 f2be781 Add Tracking module schema, RLS, and read-only skeleton page
@@ -501,9 +514,18 @@ Current UX:
 - Advanced delete remains available according to migration 012.
 - WhatsApp short/detailed output and copy are available.
 
-### Forum Daily Reports - Owner Mapping Diagnosis (2026-06-21)
+### Forum Daily Reports - Owner Mapping Diagnosis (2026-06-21) — RESOLVED
 
-Code X diagnosis files read:
+> **RESOLVED in the Forum Daily Structured Company Flow round (`c82492c`→`cdcd99f`).** Structural
+> platoon slots are enriched and matched by `owner_user_id` + role/unit; `findReportForNode` matches
+> enriched slots; the deterministic aggregation lives in the pure module
+> `src/lib/forum/companyReport.ts` (`resolvePlatoonNumber`, `assignPlatoonReports`,
+> `aggregateCompanyStructured`, `buildCompanyReport`); and `generateWhatsappText` reuses the same
+> `assignPlatoonReports` path (no index-based labels, no omitted empty platoons). The "existing
+> reports" fallback is preserved for unmatched/legacy reports. The historical diagnosis below is kept
+> for context only. Full detail: [`FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`](FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md).
+
+Historical Code X diagnosis files read (pre-fix):
 
 - `src/app/(protected)/forum/page.tsx`
 - `supabase/migrations/010_forum_hierarchical_daily_reports.sql`
@@ -540,12 +562,10 @@ Recommended first implementation:
 3. Let `findReportForNode` match enriched slots by owner/report_level.
 4. Keep "existing reports" as a fallback for unmatched/legacy reports; hide reports from fallback only after they matched a structural slot.
 
-WhatsApp link:
+WhatsApp link (RESOLVED in `cdcd99f`):
 
-- `generateWhatsappText` currently iterates over `dailyReports`, not structural `dailyNodes`.
-- Empty platoons 2/3/4 are omitted when no report exists.
-- Platoon labels are assigned by array index, not by `platoon_unit_id`/unit name.
-- Fix after structural matching so WhatsApp can be generated from mapped slots.
+- Previously `generateWhatsappText` iterated over `dailyReports`, so empty platoons 2/3/4 were omitted and labels were index-based.
+- It now reuses the shared `assignPlatoonReports` / `findPlatoonSummaryOwner` mapping, consistent with the aggregation; platoons 1/2/3/4 map correctly in short and detailed previews.
 
 ### Forum Product Intent
 
@@ -677,8 +697,9 @@ Commit: `96ae49b Remove orphaned legacy prototype shell and split session contex
 | AppContext | Session context remains shared shell dependency |
 | AuditTab | Still not fully real `audit_logs` |
 | Forum | Unit hierarchy mapping missing; visibility partly UI-gated; not wired to `commanded_unit_id` yet |
-| Forum daily owner mapping | Structural platoon slots do not yet auto-match existing reports by owner/unit; fallback "existing reports" is still required |
-| Forum WhatsApp preview | Generated from `dailyReports`, not all mapped slots; empty platoons may be omitted |
+| Forum daily owner mapping | RESOLVED: structural platoon slots auto-match owners by `owner_user_id` + role/unit; "existing reports" fallback preserved for unmatched/legacy reports |
+| Forum WhatsApp preview | RESOLVED in `cdcd99f`: maps platoons via the shared `assignPlatoonReports` path consistent with the aggregation |
+| Forum daily structured flow open items | Non-blocking: duplicate dynamic company node (`forum/page.tsx:495-502`); unsaved company draft reset on slot switch (`forum/page.tsx:972-975`) |
 | Forum daily UX polish | Dev-facing UI-gated text, destructive delete confirmation, panel visibility, placeholders/labels, and lifecycle button relevance need follow-up |
 | RLS | Real hierarchy RLS not built |
 | Users/Roles | Real MK/MM/MP/staff mapping and `commanded_unit_id` assignment needed |
@@ -737,6 +758,10 @@ Commit: `96ae49b Remove orphaned legacy prototype shell and split session contex
 9. Forum hierarchy must not be faked in RLS.
 10. Prefer additive migrations.
 11. Do not embed `units(...)` from `users`; load units separately because both `unit_id` and `commanded_unit_id` reference `units`.
+12. The מ״פ report is a structured form, not a free textarea.
+13. Company aggregation is deterministic (`aggregateCompanyStructured()`); AI is not part of the fixed flow — only ever an opt-in, explicitly user-approved action.
+14. Platoon assignment is by `owner_user_id` + role/unit; `metadata.node_label` is a last-resort fallback only; never by array index.
+15. `created_by` (actor) is distinct from `owner_user_id` (report owner); both are preserved on every insert.
 
 ## Current Roadmap
 
@@ -749,7 +774,10 @@ Step 2 - Forum daily UI-only owner/slot matching layer - DONE in 1c7414c
 Step 2b - Forum daily slot-click scroll-into-view - DONE in 62fd8fe
 Step 2c - Carry Forward / Rollover - DONE in c991be2
 Step 2d - Forum Daily Phase A (layout/density, UI-only) - DONE in 1d37472
-Step 3 - WhatsApp preview from mapped slots/platoons
+Step 2e - Forum Daily Structured Company Flow (structured מ״פ report, deterministic aggregation, owner mapping, ownership, publish/close/reopen, read-only after close) - DONE (c82492c->cdcd99f)
+Step 3 - WhatsApp preview from mapped slots/platoons - DONE in cdcd99f
+Step 3a - Duplicate dynamic company node cleanup (forum/page.tsx:495-502) - NEXT (P1)
+Step 3b - Unsaved company draft protection on slot switch (forum/page.tsx:972-975) - NEXT (P1)
 Step 4 - Remove dev-facing daily forum text + confirm destructive delete
 Step 5 - Real Users QA setup
 Step 6 - Forum wiring to commanded_unit_id

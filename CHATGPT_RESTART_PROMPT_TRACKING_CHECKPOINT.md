@@ -1,6 +1,6 @@
 # פרומפט פתיחה לשיחה חדשה עם ChatGPT — Tracking Checkpoint
 
-> העתק את כל הטקסט שמתחת לקו לשיחה חדשה עם ChatGPT. הוא מסכם את מצב הפרויקט "המפקד" / `pluga-command-system` נכון ל-2026-06-27, אחרי שמודול ה-Tracking (Phase 1+2) עלה ל-main.
+> העתק את כל הטקסט שמתחת לקו לשיחה חדשה עם ChatGPT. הוא מסכם את מצב הפרויקט "המפקד" / `pluga-command-system` אחרי שסבב **Forum Daily Structured Company Flow** נסגר ועלה ל-main (`cdcd99f`). מודול ה-Tracking (Phase 1+2) גם הוא חי. הפירוט המלא של הסבב, תוכנית העבודה, צ'קליסט ה-QA ומטריצת הסיכונים: `FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`.
 
 ---
 
@@ -62,11 +62,23 @@
 
 **נתוני QA שנותרו ב-production (אל תמחק בלי אישור):** חייל `QA Cycling Test 001`, מופע `בוחן מסלול`, רשומת `tracking_record` אחת עם status `עבר`.
 
+## Forum Daily Structured Company Flow (סבב שנסגר — `c82492c`→`cdcd99f`)
+
+- **דוח מ״פ הוא טופס מובנה (structured)**, לא textarea חופשי, בסגנון טופס מ״מ. שדות: מצבה, כוח אדם, כוננות, רפואה, ת״ש, בטיחות, משמעת, לוגיסטיקה, בקשות אישיות, רצוי/מצוי, רשת וידע, לקחים יומיים, פעולות להמשך, הערה אישית, דגשי מ״פ, לו״ז ודגשים להפצה.
+- **Aggregation דטרמיניסטי** דרך `aggregateCompanyStructured()` במודול ה-pure `src/lib/forum/companyReport.ts` (גם `resolvePlatoonNumber`, `assignPlatoonReports`, `buildCompanyReport`). **אין AI בזרימה הקבועה** — AI רק כפעולה אופציונלית באישור מפורש ("שפר ניסוח").
+- **שיוך מחלקות לפי `owner_user_id` + role/unit**; `metadata.node_label` הוא fallback אחרון בלבד; **לעולם לא לפי אינדקס במערך** (מיפוי לפי אינדקס החליף בעבר תוכן בין מחלקה 1/2).
+- **`created_by` (מי ביצע) שונה מ-`owner_user_id` (בעל הדוח)** ונשמרים נפרד בכל insert. מ״פ שיוצר דוח עבור מ״מ 2: `created_by=מ״פ`, `owner_user_id=מ״מ 2`.
+- **WhatsApp short/detailed** (`generateWhatsappText` ב-`forum/page.tsx`) משתמש באותו `assignPlatoonReports`/`findPlatoonSummaryOwner` כמו ה-aggregation, כך שלא ייווצר חוסר עקביות. תוקן ב-`cdcd99f`.
+- **סטטוסים:** `submitted`/`closed` סופיים; `draft`/`in_progress` נכנסים ל-aggregation מתויגים `[בטיפול — טרם הוגש סופית]`; דוח חסר = `[לא הוגש דוח]`. publish/close/reopen + read-only אחרי close עובדים.
+- **Audit (best-effort) חדשים:** `forum_company_report_saved`, `forum_daily_forum_published`, `forum_daily_report_carried_forward`.
+- **QA שעבר:** Full Structured Company Forum Flow QA ב-2026-08-20 + Focused WhatsApp Preview QA אחרי `cdcd99f` (aggregation 124/138, מ״מ 3 תויג בטיפול, מ״מ 2 UPDATED אחרי refresh, מחלקה 1/2/3/4 ממופות, dashboard/tracking נטענים, console נקי, lint/tsc/build ירוקים).
+- **פריטים פתוחים לא-חוסמים:** (1) node company דינמי כפול אחרי שמירת דוח מ״פ (`forum/page.tsx:495-502` לא מחריג `report_level==='company'`); (2) טיוטת מ״פ לא-שמורה מתאפסת במעבר slot (`forum/page.tsx:972-975`).
+
 ## מצב Git
 
 - ענף: `main`.
-- ה-commit האחרון מבחינת **קוד** שעלה ל-main: `16da109 Add Tracking status cycling and soft delete controls`.
-- ייתכן ש-commit תיעוד בלבד בשם `Document Tracking checkpoint and restart handoff` יושב מעל `16da109` (מעדכן את קבצי ה-MD, כולל את הקובץ הזה). אם בוצע — ה-hash שלו הוא ה-HEAD החדש; ה-commit האחרון של **קוד** נשאר `16da109`.
+- ה-commit האחרון מבחינת **קוד** שעלה ל-main: `cdcd99f Fix forum WhatsApp preview platoon mapping` (תואם `origin/main`).
+- ייתכן ש-commit תיעוד בלבד בשם `Document forum daily structured flow checkpoint` יושב מעל `cdcd99f` (מעדכן את קבצי ה-MD, כולל את הקובץ הזה). אם בוצע — ה-hash שלו הוא ה-HEAD החדש; ה-commit האחרון של **קוד** נשאר `cdcd99f`.
 - אחרי ה-checkpoint, working tree אמור להיות נקי (אלא אם פותחים שינוי MD חדש).
 - **אל תניח מצב Git — בקש `git status --short` ו-`git log --oneline -8` בתחילת כל שיחה/שלב.**
 
@@ -84,9 +96,13 @@
 
 ## הצעדים הבאים המומלצים
 
-1. **לאמת Vercel deployment** — לוודא שה-build עלה והאפליקציה (כולל `/tracking`) עובדת ב-production.
-2. **להחליט מה עושים עם נתוני ה-QA** ב-Tracking (להשאיר / להסיר ידנית דרך ה-UI / soft delete).
-3. **Tracking Phase 3 — רק אחרי שאני מאשר** (לא להתחיל לבד). מועמדים:
+> תוכנית העבודה המלאה (P0/P1/P2/P3) עם scope, סיכון, בדיקות וכלי מומלץ לכל משימה נמצאת ב-`FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`.
+
+1. **Docs checkpoint** — סנכרון התיעוד עם סבב ה-Forum Daily Structured Flow (`cdcd99f`). docs בלבד, בלי קוד.
+2. **Forum P1 (מומלץ, UI בלבד, בלי DB/RLS):** ניקוי ה-node company הדינמי הכפול (`forum/page.tsx:495-502`); הגנה על טיוטת מ״פ לא-שמורה במעבר slot (`forum/page.tsx:972-975`); בדיקות regression למודול ה-pure `companyReport.ts`.
+3. **לאמת Vercel deployment** — לוודא שה-build עלה והאפליקציה (כולל `/forum` ו-`/tracking`) עובדת ב-production.
+4. **להחליט מה עושים עם נתוני ה-QA** ב-Tracking (להשאיר / להסיר ידנית דרך ה-UI / soft delete).
+5. **Tracking Phase 3 — רק אחרי שאני מאשר** (לא להתחיל לבד). מועמדים:
    - ייצוא CSV אמיתי.
    - עריכת note בתא.
    - filters (לפי יחידה / כיתה / סטטוס / קטגוריה).

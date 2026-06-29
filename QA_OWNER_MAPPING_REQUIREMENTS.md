@@ -1,5 +1,12 @@
 # Forum Daily — Owner Mapping & QA Data Requirements
 
+> **Status:** The Forum Daily Structured Company Flow round closed at `cdcd99f` (pushed). The Full
+> Structured Company Forum Flow QA passed on 2026-08-20, and the Focused WhatsApp Preview QA passed
+> after `cdcd99f` (aggregation 124/138 on the QA data set; platoons 1/2/3/4 mapped). The
+> mapping/aggregation code is correct and unchanged by this requirement; this file remains the
+> prerequisite guide for spinning up real QA users for a clean multi-platoon run. Round detail and
+> the standing QA checklist: `FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`.
+
 Prerequisites for running the **Full Company Forum Flow** QA (מ״כ → מ״מ → מ״פ ריכוז → הפצה).
 
 ## TL;DR

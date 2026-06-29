@@ -1,27 +1,29 @@
 # Project Summary - pluga-command-system
 
-## Current Snapshot - 2026-06-27
+## Current Snapshot - Forum Daily Structured Company Flow (round closed)
 
 **Product:** `pluga-command-system` / "המפקד"  
 **Branch:** `main`  
-**Latest commit:** `16da109 Add Tracking status cycling and soft delete controls`  
-**Git state:** `origin/main` up to date, working tree clean
+**Latest commit:** `cdcd99f Fix forum WhatsApp preview platoon mapping`  
+**Git state:** `origin/main` up to date, working tree clean  
+**Full round detail / work plan / QA checklist / risk matrix:** [`FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`](FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md)
 
-**Recent important commits:**
+**Recent important commits (Forum Daily Structured Company Flow round, newest -> oldest):**
 
 ```text
+cdcd99f Fix forum WhatsApp preview platoon mapping
+acd2345 Fix forum report ownership for commander-created slot reports
+92af9b9 Fix forum owner mapping for staff and squad placeholders
+604c8cd Polish structured company report state handling
+996bccb Make company report a structured מ״מ-style form
+e8f2161 Add structured per-field company aggregator
+43d4a08 Add publish and close flow for forum daily reports
+ba554e6 Add company final report editor to forum daily
+c82492c Add deterministic company report generator helpers
 16da109 Add Tracking status cycling and soft delete controls
-334fec7 Add Tracking CRUD phase one
-f2be781 Add Tracking module schema, RLS, and read-only skeleton page
-a35ec03 Document forum daily layout checkpoint and tracking next steps
-1d37472 Simplify forum daily report layout and density
-788cd0d Polish interface density and dashboard command brief
-890da65 Polish user-facing empty states and system copy
-d6e5932 Document forum daily carry forward
-c991be2 Carry forward closed forum daily reports
 ```
 
-This snapshot supersedes the 2026-06-24 snapshot (and older) below.
+This snapshot supersedes the 2026-06-27 Tracking snapshot (and older) below.
 
 ## Tracking Module - Phase 1+2 Implemented (2026-06-27)
 
@@ -351,9 +353,16 @@ Current UX:
 - Reset report clears content and returns to draft.
 - Advanced delete exists via migration 012.
 
-### Forum Daily Reports - Owner Mapping Diagnosis (2026-06-21)
+### Forum Daily Reports - Owner Mapping Diagnosis (2026-06-21) — RESOLVED
 
-Deep QA and Code X diagnosis found that the daily leading forum still needs a mapping fix before real use:
+> **RESOLVED in the Forum Daily Structured Company Flow round (`c82492c`→`cdcd99f`).** Structural
+> slots auto-match owners by `owner_user_id` + role/unit; deterministic aggregation lives in the
+> pure module `src/lib/forum/companyReport.ts`; WhatsApp preview maps platoons via the shared
+> `assignPlatoonReports` path; the "existing reports" fallback is preserved for unmatched/legacy
+> reports. Historical diagnosis kept for context only. See
+> [`FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`](FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md).
+
+Historical (pre-fix) — deep QA and Code X diagnosis found that the daily leading forum still needed a mapping fix before real use:
 
 - Most commander structural slots show "requires user mapping".
 - `platoonNodes` are static labels only and do not carry real unit UUIDs.
@@ -364,7 +373,7 @@ Deep QA and Code X diagnosis found that the daily leading forum still needs a ma
 - Owner dropdown loads only `active + approved` users. If key users are missing, verify DB/RLS/user approval state, but do not start with DB population.
 - WhatsApp preview is generated from `dailyReports`, not all structural slots, so empty platoons 2/3/4 can be omitted and platoon labels are index-based.
 
-Recommended next step: implement a UI-only owner/slot matching layer, keep "existing reports" as fallback, and defer DB/RLS/hierarchy work until after a Supabase snapshot.
+(The recommended UI-only owner/slot matching layer was implemented and extended into the full Structured Company Flow; the "existing reports" fallback is preserved, and DB/RLS/hierarchy work remains deferred until after a Supabase snapshot.)
 
 ### Commanded Unit Foundation
 
@@ -494,9 +503,10 @@ Audit is best-effort: calls use `void createAuditLog(...)` and failures must not
 
 - Full MK -> MM -> MP flow requires real mapped users per role and platoon/squad.
 - Full hierarchy mapping is not built yet.
-- Forum daily structural slots do not yet auto-match existing reports by owner/unit.
-- "Existing reports" fallback is required for unmatched/legacy daily reports.
-- WhatsApp preview does not yet render from the full mapped slot structure.
+- Forum daily structural slots auto-match owners by `owner_user_id` + role/unit (Structured Company Flow round); full MK→MM→MP coverage still needs real mapped users per role/platoon/squad.
+- "Existing reports" fallback is preserved for unmatched/legacy daily reports.
+- WhatsApp preview maps platoons via the shared `assignPlatoonReports` path consistent with the aggregation (resolved in `cdcd99f`).
+- Non-blocking open items: duplicate dynamic company node; unsaved company draft reset on slot switch (see `FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`).
 - Forum daily has UX polish debt: dev-facing UI-gated text, destructive delete confirmation, panel visibility, placeholders/labels, and lifecycle button relevance.
 - Real hierarchy RLS is a future phase.
 - Some forum visibility is UI-gated.
@@ -521,7 +531,10 @@ Step 2 - Forum daily UI-only owner/slot matching layer - DONE in 1c7414c
 Step 2b - Forum daily slot-click scroll-into-view - DONE in 62fd8fe
 Step 2c - Carry Forward / Rollover - DONE in c991be2
 Step 2d - Forum Daily Phase A (layout/density, UI-only) - DONE in 1d37472
-Step 3 - WhatsApp preview from mapped slots/platoons
+Step 2e - Forum Daily Structured Company Flow (structured מ״פ report, deterministic aggregation, owner mapping, ownership, publish/close/reopen) - DONE (c82492c->cdcd99f)
+Step 3 - WhatsApp preview from mapped slots/platoons - DONE in cdcd99f
+Step 3a - Duplicate dynamic company node cleanup - NEXT (P1)
+Step 3b - Unsaved company draft protection on slot switch - NEXT (P1)
 Step 4 - Remove dev-facing daily forum text + confirm destructive delete
 Step 5 - Real Users QA setup
 Step 6 - Forum wiring to commanded_unit_id

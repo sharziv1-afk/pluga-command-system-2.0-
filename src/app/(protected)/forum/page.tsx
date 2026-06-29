@@ -893,6 +893,19 @@ export default function ForumPage() {
     setCompanyReportWarnings([]);
   }, [companyReport]);
 
+  // Close the company report confirm dialogs on Escape (unless an action is in flight).
+  useEffect(() => {
+    if (!showCompanyRefreshConfirm && !showCompanyPublishConfirm) return;
+    const handleDialogKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !isCompanyReportBusy) {
+        setShowCompanyRefreshConfirm(false);
+        setShowCompanyPublishConfirm(false);
+      }
+    };
+    window.addEventListener('keydown', handleDialogKeyDown);
+    return () => window.removeEventListener('keydown', handleDialogKeyDown);
+  }, [showCompanyRefreshConfirm, showCompanyPublishConfirm, isCompanyReportBusy]);
+
   useEffect(() => {
     if (dailyNodes.some(node => node.id === selectedNodeId)) return;
     setSelectedNodeId(dailyNodes[0]?.id ?? 'own-report');
@@ -2632,21 +2645,32 @@ export default function ForumPage() {
       {activeTab === 'posts' ? renderPostsTab() : renderDailyTab()}
 
       {showCompanyRefreshConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020108]/40 p-4" dir="rtl">
-          <div className="tactical-glass-card w-full max-w-md rounded-3xl p-6 shadow-[0_24px_60px_rgba(2,1,8,0.25)]">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#020108]/40 p-4"
+          dir="rtl"
+          onClick={() => { if (!isCompanyReportBusy) setShowCompanyRefreshConfirm(false); }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="company-refresh-title"
+            aria-describedby="company-refresh-desc"
+            className="tactical-glass-card w-full max-w-md rounded-3xl p-6 shadow-[0_24px_60px_rgba(2,1,8,0.25)]"
+            onClick={event => event.stopPropagation()}
+          >
             <div className="mb-3 flex items-start gap-3">
               <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#FF6B02]/10 text-[#FF6B02]">
                 <RefreshCw className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-lg font-black text-[#020108]">רענון הדוח הפלוגתי</h3>
-                <p className="mt-1 text-sm font-bold leading-relaxed text-[#667085]">
+                <h3 id="company-refresh-title" className="text-lg font-black text-[#020108]">רענון הדוח הפלוגתי</h3>
+                <p id="company-refresh-desc" className="mt-1 text-sm font-bold leading-relaxed text-[#667085]">
                   ערכת ידנית את הדוח הפלוגתי. רענון מהדוחות יחליף את שדות הריכוז במצב העדכני מהמ״מים (דגשי מ״פ והלו״ז הידני יישמרו). להמשיך?
                 </p>
               </div>
             </div>
             <div className="mt-5 flex flex-wrap justify-end gap-2">
-              <GlossyButton variant="slate" onClick={() => setShowCompanyRefreshConfirm(false)} disabled={isCompanyReportBusy}>
+              <GlossyButton variant="slate" autoFocus onClick={() => setShowCompanyRefreshConfirm(false)} disabled={isCompanyReportBusy}>
                 ביטול
               </GlossyButton>
               <GlossyButton variant="orange" onClick={confirmCompanyRefresh} disabled={isCompanyReportBusy}>
@@ -2658,21 +2682,32 @@ export default function ForumPage() {
       )}
 
       {showCompanyPublishConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020108]/40 p-4" dir="rtl">
-          <div className="tactical-glass-card w-full max-w-md rounded-3xl p-6 shadow-[0_24px_60px_rgba(2,1,8,0.25)]">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#020108]/40 p-4"
+          dir="rtl"
+          onClick={() => { if (!isCompanyReportBusy) setShowCompanyPublishConfirm(false); }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="company-publish-title"
+            aria-describedby="company-publish-desc"
+            className="tactical-glass-card w-full max-w-md rounded-3xl p-6 shadow-[0_24px_60px_rgba(2,1,8,0.25)]"
+            onClick={event => event.stopPropagation()}
+          >
             <div className="mb-3 flex items-start gap-3">
               <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#FF6B02]/10 text-[#FF6B02]">
                 <Send className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-lg font-black text-[#020108]">הפצה וסגירת פורום</h3>
-                <p className="mt-1 text-sm font-bold leading-relaxed text-[#667085]">
+                <h3 id="company-publish-title" className="text-lg font-black text-[#020108]">הפצה וסגירת פורום</h3>
+                <p id="company-publish-desc" className="mt-1 text-sm font-bold leading-relaxed text-[#667085]">
                   פעולה זו תשמור את הנוסח הסופי ותסגור את כל דוחות היום לכלל הפלוגה. הדוחות ינעלו לקריאה בלבד. להמשיך?
                 </p>
               </div>
             </div>
             <div className="mt-5 flex flex-wrap justify-end gap-2">
-              <GlossyButton variant="slate" onClick={() => setShowCompanyPublishConfirm(false)} disabled={isCompanyReportBusy}>
+              <GlossyButton variant="slate" autoFocus onClick={() => setShowCompanyPublishConfirm(false)} disabled={isCompanyReportBusy}>
                 ביטול
               </GlossyButton>
               <GlossyButton variant="orange" onClick={() => void publishAndCloseForum()} disabled={isCompanyReportBusy}>

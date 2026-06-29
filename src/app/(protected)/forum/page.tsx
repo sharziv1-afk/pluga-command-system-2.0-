@@ -249,6 +249,46 @@ function findPlatoonSummaryOwner(
   }) ?? null;
 }
 
+// Squad slot owner: first מ״כ (any squad-commander role) whose unit is מחלקה N. Mirrors the
+// platoon-summary matcher so squad slots resolve from real users like the מ״מ slots do.
+function findSquadCommanderOwner(
+  owners: ReportOwnerOption[],
+  platoonLabel: string,
+): ReportOwnerOption | null {
+  const platoonNumber = normalizeRole(platoonLabel).match(/מחלקה\s*([1-4])/)?.[1];
+  if (!platoonNumber) return null;
+
+  const unitPattern = new RegExp(`מחלקה\\s*${platoonNumber}(?:\\D|$)`);
+
+  return owners.find((owner) => {
+    const role = normalizeRole(owner.role ?? '');
+    const identityLabel = normalizeRole(
+      [owner.name, owner.role, owner.units?.name].filter(Boolean).join(' '),
+    );
+    return role.includes('מ"כ') && unitPattern.test(identityLabel);
+  }) ?? null;
+}
+
+const staffUnitHints: Record<StaffRole, string[]> = {
+  medic: ['רפואה', 'medical'],
+  assistant_commander: ['פלוגה', 'company'],
+  logistics_nco: ['לוגיסטיקה', 'logistics'],
+  deputy_commander: ['פלוגה', 'company'],
+};
+
+// Staff slot owner: match both the role synonym and the expected unit so staff placeholders
+// resolve to the right structural owner, not just the first similarly-named role.
+function findStaffOwner(
+  owners: ReportOwnerOption[],
+  staffId: StaffRole,
+): ReportOwnerOption | null {
+  return owners.find((owner) => {
+    const unitName = normalizeRole(owner.units?.name ?? '').toLowerCase();
+    const unitMatches = staffUnitHints[staffId].some(hint => unitName.includes(normalizeRole(hint).toLowerCase()));
+    return inferStaffRole(owner.role ?? '') === staffId && unitMatches;
+  }) ?? null;
+}
+
 function isCommanderRole(role: string, permissionLevel: number) {
   const normalizedRole = normalizeRole(role);
   const inferredLevel = getPermissionLevelForRole(normalizedRole);
@@ -426,18 +466,40 @@ export default function ForumPage() {
           findPlatoonSummaryOwner(ownerOptions, platoon.label),
         ]),
       );
+      const squadSlotOwners = new Map(
+        platoonNodes.map((platoon) => [
+          platoon.id,
+          findSquadCommanderOwner(ownerOptions, platoon.label),
+        ]),
+      );
+      const staffSlotOwners = new Map(
+        staffNodes.map((staff) => [staff.id, findStaffOwner(ownerOptions, staff.id)]),
+      );
       const matchedPlatoonSummaryOwnerIds = new Set(
         [...platoonSummaryOwners.values()]
           .filter((owner): owner is ReportOwnerOption => owner !== null)
           .map((owner) => owner.id),
       );
+      const matchedSquadOwnerIds = new Set(
+        [...squadSlotOwners.values()]
+          .filter((owner): owner is ReportOwnerOption => owner !== null)
+          .map((owner) => owner.id),
+      );
+      const matchedStaffOwnerIds = new Set(
+        [...staffSlotOwners.values()]
+          .filter((owner): owner is ReportOwnerOption => owner !== null)
+          .map((owner) => owner.id),
+      );
+      // Hide a report from "דוחות קיימים" when a structural slot already represents that
+      // owner+level (so it shows once, in its slot, not duplicated in the dynamic list).
       const dynamicReportNodes: DailyNode[] = dailyReports
-        .filter(
-          (report) =>
-            report.report_level !== 'platoon' ||
-            !report.owner_user_id ||
-            !matchedPlatoonSummaryOwnerIds.has(report.owner_user_id),
-        )
+        .filter((report) => {
+          if (!report.owner_user_id) return true;
+          if (report.report_level === 'platoon') return !matchedPlatoonSummaryOwnerIds.has(report.owner_user_id);
+          if (report.report_level === 'squad') return !matchedSquadOwnerIds.has(report.owner_user_id);
+          if (report.report_level === 'staff') return !matchedStaffOwnerIds.has(report.owner_user_id);
+          return true;
+        })
         .map(report => ({
         id: `report-${report.id}`,
         label: ownerLabels.get(report.owner_user_id ?? '') ?? 'דוח קיים',
@@ -473,20 +535,28 @@ export default function ForumPage() {
             level: 'squad' as const,
             group: platoon.label,
             owned: false,
-            requiresOwnerMapping: true,
+            ownerUserId: squadSlotOwners.get(platoon.id)?.id,
+            unitId: squadSlotOwners.get(platoon.id)?.unit_id,
+            requiresOwnerMapping: !squadSlotOwners.get(platoon.id),
           },
           ];
         }),
-        ...staffNodes.map(staff => ({
-          id: `staff-${staff.id}`,
-          label: staff.label,
-          description: 'דיווח מפל״ג מקצועי',
-          level: 'staff' as const,
-          staffRole: staff.id,
-          group: 'מפל״ג',
-          owned: staffRole === staff.id,
-          requiresOwnerMapping: staffRole !== staff.id,
-        })),
+        ...staffNodes.map(staff => {
+          const staffOwner = staffSlotOwners.get(staff.id) ?? null;
+          const isOwn = staffRole === staff.id;
+          return {
+            id: `staff-${staff.id}`,
+            label: staff.label,
+            description: 'דיווח מפל״ג מקצועי',
+            level: 'staff' as const,
+            staffRole: staff.id,
+            group: 'מפל״ג',
+            owned: isOwn,
+            ownerUserId: isOwn ? undefined : staffOwner?.id,
+            unitId: isOwn ? undefined : staffOwner?.unit_id,
+            requiresOwnerMapping: !isOwn && !staffOwner,
+          };
+        }),
         {
           id: 'company-summary',
           label: 'סיכום פלוגתי',

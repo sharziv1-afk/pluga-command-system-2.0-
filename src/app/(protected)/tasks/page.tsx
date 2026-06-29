@@ -820,7 +820,7 @@ export default function TasksPage() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`rounded-2xl border px-3 py-2 text-xs font-bold transition ${
+                className={`touch-target rounded-2xl border px-3 py-2 text-xs font-bold transition ${
                   activeTab === tab.id
                     ? 'border-[#FF6B02]/40 bg-[#FF6B02]/12 text-[#C54F00]'
                     : 'border-[rgba(2,1,8,0.10)] bg-white/60 text-[#667085] hover:border-[#FF6B02]/30'
@@ -836,7 +836,7 @@ export default function TasksPage() {
                 key={filter.id}
                 type="button"
                 onClick={() => setQuickFilter(current => (current === filter.id ? 'none' : filter.id))}
-                className={`rounded-full border px-3 py-2 text-xs font-bold transition ${
+                className={`touch-target rounded-full border px-3 py-2 text-xs font-bold transition ${
                   quickFilter === filter.id
                     ? 'border-[#FF6B02]/40 bg-[#FF6B02]/12 text-[#C54F00]'
                     : 'border-[rgba(2,1,8,0.10)] bg-white/60 text-[#667085] hover:border-[#FF6B02]/30'

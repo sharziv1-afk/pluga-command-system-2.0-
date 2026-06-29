@@ -1078,7 +1078,7 @@ export default function RequestsPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black transition-all duration-150 ${
+              className={`touch-target flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black transition-all duration-150 ${
                 isActive
                   ? 'bg-[#FF6B02] text-white shadow-[0_4px_12px_rgba(255,107,2,0.28)]'
                   : 'text-[#667085] hover:bg-[#FF6B02]/10 hover:text-[#020108]'

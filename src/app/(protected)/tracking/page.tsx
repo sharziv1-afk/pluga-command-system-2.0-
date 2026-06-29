@@ -1113,7 +1113,7 @@ export default function TrackingPage() {
                           title="הסר מופע מעקב מהטבלה"
                           onClick={() => requestRemoveItem(item)}
                           disabled={removingItemId === item.id}
-                          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-600 transition hover:border-red-300 hover:bg-red-100 disabled:cursor-wait disabled:opacity-60"
+                          className="touch-target inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-600 transition hover:border-red-300 hover:bg-red-100 disabled:cursor-wait disabled:opacity-60"
                         >
                           {removingItemId === item.id ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1146,7 +1146,7 @@ export default function TrackingPage() {
                           title="הסר חייל מהמעקב"
                           onClick={() => requestRemoveSoldier(soldier)}
                           disabled={removingSoldierId === soldier.id}
-                          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-600 transition hover:border-red-300 hover:bg-red-100 disabled:cursor-wait disabled:opacity-60"
+                          className="touch-target inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-600 transition hover:border-red-300 hover:bg-red-100 disabled:cursor-wait disabled:opacity-60"
                         >
                           {removingSoldierId === soldier.id ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />

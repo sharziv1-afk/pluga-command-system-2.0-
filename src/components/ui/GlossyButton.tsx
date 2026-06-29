@@ -19,7 +19,7 @@ export const GlossyButton: React.FC<GlossyButtonProps> = ({
     <button
       type={type}
       className={cn(
-        "relative overflow-hidden font-bold transition-all duration-150 rounded-2xl cursor-pointer select-none active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#FF6B02]/20",
+        "touch-target relative overflow-hidden font-bold transition-all duration-150 rounded-2xl cursor-pointer select-none active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#FF6B02]/20",
         
         // Variants
         variant === 'cyan' && "bg-[#0F766E] hover:bg-[#115E59] text-white shadow-[0_12px_26px_rgba(15,118,110,0.16)] border border-[#0F766E]/40",

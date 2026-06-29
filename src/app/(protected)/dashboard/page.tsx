@@ -1206,13 +1206,16 @@ function QuickCreateModal({
       />
 
       <div
-        className="fixed inset-x-4 top-24 z-50 w-auto max-w-none rounded-3xl border border-white/80 bg-white/95 shadow-[0_18px_50px_rgba(2,1,8,0.16)] md:inset-x-auto md:left-1/2 md:top-32 md:w-[min(92vw,520px)] md:max-w-[calc(100vw-2rem)] md:-translate-x-1/2"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="quick-create-title"
+        className="fixed inset-x-4 top-4 z-50 flex max-h-[calc(100dvh-2rem)] w-auto max-w-none flex-col rounded-3xl border border-white/80 bg-white/95 shadow-[0_18px_50px_rgba(2,1,8,0.16)] md:inset-x-auto md:left-1/2 md:top-32 md:max-h-[calc(100dvh-10rem)] md:w-[min(92vw,520px)] md:max-w-[calc(100vw-2rem)] md:-translate-x-1/2"
         dir="rtl"
       >
         <span className="absolute -top-2 left-1/2 hidden h-4 w-4 -translate-x-1/2 rotate-45 border-r border-t border-white/80 bg-white/95 md:block" aria-hidden="true" />
         <div className="flex items-start justify-between gap-4 border-b border-[rgba(2,1,8,0.08)] px-5 py-4 sm:px-6">
           <div>
-            <h2 className="text-lg font-black text-[#020108]">{titles[type]}</h2>
+            <h2 id="quick-create-title" className="text-lg font-black text-[#020108]">{titles[type]}</h2>
             <p className="mt-1 text-xs font-semibold text-[#667085]">{subtitles[type]}</p>
           </div>
           <button
@@ -1226,7 +1229,7 @@ function QuickCreateModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="max-h-[calc(100vh-8rem)] overflow-y-auto px-5 py-5 sm:px-6 md:max-h-[72vh]">
+        <form onSubmit={handleSubmit} className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
           {error && (
             <div className="mb-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-700">
               {error}

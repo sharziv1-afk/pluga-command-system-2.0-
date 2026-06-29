@@ -2582,10 +2582,17 @@ export default function ForumPage() {
             <span>{formatSelectedDate(selectedDate)}</span>
             <input
               type="date"
-              value={selectedDate}
+              // Uncontrolled-while-editing: a controlled `value` made React re-render with the
+              // previous date on every transient keystroke, which reset the segments the user was
+              // typing — so a manually typed date never reached a complete value and only the
+              // prev/next/today buttons updated the active date. `defaultValue` lets the browser own
+              // the in-progress segments, and `key={selectedDate}` remounts the field when the date
+              // changes externally (prev/next/today) so it always reflects the active date.
+              key={selectedDate}
+              defaultValue={selectedDate}
               onChange={event => {
-                // Only commit a complete value. A native date input emits '' for transient,
-                // incomplete states while the user edits a segment; falling back to "today" on
+                // Commit only a complete value. A native date input emits '' for transient,
+                // incomplete states while a segment is being edited; falling back to "today" on
                 // '' fought manual edits (e.g. typing 2099-12-31 kept snapping back). Ignoring
                 // empty keeps the current date until a full, valid yyyy-mm-dd is entered.
                 const nextDate = event.target.value;

@@ -2465,7 +2465,14 @@ export default function ForumPage() {
             <input
               type="date"
               value={selectedDate}
-              onChange={event => setSelectedDate(event.target.value || getJerusalemDateString())}
+              onChange={event => {
+                // Only commit a complete value. A native date input emits '' for transient,
+                // incomplete states while the user edits a segment; falling back to "today" on
+                // '' fought manual edits (e.g. typing 2099-12-31 kept snapping back). Ignoring
+                // empty keeps the current date until a full, valid yyyy-mm-dd is entered.
+                const nextDate = event.target.value;
+                if (nextDate) setSelectedDate(nextDate);
+              }}
               className="command-input min-h-0 w-auto min-w-36 px-3 py-2 text-sm"
               disabled={isDailySaving}
             />

@@ -1241,6 +1241,12 @@ export default function ForumPage() {
 
       const nextReportLevel = selectedNode.level;
       const nextStaffRole = nextReportLevel === 'staff' ? selectedNode.staffRole ?? null : null;
+      const ownerId = selectedNode.ownerUserId ?? dbProfile.id;
+      const ownerUnitId = selectedNode.unitId ?? dbProfile.unit_id;
+      const selectedOwner = selectedNode.ownerUserId
+        ? ownerOptions.find(owner => owner.id === selectedNode.ownerUserId) ?? null
+        : null;
+      const createdForByCommander = ownerId !== dbProfile.id;
       const updatePayload = {
         content: reportDraft,
         status: 'in_progress' as ReportStatus,
@@ -1252,14 +1258,14 @@ export default function ForumPage() {
         .from('forum_daily_reports')
         .insert({
           report_date: selectedDate,
-          company_unit_id: dbProfile.unit_id,
-          platoon_unit_id: nextReportLevel === 'platoon' || nextReportLevel === 'squad' ? dbProfile.unit_id : null,
-          squad_unit_id: nextReportLevel === 'squad' ? dbProfile.unit_id : null,
+          company_unit_id: ownerUnitId,
+          platoon_unit_id: nextReportLevel === 'platoon' || nextReportLevel === 'squad' ? ownerUnitId : null,
+          squad_unit_id: nextReportLevel === 'squad' ? ownerUnitId : null,
           report_level: nextReportLevel,
           staff_role: nextStaffRole,
           parent_report_id: null,
           created_by: dbProfile.id,
-          owner_user_id: dbProfile.id,
+          owner_user_id: ownerId,
           status: updatePayload.status,
           content: updatePayload.content,
           summary_text: updatePayload.summary_text,
@@ -1269,6 +1275,9 @@ export default function ForumPage() {
             node_label: selectedNode.label,
             created_from_draft_form: true,
             ui_gated_scope: true,
+            created_for_by_commander: createdForByCommander,
+            created_for_user_name: selectedOwner?.name ?? null,
+            created_for_user_role: selectedOwner?.role ?? null,
           },
         })
         .select('id,report_date,company_unit_id,platoon_unit_id,squad_unit_id,report_level,staff_role,parent_report_id,created_by,owner_user_id,status,content,summary_text,whatsapp_text,metadata,created_at,updated_at')
@@ -1292,7 +1301,7 @@ export default function ForumPage() {
         newValue: createdReport,
       });
 
-      setSelectedNodeId(`report-${createdReport.id}`);
+      setSelectedNodeId(selectedNode.id);
       setDailySuccess('טיוטת הדיווח נשמרה ונפתחה לעבודה.');
       setIsDailySaving(false);
       await loadDailyReports(selectedDate);

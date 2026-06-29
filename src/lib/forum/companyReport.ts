@@ -164,6 +164,165 @@ function manpowerText(content: Record<string, unknown>): string {
   return `${present || DASH}/${total || DASH}`;
 }
 
+function assignPlatoonReports(
+  reports: CompanyReportSource[],
+  platoons: CompanyReportPlatoon[],
+): { byNumber: Map<number, CompanyReportSource>; unidentified: CompanyReportSource[] } {
+  const platoonReports = reports.filter((report) => report.report_level === 'platoon');
+  const byNumber = new Map<number, CompanyReportSource>();
+  const unidentified: CompanyReportSource[] = [];
+  for (const report of platoonReports) {
+    const number = resolvePlatoonNumber(report, platoons);
+    if (number && !byNumber.has(number)) {
+      byNumber.set(number, report);
+    } else {
+      unidentified.push(report);
+    }
+  }
+  return { byNumber, unidentified };
+}
+
+/** Squad-style text fields that the company report aggregates per platoon. */
+export const COMPANY_AGGREGATED_TEXT_FIELDS = [
+  'personnel',
+  'readiness',
+  'welfare',
+  'medical',
+  'safety',
+  'discipline',
+  'logistics',
+  'personal_requests',
+  'plan_vs_actual',
+  'next_actions',
+  'network_and_knowledge',
+  'daily_lessons',
+  'personal_note',
+] as const;
+
+export interface CompanyStructuredResult {
+  /** Aggregated squad-style field values, ready to fill the company structured form. */
+  fields: Record<string, string>;
+  stats: CompanyReportStats;
+  warnings: string[];
+  generatedFromReportIds: string[];
+}
+
+/**
+ * Roll up a single text field across the four platoons (plus any unidentified platoon
+ * reports). Present-but-empty platoons are skipped to reduce clutter; a platoon with no
+ * report at all is shown as "[לא הוגש דוח]" — but only when at least one platoon actually
+ * contributed a value, so an all-empty field stays empty for the commander to fill.
+ */
+function rollupTextField(
+  key: string,
+  orderedPlatoons: CompanyReportPlatoon[],
+  byNumber: Map<number, CompanyReportSource>,
+  unidentified: CompanyReportSource[],
+): string {
+  const parts: string[] = [];
+  let anyValue = false;
+
+  for (const platoon of orderedPlatoons) {
+    const report = byNumber.get(platoon.number);
+    if (!report) {
+      parts.push(`${platoon.label} — ${MISSING_REPORT}`);
+      continue;
+    }
+    const value = getString(report.content, key);
+    if (!value) continue;
+    anyValue = true;
+    const tag = !isFinalStatus(report.status) && hasPlatoonContent(report.content)
+      ? ` ${IN_PROGRESS_TAG}`
+      : '';
+    parts.push(`${platoon.label} — ${value}${tag}`);
+  }
+
+  for (const report of unidentified) {
+    const value = getString(report.content, key);
+    if (!value) continue;
+    anyValue = true;
+    const tag = !isFinalStatus(report.status) && hasPlatoonContent(report.content)
+      ? ` ${IN_PROGRESS_TAG}`
+      : '';
+    parts.push(`מחלקה לא מזוהה — ${value}${tag}`);
+  }
+
+  // Drop the trailing "[לא הוגש דוח]" markers if no real value was contributed at all.
+  return anyValue ? parts.join('\n') : '';
+}
+
+/**
+ * Aggregate the platoon reports into a structured, per-field company report (same fields as
+ * a מ״מ report). Numbers (present/total) are summed; text fields are rolled up per platoon.
+ * Pure and deterministic — never invents content, never guesses platoons by unit_id.
+ * "דגשי מ״פ" (commander_closing) is intentionally NOT produced here — it stays manual.
+ */
+export function aggregateCompanyStructured(input: CompanyReportInput): CompanyStructuredResult {
+  const { reports, platoons, staff } = input;
+  const warnings: string[] = [];
+  const usedIds = new Set<string>();
+
+  const orderedPlatoons = [...platoons].sort((a, b) => a.number - b.number);
+  const { byNumber, unidentified } = assignPlatoonReports(reports, platoons);
+
+  let presentTotal: number | null = null;
+  let sdkTotal: number | null = null;
+  for (const platoon of orderedPlatoons) {
+    const report = byNumber.get(platoon.number);
+    if (!report) {
+      warnings.push(`${platoon.label}: לא הוגש דוח.`);
+      continue;
+    }
+    usedIds.add(report.id);
+    const present = parseCount(getString(report.content, 'present_count'));
+    const total = parseCount(getString(report.content, 'total_count'));
+    if (present !== null) presentTotal = (presentTotal ?? 0) + present;
+    if (total !== null) sdkTotal = (sdkTotal ?? 0) + total;
+    if (!isFinalStatus(report.status) && hasPlatoonContent(report.content)) {
+      warnings.push(`${platoon.label}: הדוח עדיין בטיפול וטרם הוגש סופית.`);
+    }
+  }
+  for (const report of unidentified) usedIds.add(report.id);
+  if (unidentified.length > 0) {
+    warnings.push(`${unidentified.length} דוחות מחלקה לא מזוהים (אין שיוך מ״מ/מחלקה).`);
+  }
+
+  const fields: Record<string, string> = {
+    present_count: presentTotal !== null ? String(presentTotal) : '',
+    total_count: sdkTotal !== null ? String(sdkTotal) : '',
+  };
+  for (const key of COMPANY_AGGREGATED_TEXT_FIELDS) {
+    fields[key] = rollupTextField(key, orderedPlatoons, byNumber, unidentified);
+  }
+
+  const platoonSubmitted = orderedPlatoons.filter((platoon) => {
+    const report = byNumber.get(platoon.number);
+    return report ? isFinalStatus(report.status) : false;
+  }).length;
+  const staffSubmitted = staff.filter((slot) =>
+    reports.some(
+      (report) =>
+        report.report_level === 'staff' &&
+        report.staff_role === slot.role &&
+        isFinalStatus(report.status),
+    ),
+  ).length;
+
+  return {
+    fields,
+    stats: {
+      presentTotal,
+      sdkTotal,
+      platoonSubmitted,
+      platoonTotal: orderedPlatoons.length,
+      staffSubmitted,
+      staffTotal: staff.length,
+    },
+    warnings,
+    generatedFromReportIds: [...usedIds],
+  };
+}
+
 /**
  * Build the deterministic company summary text from already-loaded daily reports.
  */

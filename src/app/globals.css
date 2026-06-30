@@ -639,13 +639,17 @@ option {
   }
 }
 
-/* Touch baseline: 44x44 minimum hit area on coarse (touch) pointers
-   only. Fine pointers (mouse/trackpad) keep the compact desktop size.
+/* Touch baseline: 44x44 minimum hit area on touch devices AND on narrow
+   (phone-width) viewports. The width clause is required because device/viewport
+   emulation does not always report `pointer: coarse`, so a `pointer: coarse`-only
+   rule left the mobile header buttons, tab/filter chips and tracking action
+   buttons at their compact desktop size on phones. Desktop (fine pointer, wide
+   viewport) keeps the compact size — the 640px cap is the mobile boundary.
    .command-icon-button is shared by the mobile header buttons
    (hamburger, theme toggle, help), so they enlarge together.
    .touch-target is an opt-in primitive to apply per-element (e.g.
    tracking cells, small action buttons) without resizing on desktop. */
-@media (pointer: coarse) {
+@media (pointer: coarse), (max-width: 640px) {
   .command-icon-button,
   .touch-target {
     min-width: 44px;

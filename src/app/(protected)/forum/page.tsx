@@ -408,6 +408,11 @@ function statusDotTone(status: ReportStatus | undefined) {
   return 'bg-[#98A2B3]';
 }
 
+function isDateInputValue(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  return !Number.isNaN(new Date(`${value}T00:00:00`).getTime());
+}
+
 export default function ForumPage() {
   const { currentUser, isLoading: isContextLoading } = useApp();
   const [dbProfile, setDbProfile] = useState<DbProfile | null>(null);
@@ -427,6 +432,7 @@ export default function ForumPage() {
   const [editPostPinned, setEditPostPinned] = useState(false);
   const [editPostError, setEditPostError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => getJerusalemDateString());
+  const [dailyDateInputValue, setDailyDateInputValue] = useState(selectedDate);
   const [dailyReports, setDailyReports] = useState<DailyReportRow[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState('own-report');
   const reportPanelRef = useRef<HTMLElement>(null);
@@ -457,6 +463,20 @@ export default function ForumPage() {
     owner.id,
     `${owner.name || owner.email} · ${owner.role}${owner.units?.name ? ` · ${owner.units.name}` : ''}`,
   ])), [ownerOptions]);
+
+  useEffect(() => {
+    setDailyDateInputValue(selectedDate);
+  }, [selectedDate]);
+
+  const commitDailyDateInput = useCallback((value = dailyDateInputValue) => {
+    const nextDate = value.trim();
+    if (isDateInputValue(nextDate)) {
+      setDailyDateInputValue(nextDate);
+      setSelectedDate(nextDate);
+      return;
+    }
+    setDailyDateInputValue(selectedDate);
+  }, [dailyDateInputValue, selectedDate]);
 
   const dailyNodes = useMemo<DailyNode[]>(() => {
     if (canSeeAll) {
@@ -716,6 +736,32 @@ export default function ForumPage() {
     const { byNumber: platoonByNumber, unidentified: unidentifiedPlatoonReports } =
       assignPlatoonReports(dailyReports, platoons);
     const squadReports = dailyReports.filter(report => report.report_level === 'squad');
+
+    // Company manpower overview — sum present/total across the mapped platoons using the same
+    // assignPlatoonReports source of truth as the structured aggregation, so the WhatsApp summary
+    // leads with the platoon picture (e.g. 124/138) and can never diverge from the aggregated total.
+    const sumPlatoonCount = (raw: unknown): number | null => {
+      const text = typeof raw === 'string' ? raw.trim() : typeof raw === 'number' ? String(raw) : '';
+      if (!text) return null;
+      const parsed = Number(text.replace(/[^\d.-]/g, ''));
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+    let companyPresentTotal: number | null = null;
+    let companySdkTotal: number | null = null;
+    let submittedPlatoonCount = 0;
+    platoons.forEach(platoon => {
+      const report = platoonByNumber.get(platoon.number);
+      if (!report) return;
+      if (report.status === 'submitted' || report.status === 'closed') submittedPlatoonCount += 1;
+      const present = sumPlatoonCount(report.content.present_count);
+      const total = sumPlatoonCount(report.content.total_count);
+      if (present !== null) companyPresentTotal = (companyPresentTotal ?? 0) + present;
+      if (total !== null) companySdkTotal = (companySdkTotal ?? 0) + total;
+    });
+    lines.push(
+      `מצבה פלוגתית: ${companyPresentTotal ?? '—'}/${companySdkTotal ?? '—'}`,
+      `דוחות מחלקה שהוגשו: ${submittedPlatoonCount}/${platoons.length}`,
+    );
 
     if (
       platoonByNumber.size === 0
@@ -2582,21 +2628,15 @@ export default function ForumPage() {
             <span>{formatSelectedDate(selectedDate)}</span>
             <input
               type="date"
-              // Uncontrolled-while-editing: a controlled `value` made React re-render with the
-              // previous date on every transient keystroke, which reset the segments the user was
-              // typing — so a manually typed date never reached a complete value and only the
-              // prev/next/today buttons updated the active date. `defaultValue` lets the browser own
-              // the in-progress segments, and `key={selectedDate}` remounts the field when the date
-              // changes externally (prev/next/today) so it always reflects the active date.
-              key={selectedDate}
-              defaultValue={selectedDate}
+              value={dailyDateInputValue}
               onChange={event => {
-                // Commit only a complete value. A native date input emits '' for transient,
-                // incomplete states while a segment is being edited; falling back to "today" on
-                // '' fought manual edits (e.g. typing 2099-12-31 kept snapping back). Ignoring
-                // empty keeps the current date until a full, valid yyyy-mm-dd is entered.
                 const nextDate = event.target.value;
-                if (nextDate) setSelectedDate(nextDate);
+                setDailyDateInputValue(nextDate);
+                if (isDateInputValue(nextDate)) setSelectedDate(nextDate);
+              }}
+              onBlur={() => commitDailyDateInput()}
+              onKeyDown={event => {
+                if (event.key === 'Enter') commitDailyDateInput(event.currentTarget.value);
               }}
               className="command-input min-h-0 w-auto min-w-36 px-3 py-2 text-sm"
               disabled={isDailySaving}

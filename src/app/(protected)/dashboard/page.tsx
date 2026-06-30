@@ -1209,7 +1209,7 @@ function QuickCreateModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="quick-create-title"
-        className="fixed inset-x-4 top-4 z-50 flex max-h-[calc(100dvh-2rem)] w-auto max-w-none flex-col rounded-3xl border border-white/80 bg-white/95 shadow-[0_18px_50px_rgba(2,1,8,0.16)] md:inset-x-auto md:left-1/2 md:top-32 md:max-h-[calc(100dvh-10rem)] md:w-[min(92vw,520px)] md:max-w-[calc(100vw-2rem)] md:-translate-x-1/2"
+        className="fixed inset-x-4 top-2 z-50 flex max-h-[calc(100dvh-6rem)] w-auto max-w-none flex-col rounded-3xl border border-white/80 bg-white/95 shadow-[0_18px_50px_rgba(2,1,8,0.16)] sm:top-4 sm:max-h-[calc(100dvh-2rem)] md:inset-x-auto md:left-1/2 md:top-32 md:max-h-[calc(100dvh-10rem)] md:w-[min(92vw,520px)] md:max-w-[calc(100vw-2rem)] md:-translate-x-1/2"
         dir="rtl"
       >
         <span className="absolute -top-2 left-1/2 hidden h-4 w-4 -translate-x-1/2 rotate-45 border-r border-t border-white/80 bg-white/95 md:block" aria-hidden="true" />
@@ -1222,7 +1222,7 @@ function QuickCreateModal({
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 text-[#020108] transition hover:border-[#FF6B02]/30 hover:bg-[#FF6B02]/10 disabled:opacity-50"
+            className="touch-target flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 text-[#020108] transition hover:border-[#FF6B02]/30 hover:bg-[#FF6B02]/10 disabled:opacity-50"
             aria-label="סגירת חלון"
           >
             <X className="h-5 w-5" />
@@ -1398,7 +1398,7 @@ function QuickCreateModal({
             </div>
           )}
 
-          <div className="mt-6 flex flex-col-reverse gap-2 border-t border-[rgba(2,1,8,0.08)] pt-4 sm:flex-row sm:justify-start">
+          <div className="sticky bottom-0 -mx-5 mt-6 flex flex-col-reverse gap-2 border-t border-[rgba(2,1,8,0.08)] bg-white/95 px-5 pb-5 pt-4 sm:-mx-6 sm:flex-row sm:justify-start sm:px-6">
             <button
               type="button"
               onClick={onClose}

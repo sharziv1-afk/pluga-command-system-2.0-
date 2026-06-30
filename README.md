@@ -9,13 +9,39 @@
 
 **Critical:** this project uses `src/proxy.ts`, not `middleware.ts`.
 
+## Recovery + Mobile Release Readiness Checkpoint (HEAD `8422726`)
+
+**Working path moved off OneDrive.** Work only from `C:\dev\pluga-command-system`. Do **not** use the old `C:\Users\Maltak 123\Desktop\pluga-command-system` path anymore — the project was recovered and relocated outside OneDrive and is stable there.
+
+**Git:** `main = origin/main`, working tree clean. Latest pushed commit: `8422726 Fix mobile release readiness QA follow-up`. Push range `53d4856..8422726` delivered both:
+
+- `1f09c50 Polish mobile release readiness batch 1`
+- `8422726 Fix mobile release readiness QA follow-up`
+
+**What changed (UI/CSS only — no `src/` logic, schema, RLS, Auth, proxy, or migrations):**
+
+- Forum Daily WhatsApp preview now emits the company manpower total (e.g. `124/138`) in both short and detailed modes, summed from the mapped platoons via the same `assignPlatoonReports` path as the structured aggregation (no divergence, no platoon swap).
+- Touch targets: the 44×44 minimum hit-area rule in `globals.css` now triggers on narrow viewports (`max-width: 640px`) in addition to `pointer: coarse`, so mobile header buttons, tab/filter chips, and tracking action buttons reach 44px under viewport emulation and on real phones without bloating desktop.
+- Forum Daily manual date input is a controlled field that commits on Enter/blur.
+
+**Browser QA passed (no console errors):** Dashboard QuickCreate modal across mobile/desktop viewports; Forum Daily manual date input `2026-08-20`; WhatsApp preview short/detailed showing `124/138` + platoon counts with platoons 1–4 correct; touch targets at 44px.
+
+**Static checks passed:** `npm run lint`, `npx tsc -p tsconfig.json --noEmit`, `npm run build`.
+
+**Still open (next pass):** UI still looks zoomed/crowded — needs a UI density pass; verify mobile fit across screens; add/verify a home button. No deployment/Vercel yet (none has happened).
+
 ## Latest Git State
 
 ```text
 Latest commit (pushed):
-cdcd99f Fix forum WhatsApp preview platoon mapping
+8422726 Fix mobile release readiness QA follow-up
+
+Mobile release readiness (newest -> oldest):
+8422726 Fix mobile release readiness QA follow-up
+1f09c50 Polish mobile release readiness batch 1
 
 Forum Daily Structured Company Flow round (newest -> oldest):
+cdcd99f Fix forum WhatsApp preview platoon mapping
 acd2345 Fix forum report ownership for commander-created slot reports
 92af9b9 Fix forum owner mapping for staff and squad placeholders
 5965615 Document forum QA owner mapping requirements

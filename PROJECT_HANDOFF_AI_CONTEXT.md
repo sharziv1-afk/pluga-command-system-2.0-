@@ -2,17 +2,18 @@
 
 Authoritative technical handoff for AI agents and developers continuing work on `pluga-command-system`.
 
-**Last updated:** Forum Daily Structured Company Flow checkpoint  
-**Milestone:** Forum Daily Structured Company Flow completed (structured מ״פ report, deterministic aggregation, owner mapping, `created_by` vs `owner_user_id`, WhatsApp preview mapping, publish/close/reopen, read-only after close). Tracking Module Phase 1+2 also live.  
-**Latest commit:** `cdcd99f Fix forum WhatsApp preview platoon mapping` (matches `origin/main`)  
-**Current milestone override:** Forum Daily Structured Company Flow round closed and pushed. Next is a docs checkpoint commit, then P1 follow-ups (duplicate dynamic company node cleanup; unsaved company draft protection) — full plan in [`FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`](FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md). Tracking Phase 3 remains approval-gated.
+**Last updated:** Recovery + Mobile Release Readiness checkpoint  
+**Milestone:** Forum Daily Structured Company Flow completed (structured מ״פ report, deterministic aggregation, owner mapping, `created_by` vs `owner_user_id`, WhatsApp preview mapping, publish/close/reopen, read-only after close). Tracking Module Phase 1+2 also live. Mobile release readiness follow-up (UI/CSS only) pushed on top.  
+**Latest commit:** `8422726 Fix mobile release readiness QA follow-up` (matches `origin/main`)  
+**Project recovered off OneDrive.** Work only from `C:\dev\pluga-command-system`; the old `C:\Users\Maltak 123\Desktop\pluga-command-system` path is retired.  
+**Current milestone override:** Mobile release readiness follow-up closed and pushed (`53d4856..8422726`, delivering `1f09c50` + `8422726`; UI/CSS only — no `src/` logic, schema, RLS, Auth, proxy, or migrations). Next is a UI density / mobile-fit / home-button pass. Still pending from the prior round: P1 follow-ups (duplicate dynamic company node cleanup; unsaved company draft protection) — full plan in [`FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`](FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md). Tracking Phase 3 remains approval-gated. No deployment/Vercel yet.
 
 ## Identity
 
 - Repo name: `pluga-command-system`
 - Product name: **"המפקד"**
 - Description: Hebrew RTL company command-management system
-- Local path: `C:\Users\Maltak 123\Desktop\pluga-command-system`
+- Local path: `C:\dev\pluga-command-system` (recovered off OneDrive; the old `C:\Users\Maltak 123\Desktop\pluga-command-system` path is retired — do not work from it)
 - GitHub: `https://github.com/sharziv1-afk/pluga-command-system-2.0-.git`
 - Branch: `main`
 - Expected state: `origin/main` up to date, working tree clean
@@ -20,7 +21,10 @@ Authoritative technical handoff for AI agents and developers continuing work on 
 ## Latest Git State
 
 ```text
-cdcd99f Fix forum WhatsApp preview platoon mapping        <- HEAD / origin/main
+8422726 Fix mobile release readiness QA follow-up        <- HEAD / origin/main
+1f09c50 Polish mobile release readiness batch 1
+53d4856 Document forum daily structured flow checkpoint
+cdcd99f Fix forum WhatsApp preview platoon mapping
 acd2345 Fix forum report ownership for commander-created slot reports
 92af9b9 Fix forum owner mapping for staff and squad placeholders
 5965615 Document forum QA owner mapping requirements

@@ -1,29 +1,40 @@
 # Project Summary - pluga-command-system
 
-## Current Snapshot - Forum Daily Structured Company Flow (round closed)
+## Current Snapshot - Recovery + Mobile Release Readiness (pushed)
 
 **Product:** `pluga-command-system` / "המפקד"  
+**Working path:** `C:\dev\pluga-command-system` (recovered off OneDrive; the old `C:\Users\Maltak 123\Desktop\pluga-command-system` path is retired — do not work from it)  
 **Branch:** `main`  
-**Latest commit:** `cdcd99f Fix forum WhatsApp preview platoon mapping`  
-**Git state:** `origin/main` up to date, working tree clean  
+**Latest commit:** `8422726 Fix mobile release readiness QA follow-up`  
+**Git state:** `main = origin/main`, working tree clean. Push range `53d4856..8422726` delivered `1f09c50` + `8422726`.  
 **Full round detail / work plan / QA checklist / risk matrix:** [`FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`](FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md)
 
-**Recent important commits (Forum Daily Structured Company Flow round, newest -> oldest):**
+**Mobile release readiness follow-up (UI/CSS only — no `src/` logic, schema, RLS, Auth, proxy, or migrations):**
+
+- Forum Daily WhatsApp preview now emits the company manpower total (e.g. `124/138`) in both short and detailed modes, summed from the mapped platoons via the same `assignPlatoonReports` path as the structured aggregation (no platoon swap).
+- Touch targets: the 44×44 min hit-area rule in `globals.css` now triggers on narrow viewports (`max-width: 640px`) in addition to `pointer: coarse`, so header buttons, tab/filter chips, and tracking action buttons reach 44px under emulation and on real phones without bloating desktop.
+- Forum Daily manual date input is a controlled field committing on Enter/blur.
+
+**Browser QA passed (no console errors):** Dashboard QuickCreate modal across viewports; Forum Daily date input `2026-08-20`; WhatsApp preview short/detailed with `124/138` + platoon counts (platoons 1–4 correct); touch targets at 44px. **Static checks passed:** `npm run lint`, `npx tsc -p tsconfig.json --noEmit`, `npm run build`.
+
+**Still open (next pass):** UI density / mobile-fit pass (UI still looks zoomed/crowded); add/verify a home button. No deployment/Vercel yet (none has happened).
+
+**Recent important commits (newest -> oldest):**
 
 ```text
+8422726 Fix mobile release readiness QA follow-up
+1f09c50 Polish mobile release readiness batch 1
+53d4856 Document forum daily structured flow checkpoint
 cdcd99f Fix forum WhatsApp preview platoon mapping
 acd2345 Fix forum report ownership for commander-created slot reports
 92af9b9 Fix forum owner mapping for staff and squad placeholders
 604c8cd Polish structured company report state handling
 996bccb Make company report a structured מ״מ-style form
-e8f2161 Add structured per-field company aggregator
-43d4a08 Add publish and close flow for forum daily reports
-ba554e6 Add company final report editor to forum daily
 c82492c Add deterministic company report generator helpers
 16da109 Add Tracking status cycling and soft delete controls
 ```
 
-This snapshot supersedes the 2026-06-27 Tracking snapshot (and older) below.
+This snapshot supersedes the Forum Daily Structured Company Flow snapshot, the 2026-06-27 Tracking snapshot, and older snapshots below.
 
 ## Tracking Module - Phase 1+2 Implemented (2026-06-27)
 

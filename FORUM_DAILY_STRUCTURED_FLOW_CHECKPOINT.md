@@ -25,6 +25,18 @@ aggregation, correct platoon owner mapping, the `created_by` vs `owner_user_id` 
 WhatsApp short/detailed preview mapping, and the publish/close/reopen + read-only-after-close
 lifecycle.
 
+> **Post-round addendum — Mobile Release Readiness follow-up (HEAD `8422726`, UI/CSS only).**
+> After this round closed, a mobile-readiness follow-up (`1f09c50` + `8422726`, pushed
+> `53d4856..8422726`) made one additive change to the WhatsApp preview: `generateWhatsappText`
+> now emits the company manpower total (e.g. `124/138`) in both short and detailed modes, summed
+> from the mapped platoons via the same `assignPlatoonReports` path as `aggregateCompanyStructured`
+> (so the preview total can never diverge from the aggregation, and no platoon is swapped). The
+> deterministic aggregation in `src/lib/forum/companyReport.ts`, owner mapping, platoon assignment,
+> and the publish/close/reopen lifecycle were **not** changed. Verified by browser QA on
+> `2026-08-20` (short/detailed both show `124/138` + platoon counts, platoons 1–4 correct) and by
+> `npm run lint` / `tsc --noEmit` / `npm run build`. The project also moved off OneDrive — work
+> only from `C:\dev\pluga-command-system`.
+
 ### Round commits (newest → oldest)
 
 ```text

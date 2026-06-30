@@ -1132,7 +1132,7 @@ function QuickActionButton({
     <button
       type="button"
       onClick={onClick}
-      className={`relative inline-flex min-h-10 items-center justify-center gap-2 overflow-hidden rounded-xl border px-3 text-xs font-black transition active:scale-[0.98] ${classes}`}
+      className={`relative inline-flex min-h-11 items-center justify-center gap-2 overflow-hidden rounded-xl border px-3 text-xs font-black transition active:scale-[0.98] ${classes}`}
     >
       <span className="pointer-events-none absolute inset-x-0 top-0 h-[42%] bg-gradient-to-b from-white/30 to-transparent" />
       <Icon className="relative z-10 h-4 w-4" />

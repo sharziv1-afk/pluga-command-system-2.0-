@@ -1173,7 +1173,7 @@ export default function TrackingPage() {
                             title="לחיצה מחליפה סטטוס"
                             onClick={() => void handleCycleCellStatus(soldier, item, record)}
                             disabled={isCellUpdating}
-                            className={`inline-flex min-h-8 min-w-20 items-center justify-center gap-1.5 rounded-full border px-3 py-1 transition hover:shadow-sm disabled:cursor-wait disabled:opacity-70 ${statusStyles[status]}`}
+                            className={`inline-flex min-h-11 min-w-20 items-center justify-center gap-1.5 rounded-full border px-3 py-1 transition hover:shadow-sm disabled:cursor-wait disabled:opacity-70 ${statusStyles[status]}`}
                           >
                             {isCellUpdating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                             {statusLabels[status]}

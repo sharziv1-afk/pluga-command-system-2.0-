@@ -99,7 +99,7 @@ export default function OnboardingPage() {
                     type="button"
                     key={item}
                     onClick={() => setRole(item)}
-                    className={`min-h-11 rounded-2xl border px-3 text-sm font-black transition-all duration-150 ${
+                    className={`min-h-11 rounded-2xl border px-3 text-sm font-black transition duration-150 ${
                       role === item
                         ? 'border-[#FF6B02]/35 bg-[#FF6B02]/12 text-[#C54F00] shadow-[0_10px_22px_rgba(255,107,2,0.12)]'
                         : 'border-[rgba(2,1,8,0.10)] bg-white/70 text-[#667085] hover:border-[#FF6B02]/24 hover:bg-[#FF6B02]/8'

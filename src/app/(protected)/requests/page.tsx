@@ -1078,7 +1078,7 @@ export default function RequestsPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`touch-target flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black transition-all duration-150 ${
+              className={`touch-target flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black transition duration-150 ${
                 isActive
                   ? 'bg-[#FF6B02] text-white shadow-[0_4px_12px_rgba(255,107,2,0.28)]'
                   : 'text-[#667085] hover:bg-[#FF6B02]/10 hover:text-[#020108]'
@@ -1313,7 +1313,7 @@ export default function RequestsPage() {
                   <button
                     type="button"
                     onClick={() => toggleComments(request.id)}
-                    className="inline-flex min-h-10 items-center gap-2 rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/60 px-3 py-2 text-xs font-black text-[#020108] transition-all duration-150 hover:border-[#FF6B02]/30 hover:bg-[#FF6B02]/10"
+                    className="inline-flex min-h-10 items-center gap-2 rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/60 px-3 py-2 text-xs font-black text-[#020108] transition duration-150 hover:border-[#FF6B02]/30 hover:bg-[#FF6B02]/10"
                   >
                     <MessageSquareText className="h-4 w-4 text-[#FF6B02]" />
                     {isCommentsOpen ? 'הסתר היסטוריית טיפול' : 'הצג היסטוריית טיפול'}

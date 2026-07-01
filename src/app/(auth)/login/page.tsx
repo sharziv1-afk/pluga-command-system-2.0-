@@ -613,7 +613,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => resetOtpState('existing')}
-              className={`min-h-11 rounded-xl px-3 text-sm font-black transition-all duration-150 ${
+              className={`min-h-11 rounded-xl px-3 text-sm font-black transition duration-150 ${
                 authMode === 'existing'
                   ? 'bg-[#FF6B02] text-white shadow-[0_12px_24px_rgba(255,107,2,0.20)]'
                   : 'text-[#667085] hover:bg-[#FF6B02]/10 hover:text-[#020108]'
@@ -624,7 +624,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => resetOtpState('register')}
-              className={`min-h-11 rounded-xl px-3 text-sm font-black transition-all duration-150 ${
+              className={`min-h-11 rounded-xl px-3 text-sm font-black transition duration-150 ${
                 authMode === 'register'
                   ? 'bg-[#FF6B02] text-white shadow-[0_12px_24px_rgba(255,107,2,0.20)]'
                   : 'text-[#667085] hover:bg-[#FF6B02]/10 hover:text-[#020108]'

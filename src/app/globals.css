@@ -656,3 +656,36 @@ option {
     min-height: 44px;
   }
 }
+
+/* Mobile visual-performance pass (Batch 1): the glass backdrop-blur + large soft
+   shadows are the heaviest compositing cost on phones, where many glass cards stack on
+   one screen and the sticky header re-composites on every scroll. Phones get a lighter
+   blur + smaller shadow (still glossy, just cheaper to paint/composite); desktop keeps
+   the full-richness Light Gloss look. Touch sizing above is unaffected. */
+@media (max-width: 640px) {
+  .tactical-glass-card {
+    backdrop-filter: blur(8px) saturate(140%);
+    -webkit-backdrop-filter: blur(8px) saturate(140%);
+    box-shadow: 0 8px 20px rgba(2, 1, 8, 0.06);
+  }
+
+  .command-icon-button,
+  .command-soft-panel {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+}
+
+/* Respect reduced-motion: neutralize the page-enter animation, skeleton shimmer,
+   pulse-soft, and every transition for users who request less motion (also eases
+   low-power devices). Kept as a single global rule to avoid per-component duplication. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

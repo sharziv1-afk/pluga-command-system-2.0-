@@ -88,7 +88,7 @@ export default function HelpPage() {
                 placeholder="חיפוש מונח או ראשי תיבות..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-950/80 border border-slate-900 focus:border-cyan-500/50 rounded-xl py-1.5 pr-9 pl-3 text-[10px] text-slate-100 placeholder-slate-600 focus:outline-none transition-all duration-300 text-right"
+                className="w-full bg-slate-950/80 border border-slate-900 focus:border-cyan-500/50 rounded-xl py-1.5 pr-9 pl-3 text-[10px] text-slate-100 placeholder-slate-600 focus:outline-none transition duration-300 text-right"
               />
             </div>
           </div>

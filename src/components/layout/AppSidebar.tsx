@@ -64,7 +64,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, onNavigate })
               href={item.path}
               onClick={onNavigate}
               className={cn(
-                'group flex min-h-10 items-center gap-2.5 rounded-xl border px-3 text-[13px] font-bold transition-all duration-150',
+                'group flex min-h-10 items-center gap-2.5 rounded-xl border px-3 text-[13px] font-bold transition duration-150',
                 isActive
                   ? 'border-[#FF6B02]/24 bg-[#FF6B02]/12 text-[#C54F00] shadow-[0_10px_24px_rgba(255,107,2,0.10)]'
                   : 'border-transparent text-[#667085] hover:border-[rgba(2,1,8,0.08)] hover:bg-white/72 hover:text-[#020108]'
@@ -115,7 +115,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, onNavigate })
               <Link
                 href="/login"
                 title="התנתק"
-                className="rounded-xl p-2 text-[#98A2B3] transition-all hover:bg-red-500/10 hover:text-red-700"
+                className="rounded-xl p-2 text-[#98A2B3] transition hover:bg-red-500/10 hover:text-red-700"
               >
                 <LogOut className="h-4 w-4" />
               </Link>

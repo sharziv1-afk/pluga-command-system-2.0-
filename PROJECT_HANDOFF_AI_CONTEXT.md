@@ -2,11 +2,11 @@
 
 Authoritative technical handoff for AI agents and developers continuing work on `pluga-command-system`.
 
-**Last updated:** Recovery + Mobile Release Readiness checkpoint  
-**Milestone:** Forum Daily Structured Company Flow completed (structured מ״פ report, deterministic aggregation, owner mapping, `created_by` vs `owner_user_id`, WhatsApp preview mapping, publish/close/reopen, read-only after close). Tracking Module Phase 1+2 also live. Mobile release readiness follow-up (UI/CSS only) pushed on top.  
-**Latest commit:** `8422726 Fix mobile release readiness QA follow-up` (matches `origin/main`)  
+**Last updated:** CSS Smoothness Batch 1 checkpoint  
+**Milestone:** Forum Daily Structured Company Flow completed (structured מ״פ report, deterministic aggregation, owner mapping, `created_by` vs `owner_user_id`, WhatsApp preview mapping, publish/close/reopen, read-only after close). Tracking Module Phase 1+2 live. Mobile release readiness + touch-target follow-up + CSS Smoothness Batch 1 (all UI/CSS only) pushed on top.  
+**Latest commit:** `2127e79 Improve mobile CSS smoothness` (matches `origin/main`)  
 **Project recovered off OneDrive.** Work only from `C:\dev\pluga-command-system`; the old `C:\Users\Maltak 123\Desktop\pluga-command-system` path is retired.  
-**Current milestone override:** Mobile release readiness follow-up closed and pushed (`53d4856..8422726`, delivering `1f09c50` + `8422726`; UI/CSS only — no `src/` logic, schema, RLS, Auth, proxy, or migrations). Next is a UI density / mobile-fit / home-button pass. Still pending from the prior round: P1 follow-ups (duplicate dynamic company node cleanup; unsaved company draft protection) — full plan in [`FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`](FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md). Tracking Phase 3 remains approval-gated. No deployment/Vercel yet.
+**Current milestone override:** CSS Smoothness Batch 1 closed and pushed (`2127e79`, 9 files, UI/CSS only — focused `transition` classes instead of `transition-all`, lighter MobileHeader sticky blur `2xl`→`md`, mobile-only ≤640px lighter glass blur/shadow, global `prefers-reduced-motion`; no logic, schema, RLS, Auth, proxy, or migrations). Validated: lint/tsc/build green + browser QA at 390/430/768/1366 with clean console; known-good flows re-verified (Dashboard QuickCreate modal, Forum Daily date `2026-08-20`, WhatsApp `124/138` + platoon counts with no swap, touch targets 44px). Batch 2 backlog: `backdrop-filter` prefix/minifier behavior (mobile blur reduction currently effective on Safari/iOS only, inert on Chrome, no regression), data/render optimization, skeleton/loading UX, Supabase fetch duplication review, and the Forum Daily hierarchy/collapsed UI redesign (next planned round). Still pending from prior rounds: P1 follow-ups (duplicate dynamic company node cleanup; unsaved company draft protection) — full plan in [`FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`](FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md). Tracking Phase 3 remains approval-gated. No deployment/Vercel yet.
 
 ## Identity
 
@@ -21,7 +21,10 @@ Authoritative technical handoff for AI agents and developers continuing work on 
 ## Latest Git State
 
 ```text
-8422726 Fix mobile release readiness QA follow-up        <- HEAD / origin/main
+2127e79 Improve mobile CSS smoothness                    <- HEAD / origin/main
+75fb9ae Fix remaining mobile touch targets
+6a41df9 Document mobile release readiness checkpoint
+8422726 Fix mobile release readiness QA follow-up
 1f09c50 Polish mobile release readiness batch 1
 53d4856 Document forum daily structured flow checkpoint
 cdcd99f Fix forum WhatsApp preview platoon mapping

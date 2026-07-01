@@ -1,40 +1,40 @@
 # Project Summary - pluga-command-system
 
-## Current Snapshot - Recovery + Mobile Release Readiness (pushed)
+## Current Snapshot - CSS Smoothness Batch 1 (pushed)
 
 **Product:** `pluga-command-system` / "המפקד"  
-**Working path:** `C:\dev\pluga-command-system` (recovered off OneDrive; the old `C:\Users\Maltak 123\Desktop\pluga-command-system` path is retired — do not work from it)  
+**Working path:** `C:\dev\pluga-command-system` (never from the retired OneDrive path `C:\Users\Maltak 123\Desktop\pluga-command-system`)  
 **Branch:** `main`  
-**Latest commit:** `8422726 Fix mobile release readiness QA follow-up`  
-**Git state:** `main = origin/main`, working tree clean. Push range `53d4856..8422726` delivered `1f09c50` + `8422726`.  
-**Full round detail / work plan / QA checklist / risk matrix:** [`FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`](FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md)
+**Latest commit:** `2127e79 Improve mobile CSS smoothness`  
+**Git state:** `main = origin/main`, working tree clean. No deployment/Vercel yet.  
+**Full Forum round detail / work plan / QA checklist / risk matrix:** [`FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`](FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md)
 
-**Mobile release readiness follow-up (UI/CSS only — no `src/` logic, schema, RLS, Auth, proxy, or migrations):**
+**CSS Smoothness Batch 1 (`2127e79`, 9 files, UI/CSS only — no logic, schema, RLS, Auth, proxy, or migrations):**
 
-- Forum Daily WhatsApp preview now emits the company manpower total (e.g. `124/138`) in both short and detailed modes, summed from the mapped platoons via the same `assignPlatoonReports` path as the structured aggregation (no platoon swap).
-- Touch targets: the 44×44 min hit-area rule in `globals.css` now triggers on narrow viewports (`max-width: 640px`) in addition to `pointer: coarse`, so header buttons, tab/filter chips, and tracking action buttons reach 44px under emulation and on real phones without bloating desktop.
-- Forum Daily manual date input is a controlled field committing on Enter/blur.
+- `transition-all` → focused Tailwind `transition` class across `GlossyButton`, `MobileHeader`, `AppSidebar`, requests/login/onboarding/pending-approval/help (no touched element animates width/height, so no animation was lost).
+- `MobileHeader` sticky blur `backdrop-blur-2xl` → `backdrop-blur-md` (main perf win, effective in all browsers).
+- `globals.css`: mobile-only (≤640px) lighter glass-card blur/shadow + lighter icon-button/soft-panel blur; global `prefers-reduced-motion` rule (media-gated).
 
-**Browser QA passed (no console errors):** Dashboard QuickCreate modal across viewports; Forum Daily date input `2026-08-20`; WhatsApp preview short/detailed with `124/138` + platoon counts (platoons 1–4 correct); touch targets at 44px. **Static checks passed:** `npm run lint`, `npx tsc -p tsconfig.json --noEmit`, `npm run build`.
+**Validated:** lint / tsc / build green; browser QA at 390/430/768/1366 with clean console — Dashboard QuickCreate modal, Forum Daily date `2026-08-20`, WhatsApp preview `124/138` + platoon counts (1–4 correct, no swap, מחלקה 2 `UPDATED` marker), touch targets 44px, no horizontal overflow, steady scroll sample.
 
-**Still open (next pass):** UI density / mobile-fit pass (UI still looks zoomed/crowded); add/verify a home button. No deployment/Vercel yet (none has happened).
+**Open for Batch 2:** `backdrop-filter` prefix/minifier behavior (mobile blur reduction live on Safari/iOS, inert on Chrome — no regression; declaration-order fix would newly enable glass blur on Chrome, a separate decision); data/render optimization; skeleton/loading UX; Supabase fetch duplication review; Forum Daily hierarchy/collapsed UI redesign (next planned round).
 
 **Recent important commits (newest -> oldest):**
 
 ```text
+2127e79 Improve mobile CSS smoothness
+75fb9ae Fix remaining mobile touch targets
+6a41df9 Document mobile release readiness checkpoint
 8422726 Fix mobile release readiness QA follow-up
 1f09c50 Polish mobile release readiness batch 1
 53d4856 Document forum daily structured flow checkpoint
 cdcd99f Fix forum WhatsApp preview platoon mapping
 acd2345 Fix forum report ownership for commander-created slot reports
-92af9b9 Fix forum owner mapping for staff and squad placeholders
-604c8cd Polish structured company report state handling
 996bccb Make company report a structured מ״מ-style form
-c82492c Add deterministic company report generator helpers
 16da109 Add Tracking status cycling and soft delete controls
 ```
 
-This snapshot supersedes the Forum Daily Structured Company Flow snapshot, the 2026-06-27 Tracking snapshot, and older snapshots below.
+This snapshot supersedes the Recovery + Mobile Release Readiness snapshot, the Forum Daily Structured Company Flow snapshot, the 2026-06-27 Tracking snapshot, and older snapshots below.
 
 ## Tracking Module - Phase 1+2 Implemented (2026-06-27)
 

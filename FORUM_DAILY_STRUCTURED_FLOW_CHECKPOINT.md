@@ -37,6 +37,21 @@ lifecycle.
 > `npm run lint` / `tsc --noEmit` / `npm run build`. The project also moved off OneDrive — work
 > only from `C:\dev\pluga-command-system`.
 
+> **Post-round addendum 2 — CSS Smoothness Batch 1 (HEAD `2127e79`, UI/CSS only).**
+> A cross-app CSS smoothness pass (`2127e79`, on top of `75fb9ae Fix remaining mobile touch
+> targets`) replaced `transition-all` with the focused Tailwind `transition` class, lightened the
+> MobileHeader sticky blur (`backdrop-blur-2xl` → `backdrop-blur-md`), added mobile-only (≤640px)
+> lighter glass blur/shadow, and added a global `prefers-reduced-motion` rule.
+> **No Forum Daily file was touched:** `forum/page.tsx`, `src/lib/forum/companyReport.ts`, owner
+> mapping, aggregation, WhatsApp generation, and the publish/close/reopen lifecycle are unchanged.
+> The standing Forum QA was re-verified live on `2026-08-20` after the change (short/detailed
+> WhatsApp `124/138`; platoons `32/35`, `30/34`, `28/33`, `34/36`; the מחלקה 2 `UPDATED` marker;
+> no platoon swap; clean console). Known Batch 2 note: the two new mobile `backdrop-filter` rules
+> reach browsers as `-webkit-`-only (the minifier keeps the last declaration written), so the blur
+> reduction is live on Safari/iOS and inert on Chrome — no regression either way. Next planned
+> Forum round: hierarchy/collapsed UI redesign of the Forum Daily node list (top-level platoon /
+> staff groups, drill-down to subordinate reports).
+
 ### Round commits (newest → oldest)
 
 ```text

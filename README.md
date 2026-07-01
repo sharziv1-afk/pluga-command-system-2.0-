@@ -9,6 +9,26 @@
 
 **Critical:** this project uses `src/proxy.ts`, not `middleware.ts`.
 
+## CSS Smoothness Batch 1 Checkpoint (HEAD `2127e79`)
+
+**Git:** `main = origin/main`, working tree clean. Latest pushed commit: `2127e79 Improve mobile CSS smoothness` (on top of `75fb9ae Fix remaining mobile touch targets`). Work only from `C:\dev\pluga-command-system` — never from the retired OneDrive path `C:\Users\Maltak 123\Desktop\pluga-command-system`. No deployment/Vercel yet.
+
+**What changed (9 files, UI/CSS only — no logic, data fetching, schema, RLS, Auth, proxy, or migrations):**
+
+- `transition-all` replaced with the focused Tailwind `transition` class (colors/shadow/transform) in `GlossyButton`, `MobileHeader`, `AppSidebar`, and the requests/login/onboarding/pending-approval/help pages. No touched element animates width/height, so no animation was lost.
+- `MobileHeader` sticky header blur reduced `backdrop-blur-2xl` → `backdrop-blur-md` (the header re-composites on every scroll frame — this is the main perf win, effective in all browsers).
+- `globals.css`: mobile-only (`max-width: 640px`) lighter `.tactical-glass-card` blur/shadow and lighter `.command-icon-button`/`.command-soft-panel` blur; global `prefers-reduced-motion: reduce` rule (0.01ms durations, media-gated so normal users are unaffected).
+
+**Validated:** `npm run lint`, `npx tsc -p tsconfig.json --noEmit`, `npm run build`, plus browser QA at 390/430/768/1366 with a clean console — Dashboard QuickCreate modal intact at 390×844 (all modal buttons 44px), Forum Daily manual date `2026-08-20`, WhatsApp preview short/detailed showing `124/138` with platoon counts `32/35`, `30/34`, `28/33`, `34/36` (no swap, מחלקה 2 `UPDATED` marker present), touch targets held at 44px, no horizontal overflow, steady 60fps scroll sample.
+
+**Open for Batch 2 (deliberately not fixed now):**
+
+- `backdrop-filter` prefix/minifier behavior: the CSS pipeline (Lightning CSS) keeps only `-webkit-backdrop-filter` for the two new mobile rules (source wrote unprefixed first, prefixed last), so the mobile blur reduction is live on Safari/iOS but inert on Chrome. No Chrome regression — the base `.tactical-glass-card` blur has been `-webkit-`-only (inert on Chrome) since long before this round. Fixing declaration order would also switch ON glass blur in Chrome for the first time — a separate product/perf decision.
+- Data/render optimization pass (fewer unnecessary re-renders).
+- Skeleton/loading UX for initial data loads (`command-skeleton` primitives already exist in `globals.css`).
+- Supabase fetch duplication review.
+- Forum Daily hierarchy/collapsed UI redesign (next planned round).
+
 ## Recovery + Mobile Release Readiness Checkpoint (HEAD `8422726`)
 
 **Working path moved off OneDrive.** Work only from `C:\dev\pluga-command-system`. Do **not** use the old `C:\Users\Maltak 123\Desktop\pluga-command-system` path anymore — the project was recovered and relocated outside OneDrive and is stable there.
@@ -34,7 +54,12 @@
 
 ```text
 Latest commit (pushed):
-8422726 Fix mobile release readiness QA follow-up
+2127e79 Improve mobile CSS smoothness
+
+CSS smoothness + touch-target follow-up (newest -> oldest):
+2127e79 Improve mobile CSS smoothness
+75fb9ae Fix remaining mobile touch targets
+6a41df9 Document mobile release readiness checkpoint
 
 Mobile release readiness (newest -> oldest):
 8422726 Fix mobile release readiness QA follow-up

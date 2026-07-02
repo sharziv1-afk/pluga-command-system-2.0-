@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   AlertTriangle,
@@ -9,6 +9,7 @@ import {
   CalendarClock,
   CalendarDays,
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clipboard,
@@ -143,6 +144,16 @@ type DailyNode = {
   ownerUserId?: string | null;
   unitId?: string | null;
   requiresOwnerMapping?: boolean;
+};
+
+// Presentation-only grouping over the existing dailyNodes — node identities, ids, and
+// report lookup are untouched; this only drives the collapsed/accordion list UI.
+type DailyNodeGroupView = {
+  name: string;
+  nodes: DailyNode[];
+  total: number;
+  submitted: number;
+  inProgress: number;
 };
 
 type UserLookup = {
@@ -435,6 +446,9 @@ export default function ForumPage() {
   const [dailyDateInputValue, setDailyDateInputValue] = useState(selectedDate);
   const [dailyReports, setDailyReports] = useState<DailyReportRow[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState('own-report');
+  // Explicit user expand/collapse overrides per group name; anything not here follows the
+  // role default (commanders start collapsed, everyone else starts expanded).
+  const [groupToggles, setGroupToggles] = useState<Record<string, boolean>>({});
   const reportPanelRef = useRef<HTMLElement>(null);
   const [reportDraft, setReportDraft] = useState<ReportDraft>(() => emptyReportDraft());
   const [isDailyLoading, setIsDailyLoading] = useState(false);
@@ -668,6 +682,10 @@ export default function ForumPage() {
     });
   };
 
+  const toggleDailyGroup = (groupName: string, currentlyExpanded: boolean) => {
+    setGroupToggles(previous => ({ ...previous, [groupName]: !currentlyExpanded }));
+  };
+
   const findReportForNode = useCallback((node: DailyNode | undefined) => {
     if (!node || node.level === 'whatsapp') return null;
     if (node.reportId) return dailyReports.find(report => report.id === node.reportId) ?? null;
@@ -689,6 +707,29 @@ export default function ForumPage() {
     }
     return null;
   }, [dailyReports, dbProfile?.id]);
+
+  // Group the existing nodes by their group label (first-appearance order) and derive per-group
+  // submission counters for the accordion headers. The WhatsApp output node is a view, not a
+  // report slot, so it never counts toward the group totals.
+  const dailyNodeGroups = useMemo<DailyNodeGroupView[]>(() => {
+    const groups: DailyNodeGroupView[] = [];
+    const byName = new Map<string, DailyNodeGroupView>();
+    dailyNodes.forEach(node => {
+      let group = byName.get(node.group);
+      if (!group) {
+        group = { name: node.group, nodes: [], total: 0, submitted: 0, inProgress: 0 };
+        byName.set(node.group, group);
+        groups.push(group);
+      }
+      group.nodes.push(node);
+      if (node.level === 'whatsapp') return;
+      group.total += 1;
+      const status = findReportForNode(node)?.status;
+      if (status === 'submitted' || status === 'closed') group.submitted += 1;
+      else if (status === 'in_progress') group.inProgress += 1;
+    });
+    return groups;
+  }, [dailyNodes, findReportForNode]);
 
   const selectedReport = findReportForNode(selectedNode);
   const canReopenSelectedReport = Boolean(
@@ -2664,50 +2705,78 @@ export default function ForumPage() {
           <aside className="tactical-glass-card rounded-3xl p-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-auto">
             <div className="mb-4 rounded-3xl border border-[#FF6B02]/20 bg-[#FF6B02]/10 p-4">
               <h2 className="text-lg font-black text-[#020108]">סדר פורום מוביל</h2>
-              <p className="mt-1 text-xs font-bold leading-relaxed text-[#667085]">מ״מים 1-4, מפל״ג, פלוגה וסיכום מ״פ. כל שורה היא גורם נפרד עם סטטוס עצמאי.</p>
+              <p className="mt-1 text-xs font-bold leading-relaxed text-[#667085]">לחיצה על קבוצה פותחת את הגורמים שלה. כל גורם נשמר עם סטטוס עצמאי.</p>
             </div>
             <div className="space-y-2">
-              {dailyNodes.map((node, index) => {
-                const report = findReportForNode(node);
-                const isActive = selectedNode?.id === node.id;
-                const previousNode = dailyNodes[index - 1];
-                const shouldShowGroup = index === 0 || previousNode?.group !== node.group;
-                const needsMapping = Boolean(node.requiresOwnerMapping && !report);
-                const wasReturned = Boolean(report?.status === 'in_progress' && report.metadata?.returned_note);
+              {dailyNodeGroups.map(group => {
+                // Commanders start with everything collapsed except the group that holds the
+                // current selection; non-commanders keep today's fully expanded list.
+                const isExpanded = groupToggles[group.name] ?? (!canSeeAll || group.name === selectedNode?.group);
+                const groupDone = group.total > 0 && group.submitted === group.total;
+                const groupCountTone = groupDone
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  : group.inProgress > 0
+                    ? 'border-[#FF6B02]/25 bg-[#FF6B02]/10 text-[#C75200]'
+                    : 'border-[rgba(2,1,8,0.08)] bg-white/80 text-[#667085]';
                 return (
-                  <Fragment key={node.id}>
-                    {shouldShowGroup && (
-                      <div className="px-2 pt-3 text-xs font-black uppercase tracking-normal text-[#667085] first:pt-0">
-                        {node.group}
-                      </div>
-                    )}
+                  <div key={group.name} className="space-y-2">
                     <button
                       type="button"
-                      data-node-id={node.id}
-                      onClick={handleSelectDailyNode}
-                      className={`w-full rounded-2xl border px-4 py-3 text-right transition ${isActive ? 'border-[#FF6B02]/35 bg-[#FF6B02]/10 shadow-[0_12px_28px_rgba(255,107,2,0.12)]' : 'border-[rgba(2,1,8,0.08)] bg-white/70 hover:bg-white'}`}
+                      onClick={() => toggleDailyGroup(group.name, isExpanded)}
+                      aria-expanded={isExpanded}
+                      className="flex min-h-11 w-full items-center justify-between gap-3 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/60 px-3 py-2.5 text-right transition hover:border-[#FF6B02]/24 hover:bg-white"
                     >
-                      <span className="flex items-start justify-between gap-3">
-                        <span className="min-w-0">
-                          <span className="block text-sm font-black text-[#020108]">{node.label}</span>
-                          <span className="mt-1 block text-xs font-bold leading-relaxed text-[#667085]">
-                            {needsMapping ? 'נדרש שיוך משתמש — עדיין לא משויך בעל תפקיד לגורם הזה' : node.description}
-                          </span>
-                        </span>
-                        <span className="flex shrink-0 flex-col items-end gap-1">
-                          <span className={`rounded-full border px-3 py-1.5 text-[11px] font-black ${statusTone(needsMapping ? undefined : report?.status)}`}>
-                            <span className={`ml-1 inline-block h-2 w-2 rounded-full ${statusDotTone(needsMapping ? undefined : report?.status)}`} />
-                            {needsMapping ? 'נדרש שיוך' : statusLabel(report?.status)}
-                          </span>
-                          {wasReturned && (
-                            <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-700">
-                              הוחזר לדרג מטה
-                            </span>
-                          )}
-                        </span>
+                      <span className="flex min-w-0 items-center gap-2">
+                        <ChevronDown className={`h-4 w-4 shrink-0 text-[#98A2B3] transition ${isExpanded ? '' : 'rotate-90'}`} />
+                        <span className="truncate text-sm font-black text-[#020108]">{group.name}</span>
                       </span>
+                      {group.total > 0 && (
+                        <span className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-black ${groupCountTone}`}>
+                          {`הוגשו ${group.submitted}/${group.total}`}
+                          {group.inProgress > 0 ? ` · ${group.inProgress} בטיפול` : ''}
+                        </span>
+                      )}
                     </button>
-                  </Fragment>
+                    {isExpanded && (
+                      <div className="space-y-2 pr-2">
+                        {group.nodes.map(node => {
+                          const report = findReportForNode(node);
+                          const isActive = selectedNode?.id === node.id;
+                          const needsMapping = Boolean(node.requiresOwnerMapping && !report);
+                          const wasReturned = Boolean(report?.status === 'in_progress' && report.metadata?.returned_note);
+                          return (
+                            <button
+                              key={node.id}
+                              type="button"
+                              data-node-id={node.id}
+                              onClick={handleSelectDailyNode}
+                              className={`w-full rounded-2xl border px-4 py-3 text-right transition ${isActive ? 'border-[#FF6B02]/35 bg-[#FF6B02]/10 shadow-[0_12px_28px_rgba(255,107,2,0.12)]' : 'border-[rgba(2,1,8,0.08)] bg-white/70 hover:bg-white'}`}
+                            >
+                              <span className="flex items-start justify-between gap-3">
+                                <span className="min-w-0">
+                                  <span className="block text-sm font-black text-[#020108]">{node.label}</span>
+                                  <span className="mt-1 block text-xs font-bold leading-relaxed text-[#667085]">
+                                    {needsMapping ? 'נדרש שיוך משתמש — עדיין לא משויך בעל תפקיד לגורם הזה' : node.description}
+                                  </span>
+                                </span>
+                                <span className="flex shrink-0 flex-col items-end gap-1">
+                                  <span className={`rounded-full border px-3 py-1.5 text-[11px] font-black ${statusTone(needsMapping ? undefined : report?.status)}`}>
+                                    <span className={`ml-1 inline-block h-2 w-2 rounded-full ${statusDotTone(needsMapping ? undefined : report?.status)}`} />
+                                    {needsMapping ? 'נדרש שיוך' : statusLabel(report?.status)}
+                                  </span>
+                                  {wasReturned && (
+                                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-700">
+                                      הוחזר לדרג מטה
+                                    </span>
+                                  )}
+                                </span>
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>

@@ -9,6 +9,33 @@
 
 **Critical:** this project uses `src/proxy.ts`, not `middleware.ts`.
 
+## Forum Daily Collapsed Hierarchy Checkpoint (HEAD `273e49b`)
+
+**Git:** `main = origin/main`, working tree clean. Latest pushed commit: `273e49b Add collapsed hierarchy to forum daily list` (on top of `b403691 Document CSS smoothness checkpoint`). Work only from `C:\dev\pluga-command-system` — never from the retired OneDrive path `C:\Users\Maltak 123\Desktop\pluga-command-system`. No deployment/Vercel yet.
+
+**What changed (1 file, UI/presentation only — no logic, data fetching, schema, RLS, Auth, proxy, migrations, owner mapping, aggregation, or WhatsApp logic):**
+
+Forum Daily node list redesigned from a flat list with inline group labels to a collapsed/accordion hierarchy:
+
+- New type `DailyNodeGroupView` and memo `dailyNodeGroups` (pure presentation over existing `dailyNodes` — no new DB queries).
+- State `groupToggles: Record<string, boolean>` records per-group user overrides within session.
+- Top-level groups: מחלקה 1, מחלקה 2, מחלקה 3, מחלקה 4, מפל״ג, פלוגה, דוחות קיימים (if present).
+- Each group is a button with `aria-expanded`, a rotating `ChevronDown` chevron, and a submission counter badge (הוגשו X/Y, N בטיפול).
+- Default expand logic: מ״פ (canSeeAll) starts with only the selected group expanded; all others start fully expanded.
+- Children JSX is identical to the original flat list — only grouping/toggle wrapper added.
+- `Fragment` import removed (no longer needed); `ChevronDown` import added.
+
+**Validated (Code X QA + מ״פ live session):** lint 0 errors, tsc clean, build 19 pages; browser QA at 390/430/768/1366 — expand/collapse correct, no overflow; date `2026-08-20` → 7 groups all הוגשו X/X; WhatsApp `124/138`, platoon counts `32/35 / 30/34 / 28/33 / 34/36`, UPDATED marker, no swap; all lifecycle buttons visible; touch targets ≥44px; console clean throughout. **Caveat:** מ״מ role not live-tested (no credentials); static review shows the non-canSeeAll `dailyNodes` branch was not changed — visibility/permissions expected unchanged. Live QA with מ״מ user recommended when credentials are available.
+
+**Open for Batch 2 / next items:**
+
+- Live QA with מ״מ role when credentials are available.
+- `backdrop-filter` prefix/minifier behavior (mobile blur reduction Safari/iOS only, inert on Chrome — no regression; separate product decision).
+- Data/render optimization pass.
+- Skeleton/loading UX.
+- Supabase fetch duplication review.
+- Physical-device mobile QA if possible.
+
 ## CSS Smoothness Batch 1 Checkpoint (HEAD `2127e79`)
 
 **Git:** `main = origin/main`, working tree clean. Latest pushed commit: `2127e79 Improve mobile CSS smoothness` (on top of `75fb9ae Fix remaining mobile touch targets`). Work only from `C:\dev\pluga-command-system` — never from the retired OneDrive path `C:\Users\Maltak 123\Desktop\pluga-command-system`. No deployment/Vercel yet.
@@ -54,7 +81,11 @@
 
 ```text
 Latest commit (pushed):
-2127e79 Improve mobile CSS smoothness
+273e49b Add collapsed hierarchy to forum daily list
+
+Forum hierarchy + docs checkpoint (newest -> oldest):
+273e49b Add collapsed hierarchy to forum daily list
+b403691 Document CSS smoothness checkpoint
 
 CSS smoothness + touch-target follow-up (newest -> oldest):
 2127e79 Improve mobile CSS smoothness

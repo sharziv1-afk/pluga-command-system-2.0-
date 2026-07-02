@@ -2,11 +2,11 @@
 
 Authoritative technical handoff for AI agents and developers continuing work on `pluga-command-system`.
 
-**Last updated:** CSS Smoothness Batch 1 checkpoint  
-**Milestone:** Forum Daily Structured Company Flow completed (structured מ״פ report, deterministic aggregation, owner mapping, `created_by` vs `owner_user_id`, WhatsApp preview mapping, publish/close/reopen, read-only after close). Tracking Module Phase 1+2 live. Mobile release readiness + touch-target follow-up + CSS Smoothness Batch 1 (all UI/CSS only) pushed on top.  
-**Latest commit:** `2127e79 Improve mobile CSS smoothness` (matches `origin/main`)  
+**Last updated:** Forum Daily Collapsed Hierarchy checkpoint  
+**Milestone:** Forum Daily Structured Company Flow completed (structured מ״פ report, deterministic aggregation, owner mapping, `created_by` vs `owner_user_id`, WhatsApp preview mapping, publish/close/reopen, read-only after close). Tracking Module Phase 1+2 live. Mobile release readiness + CSS Smoothness Batch 1 + Forum Daily Collapsed Hierarchy (all UI only) pushed on top.  
+**Latest commit:** `273e49b Add collapsed hierarchy to forum daily list` (matches `origin/main`)  
 **Project recovered off OneDrive.** Work only from `C:\dev\pluga-command-system`; the old `C:\Users\Maltak 123\Desktop\pluga-command-system` path is retired.  
-**Current milestone override:** CSS Smoothness Batch 1 closed and pushed (`2127e79`, 9 files, UI/CSS only — focused `transition` classes instead of `transition-all`, lighter MobileHeader sticky blur `2xl`→`md`, mobile-only ≤640px lighter glass blur/shadow, global `prefers-reduced-motion`; no logic, schema, RLS, Auth, proxy, or migrations). Validated: lint/tsc/build green + browser QA at 390/430/768/1366 with clean console; known-good flows re-verified (Dashboard QuickCreate modal, Forum Daily date `2026-08-20`, WhatsApp `124/138` + platoon counts with no swap, touch targets 44px). Batch 2 backlog: `backdrop-filter` prefix/minifier behavior (mobile blur reduction currently effective on Safari/iOS only, inert on Chrome, no regression), data/render optimization, skeleton/loading UX, Supabase fetch duplication review, and the Forum Daily hierarchy/collapsed UI redesign (next planned round). Still pending from prior rounds: P1 follow-ups (duplicate dynamic company node cleanup; unsaved company draft protection) — full plan in [`FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`](FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md). Tracking Phase 3 remains approval-gated. No deployment/Vercel yet.
+**Current milestone override:** Forum Daily Collapsed Hierarchy closed and pushed (`273e49b`, 1 file `src/app/(protected)/forum/page.tsx`, UI/presentation only — no logic, schema, RLS, Auth, proxy, migrations, owner mapping, aggregation, or WhatsApp logic). The flat node list was replaced with a `dailyNodeGroups` accordion: top-level groups (מחלקה 1–4, מפל״ג, פלוגה, דוחות קיימים) that expand to reveal child nodes; each group has `aria-expanded`, a chevron icon, and a submission counter badge; default expand: מ״פ starts with only the selected group open, others fully open; `groupToggles` state records per-group overrides. `dailyNodes` data source, owner mapping, aggregation, WhatsApp logic, and all lifecycle actions unchanged. Validated: lint/tsc/build green + מ״פ live browser QA at 390/430/768/1366 with clean console; date `2026-08-20`, WhatsApp `124/138`, platoon counts correct, UPDATED marker, no swap, touch targets ≥44px. **Caveat:** מ״מ role not live-tested — static review shows the non-canSeeAll branch was not changed. CSS Smoothness Batch 1 (`b403691`/`2127e79`) on top. Open next items: מ״מ live QA, backdrop-filter minifier fix, data/render optimization, skeleton/loading UX, Supabase fetch duplication review, physical-device mobile QA. Still pending from prior rounds: P1 follow-ups (duplicate dynamic company node cleanup; unsaved company draft protection) — full plan in [`FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`](FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md). Tracking Phase 3 remains approval-gated. No deployment/Vercel yet.
 
 ## Identity
 
@@ -21,7 +21,9 @@ Authoritative technical handoff for AI agents and developers continuing work on 
 ## Latest Git State
 
 ```text
-2127e79 Improve mobile CSS smoothness                    <- HEAD / origin/main
+273e49b Add collapsed hierarchy to forum daily list      <- HEAD / origin/main
+b403691 Document CSS smoothness checkpoint
+2127e79 Improve mobile CSS smoothness
 75fb9ae Fix remaining mobile touch targets
 6a41df9 Document mobile release readiness checkpoint
 8422726 Fix mobile release readiness QA follow-up

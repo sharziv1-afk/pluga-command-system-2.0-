@@ -37,6 +37,26 @@ lifecycle.
 > `npm run lint` / `tsc --noEmit` / `npm run build`. The project also moved off OneDrive — work
 > only from `C:\dev\pluga-command-system`.
 
+> **Post-round addendum 3 — Forum Daily Collapsed Hierarchy (HEAD `273e49b`, UI/presentation only).**
+> Forum Daily node list redesigned from a flat list with inline group labels to a collapsed/accordion
+> hierarchy (`273e49b Add collapsed hierarchy to forum daily list`, on top of `b403691 Document CSS
+> smoothness checkpoint`). A new `DailyNodeGroupView` type and `dailyNodeGroups` memo group the
+> existing `dailyNodes` by their `group` field (pure presentation layer — no new DB queries, no
+> owner mapping changes, no aggregation changes, no WhatsApp logic changes). State
+> `groupToggles: Record<string, boolean>` records per-group user overrides within a session.
+> Top-level groups: מחלקה 1–4, מפל״ג, פלוגה, דוחות קיימים (when present). Each group renders as an
+> accessible button (`aria-expanded`) with a rotating chevron and a submission counter badge
+> (הוגשו X/Y, N בטיפול). Default: מ״פ (canSeeAll) starts with only the selected group expanded;
+> non-commanders start fully expanded. Child node JSX is structurally identical to the original.
+> `Fragment` import removed; `ChevronDown` added. WhatsApp generation, owner mapping, aggregation,
+> lifecycle actions (submit/close/reopen/reset/delete), and all Supabase queries are **unchanged**.
+> **QA (Code X + מ״פ live):** lint 0, tsc clean, build 19 pages; 390/430/768/1366 — no overflow,
+> expand/collapse correct, date `2026-08-20` → 7 groups הוגשו X/X, WhatsApp `124/138`, platoon
+> counts `32/35 / 30/34 / 28/33 / 34/36`, UPDATED marker, no swap, lifecycle buttons intact, touch
+> targets ≥44px, console clean. **Caveat:** מ״מ role not live-tested — static review shows the
+> non-canSeeAll `dailyNodes` branch was not changed; live QA with מ״מ recommended when credentials
+> are available. Docs updated in same push range (`b403691..273e49b`).
+
 > **Post-round addendum 2 — CSS Smoothness Batch 1 (HEAD `2127e79`, UI/CSS only).**
 > A cross-app CSS smoothness pass (`2127e79`, on top of `75fb9ae Fix remaining mobile touch
 > targets`) replaced `transition-all` with the focused Tailwind `transition` class, lightened the

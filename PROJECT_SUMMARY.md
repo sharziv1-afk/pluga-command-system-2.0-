@@ -1,27 +1,43 @@
 # Project Summary - pluga-command-system
 
-## Current Snapshot - CSS Smoothness Batch 1 (pushed)
+## Current Snapshot - Forum Daily Collapsed Hierarchy (pushed)
 
 **Product:** `pluga-command-system` / "המפקד"  
 **Working path:** `C:\dev\pluga-command-system` (never from the retired OneDrive path `C:\Users\Maltak 123\Desktop\pluga-command-system`)  
 **Branch:** `main`  
-**Latest commit:** `2127e79 Improve mobile CSS smoothness`  
+**Latest commit:** `273e49b Add collapsed hierarchy to forum daily list`  
 **Git state:** `main = origin/main`, working tree clean. No deployment/Vercel yet.  
 **Full Forum round detail / work plan / QA checklist / risk matrix:** [`FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`](FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md)
 
-**CSS Smoothness Batch 1 (`2127e79`, 9 files, UI/CSS only — no logic, schema, RLS, Auth, proxy, or migrations):**
+**Forum Daily Collapsed Hierarchy (`273e49b`, 1 file `src/app/(protected)/forum/page.tsx`, UI/presentation only — no logic, schema, RLS, Auth, proxy, migrations, owner mapping, aggregation, or WhatsApp logic):**
 
-- `transition-all` → focused Tailwind `transition` class across `GlossyButton`, `MobileHeader`, `AppSidebar`, requests/login/onboarding/pending-approval/help (no touched element animates width/height, so no animation was lost).
-- `MobileHeader` sticky blur `backdrop-blur-2xl` → `backdrop-blur-md` (main perf win, effective in all browsers).
-- `globals.css`: mobile-only (≤640px) lighter glass-card blur/shadow + lighter icon-button/soft-panel blur; global `prefers-reduced-motion` rule (media-gated).
+Forum Daily node list redesigned from a flat list with inline group labels to a collapsed/accordion hierarchy:
 
-**Validated:** lint / tsc / build green; browser QA at 390/430/768/1366 with clean console — Dashboard QuickCreate modal, Forum Daily date `2026-08-20`, WhatsApp preview `124/138` + platoon counts (1–4 correct, no swap, מחלקה 2 `UPDATED` marker), touch targets 44px, no horizontal overflow, steady scroll sample.
+- New type `DailyNodeGroupView` and memo `dailyNodeGroups` built as a pure presentation layer over the existing `dailyNodes` — no new DB queries.
+- State `groupToggles: Record<string, boolean>` records per-group user overrides within a session.
+- Top-level groups: מחלקה 1, מחלקה 2, מחלקה 3, מחלקה 4, מפל״ג, פלוגה, דוחות קיימים (when present).
+- Each group is a button with `aria-expanded`, a rotating chevron, and a submission counter badge (הוגשו X/Y, N בטיפול).
+- Default: מ״פ (canSeeAll) starts with only the selected group expanded; non-commanders start fully expanded.
+- Child node JSX is structurally identical to the original flat list — only the grouping/toggle wrapper was added.
+- `Fragment` import removed (unused); `ChevronDown` added to Lucide imports.
 
-**Open for Batch 2:** `backdrop-filter` prefix/minifier behavior (mobile blur reduction live on Safari/iOS, inert on Chrome — no regression; declaration-order fix would newly enable glass blur on Chrome, a separate decision); data/render optimization; skeleton/loading UX; Supabase fetch duplication review; Forum Daily hierarchy/collapsed UI redesign (next planned round).
+**Validated (Code X QA + מ״פ live session):** lint 0 errors, tsc clean, build 19 pages; browser QA at 390/430/768/1366 — expand/collapse correct, no overflow; date `2026-08-20` → 7 groups all הוגשו X/X; WhatsApp `124/138`, platoon counts `32/35 / 30/34 / 28/33 / 34/36`, UPDATED marker, no swap; all lifecycle buttons visible; touch targets ≥44px; console clean.  
+**Caveat:** מ״מ role not live-tested — static review shows the non-canSeeAll `dailyNodes` branch was not changed; live QA with מ״מ recommended when credentials are available.
+
+**Open next items:**
+
+- Live QA with מ״מ role.
+- `backdrop-filter` prefix/minifier fix (mobile blur Safari/iOS only, inert on Chrome — separate decision).
+- Data/render optimization.
+- Skeleton/loading UX.
+- Supabase fetch duplication review.
+- Physical-device mobile QA.
 
 **Recent important commits (newest -> oldest):**
 
 ```text
+273e49b Add collapsed hierarchy to forum daily list
+b403691 Document CSS smoothness checkpoint
 2127e79 Improve mobile CSS smoothness
 75fb9ae Fix remaining mobile touch targets
 6a41df9 Document mobile release readiness checkpoint
@@ -34,7 +50,7 @@ acd2345 Fix forum report ownership for commander-created slot reports
 16da109 Add Tracking status cycling and soft delete controls
 ```
 
-This snapshot supersedes the Recovery + Mobile Release Readiness snapshot, the Forum Daily Structured Company Flow snapshot, the 2026-06-27 Tracking snapshot, and older snapshots below.
+This snapshot supersedes the CSS Smoothness Batch 1 snapshot, the Recovery + Mobile Release Readiness snapshot, the Forum Daily Structured Company Flow snapshot, the 2026-06-27 Tracking snapshot, and older snapshots below.
 
 ## Tracking Module - Phase 1+2 Implemented (2026-06-27)
 

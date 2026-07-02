@@ -135,7 +135,6 @@ textarea {
 .tactical-glass-card {
   background: var(--tactical-glass);
   backdrop-filter: blur(18px) saturate(160%);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
   border: 1px solid var(--tactical-border);
   box-shadow: 0 14px 36px rgba(2, 1, 8, 0.07);
   border-radius: 18px;
@@ -661,18 +660,19 @@ option {
    shadows are the heaviest compositing cost on phones, where many glass cards stack on
    one screen and the sticky header re-composites on every scroll. Phones get a lighter
    blur + smaller shadow (still glossy, just cheaper to paint/composite); desktop keeps
-   the full-richness Light Gloss look. Touch sizing above is unaffected. */
+   the full-richness Light Gloss look. Touch sizing above is unaffected.
+   Batch 2B policy: never hand-write -webkit-backdrop-filter here — Lightning CSS
+   merges the pair and keeps only the last declaration written (Chrome then gets
+   nothing). Write backdrop-filter only; the toolchain emits the -webkit- prefix. */
 @media (max-width: 640px) {
   .tactical-glass-card {
-    backdrop-filter: blur(8px) saturate(140%);
-    -webkit-backdrop-filter: blur(8px) saturate(140%);
+    backdrop-filter: blur(8px) saturate(120%);
     box-shadow: 0 8px 20px rgba(2, 1, 8, 0.06);
   }
 
   .command-icon-button,
   .command-soft-panel {
     backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
   }
 }
 

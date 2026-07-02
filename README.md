@@ -9,6 +9,34 @@
 
 **Critical:** this project uses `src/proxy.ts`, not `middleware.ts`.
 
+## Backdrop Filter Policy Checkpoint (HEAD `6fb823c`)
+
+**Git:** `main = origin/main`, working tree clean. Latest pushed code commit: `6fb823c Implement explicit backdrop filter policy` (push range `15ae36c..6fb823c`). Work only from `C:\dev\pluga-command-system` — never from the retired OneDrive path `C:\Users\Maltak 123\Desktop\pluga-command-system`. No deployment/Vercel yet.
+
+**What changed (1 file, CSS only — `src/app/globals.css`; no logic, layout, colors, typography, schema, RLS, Auth, proxy, or migrations):**
+
+- Implemented the explicit `backdrop-filter` policy chosen in the Batch 2A read-only audit: source never hand-writes `-webkit-backdrop-filter`; only unprefixed `backdrop-filter` is written, and Tailwind v4 / Lightning CSS emits both the prefixed and unprefixed declarations in the compiled CSS.
+- Why: the toolchain treats a manually written `backdrop-filter` + `-webkit-backdrop-filter` pair as one logical property and keeps only the last declaration written. Manual prefixing left the base `.tactical-glass-card` rule `-webkit-`-only (Chrome had **no** glass blur at all, desktop included) and made the Batch 1 mobile blur reduction inert on Chrome.
+- Desktop values: `.tactical-glass-card` `blur(18px) saturate(160%)`; `.command-icon-button` / `.command-soft-panel` `blur(16px)`.
+- Mobile ≤640px (uniform across browsers): `.tactical-glass-card` `blur(8px) saturate(120%)`; `.command-icon-button` / `.command-soft-panel` `blur(8px)`.
+- Touch-target 44px rules, mobile shadow lightening, and all other media rules preserved. A policy comment in `globals.css` documents the toolchain trap for future edits.
+
+**Validated (Fable implementation QA + Code X external QA):** `npm run lint` 0 errors (only pre-existing vendored warnings under `.agents/skills/impeccable/`), `npx tsc -p tsconfig.json --noEmit` clean, `npm run build` 19 pages. Compiled CSS verified in `.next-build`: both `-webkit-backdrop-filter` and `backdrop-filter` emitted for every checked selector (no `-webkit-`-only state remains), mobile 8px present inside `@media (max-width:640px)`. Chrome browser/CSSOM QA on `/dashboard` + `/forum` at 390x844 / 430x932 / 768x1024 / 1366x768 — computed styles: desktop card `blur(18px) saturate(1.6)`, desktop icon/soft-panel `blur(16px)`, mobile card `blur(8px) saturate(1.2)`, mobile icon/soft-panel `blur(8px)`, MobileHeader `blur(12px)`; no horizontal overflow; no app console errors; no flicker/layout jump.
+
+**Forum regression (מ״פ known-good, date `2026-08-20`) passed:** structured company report `124/138`; WhatsApp short + detailed non-empty with platoon counts `32/35 / 30/34 / 28/33 / 34/36`; מחלקה 2 `UPDATED` marker present; no swap between מחלקה 1 and מחלקה 2; collapsed hierarchy groups (מחלקה 1–4, מפל״ג, פלוגה, דוחות קיימים) open/close correctly; console clean; no overflow.
+
+**מ״מ 1 role QA passed live** (סגן שולי, מ״מ 1 • מחלקה 1, date `2026-08-20`): sees only `המחלקה שלי` (children: דיווחי מ״כים במחלקה שלי + סיכום מחלקתי שלי); does not see מחלקה 2–4, מפל״ג, פלוגה, WhatsApp node, `124/138`, or foreign reports; console clean; no overflow.
+
+**Problems:** P0/P1/P2 — none. P3: some pre-existing small non-primary link/button targets in a few shells — not introduced by this CSS diff, not blocking Batch 2B.
+
+**Open after Batch 2B:**
+
+- Physical-device mobile QA if possible — especially Android Chrome, where glass blur is active for the first time.
+- Optional: data/render optimization pass.
+- Optional: skeleton/loading UX (`command-skeleton` primitives already exist).
+- Optional: Supabase fetch duplication review.
+- Keep docs and code commits separate.
+
 ## Forum Daily Collapsed Hierarchy Checkpoint (HEAD `273e49b`)
 
 **Git:** `main = origin/main`, working tree clean. Latest pushed commit: `273e49b Add collapsed hierarchy to forum daily list` (on top of `b403691 Document CSS smoothness checkpoint`). Work only from `C:\dev\pluga-command-system` — never from the retired OneDrive path `C:\Users\Maltak 123\Desktop\pluga-command-system`. No deployment/Vercel yet.

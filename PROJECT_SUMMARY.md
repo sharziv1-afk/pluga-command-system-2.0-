@@ -1,13 +1,33 @@
 # Project Summary - pluga-command-system
 
-## Current Snapshot - Forum Daily Collapsed Hierarchy (pushed)
+## Current Snapshot - Backdrop Filter Policy (pushed)
 
 **Product:** `pluga-command-system` / "המפקד"  
 **Working path:** `C:\dev\pluga-command-system` (never from the retired OneDrive path `C:\Users\Maltak 123\Desktop\pluga-command-system`)  
 **Branch:** `main`  
-**Latest commit:** `273e49b Add collapsed hierarchy to forum daily list`  
+**Latest code commit:** `6fb823c Implement explicit backdrop filter policy` (push range `15ae36c..6fb823c`; this docs checkpoint commit sits on top)  
 **Git state:** `main = origin/main`, working tree clean. No deployment/Vercel yet.  
 **Full Forum round detail / work plan / QA checklist / risk matrix:** [`FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`](FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md)
+
+**Backdrop Filter Policy — Batch 2B (`6fb823c`, 1 file `src/app/globals.css`, CSS only — no logic, layout, colors, typography, schema, RLS, Auth, proxy, migrations, owner mapping, aggregation, or WhatsApp logic):**
+
+- Source no longer hand-writes `-webkit-backdrop-filter`; only unprefixed `backdrop-filter` remains, and Tailwind v4 / Lightning CSS emits both prefixed + unprefixed declarations in compiled CSS.
+- Why (Batch 2A audit): the toolchain treats the manual pair as one logical property and keeps only the last declaration written — the base `.tactical-glass-card` was `-webkit-`-only (Chrome had no glass blur at all) and the Batch 1 mobile reduction was inert on Chrome.
+- Policy: desktop keeps full glass (`.tactical-glass-card` `blur(18px) saturate(160%)`, `.command-icon-button`/`.command-soft-panel` `blur(16px)`); mobile ≤640px is a uniform lighter `blur(8px)` (`saturate(120%)` on cards) for all browsers. Touch-target 44px rules and mobile shadow lightening preserved.
+
+**Validated (Fable implementation QA + Code X external QA):** lint 0 errors (only pre-existing vendored warnings under `.agents/skills/impeccable/`), tsc clean, build 19 pages; compiled CSS emits both prefixes everywhere (no `-webkit-`-only state), mobile 8px present; Chrome CSSOM QA on `/dashboard`+`/forum` at 390/430/768/1366 — desktop card `blur(18px) saturate(1.6)`, mobile card `blur(8px) saturate(1.2)`, icon/soft-panel `blur(16px)`→`blur(8px)`; no overflow; no app console errors; no flicker. **מ״פ known-good passed** on `2026-08-20`: `124/138`, platoon counts `32/35 / 30/34 / 28/33 / 34/36`, WhatsApp short+detailed non-empty, `UPDATED` marker, no swap, hierarchy groups open/close, console clean. **מ״מ 1 role QA passed live** (סגן שולי): sees only `המחלקה שלי`; no מחלקה 2–4/מפל״ג/פלוגה/WhatsApp/`124/138`/foreign reports.
+
+**Open next items:**
+
+- Physical-device mobile QA if possible — especially Android Chrome, where glass blur is active for the first time.
+- Data/render optimization (optional).
+- Skeleton/loading UX (optional).
+- Supabase fetch duplication review (optional).
+- Keep docs and code commits separate.
+
+This snapshot supersedes the Forum Daily Collapsed Hierarchy snapshot and all older snapshots below.
+
+## Forum Daily Collapsed Hierarchy (pushed `273e49b`)
 
 **Forum Daily Collapsed Hierarchy (`273e49b`, 1 file `src/app/(protected)/forum/page.tsx`, UI/presentation only — no logic, schema, RLS, Auth, proxy, migrations, owner mapping, aggregation, or WhatsApp logic):**
 
@@ -27,7 +47,7 @@ Forum Daily node list redesigned from a flat list with inline group labels to a 
 
 **Open next items:**
 
-- `backdrop-filter` prefix/minifier fix (mobile blur Safari/iOS only, inert on Chrome — separate decision).
+- `backdrop-filter` prefix/minifier fix (mobile blur Safari/iOS only, inert on Chrome — separate decision). **Closed in Batch 2B (`6fb823c`) — see Current Snapshot above.**
 - Data/render optimization.
 - Skeleton/loading UX.
 - Supabase fetch duplication review.

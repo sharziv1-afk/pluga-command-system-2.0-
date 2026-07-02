@@ -37,6 +37,29 @@ lifecycle.
 > `npm run lint` / `tsc --noEmit` / `npm run build`. The project also moved off OneDrive — work
 > only from `C:\dev\pluga-command-system`.
 
+> **Post-round addendum 4 — Backdrop Filter Policy / Batch 2B (HEAD `6fb823c`, CSS only).**
+> An explicit `backdrop-filter` policy was implemented (`6fb823c Implement explicit backdrop filter
+> policy`, push range `15ae36c..6fb823c`, 1 file `src/app/globals.css`). Source never hand-writes
+> `-webkit-backdrop-filter` anymore — the Tailwind v4 / Lightning CSS toolchain treats the manual
+> pair as one logical property and keeps only the last declaration written, which had left the base
+> `.tactical-glass-card` `-webkit-`-only (no glass blur at all in Chrome) and made the Batch 1
+> mobile reduction inert on Chrome. Only unprefixed `backdrop-filter` remains in source; the
+> toolchain emits both prefixed + unprefixed declarations in compiled CSS. Values — desktop: card
+> `blur(18px) saturate(160%)`, icon-button/soft-panel `blur(16px)`; mobile ≤640px uniform across
+> browsers: card `blur(8px) saturate(120%)`, icon-button/soft-panel `blur(8px)`. Touch-target 44px
+> rules and mobile shadow lightening preserved.
+> **No Forum Daily file was touched:** `forum/page.tsx`, `src/lib/forum/companyReport.ts`, owner
+> mapping, aggregation, WhatsApp generation, and the publish/close/reopen lifecycle are unchanged.
+> **QA (Fable implementation + Code X external):** lint 0 errors (pre-existing vendored warnings
+> only), tsc clean, build 19 pages; compiled CSS emits both prefixes everywhere (no `-webkit-`-only
+> state), mobile 8px present; Chrome CSSOM QA `/dashboard`+`/forum` at 390/430/768/1366 — desktop
+> card `blur(18px) saturate(1.6)`, mobile card `blur(8px) saturate(1.2)`, no overflow, no app
+> console errors. Standing Forum QA re-verified on `2026-08-20`: `124/138`, platoon counts
+> `32/35 / 30/34 / 28/33 / 34/36`, WhatsApp short+detailed non-empty, `UPDATED` marker, no swap,
+> hierarchy groups open/close, console clean. מ״מ 1 role QA passed live (sees only `המחלקה שלי`;
+> no מחלקה 2–4/מפל״ג/פלוגה/WhatsApp/`124/138`/foreign reports). Open: physical-device mobile QA,
+> especially Android Chrome — glass blur is active there for the first time.
+
 > **Post-round addendum 3 — Forum Daily Collapsed Hierarchy (HEAD `273e49b`, UI/presentation only).**
 > Forum Daily node list redesigned from a flat list with inline group labels to a collapsed/accordion
 > hierarchy (`273e49b Add collapsed hierarchy to forum daily list`, on top of `b403691 Document CSS

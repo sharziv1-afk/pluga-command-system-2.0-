@@ -21,12 +21,12 @@ Forum Daily node list redesigned from a flat list with inline group labels to a 
 - Child node JSX is structurally identical to the original flat list — only the grouping/toggle wrapper was added.
 - `Fragment` import removed (unused); `ChevronDown` added to Lucide imports.
 
-**Validated (Code X QA + מ״פ live session):** lint 0 errors, tsc clean, build 19 pages; browser QA at 390/430/768/1366 — expand/collapse correct, no overflow; date `2026-08-20` → 7 groups all הוגשו X/X; WhatsApp `124/138`, platoon counts `32/35 / 30/34 / 28/33 / 34/36`, UPDATED marker, no swap; all lifecycle buttons visible; touch targets ≥44px; console clean.  
-**Caveat:** מ״מ role not live-tested — static review shows the non-canSeeAll `dailyNodes` branch was not changed; live QA with מ״מ recommended when credentials are available.
+**Validated (Code X QA + מ״פ live session):** lint 0 errors, tsc clean, build 19 pages; browser QA at 390/430/768/1366 — expand/collapse correct, no overflow; date `2026-08-20` → 7 groups all הוגשו X/X; WhatsApp `124/138`, platoon counts `32/35 / 30/34 / 28/33 / 34/36`, UPDATED marker, no swap; all lifecycle buttons visible; touch targets ≥44px; console clean.
+
+**מ״מ 1 live QA passed** (סגן שולי, מחלקה 1, date `2026-08-20`): saw only "המחלקה שלי" group with children דיווחי מ״כים + סיכום מחלקתי; did not see מחלקה 2–4/מפל״ג/פלוגה/WhatsApp node/foreign דוחות קיימים/company totals; expand/collapse correct; counter `הוגשו 1/2`; group header 47px, cards 69–108px; RTL correct; `ערוך דוח` disabled (closed report); commander actions (`אשר ושחרר`/`החזר לדרג מטה`) not visible; no Supabase/RLS errors; console clean. **Note (P3, not a regression):** `פתח נעילה`/`אפס דוח`/`מחק דוח` visible for מ״מ on their own closed report — matches existing code, not caused by hierarchy change.
 
 **Open next items:**
 
-- Live QA with מ״מ role.
 - `backdrop-filter` prefix/minifier fix (mobile blur Safari/iOS only, inert on Chrome — separate decision).
 - Data/render optimization.
 - Skeleton/loading UX.

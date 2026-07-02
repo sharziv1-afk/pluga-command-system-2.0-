@@ -25,11 +25,12 @@ Forum Daily node list redesigned from a flat list with inline group labels to a 
 - Children JSX is identical to the original flat list — only grouping/toggle wrapper added.
 - `Fragment` import removed (no longer needed); `ChevronDown` import added.
 
-**Validated (Code X QA + מ״פ live session):** lint 0 errors, tsc clean, build 19 pages; browser QA at 390/430/768/1366 — expand/collapse correct, no overflow; date `2026-08-20` → 7 groups all הוגשו X/X; WhatsApp `124/138`, platoon counts `32/35 / 30/34 / 28/33 / 34/36`, UPDATED marker, no swap; all lifecycle buttons visible; touch targets ≥44px; console clean throughout. **Caveat:** מ״מ role not live-tested (no credentials); static review shows the non-canSeeAll `dailyNodes` branch was not changed — visibility/permissions expected unchanged. Live QA with מ״מ user recommended when credentials are available.
+**Validated (Code X QA + מ״פ live session):** lint 0 errors, tsc clean, build 19 pages; browser QA at 390/430/768/1366 — expand/collapse correct, no overflow; date `2026-08-20` → 7 groups all הוגשו X/X; WhatsApp `124/138`, platoon counts `32/35 / 30/34 / 28/33 / 34/36`, UPDATED marker, no swap; all lifecycle buttons visible; touch targets ≥44px; console clean throughout.
 
-**Open for Batch 2 / next items:**
+**מ״מ 1 live QA passed** (סגן שולי, מחלקה 1, date `2026-08-20`): saw only "המחלקה שלי" group with children דיווחי מ״כים + סיכום מחלקתי; did not see מחלקה 2–4/מפל״ג/פלוגה/WhatsApp node/foreign דוחות קיימים/company totals; expand/collapse correct; child selected correctly; `aria-expanded` + chevron; counter `הוגשו 1/2`; group header 47px, child cards 69–108px; no overflow; RTL correct; report read-only, `ערוך דוח` disabled; commander actions not visible; no Supabase/RLS errors; console clean. **Note (P3, not a regression):** `פתח נעילה`/`אפס דוח`/`מחק דוח` visible for מ״מ on their own closed report — matches existing code, not caused by hierarchy change.
 
-- Live QA with מ״מ role when credentials are available.
+**Open Batch 2 / next items:**
+
 - `backdrop-filter` prefix/minifier behavior (mobile blur reduction Safari/iOS only, inert on Chrome — no regression; separate product decision).
 - Data/render optimization pass.
 - Skeleton/loading UX.

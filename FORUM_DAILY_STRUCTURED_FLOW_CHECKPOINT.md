@@ -53,9 +53,14 @@ lifecycle.
 > **QA (Code X + מ״פ live):** lint 0, tsc clean, build 19 pages; 390/430/768/1366 — no overflow,
 > expand/collapse correct, date `2026-08-20` → 7 groups הוגשו X/X, WhatsApp `124/138`, platoon
 > counts `32/35 / 30/34 / 28/33 / 34/36`, UPDATED marker, no swap, lifecycle buttons intact, touch
-> targets ≥44px, console clean. **Caveat:** מ״מ role not live-tested — static review shows the
-> non-canSeeAll `dailyNodes` branch was not changed; live QA with מ״מ recommended when credentials
-> are available. Docs updated in same push range (`b403691..273e49b`).
+> targets ≥44px, console clean. **מ״מ 1 live QA passed** (סגן שולי, מחלקה 1, date `2026-08-20`,
+> viewports 390/430/1366): saw only "המחלקה שלי" group (children: דיווחי מ״כים + סיכום מחלקתי);
+> did not see מחלקה 2–4/מפל״ג/פלוגה/WhatsApp node/foreign דוחות קיימים/company totals (`124/138`);
+> expand/collapse correct; counter `הוגשו 1/2`; group header 47px, cards 69–108px; RTL correct;
+> `ערוך דוח` disabled (closed); commander actions not visible; no Supabase/RLS errors; console clean.
+> **Note P3 (not a regression):** `פתח נעילה`/`אפס דוח`/`מחק דוח` visible for מ״מ on their own
+> closed report — matches existing code, not caused by hierarchy change, not fixed in this round.
+> Docs in push range `273e49b..c7d44f3`.
 
 > **Post-round addendum 2 — CSS Smoothness Batch 1 (HEAD `2127e79`, UI/CSS only).**
 > A cross-app CSS smoothness pass (`2127e79`, on top of `75fb9ae Fix remaining mobile touch

@@ -23,6 +23,7 @@ import { GlossyButton } from '@/components/ui/GlossyButton';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { createAuditLog } from '@/lib/audit';
+import { copyTextToClipboard } from '@/lib/clipboard';
 import { useApp } from '@/lib/context/AppContext';
 import { getPermissionLevelForRole } from '@/lib/permissions';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
@@ -981,10 +982,10 @@ export default function SchedulePage() {
 
     lines.push('', '─'.repeat(22), '_"המשימה מעל הכול — והאנשים בראש"_');
 
-    try {
-      await navigator.clipboard.writeText(lines.join('\n'));
+    const result = await copyTextToClipboard(lines.join('\n'));
+    if (result.ok) {
       setSuccess('לו״ז מחר הועתק — מוכן להדבקה ב-WhatsApp.');
-    } catch {
+    } else {
       setError('לא ניתן להעתיק אוטומטית. אפשר לסמן ולהעתיק ידנית.');
     }
   };

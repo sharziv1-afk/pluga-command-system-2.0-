@@ -41,6 +41,7 @@ import { GlossyButton } from '@/components/ui/GlossyButton';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { createAuditLog } from '@/lib/audit';
 import type { AuditActionType } from '@/lib/audit';
+import { copyTextToClipboard } from '@/lib/clipboard';
 import { aggregateCompanyStructured, assignPlatoonReports } from '@/lib/forum/companyReport';
 import type { CompanyReportInput, CompanyReportPlatoon } from '@/lib/forum/companyReport';
 import { useApp } from '@/lib/context/AppContext';
@@ -892,10 +893,10 @@ export default function ForumPage() {
   }, [dailyReports, dbProfile, ownerOptions, selectedDate, whatsappMode]);
 
   const copyWhatsappText = async () => {
-    try {
-      await navigator.clipboard.writeText(generateWhatsappText());
+    const result = await copyTextToClipboard(generateWhatsappText());
+    if (result.ok) {
       setDailySuccess('פלט WhatsApp הועתק');
-    } catch {
+    } else {
       setDailyError('לא ניתן להעתיק אוטומטית. אפשר לסמן ולהעתיק ידנית.');
     }
   };

@@ -1,6 +1,31 @@
 # Project Summary - pluga-command-system
 
-## Current Snapshot - Backdrop Filter Policy (pushed)
+## Current Snapshot - Batch 3A Clipboard Copy Fallback (pushed)
+
+**Product:** `pluga-command-system` / "המפקד"  
+**Working path:** `C:\dev\pluga-command-system`  
+**Branch:** `main`  
+**Latest pushed commit:** `f23952e Add clipboard fallback for copy actions`  
+**Push range:** `4177a10..f23952e`  
+**Git state:** `main = origin/main`, working tree clean. No deployment/Vercel yet.
+
+**Batch 3A (`f23952e`, 3 files):**
+
+- Added shared clipboard helper: `src/lib/clipboard.ts`.
+- Updated copy call sites: `src/app/(protected)/forum/page.tsx` and `src/app/(protected)/schedule/page.tsx`.
+- Helper behavior: try `navigator.clipboard.writeText`; fall back to a temporary hidden textarea + `select` + iOS-friendly `setSelectionRange` + `document.execCommand('copy')`; remove the textarea in `finally`; return a structured result instead of throwing.
+- Fixes BUG-COPY-001: copy actions failed on iPhone / HTTP LAN when `navigator.clipboard` was unavailable in insecure contexts.
+- Does not change WhatsApp generation logic, schedule text generation, aggregation, owner mapping, permissions, lifecycle logic, SQL/RLS/Auth/proxy/migrations, package files, or `companyReport`.
+
+**QA basis:** lint, TypeScript, and production build passed. Authenticated QA passed as MP and MM1. Forum known-good date `2026-08-20` passed with `124/138`, platoon counts `32/35 / 30/34 / 28/33 / 34/36`, UPDATED marker, and no platoon swap. Desktop copy passed for Forum WhatsApp and Schedule. iPhone Safari over HTTP LAN (`http://192.168.1.250:3100`) passed physically: Forum WhatsApp and Schedule both pasted full text, and visual/scroll remained usable.
+
+**Remaining known issues:** BUG-AUTH-008 logout does not call `signOut`; BUG-CONTEXT-009 AppContext demo commander fallback; BUG-TRACK-003 Tracking UI exposes actions that RLS blocks; BUG-REQ-008 Requests specialist/status UI/RLS mismatch; BUG-FORUM-010 bulk close lacks future multi-company scope; BUG-FORUM-011 MM subordinate reports branch shows a linking requirement rather than actual subordinate reports; BUG-TT-007 small touch targets in some non-primary controls.
+
+**Open next items:** real logout, production demo fallback review/removal, Tracking permission-aware UI gating, Request status UI/RLS alignment, creator request cancellation decision, own forum post deletion decision, fetch waterfall/skeleton polish, small touch target polish, and continued separation of code/docs commits.
+
+This snapshot supersedes the Backdrop Filter Policy snapshot and all older snapshots below.
+
+## Backdrop Filter Policy (pushed)
 
 **Product:** `pluga-command-system` / "המפקד"  
 **Working path:** `C:\dev\pluga-command-system` (never from the retired OneDrive path `C:\Users\Maltak 123\Desktop\pluga-command-system`)  

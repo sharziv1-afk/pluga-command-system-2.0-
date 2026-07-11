@@ -25,6 +25,29 @@ aggregation, correct platoon owner mapping, the `created_by` vs `owner_user_id` 
 WhatsApp short/detailed preview mapping, and the publish/close/reopen + read-only-after-close
 lifecycle.
 
+> **Post-round addendum 5 — Batch 3A Clipboard Copy Fallback (HEAD `f23952e`).**
+> Batch 3A closed and was pushed as `f23952e Add clipboard fallback for copy actions` (push range
+> `4177a10..f23952e`). It added a shared helper in `src/lib/clipboard.ts` and updated only the copy
+> call sites in `src/app/(protected)/forum/page.tsx` and `src/app/(protected)/schedule/page.tsx`.
+> The helper first tries `navigator.clipboard.writeText`, then falls back to a temporary hidden
+> textarea + `select` + iOS-friendly `setSelectionRange` + `document.execCommand('copy')`; it
+> removes the textarea in `finally` and returns a structured result instead of throwing. This fixes
+> BUG-COPY-001: iPhone / HTTP LAN copy failures when `navigator.clipboard` is unavailable in
+> insecure contexts.
+> **No Forum Daily logic changed:** WhatsApp generation logic, schedule text generation,
+> aggregation, owner mapping, permissions, lifecycle logic, `companyReport`, SQL/RLS/Auth/proxy,
+> migrations, and package files were not changed.
+> **QA:** lint, TypeScript, and build passed; authenticated QA passed as MP and MM1; Forum
+> known-good date `2026-08-20` passed with `124/138`, platoon counts `32/35 / 30/34 / 28/33 /
+> 34/36`, UPDATED marker, and no platoon swap; desktop copy passed for Forum WhatsApp and Schedule;
+> iPhone Safari over HTTP LAN (`http://192.168.1.250:3100`) physically pasted full Forum WhatsApp
+> and Schedule output, with usable visual/scroll behavior.
+> **Remaining known issues not fixed:** BUG-AUTH-008, BUG-CONTEXT-009, BUG-TRACK-003, BUG-REQ-008,
+> BUG-FORUM-010, BUG-FORUM-011, and BUG-TT-007. Open items remain real logout, production demo
+> fallback review/removal, Tracking UI gating, Request UI/RLS alignment, product decisions around
+> creator cancellation and own forum post deletion, fetch waterfall/skeleton polish, small touch
+> target polish, and keeping code/docs commits separate.
+
 > **Post-round addendum — Mobile Release Readiness follow-up (HEAD `8422726`, UI/CSS only).**
 > After this round closed, a mobile-readiness follow-up (`1f09c50` + `8422726`, pushed
 > `53d4856..8422726`) made one additive change to the WhatsApp preview: `generateWhatsappText`

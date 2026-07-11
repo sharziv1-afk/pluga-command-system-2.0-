@@ -2,6 +2,24 @@
 
 Authoritative technical handoff for AI agents and developers continuing work on `pluga-command-system`.
 
+## Current Override - Batch 3A Clipboard Copy Fallback
+
+**Last updated:** Batch 3A Clipboard Copy Fallback checkpoint  
+**Latest pushed commit:** `f23952e Add clipboard fallback for copy actions`  
+**Push range:** `4177a10..f23952e`  
+**Git state:** `main = origin/main`, working tree clean before this docs checkpoint.  
+**Local path:** `C:\dev\pluga-command-system`; no deployment/Vercel yet.
+
+Batch 3A added a shared clipboard helper in `src/lib/clipboard.ts` and updated only the copy call sites in `src/app/(protected)/forum/page.tsx` and `src/app/(protected)/schedule/page.tsx`. The helper first tries `navigator.clipboard.writeText`; if unavailable, it falls back to a temporary hidden textarea, `select`, iOS-friendly `setSelectionRange`, and `document.execCommand('copy')`; it removes the textarea in `finally` and returns a structured result instead of throwing.
+
+This fixes BUG-COPY-001: copy actions failed on iPhone / HTTP LAN because `navigator.clipboard` can be unavailable in insecure contexts. It does **not** change WhatsApp generation logic, schedule text generation, aggregation, owner mapping, permissions, lifecycle logic, SQL/RLS/Auth/proxy/migrations, package files, or `companyReport`.
+
+QA basis: `npm run lint`, `npx tsc -p tsconfig.json --noEmit`, and `npm run build` passed. Authenticated QA passed as MP and MM1. Forum known-good date `2026-08-20` passed with `124/138`, platoon counts `32/35 / 30/34 / 28/33 / 34/36`, UPDATED marker, and no platoon swap. Desktop copy passed for Forum WhatsApp and Schedule. iPhone Safari over HTTP LAN (`http://192.168.1.250:3100`) physically pasted full Forum WhatsApp and Schedule output; visual/scroll remained usable.
+
+Remaining known issues not fixed in Batch 3A: BUG-AUTH-008 logout does not call `signOut`; BUG-CONTEXT-009 AppContext demo commander fallback; BUG-TRACK-003 Tracking UI exposes actions that RLS blocks; BUG-REQ-008 Requests specialist/status UI/RLS mismatch; BUG-FORUM-010 bulk close lacks future multi-company scope; BUG-FORUM-011 MM subordinate reports branch shows a linking requirement rather than actual subordinate reports; BUG-TT-007 small touch targets in some non-primary controls.
+
+Open items after Batch 3A: fix real logout, review/remove production demo fallback, add Tracking permission-aware UI gating, align Request status UI/RLS, decide creator request cancellation, decide own forum post deletion, improve fetch waterfalls/skeletons, polish small touch targets, and keep code/docs commits separate.
+
 **Last updated:** Backdrop Filter Policy — Batch 2B checkpoint  
 **Milestone:** Forum Daily Structured Company Flow completed (structured מ״פ report, deterministic aggregation, owner mapping, `created_by` vs `owner_user_id`, WhatsApp preview mapping, publish/close/reopen, read-only after close). Tracking Module Phase 1+2 live. Mobile release readiness + CSS Smoothness Batch 1 + Forum Daily Collapsed Hierarchy + Backdrop Filter Policy (all UI/CSS only) pushed on top.  
 **Latest code commit:** `6fb823c Implement explicit backdrop filter policy` (push range `15ae36c..6fb823c`; this docs checkpoint commit sits on top of it, matches `origin/main` after push)  

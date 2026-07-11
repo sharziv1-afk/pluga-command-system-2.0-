@@ -1,5 +1,24 @@
 # pluga-command-system - "המפקד"
 
+## Batch 3A Clipboard Copy Fallback Checkpoint (HEAD `f23952e`)
+
+**Git:** `main = origin/main`, working tree clean. Latest pushed work: `4177a10..f23952e`, `f23952e Add clipboard fallback for copy actions`. Work only from `C:\dev\pluga-command-system`. No deployment/Vercel yet.
+
+**What changed (3 files):**
+
+- Added shared clipboard helper: `src/lib/clipboard.ts`.
+- Updated copy call sites: `src/app/(protected)/forum/page.tsx` and `src/app/(protected)/schedule/page.tsx`.
+- Helper first tries `navigator.clipboard.writeText`, then falls back to a temporary hidden textarea, `select`, iOS-friendly `setSelectionRange`, and `document.execCommand('copy')`; the textarea is removed in `finally`, and callers receive a structured result instead of an exception.
+- Fixes BUG-COPY-001: copy actions could fail on iPhone / HTTP LAN because `navigator.clipboard` may be unavailable in insecure contexts.
+
+**Not changed:** WhatsApp generation logic, schedule text generation, aggregation, owner mapping, permissions, lifecycle logic, SQL/RLS/Auth/proxy/migrations, package files, or `companyReport`.
+
+**QA basis:** `npm run lint`, `npx tsc -p tsconfig.json --noEmit`, and `npm run build` passed. Authenticated QA passed as MP and MM1. Forum known-good date `2026-08-20` passed with `124/138`, platoon counts `32/35`, `30/34`, `28/33`, `34/36`, the UPDATED marker present, and no platoon swap. Desktop copy passed for Forum WhatsApp and Schedule. iPhone Safari over HTTP LAN (`http://192.168.1.250:3100`) passed physically: Forum WhatsApp pasted full output, Schedule pasted full output for tomorrow's schedule, and visual/scroll remained usable.
+
+**Known remaining issues not fixed in Batch 3A:** BUG-AUTH-008 logout does not call `signOut`; BUG-CONTEXT-009 AppContext demo commander fallback; BUG-TRACK-003 Tracking UI exposes actions that RLS blocks; BUG-REQ-008 Requests specialist/status UI/RLS mismatch; BUG-FORUM-010 bulk close lacks future multi-company scope; BUG-FORUM-011 MM subordinate reports branch shows a linking requirement rather than actual subordinate reports; BUG-TT-007 small touch targets in some non-primary controls.
+
+**Open after Batch 3A:** fix real logout, review/remove production demo fallback, add Tracking permission-aware UI gating, align Request status UI/RLS, decide creator request cancellation, decide own forum post deletion, improve fetch waterfalls/skeletons, polish small touch targets, and keep code/docs commits separate.
+
 ## Milestone Snapshot - Forum Daily Structured Company Flow (round closed at `cdcd99f`)
 
 > Full round detail, P0–P3 work plan, standing QA checklist, and risk matrix:

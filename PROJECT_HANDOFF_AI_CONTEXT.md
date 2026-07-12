@@ -2,6 +2,106 @@
 
 Authoritative technical handoff for AI agents and developers continuing work on `pluga-command-system`.
 
+## Current Override - Batch 4B: Multi-Company Architecture Plan v1 (PLANNING ONLY — no code)
+
+**Status:** Planning/docs only. No code, no SQL, no RLS, no Auth, no migration, no commit, no push.
+This section supersedes nothing in behavior — it defines the target architecture for turning the
+single-company MVP into a multi-company (multi-פלוגה) system with commander-driven invitations. The
+existing app still assumes **one** company; nothing below is implemented yet.
+
+### Goal
+Today one deployment = one פלוגה. `is_commander()` (DB) and `canSeeAll` (client) are **global** —
+a מ״פ sees *everything in the system*, not "everything in my company". The target: every מ״פ opens
+their own פלוגה, invites users by email, and each company is fully isolated (zero cross-company
+leakage). New core requirement: a מ״פ enters emails from inside the app, assigns role + מסגרת, and
+an **Invitation / Pending Member** is created (the מ״פ does not create passwords).
+
+### Locked product decisions
+1. **One company per user** → single `users.company_id` (not a `company_members` table yet).
+2. **Self-serve company creation** → any registered user can open a פלוגה and become its מ״פ.
+   **(Phase 1 direction only — still subject to abuse-control / future approval policy; guardrails
+   or an approval step may be added before real production to prevent misuse.)**
+3. **מ״פ invites by email + role + מסגרת** → creates an Invitation, never a password.
+4. **Invitation = auto-approval** → an invited email that registers lands active/approved.
+5. **Email-match only** → invitation keyed by `(company_id, lower(email))`; no email sent by the
+   app, no token/link.
+6. **tenant = פלוגה** for this phase (מחלקה/מפל״ג stay as internal `units`, not tenants).
+7. **No global super-admin** in phase 1.
+8. **No company switcher** in phase 1 (one company per user makes it unnecessary).
+
+### Open product decisions (do not block the plan; resolve before the relevant batch)
+- A self-registered email with **no** matching invitation → recommendation: it is **not** attached
+  to any company (closes a leakage vector), so the old self-select-role approval path largely
+  disappears.
+- Same email already belongs to another company → recommendation: block the second acceptance,
+  surface a conflict to the inviting מ״פ.
+- Invitation expiry window (recommendation: 14 days, resendable).
+- Abuse-control / approval policy for self-serve company creation (see locked decision #2).
+- Whether to later rename the forum `company_unit_id` (see below) to avoid tenant-name collision.
+
+### Central risk (why sequencing matters)
+The entire authorization layer is **global**, not company-scoped:
+- `public.is_commander(auth.uid())` (`002_rls_policies.sql`) — role/level only, no company.
+- `canSeeAll` — recomputed per page (`dashboard/tasks/requests/schedule/forum`) from role+level,
+  and relied on to both *load* data and *gate* commander UI.
+The moment a **second company** exists in the DB **before** company-scoped RLS hardening, **every
+מ״פ will read and edit every company's data** (users, tasks, requests, forum, tracking). This is
+the code's default behavior, not a rare edge case.
+
+> **HARD RULE: do not insert a second company into the DB before company scope + RLS hardening
+> land and pass a leak-test QA.**
+
+### Important naming distinction — `company_unit_id` vs future `company_id`
+`forum_daily_reports.company_unit_id` (migration 010) is a **report-hierarchy** field
+(squad→platoon→company→staff rollup *inside one company*) — it is **NOT** a tenant boundary. The
+future multi-company `company_id` is the **tenant** column added to every scoped table. These are
+different concepts that will share a confusingly similar name; keep them distinct in every plan and
+review (possible future rename of the forum field is an open decision).
+
+### Recommended multi-company model (Option C — Hybrid)
+New thin `companies` table as the tenant root; keep `units` as the company's internal tree; add an
+explicit, denormalized `company_id` to every scoped entity + `users.company_id`. RLS becomes a cheap
+`company_id = current_company_id()`. Rejected: Option A (units-as-root — `units.code` is globally
+unique and RLS would need recursive tree walks) and Option B (full organizations/members hierarchy —
+over-engineered for "one company per user").
+
+### Invitation / Pending Member model (design only)
+- New `company_invitations` table: `company_id`, `email` (lowercased), `role`, `unit_id`,
+  `commanded_unit_id`, `permission_level`, `invited_by`, `status` (`invited|accepted|expired|
+  revoked`), `expires_at`, `accepted_at`, `accepted_user_id`, `metadata`. Partial unique
+  `(company_id, lower(email)) where status='invited'`. **No `token_hash`** in the chosen model.
+- Acceptance MUST run in a trusted context — a **SECURITY DEFINER RPC `accept_invitation()`** that
+  matches the verified email to an open invitation and provisions `users.company_id/role/unit/
+  status`. A new user must never write their own `company_id/role/status` from the client.
+- `create_company()` SECURITY DEFINER RPC seeds default units (the seed template) and makes the
+  creator an approved מ״פ (subject to the abuse-control / approval policy in decision #2).
+- Natural UI home: a new section inside the existing `admin` page (already מ״פ/סמ"פ-gated).
+
+### Prerequisites before ANY implementation
+- **Real logout** — fix BUG-AUTH-008 (`AppSidebar.tsx` logout is a `<Link href="/login">`; it never
+  calls `supabase.auth.signOut()`).
+- **Remove/gate the AppContext demo-commander fallback** — BUG-CONTEXT-009 (`AppContext.tsx` falls
+  back to a hardcoded מ״פ on profile-load failure; doubly dangerous once companies exist).
+- **Company-scoped RLS** must land and pass leak QA before a second company exists.
+- **No migration before explicit approval** — SQL stays manual-only; `016` is not written/applied.
+
+### Recommended batches (PLAN ONLY — not authorized)
+- **4B** — this doc: architecture + locked decisions. *(current)*
+- **4C** — schema/migration **draft** only (`companies`, `company_invitations`, `company_id`
+  columns, RPCs, RLS functions). **Draft only: no apply, no SQL execution, no migration run, no
+  DB/RLS change, and no file/code implementation beyond approved docs unless explicitly approved
+  later.**
+- **4D** — default company + backfill (staging); single-company regression = zero.
+- **4E** — company-scope hardening: rewrite RLS + replace global `canSeeAll`/`is_commander` with
+  `is_commander_of(company)`; includes the logout + demo-fallback prerequisites.
+- **4F** — `company_invitations` + `accept_invitation` + `create_company` (security review).
+- **4G** — Manage Members / Invite UI (single + bulk paste `email, role, unit`).
+- **4H** — join/accept flow wired into registration + `auth/callback`.
+- **4I** — multi-company QA: two companies, two מ״פ, full leak matrix.
+
+Full audit evidence (file/line level) is available on request; see also `PROJECT_SUMMARY.md`
+(product-level summary) and the forum note in `FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`.
+
 ## Current Override - Batch 3A Clipboard Copy Fallback
 
 **Last updated:** Batch 3A Clipboard Copy Fallback checkpoint  

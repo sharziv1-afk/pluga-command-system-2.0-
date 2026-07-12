@@ -1,5 +1,37 @@
 # Project Summary - pluga-command-system
 
+## Multi-Company Architecture Plan v1 — Batch 4B (PLANNING ONLY, no code)
+
+Target: turn the single-פלוגה MVP into a multi-company system where every מ״פ opens their own
+פלוגה and invites users by email. **Nothing here is implemented** — no code/SQL/RLS/Auth/migration/
+commit. Full technical detail in `PROJECT_HANDOFF_AI_CONTEXT.md` ("Current Override - Batch 4B").
+
+**Locked decisions:** one company per user (`users.company_id`); self-serve company creation by מ״פ
+(Phase 1 direction — still subject to abuse-control / future approval policy; guardrails or an
+approval step may be added before real production to prevent misuse); מ״פ invites by email + role +
+מסגרת (no passwords); invitation = auto-approval; email-match only (no sent email/token); tenant =
+פלוגה; no global super-admin and no company switcher in phase 1.
+
+**Invitation / Pending Member:** new `company_invitations` table keyed by `(company_id, email)`;
+acceptance via a SECURITY DEFINER `accept_invitation()` RPC (a new user never writes their own
+company/role/status); `create_company()` RPC seeds default units and makes the creator an approved
+מ״פ; UI lives inside the existing מ״פ-gated `admin` page.
+
+**Central risk:** `is_commander()` (DB) and `canSeeAll` (client) are **global**, not company-scoped.
+Adding a second company before RLS hardening = every מ״פ sees/edits every company's data.
+**Hard rule: no second company in the DB before company scope + RLS hardening pass leak QA.**
+
+**Naming caution:** the existing `forum_daily_reports.company_unit_id` is a report-hierarchy rollup
+field (inside one company), **not** the future tenant `company_id`. Keep them distinct.
+
+**Prerequisites before implementation:** real logout (BUG-AUTH-008); remove/gate the AppContext
+demo-commander fallback (BUG-CONTEXT-009); company-scoped RLS; no migration before explicit approval.
+
+**Recommended batches (plan only):** 4C schema/migration **draft only** (no apply, no SQL execution,
+no migration run, no DB/RLS change, no code beyond approved docs unless explicitly approved later) →
+4D default company + backfill → 4E company-scope RLS hardening → 4F invitations + RPCs → 4G Manage
+Members / Invite UI → 4H join/accept flow → 4I multi-company leak QA.
+
 ## Current Snapshot - Batch 3A Clipboard Copy Fallback (pushed)
 
 **Product:** `pluga-command-system` / "המפקד"  

@@ -25,6 +25,22 @@ aggregation, correct platoon owner mapping, the `created_by` vs `owner_user_id` 
 WhatsApp short/detailed preview mapping, and the publish/close/reopen + read-only-after-close
 lifecycle.
 
+> **Post-round addendum 6 — Multi-Company planning note (Batch 4B, DOCS ONLY — no code).**
+> Forward-looking planning only; no forum code/logic/SQL/RLS was changed. Two forum-specific points
+> for the future multi-company (multi-פלוגה) work:
+> **(1) `company_unit_id` is NOT a tenant.** `forum_daily_reports.company_unit_id` (migration 010) is
+> a **report-hierarchy** rollup field (squad→platoon→company→staff *inside one company*). The future
+> multi-company tenant boundary is a separate `company_id` column added to every scoped table,
+> including `forum_daily_reports`. Do not conflate them; a future rename of the forum field is an
+> open decision.
+> **(2) BUG-FORUM-010 (bulk-close scope).** `publishAndCloseForum` bulk-closes the day filtered
+> **only** by `report_date` (RLS is the current guard). Once multi-company lands, this close path
+> MUST also be scoped by tenant `company_id`, or a מ״פ's publish would close other companies'
+> reports for the same date.
+> Full multi-company plan: `PROJECT_HANDOFF_AI_CONTEXT.md` ("Current Override - Batch 4B"). No second
+> company may enter the DB before company-scoped RLS hardening passes leak QA. Batch 4C (schema/
+> migration) is **draft only** — no apply, no SQL execution, no migration run, no DB/RLS change.
+
 > **Post-round addendum 5 — Batch 3A Clipboard Copy Fallback (HEAD `f23952e`).**
 > Batch 3A closed and was pushed as `f23952e Add clipboard fallback for copy actions` (push range
 > `4177a10..f23952e`). It added a shared helper in `src/lib/clipboard.ts` and updated only the copy

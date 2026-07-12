@@ -1,5 +1,28 @@
 # pluga-command-system - "המפקד"
 
+## Multi-Company Architecture Plan v1 — Batch 4B (PLANNING ONLY, no code)
+
+Planned direction: multi-company (multi-פלוגה) with commander-driven invitations. **Not
+implemented** — no code/SQL/RLS/Auth/migration/commit. Full plan in
+`PROJECT_HANDOFF_AI_CONTEXT.md`; product summary in `PROJECT_SUMMARY.md`.
+
+- **Locked:** one company per user; self-serve company creation by מ״פ (Phase 1 direction — still
+  subject to abuse-control / future approval policy; guardrails or an approval step may be added
+  before real production); מ״פ invites by email + role + מסגרת (no passwords); invitation =
+  auto-approval; email-match only (no sent email/token); tenant = פלוגה; no super-admin / no company
+  switcher in phase 1.
+- **Model:** new `companies` tenant + `company_id` on every scoped table + `company_invitations`;
+  acceptance via a SECURITY DEFINER RPC.
+- **Central risk:** `is_commander()` / `canSeeAll` are **global**. **Do not add a second company to
+  the DB before company scope + RLS hardening pass leak QA.**
+- **Note:** the forum `company_unit_id` is a report-hierarchy field, **not** the future tenant
+  `company_id`.
+- **Prerequisites:** real logout (BUG-AUTH-008); remove/gate AppContext demo-commander fallback
+  (BUG-CONTEXT-009); company-scoped RLS; no migration before approval.
+- **Batches (plan only):** 4C schema/migration **draft only** (no apply, no SQL execution, no
+  migration run, no DB/RLS change, no code beyond approved docs unless explicitly approved later) →
+  4D backfill → 4E RLS hardening → 4F invitations/RPCs → 4G invite UI → 4H join flow → 4I leak QA.
+
 ## Batch 3A Clipboard Copy Fallback Checkpoint (HEAD `f23952e`)
 
 **Git:** `main = origin/main`, working tree clean. Latest pushed work: `4177a10..f23952e`, `f23952e Add clipboard fallback for copy actions`. Work only from `C:\dev\pluga-command-system`. No deployment/Vercel yet.

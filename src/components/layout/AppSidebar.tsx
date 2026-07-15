@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { LogOut, Shield, User } from 'lucide-react';
 import { navigationItems } from '@/data/navigation';
 import { cn } from '@/lib/utils';
@@ -10,6 +10,7 @@ import { QuickHelp } from '@/components/layout/QuickHelp';
 import { SystemStatusPanel } from '@/components/layout/SystemStatusPanel';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { useApp } from '@/lib/context/AppContext';
+import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 
 type AppSidebarProps = {
   className?: string;
@@ -18,7 +19,23 @@ type AppSidebarProps = {
 
 export const AppSidebar: React.FC<AppSidebarProps> = ({ className, onNavigate }) => {
   const pathname = usePathname();
+  const router = useRouter();
   const { currentUser, isLoading } = useApp();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+
+    const { error } = await createSupabaseBrowserClient().auth.signOut();
+    if (error) {
+      console.error('Supabase sign out failed:', error.message);
+      setIsSigningOut(false);
+      return;
+    }
+
+    router.replace('/login');
+    router.refresh();
+  };
 
   const hasAdminAccess = currentUser && (
     (currentUser.role as string) === 'מ״פ' || 
@@ -112,13 +129,15 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ className, onNavigate })
                 </div>
               </div>
 
-              <Link
-                href="/login"
+              <button
+                type="button"
+                onClick={handleSignOut}
+                disabled={isSigningOut}
                 title="התנתק"
-                className="rounded-xl p-2 text-[#98A2B3] transition hover:bg-red-500/10 hover:text-red-700"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-[#98A2B3] transition hover:bg-red-500/10 hover:text-red-700 disabled:cursor-wait disabled:opacity-50"
               >
                 <LogOut className="h-4 w-4" />
-              </Link>
+              </button>
             </>
           )}
         </div>

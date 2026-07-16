@@ -555,50 +555,12 @@ export default function DashboardPage() {
     setIsLoading(true);
     const nextData: DashboardData = { ...emptyDashboardData, errors: [] };
 
-    const { data: profileRow, error: profileError } = await supabase
-      .from('users')
-      .select('id,name,email,role,unit_id,permission_level')
-      .eq('id', currentUser.id)
-      .maybeSingle<DbProfile>();
-
-    if (profileError) {
-      logSupabaseError('Dashboard profile lookup failed', profileError, {
-        currentUserId: currentUser.id,
-        currentUserEmail: currentUser.email,
-      });
-      nextData.errors.push('טעינת פרופיל המשתמש נכשלה.');
-    }
-
-    let profileData = profileRow;
-
-    if (!profileData) {
-      nextData.errors.push('לא נמצא פרופיל פעיל בטבלת המשתמשים. ייתכן שנדרש שיוך או אישור מנהל.');
-    }
-
-    if (profileData?.unit_id) {
-      const { data: unitData, error: unitError } = await supabase
-        .from('units')
-        .select('name')
-        .eq('id', profileData.unit_id)
-        .maybeSingle<{ name: string }>();
-
-      if (unitError) {
-        logSupabaseError('Dashboard profile unit lookup failed', unitError, {
-          profileId: profileData.id,
-          unitId: profileData.unit_id,
-        });
-      }
-
-      profileData = {
-        ...profileData,
-        unit_name: unitData?.name ?? null,
-        units: unitData ? { name: unitData.name } : null,
-      };
-    }
-
-    nextData.profile = profileData ?? null;
-
-    const [requestsResult, tasksResult, eventsResult, auditResult] = await Promise.all([
+    const [profileResult, requestsResult, tasksResult, eventsResult, auditResult] = await Promise.all([
+      supabase
+        .from('users')
+        .select('id,name,email,role,unit_id,permission_level')
+        .eq('id', currentUser.id)
+        .maybeSingle<DbProfile>(),
       supabase
         .from('requests')
         .select('id,title,description,status,request_type,requested_by,assigned_to,unit_id,event_id,metadata,created_at,updated_at')
@@ -624,6 +586,30 @@ export default function DashboardPage() {
         .limit(8)
         .returns<DbAuditLog[]>(),
     ]);
+
+    const { data: profileRow, error: profileError } = profileResult;
+
+    if (profileError) {
+      logSupabaseError('Dashboard profile lookup failed', profileError, {
+        currentUserId: currentUser.id,
+        currentUserEmail: currentUser.email,
+      });
+      nextData.errors.push('טעינת פרופיל המשתמש נכשלה.');
+    }
+
+    const profileData = profileRow
+      ? {
+          ...profileRow,
+          unit_name: currentUser.assigned_frame,
+          units: { name: currentUser.assigned_frame },
+        }
+      : null;
+
+    if (!profileData) {
+      nextData.errors.push('לא נמצא פרופיל פעיל בטבלת המשתמשים. ייתכן שנדרש שיוך או אישור מנהל.');
+    }
+
+    nextData.profile = profileData ?? null;
 
     if (requestsResult.error) {
       logSupabaseError('Dashboard requests lookup failed', requestsResult.error);

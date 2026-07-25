@@ -38,7 +38,7 @@ export const BottomNav: React.FC = () => {
   const tabCls = (active: boolean) =>
     cn(
       'flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[10px] font-bold transition',
-      active ? 'text-[var(--action)]' : 'text-[var(--text-muted-accessible)]',
+      active ? 'text-[var(--color-action-on-surface)]' : 'text-[var(--text-muted-accessible)]',
     );
 
   return (
@@ -89,11 +89,11 @@ export const BottomNav: React.FC = () => {
                   className={cn(
                     'flex min-h-12 items-center gap-3 rounded-xl border px-3 text-sm font-bold transition',
                     active
-                      ? 'border-[var(--action)]/25 bg-[var(--brand)]/10 text-[var(--action)]'
+                      ? 'border-[var(--action)]/25 bg-[var(--brand)]/10 text-[var(--color-action-on-surface)]'
                       : 'border-transparent text-[var(--text-secondary)] hover:bg-[var(--surface-muted)]',
                   )}
                 >
-                  <Icon className={cn('h-5 w-5', active ? 'text-[var(--action)]' : 'text-[var(--text-muted-accessible)]')} />
+                  <Icon className={cn('h-5 w-5', active ? 'text-[var(--color-action-on-surface)]' : 'text-[var(--text-muted-accessible)]')} />
                   {item.name}
                 </Link>
               </li>

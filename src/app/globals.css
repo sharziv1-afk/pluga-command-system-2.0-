@@ -41,6 +41,7 @@
   --color-brand: #ff6b02;               /* brand accent / decoration */
   --color-action: #c2410c;              /* AA-safe action (5.18:1 vs white) */
   --color-action-hover: #a63d00;
+  --color-action-on-surface: #c2410c;
   --color-teal: #0f766e;
   --color-teal-hover: #115e59;
   --color-success: #067647;
@@ -126,6 +127,7 @@
   --border-strong: rgba(255, 255, 255, 0.16);
   --action: #c2410c;
   --action-hover: #a63d00;
+  --color-action-on-surface: #ffb077;
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 4px 12px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.4), 0 10px 30px rgba(0, 0, 0, 0.45);

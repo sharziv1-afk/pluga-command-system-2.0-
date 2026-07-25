@@ -27,7 +27,7 @@ const variants: Record<Variant, string> = {
   ghost:
     'bg-transparent text-[var(--text-secondary)] hover:bg-[var(--surface-muted)] hover:text-[var(--text-primary)]',
   subtle:
-    'bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-[var(--shadow-xs)] hover:border-[var(--action)] hover:text-[var(--action)]',
+    'bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-[var(--shadow-xs)] hover:border-[var(--action)] hover:text-[var(--color-action-on-surface)]',
   danger:
     'bg-[var(--color-danger)] text-white shadow-[var(--shadow-xs)] hover:brightness-95',
 };
@@ -73,8 +73,8 @@ export const CommandIconButton = React.forwardRef<HTMLButtonElement, CommandIcon
         className={cn(
           'touch-target inline-flex h-9 w-9 items-center justify-center rounded-xl border transition duration-[var(--motion-fast)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring)]',
           active
-            ? 'border-[var(--action)]/30 bg-[var(--brand)]/10 text-[var(--action)]'
-            : 'border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted-accessible)] hover:border-[var(--action)]/30 hover:text-[var(--action)]',
+            ? 'border-[var(--action)]/30 bg-[var(--brand)]/10 text-[var(--color-action-on-surface)]'
+            : 'border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted-accessible)] hover:border-[var(--action)]/30 hover:text-[var(--color-action-on-surface)]',
           className,
         )}
         {...props}

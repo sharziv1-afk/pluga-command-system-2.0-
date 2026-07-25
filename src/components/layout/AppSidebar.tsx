@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LogOut, Shield, User } from 'lucide-react';
-import { navigationItems } from '@/data/navigation';
+import { LogOut, PanelRightClose, PanelRightOpen, Shield, User } from 'lucide-react';
+import { visibleNavItems } from '@/data/navigation';
+import { hasAdminAccess } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 import { QuickHelp } from '@/components/layout/QuickHelp';
 import { SystemStatusPanel } from '@/components/layout/SystemStatusPanel';
@@ -12,129 +13,149 @@ import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { useApp } from '@/lib/context/AppContext';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 
-type AppSidebarProps = {
-  className?: string;
-  onNavigate?: () => void;
-};
+const COLLAPSE_KEY = 'command_sidebar_collapsed';
 
-export const AppSidebar: React.FC<AppSidebarProps> = ({ className, onNavigate }) => {
+export const AppSidebar: React.FC<{ className?: string }> = ({ className }) => {
   const pathname = usePathname();
   const router = useRouter();
   const { currentUser, isLoading } = useApp();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    try {
+      setCollapsed(window.localStorage.getItem(COLLAPSE_KEY) === '1');
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
+
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(COLLAPSE_KEY, next ? '1' : '0');
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
-
     const { error } = await createSupabaseBrowserClient().auth.signOut();
     if (error) {
       console.error('Supabase sign out failed:', error.message);
       setIsSigningOut(false);
       return;
     }
-
     router.replace('/login');
     router.refresh();
   };
 
-  const hasAdminAccess = currentUser && (
-    (currentUser.role as string) === 'מ״פ' || 
-    (currentUser.role as string) === 'מ"פ' || 
-    (currentUser.role as string) === 'סמ״פ' || 
-    (currentUser.role as string) === 'סמ"פ'
-  );
+  const items = visibleNavItems(hasAdminAccess(currentUser?.role as string | undefined));
 
-  const filteredNavigationItems = navigationItems.filter(item => {
-    if (item.path === '/admin') {
-      return hasAdminAccess;
-    }
-    return true;
-  });
+  // Label/text visibility: hidden in rail (md, or lg-collapsed); shown in full (lg + !collapsed).
+  const labelCls = collapsed ? 'hidden' : 'hidden lg:inline';
+  const blockCls = collapsed ? 'lg:hidden' : 'hidden lg:block';
 
   return (
-    <aside className={cn('relative z-30 flex h-svh shrink-0 select-none flex-col border-e border-[rgba(2,1,8,0.10)] bg-white/72 text-right shadow-[0_18px_50px_rgba(2,1,8,0.08)] backdrop-blur-2xl', className)}>
-      <div className="border-b border-[rgba(2,1,8,0.08)] p-4">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#FF6B02]/22 bg-[#FF6B02]/10 text-[#FF6B02]">
-            <Shield className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-base font-black text-[#020108]">המפקד</h1>
-            <p className="mt-0.5 text-[11px] font-bold text-[#667085]">ניהול פיקודי לפלוגה</p>
-          </div>
+    <aside
+      data-collapsed={collapsed}
+      className={cn(
+        'relative z-30 hidden h-svh shrink-0 select-none flex-col border-e border-[var(--border-subtle)] bg-[var(--surface)] text-right shadow-[var(--shadow-xs)] md:flex md:w-[76px]',
+        collapsed ? 'lg:w-[76px]' : 'lg:w-64',
+        className,
+      )}
+    >
+      {/* Brand */}
+      <div className="flex items-center gap-2.5 border-b border-[var(--border-subtle)] p-3 lg:p-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--action)]/25 bg-[var(--brand)]/10 text-[var(--action)]">
+          <Shield className="h-5 w-5" />
         </div>
-
-        <div className="mt-3 flex items-center gap-2">
-          <ThemeToggle />
-          <QuickHelp />
+        <div className={cn('min-w-0', labelCls === 'hidden' ? 'hidden' : 'hidden lg:block')}>
+          <h1 className="truncate text-base font-black text-[var(--text-primary)]">המפקד</h1>
+          <p className="mt-0.5 truncate text-[11px] font-bold text-[var(--text-muted-accessible)]">ניהול פיקודי לפלוגה</p>
         </div>
+        <button
+          type="button"
+          onClick={toggleCollapsed}
+          aria-label={collapsed ? 'הרחב תפריט' : 'כווץ תפריט'}
+          title={collapsed ? 'הרחב תפריט' : 'כווץ תפריט'}
+          className="ms-auto hidden h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted-accessible)] transition hover:bg-[var(--surface-muted)] hover:text-[var(--text-primary)] lg:flex"
+        >
+          {collapsed ? <PanelRightOpen className="h-4 w-4" /> : <PanelRightClose className="h-4 w-4" />}
+        </button>
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto px-2.5 py-4 custom-scrollbar">
-        {filteredNavigationItems.map((item) => {
+      {/* Nav */}
+      <nav aria-label="ניווט ראשי" className="flex-1 space-y-1 overflow-y-auto px-2.5 py-4 custom-scrollbar">
+        {items.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.path || (pathname === '/' && item.path === '/dashboard');
-
           return (
             <Link
               key={item.path}
               href={item.path}
-              onClick={onNavigate}
+              title={item.name}
+              aria-current={isActive ? 'page' : undefined}
               className={cn(
-                'group flex min-h-10 items-center gap-2.5 rounded-xl border px-3 text-[13px] font-bold transition duration-150',
+                'group flex min-h-11 items-center gap-3 rounded-xl border px-2.5 text-[13px] font-bold transition duration-[var(--motion-fast)]',
+                collapsed ? 'lg:justify-center' : 'lg:justify-start',
+                'justify-center lg:justify-start',
                 isActive
-                  ? 'border-[#FF6B02]/24 bg-[#FF6B02]/12 text-[#C54F00] shadow-[0_10px_24px_rgba(255,107,2,0.10)]'
-                  : 'border-transparent text-[#667085] hover:border-[rgba(2,1,8,0.08)] hover:bg-white/72 hover:text-[#020108]'
+                  ? 'border-[var(--action)]/25 bg-[var(--brand)]/10 text-[var(--action)]'
+                  : 'border-transparent text-[var(--text-secondary)] hover:bg-[var(--surface-muted)] hover:text-[var(--text-primary)]',
               )}
             >
-              <Icon
-                className={cn(
-                  'h-4 w-4 transition-colors duration-150',
-                  isActive ? 'text-[#FF6B02]' : 'text-[#98A2B3] group-hover:text-[#FF6B02]'
-                )}
-              />
-              <span>{item.name}</span>
+              <Icon className={cn('h-[18px] w-[18px] shrink-0', isActive ? 'text-[var(--action)]' : 'text-[var(--text-muted-accessible)] group-hover:text-[var(--action)]')} />
+              <span className={labelCls}>{item.name}</span>
             </Link>
           );
         })}
       </nav>
 
-      <div className="border-t border-[rgba(2,1,8,0.08)] p-3">
-        <div className="mb-2">
+      {/* Footer */}
+      <div className="border-t border-[var(--border-subtle)] p-2.5 lg:p-3">
+        <div className={cn('mb-2', blockCls)}>
           <SystemStatusPanel />
         </div>
 
-        <div className="flex items-center justify-between rounded-xl border border-[rgba(2,1,8,0.08)] bg-white/70 p-2.5">
+        <div className="mb-2 flex flex-wrap justify-center gap-2 lg:justify-start">
+          <ThemeToggle />
+          <QuickHelp />
+        </div>
+
+        <div className={cn('flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-muted)] p-2', collapsed ? 'justify-center' : 'justify-center lg:justify-start')}>
           {isLoading ? (
-            <div className="flex w-full items-center gap-2 animate-pulse py-1">
-              <div className="h-8 w-8 rounded-xl bg-[#EEF1F5]" />
-              <div className="flex-1 space-y-1">
-                <div className="h-2.5 w-16 rounded bg-[#EEF1F5]" />
-                <div className="h-2 w-24 rounded bg-[#EEF1F5]" />
+            <div className="flex w-full items-center justify-center gap-2 py-1 lg:justify-start">
+              <div className="h-8 w-8 shrink-0 rounded-lg bg-[var(--border-subtle)] command-skeleton" />
+              <div className={cn('flex-1 space-y-1', blockCls)}>
+                <div className="h-2.5 w-16 rounded bg-[var(--border-subtle)] command-skeleton" />
+                <div className="h-2 w-24 rounded bg-[var(--border-subtle)] command-skeleton" />
               </div>
             </div>
           ) : (
             <>
-              <div className="flex min-w-0 items-center gap-2">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[rgba(2,1,8,0.08)] bg-[#EEF1F5] text-[#667085]">
-                  <User className="h-4 w-4" />
-                </div>
-                <div className="min-w-0">
-                  <span className="block truncate text-xs font-black text-[#020108]">
-                    {currentUser?.full_name || 'משתמש'}
-                  </span>
-                  <span className="block truncate text-[10px] font-bold text-[#667085]">
-                    {currentUser ? `${currentUser.role} • ${currentUser.assigned_frame}` : 'תפקיד לא הוגדר'}
-                  </span>
-                </div>
+              <div className={cn('h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted-accessible)]', collapsed ? 'hidden' : 'hidden lg:flex')}>
+                <User className="h-4 w-4" />
               </div>
-
+              <div className={cn('min-w-0 flex-1', blockCls)}>
+                <span className="block truncate text-xs font-black text-[var(--text-primary)]">
+                  {currentUser?.full_name || 'משתמש'}
+                </span>
+                <span className="block truncate text-[10px] font-bold text-[var(--text-muted-accessible)]">
+                  {currentUser ? `${currentUser.role} • ${currentUser.assigned_frame}` : 'תפקיד לא הוגדר'}
+                </span>
+              </div>
               <button
                 type="button"
                 onClick={handleSignOut}
                 disabled={isSigningOut}
+                aria-label="התנתק"
                 title="התנתק"
-                className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-[#98A2B3] transition hover:bg-red-500/10 hover:text-red-700 disabled:cursor-wait disabled:opacity-50"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[var(--text-muted-accessible)] transition hover:bg-[var(--color-danger)]/10 hover:text-[var(--color-danger)] disabled:cursor-wait disabled:opacity-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring)]"
               >
                 <LogOut className="h-4 w-4" />
               </button>

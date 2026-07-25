@@ -17,26 +17,26 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   actions,
 }) => {
   return (
-    <div className="mb-5 flex flex-col justify-between gap-3 border-b border-[rgba(2,1,8,0.08)] pb-3 md:flex-row md:items-end">
+    <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end">
       <div className="min-w-0">
-        <div className="mb-1 flex items-center gap-1.5 text-[11px] font-bold text-[#667085]">
-          <Shield className="h-3 w-3 text-[#FF6B02]" />
+        <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold text-[var(--text-muted-accessible)]">
+          <Shield className="h-3.5 w-3.5 text-[var(--action)]" />
           <span>{category}</span>
-          <span>·</span>
-          <span className="text-[#FF6B02]">{title}</span>
+          <span aria-hidden>·</span>
+          <span className="text-[var(--action)]">{title}</span>
         </div>
 
-        <h1 className="text-lg font-extrabold text-[#020108] sm:text-xl">{title}</h1>
-        <p className="mt-0.5 max-w-2xl text-[13px] leading-relaxed text-[#667085] sm:text-sm">{subtitle}</p>
+        <h1 className="text-xl font-black tracking-tight text-[var(--text-primary)] sm:text-2xl">{title}</h1>
+        <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-[var(--text-secondary)] sm:text-sm">{subtitle}</p>
         {brief && (
-          <div className="mt-3 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/58 px-3 py-2 text-xs font-bold leading-relaxed text-[#344054]">
+          <div className="mt-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3.5 py-2.5 text-xs font-semibold leading-relaxed text-[var(--text-secondary)]">
             {brief}
           </div>
         )}
       </div>
 
       {actions && (
-        <div className="flex items-center gap-2 self-start md:self-end">
+        <div className="flex flex-wrap items-center gap-2 self-start md:self-end">
           {actions}
         </div>
       )}

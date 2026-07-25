@@ -1,3 +1,14 @@
+/**
+ * Company command roles (מ״פ / סמ״פ) that may access the user-approval / admin area.
+ * Normalises both gershayim (״) and straight-quote (") spellings. Single source of
+ * truth — previously duplicated inline in AppSidebar and MobileHeader.
+ */
+export function hasAdminAccess(role: string | null | undefined): boolean {
+  if (!role) return false;
+  const norm = role.replace(/["״]/g, '"');
+  return norm === 'מ"פ' || norm === 'סמ"פ';
+}
+
 export function getPermissionLevelForRole(role: string): number {
   const normRole = role.replace(/["״]/g, '"'); // Normalize Hebrew gershayim and normal quotes
 

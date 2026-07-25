@@ -1,38 +1,42 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { Loader2, ShieldAlert } from 'lucide-react';
+import { ShieldAlert } from 'lucide-react';
 import { AppSidebar } from '@/components/layout/AppSidebar';
 import { MobileHeader } from '@/components/layout/MobileHeader';
+import { BottomNav } from '@/components/layout/BottomNav';
 import { PageTransition } from '@/components/layout/PageTransition';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { useApp } from '@/lib/context/AppContext';
 
-export default function ProtectedLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+function ContentSkeleton() {
+  return (
+    <div className="mx-auto w-full max-w-5xl space-y-5" aria-hidden>
+      <div className="space-y-2">
+        <div className="command-skeleton h-7 w-52 rounded-lg" />
+        <div className="command-skeleton h-4 w-72 rounded" />
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="command-skeleton h-20 rounded-[var(--radius-card)]" />
+        ))}
+      </div>
+      <div className="command-skeleton h-64 rounded-[var(--radius-card)]" />
+    </div>
+  );
+}
+
+export default function ProtectedLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const { authStatus, authError } = useApp();
 
-  if (authStatus === 'loading') {
-    return (
-      <div className="command-page-shell flex h-svh items-center justify-center p-4" dir="rtl">
-        <div className="flex items-center gap-3 text-sm font-black text-[#667085]" role="status">
-          <Loader2 className="h-5 w-5 animate-spin text-[#FF6B02]" />
-          טוען את פרופיל המשתמש...
-        </div>
-      </div>
-    );
-  }
-
-  if (authStatus !== 'ready') {
+  // Non-authenticated / not-approved states remain standalone (no shell chrome).
+  if (authStatus !== 'ready' && authStatus !== 'loading') {
     let title = 'אין משתמש מחובר';
     let message = 'יש להתחבר מחדש כדי להמשיך.';
     let recoveryHref = '/login';
     let recoveryLabel = 'חזרה למסך הכניסה';
+    let showReload = false;
 
     if (authStatus === 'onboarding_required') {
       title = 'נדרש להשלים את ההרשמה';
@@ -54,28 +58,27 @@ export default function ProtectedLayout({
       title = 'טעינת הפרופיל נכשלה';
       message = 'לא ניתן לטעון את פרופיל המשתמש כרגע. יש לרענן ולנסות שוב.';
       recoveryLabel = 'נסה שוב';
+      showReload = true;
     }
 
     return (
       <div className="command-page-shell flex h-svh items-center justify-center p-4" dir="rtl">
         <GlassCard className="w-full max-w-md text-center">
-          <ShieldAlert className="mx-auto mb-3 h-10 w-10 text-red-600" />
-          <h1 className="text-lg font-black text-[#020108]">{title}</h1>
-          <p className="mt-2 text-sm leading-relaxed text-[#667085]">
-            {authError ?? message}
-          </p>
-          {authStatus === 'error' ? (
+          <ShieldAlert className="mx-auto mb-3 h-10 w-10 text-[var(--color-danger)]" />
+          <h1 className="text-lg font-black text-[var(--text-primary)]">{title}</h1>
+          <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">{authError ?? message}</p>
+          {showReload ? (
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-[#FF6B02] px-4 text-sm font-black text-white transition hover:bg-[#E55F00]"
+              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--action)] px-4 text-sm font-black text-white transition hover:bg-[var(--action-hover)]"
             >
               {recoveryLabel}
             </button>
           ) : (
             <Link
               href={recoveryHref}
-              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-[#FF6B02] px-4 text-sm font-black text-white transition hover:bg-[#E55F00]"
+              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--action)] px-4 text-sm font-black text-white transition hover:bg-[var(--action-hover)]"
             >
               {recoveryLabel}
             </Link>
@@ -85,22 +88,25 @@ export default function ProtectedLayout({
     );
   }
 
+  const loading = authStatus === 'loading';
+
   return (
-    <div className="protected-layout-shell command-page-shell flex h-svh overflow-hidden">
-      <div className="tactical-overlay" />
+    <div className="protected-layout-shell flex h-svh overflow-hidden bg-[var(--color-app-bg)]">
+      <AppSidebar />
 
-      <AppSidebar className="hidden w-64 xl:flex" />
+      <div className="flex min-h-0 flex-1 flex-col">
+        <MobileHeader />
 
-      <div className="protected-content-shell flex min-h-0 flex-1 flex-col">
-        <MobileHeader
-          isSidebarOpen={isSidebarOpen}
-          onToggleSidebar={() => setIsSidebarOpen((value) => !value)}
-        />
-
-        <main className="min-h-0 flex-1 min-w-0 max-w-full overflow-x-hidden overflow-y-auto p-4 sm:p-5 xl:p-6 custom-scrollbar">
-          <PageTransition>{children}</PageTransition>
+        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 pb-24 custom-scrollbar sm:px-5 md:pb-6 xl:px-6">
+          {loading ? (
+            <ContentSkeleton />
+          ) : (
+            <PageTransition>{children}</PageTransition>
+          )}
         </main>
       </div>
+
+      <BottomNav />
     </div>
   );
 }

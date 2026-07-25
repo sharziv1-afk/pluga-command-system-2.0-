@@ -1,7 +1,13 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Rubik:wght@300;400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
+/* ============================================================
+   Light Gloss Operational Shell — canonical design tokens.
+   One source of truth: Tailwind @theme (utilities) mirrors the
+   :root CSS variables below. Prefer semantic tokens (surface,
+   text-primary, action…) over raw hex in new/refactored code.
+   ============================================================ */
 @theme {
+  /* Legacy identity tokens (kept for existing markup) */
   --color-command-bg: #f6f7f9;
   --color-command-bg-secondary: #eef1f5;
   --color-command-text: #020108;
@@ -21,6 +27,32 @@
   --color-status-stuck: #d92d20;
   --color-status-danger: #d92d20;
   --color-status-info: #1570ef;
+
+  /* Canonical semantic tokens (Light Gloss Operational) */
+  --color-app-bg: #f6f7f9;
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-surface-muted: #eef1f5;
+  --color-text-primary: #020108;
+  --color-text-secondary: #475467;
+  --color-text-muted: #667085;          /* accessible ~4.6:1 on surface */
+  --color-border-subtle: rgba(2, 1, 8, 0.08);
+  --color-border-strong: rgba(2, 1, 8, 0.14);
+  --color-brand: #ff6b02;               /* brand accent / decoration */
+  --color-action: #e35a00;              /* accessible action (~3.2:1 vs white) */
+  --color-action-hover: #c94f00;
+  --color-teal: #0f766e;
+  --color-teal-hover: #115e59;
+  --color-success: #067647;
+  --color-warning: #b54708;
+  --color-danger: #d92d20;
+  --color-info: #175cd3;
+  --color-focus-ring: #ff6b02;
+
+  --radius-sm: 0.625rem;   /* 10px */
+  --radius-md: 0.875rem;   /* 14px */
+  --radius-lg: 1rem;       /* 16px */
+  --radius-xl: 1.25rem;    /* 20px */
 }
 
 :root {
@@ -39,11 +71,39 @@
   --command-subtle: #98a2b3;
   --orange-soft: rgba(255, 107, 2, 0.12);
   --orange-border: rgba(255, 107, 2, 0.28);
-  
+
   --status-success: #079455;
   --status-stuck: #d92d20;
   --status-danger: #d92d20;
   --status-info: #1570ef;
+
+  /* Canonical semantic surfaces + elevation + motion */
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-muted: #eef1f5;
+  --text-primary: #020108;
+  --text-secondary: #475467;
+  --text-muted-accessible: #667085;
+  --border-subtle: rgba(2, 1, 8, 0.08);
+  --border-strong: rgba(2, 1, 8, 0.14);
+  --action: #e35a00;
+  --action-hover: #c94f00;
+  --focus-ring: rgba(255, 107, 2, 0.45);
+
+  --radius-card: 1rem;
+
+  /* Layered, restrained elevation — crisp, not heavy */
+  --shadow-xs: 0 1px 2px rgba(2, 1, 8, 0.05);
+  --shadow-sm: 0 1px 2px rgba(2, 1, 8, 0.04), 0 4px 10px rgba(2, 1, 8, 0.05);
+  --shadow-md: 0 2px 4px rgba(2, 1, 8, 0.05), 0 8px 24px rgba(2, 1, 8, 0.07);
+  --shadow-lg: 0 8px 32px rgba(2, 1, 8, 0.12);
+
+  /* Motion language — minimal, purposeful */
+  --motion-fast: 120ms;
+  --motion-base: 160ms;
+  --motion-slow: 240ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1.15);
 }
 
 :root[data-theme="dark"] {
@@ -55,6 +115,21 @@
   --tactical-border-hover: rgba(255, 107, 2, 0.38);
   --command-muted: #cbd5e1;
   --command-subtle: #94a3b8;
+
+  --surface: #191b1f;
+  --surface-raised: #1f2227;
+  --surface-muted: #17191d;
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted-accessible: #cbd5e1;
+  --border-subtle: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --action: #ff7a1a;
+  --action-hover: #ff8c38;
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.4), 0 10px 30px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.55);
 }
 
 * {
@@ -72,7 +147,7 @@ body {
     radial-gradient(circle at bottom left, rgba(2,1,8,0.06), transparent 32%),
     #F6F7F9;
   color: var(--foreground);
-  font-family: 'Rubik', 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-rubik), 'Rubik', system-ui, -apple-system, sans-serif;
   direction: rtl;
   overflow-x: hidden;
 }
@@ -102,14 +177,6 @@ textarea {
   overflow-x: hidden;
 }
 
-.protected-content-shell {
-  min-height: 100vh;
-  min-height: 100svh;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-}
-
 /* Custom Tactical Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
@@ -131,26 +198,33 @@ textarea {
   box-shadow: 0 0 8px rgba(255, 107, 2, 0.24);
 }
 
-/* Glassmorphism Card Style */
+/* Card surface — crisp opaque surface, subtle border, restrained elevation.
+   (Was heavy glass/blur; glass is now an accent, not the base surface.) */
 .tactical-glass-card {
-  background: var(--tactical-glass);
-  backdrop-filter: blur(18px) saturate(160%);
-  border: 1px solid var(--tactical-border);
-  box-shadow: 0 14px 36px rgba(2, 1, 8, 0.07);
-  border-radius: 18px;
-  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease, background-color 160ms ease;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-card);
+  transition: border-color var(--motion-base) var(--ease-standard),
+              box-shadow var(--motion-base) var(--ease-standard),
+              transform var(--motion-base) var(--ease-standard);
 }
 
 :root[data-theme="dark"] .tactical-glass-card {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.28);
+  background: var(--surface-raised);
+  border-color: var(--border-subtle);
+  box-shadow: var(--shadow-sm);
 }
 
 .tactical-glass-card:hover {
-  border-color: var(--tactical-border-hover);
-  box-shadow: 0 18px 44px rgba(2, 1, 8, 0.09);
-  transform: translateY(-1px);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+
+/* Optional glass accent — opt-in only, e.g. sticky bars / overlays */
+.command-glass-accent {
+  background: var(--tactical-glass);
+  backdrop-filter: blur(14px) saturate(150%);
 }
 
 /* Glowing Border for simulations or active elements */
@@ -201,31 +275,6 @@ textarea {
 
 .tactical-gloss-highlight:hover::before {
   left: 150%;
-}
-
-/* Scanline and Tactical Overlay Effects */
-.tactical-overlay {
-  background:
-    linear-gradient(rgba(2, 1, 8, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(2, 1, 8, 0.025) 1px, transparent 1px);
-  background-size: 32px 32px;
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: -1;
-  opacity: 0.32;
-}
-
-.tactical-overlay::after {
-  content: " ";
-  display: block;
-  position: absolute;
-  top: 0; left: 0; bottom: 0; right: 0;
-  background: linear-gradient(90deg, rgba(255, 107, 2, 0.03), rgba(255, 255, 255, 0.02), rgba(2, 1, 8, 0.02));
-  z-index: 2;
-  background-size: 100% 100%;
-  pointer-events: none;
-  opacity: 0.45;
 }
 
 .command-page-shell {
@@ -612,13 +661,6 @@ option {
   color: #94a3b8 !important;
 }
 
-:root[data-theme="dark"] .tactical-overlay {
-  background:
-    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-  opacity: 0.2;
-}
-
 /* ============================================================
    Mobile-first form + touch foundation (Commit #1)
    Reusable primitives for the mobile/touch baseline. Additive only.
@@ -665,14 +707,10 @@ option {
    merges the pair and keeps only the last declaration written (Chrome then gets
    nothing). Write backdrop-filter only; the toolchain emits the -webkit- prefix. */
 @media (max-width: 640px) {
+  /* Cards are now opaque surfaces (no base blur), so phones only need a
+     lighter shadow — cheaper to paint, same crisp look. */
   .tactical-glass-card {
-    backdrop-filter: blur(8px) saturate(120%);
-    box-shadow: 0 8px 20px rgba(2, 1, 8, 0.06);
-  }
-
-  .command-icon-button,
-  .command-soft-panel {
-    backdrop-filter: blur(8px);
+    box-shadow: var(--shadow-xs);
   }
 }
 
@@ -688,4 +726,86 @@ option {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ============================================================
+   Light Gloss Operational Shell — component layer
+   Native <dialog>-based Dialog/Sheet (focus-trap, Esc, top-layer
+   for free), responsive shell helpers, safe areas, KPI type.
+   ============================================================ */
+
+/* Safe-area helpers (mobile bottom nav / sheets) */
+.safe-bottom { padding-bottom: max(0.5rem, env(safe-area-inset-bottom)); }
+.safe-bottom-nav { padding-bottom: max(0.375rem, env(safe-area-inset-bottom)); }
+
+/* Native dialog primitives ------------------------------------ */
+.command-overlay {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  max-width: 100vw;
+  max-height: 100dvh;
+  overflow: visible;
+}
+.command-overlay::backdrop {
+  background: rgba(2, 1, 8, 0.42);
+  animation: command-fade-in var(--motion-base) var(--ease-standard);
+}
+
+/* Centered dialog (confirm / compact) */
+.command-dialog {
+  margin: auto;
+  width: min(560px, calc(100vw - 2rem));
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+}
+.command-dialog[open] { animation: command-dialog-in var(--motion-base) var(--ease-emphasized); }
+
+/* Side sheet (tablet/desktop): full-height panel on the inline-end edge.
+   NOTE: never set `display` here — the native dialog's UA rule
+   `dialog:not([open]) { display: none }` must keep the closed sheet hidden. */
+.command-sheet {
+  position: fixed;
+  inset-block: 0;
+  inset-inline-end: 0;
+  inset-inline-start: auto;
+  margin: 0;
+  height: 100dvh;
+  width: min(30rem, 100vw);
+  background: var(--surface);
+  border-inline-start: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-lg);
+}
+.command-sheet[open] { animation: command-sheet-in var(--motion-slow) var(--ease-standard); }
+
+/* Bottom sheet on phones */
+@media (max-width: 640px) {
+  .command-sheet {
+    inset-inline: 0;
+    inset-block-start: auto;
+    inset-block-end: 0;
+    width: 100%;
+    height: auto;
+    max-height: 92dvh;
+    border-inline-start: none;
+    border-top: 1px solid var(--border-subtle);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  }
+  .command-sheet[open] { animation: command-sheet-up var(--motion-slow) var(--ease-standard); }
+}
+
+@keyframes command-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes command-dialog-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes command-sheet-in { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
+@keyframes command-sheet-up { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* Numeric KPI figure — tabular, prominent */
+.command-kpi {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1;
 }

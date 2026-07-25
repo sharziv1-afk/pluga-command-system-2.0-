@@ -11,7 +11,7 @@ export const GlassCard: React.FC<GlassCardProps> = ({
   children,
   className,
   glow = 'none',
-  glossHighlight = true,
+  glossHighlight = false,
   ...props
 }) => {
   return (

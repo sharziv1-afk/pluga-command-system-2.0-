@@ -15,7 +15,6 @@ import {
   Trash2,
   Truck,
   UserCheck,
-  X,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -23,6 +22,10 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { GlossyButton } from '@/components/ui/GlossyButton';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { MetricCard } from '@/components/ui/MetricCard';
+import { CommandOverlay, CommandConfirmDialog } from '@/components/ui/CommandDialog';
+import { CommandButton } from '@/components/ui/CommandButton';
+import { CommandInput, CommandSelect, CommandTextarea } from '@/components/ui/CommandField';
 import { createAuditLog } from '@/lib/audit';
 import { useApp } from '@/lib/context/AppContext';
 import { getPermissionLevelForRole } from '@/lib/permissions';
@@ -120,11 +123,13 @@ const statusLabels: Record<RequestStatus, string> = {
   cancelled: 'בוטל',
 };
 
+// Priority chips: semantic escalation only (neutral → warning → danger).
+// No blue/purple — keeps the palette to the teal + orange identity.
 const priorityStyles: Record<RequestPriority, string> = {
-  נמוכה: 'border-slate-500/20 bg-slate-500/10 text-slate-700',
-  רגילה: 'border-blue-500/20 bg-blue-500/10 text-blue-700',
-  גבוהה: 'border-[#FF6B02]/25 bg-[#FF6B02]/10 text-[#C54F00]',
-  דחופה: 'border-red-500/20 bg-red-500/10 text-red-700',
+  נמוכה: 'border-[var(--border-strong)] bg-[var(--surface-muted)] text-[var(--text-muted-accessible)]',
+  רגילה: 'border-[var(--border-strong)] bg-[var(--surface-muted)] text-[var(--text-secondary)]',
+  גבוהה: 'border-[var(--color-warning)]/25 bg-[var(--color-warning)]/10 text-[var(--color-warning)]',
+  דחופה: 'border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 text-[var(--color-danger)]',
 };
 
 const TABS: { id: TabId; label: string }[] = [
@@ -264,6 +269,7 @@ export default function RequestsPage() {
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [updatingAssigneeId, setUpdatingAssigneeId] = useState<string | null>(null);
   const [deletingRequestId, setDeletingRequestId] = useState<string | null>(null);
+  const [confirmDeleteRequest, setConfirmDeleteRequest] = useState<DbRequest | null>(null);
   const [openComments, setOpenComments] = useState<Record<string, boolean>>({});
   const [commentsByRequest, setCommentsByRequest] = useState<Record<string, DbComment[]>>({});
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
@@ -782,8 +788,7 @@ export default function RequestsPage() {
 
   const handleDeleteClosedRequest = async (request: DbRequest) => {
     if (!dbProfile || !canDeleteRequest(request)) return;
-    const confirmed = window.confirm('האם למחוק דרישה סגורה זו?');
-    if (!confirmed) return;
+    setConfirmDeleteRequest(null);
 
     setDeletingRequestId(request.id);
     setError(null);
@@ -932,7 +937,7 @@ export default function RequestsPage() {
       <div className="space-y-6">
         <PageHeader title="דרישות ובקשות" subtitle="מוקד פתיחה, תיעדוף וטיפול בבקשות מהשטח" />
         <GlassCard className="flex flex-col items-center justify-center py-12 text-center">
-          <ShieldAlert className="mb-3 h-10 w-10 text-red-500" />
+          <ShieldAlert className="mb-3 h-10 w-10 text-[var(--color-danger)]" />
           <h2 className="text-sm font-black text-[#020108]">לא נמצא פרופיל משתמש</h2>
           <p className="mt-2 max-w-sm text-sm font-semibold leading-relaxed text-[#667085]">
             יש להתחבר מחדש כדי לפתוח או לצפות בבקשות.
@@ -948,7 +953,7 @@ export default function RequestsPage() {
         title="דרישות ובקשות"
         subtitle="מוקד פתיחה, תיעדוף וטיפול בבקשות מהשטח"
         actions={
-          <GlossyButton variant="orange" size="sm" onClick={() => setIsFormOpen(v => !v)}>
+          <GlossyButton variant="orange" size="sm" onClick={() => setIsFormOpen(true)}>
             <Plus className="h-4 w-4" />
             פתיחת בקשה חדשה
           </GlossyButton>
@@ -956,107 +961,72 @@ export default function RequestsPage() {
       />
 
       {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <GlassCard className="min-h-28">
-          <span className="text-xs font-black text-[#667085]">בקשות פתוחות</span>
-          <div className="mt-2 flex items-end justify-between gap-3">
-            <span className="text-3xl font-black text-[#020108]">{openCount}</span>
-            <Clock3 className="h-7 w-7 text-[#FF6B02]" />
-          </div>
-        </GlassCard>
-        <GlassCard className="min-h-28">
-          <span className="text-xs font-black text-[#667085]">בקשות דחופות</span>
-          <div className="mt-2 flex items-end justify-between gap-3">
-            <span className="text-3xl font-black text-[#020108]">{urgentCount}</span>
-            <AlertTriangle className="h-7 w-7 text-red-600" />
-          </div>
-        </GlassCard>
-        <GlassCard className="min-h-28">
-          <span className="text-xs font-black text-[#667085]">בטיפול</span>
-          <div className="mt-2 flex items-end justify-between gap-3">
-            <span className="text-3xl font-black text-[#020108]">{inProgressCount}</span>
-            <RefreshCw className="h-7 w-7 text-blue-500" />
-          </div>
-        </GlassCard>
-        <GlassCard className="min-h-28">
-          <span className="text-xs font-black text-[#667085]">הושלמו</span>
-          <div className="mt-2 flex items-end justify-between gap-3">
-            <span className="text-3xl font-black text-[#020108]">{completedCount}</span>
-            <CheckCircle2 className="h-7 w-7 text-emerald-500" />
-          </div>
-        </GlassCard>
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <MetricCard label="בקשות פתוחות" value={openCount} icon={Clock3} tone="brand" />
+        <MetricCard label="בקשות דחופות" value={urgentCount} icon={AlertTriangle} tone="danger" />
+        <MetricCard label="בטיפול" value={inProgressCount} icon={RefreshCw} tone="info" />
+        <MetricCard label="הושלמו" value={completedCount} icon={CheckCircle2} tone="success" />
       </div>
 
-      {/* New Request Form */}
-      {isFormOpen && (
-        <GlassCard glow="orange" className="space-y-4">
-          <div className="flex items-center gap-2 border-b border-[rgba(2,1,8,0.08)] pb-3">
-            <Truck className="h-4 w-4 text-[#FF6B02]" />
-            <h2 className="text-sm font-black text-[#020108]">פתיחת בקשה חדשה</h2>
+      {/* New Request — side sheet (desktop) / bottom sheet (mobile) */}
+      <CommandOverlay
+        open={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        title="פתיחת בקשה חדשה"
+        description="פרטי הבקשה יישלחו למטפלים הרלוונטיים לפי קטגוריה."
+        variant="sheet"
+        footer={
+          <>
+            <CommandButton variant="ghost" onClick={() => setIsFormOpen(false)} disabled={isSubmitting}>
+              ביטול
+            </CommandButton>
+            <CommandButton
+              type="submit"
+              form="request-create-form"
+              variant="primary"
+              loading={isSubmitting}
+              icon={<CheckCircle2 className="h-4 w-4" />}
+            >
+              שמור בקשה
+            </CommandButton>
+          </>
+        }
+      >
+        <form id="request-create-form" onSubmit={handleCreateRequest} className="space-y-4">
+          <CommandInput
+            label="כותרת"
+            required
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            placeholder="לדוגמה: השלמת ציוד קשר למחלקה"
+            disabled={isSubmitting}
+          />
+          <CommandTextarea
+            label="פירוט"
+            required
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            placeholder="פרט מה נדרש, למה, ועד מתי."
+            disabled={isSubmitting}
+          />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <CommandSelect label="קטגוריה" value={category} onChange={e => setCategory(e.target.value as RequestCategory)} disabled={isSubmitting}>
+              {categories.map(item => <option key={item} value={item}>{item}</option>)}
+            </CommandSelect>
+            <CommandSelect label="עדיפות" value={priority} onChange={e => setPriority(e.target.value as RequestPriority)} disabled={isSubmitting}>
+              {priorities.map(item => <option key={item} value={item}>{item}</option>)}
+            </CommandSelect>
           </div>
-          <form onSubmit={handleCreateRequest} className="grid gap-4 lg:grid-cols-2">
-            <label className="block space-y-2 lg:col-span-2">
-              <span className="block text-xs font-black text-[#344054]">כותרת</span>
-              <input
-                required
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                className="command-input"
-                placeholder="לדוגמה: השלמת ציוד קשר למחלקה"
-                disabled={isSubmitting}
-              />
-            </label>
-            <label className="block space-y-2 lg:col-span-2">
-              <span className="block text-xs font-black text-[#344054]">פירוט</span>
-              <textarea
-                required
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                className="command-input min-h-28 resize-none"
-                placeholder="פרט מה נדרש, למה, ועד מתי."
-                disabled={isSubmitting}
-              />
-            </label>
-            <label className="block space-y-2">
-              <span className="block text-xs font-black text-[#344054]">קטגוריה</span>
-              <select value={category} onChange={e => setCategory(e.target.value as RequestCategory)} className="command-select" disabled={isSubmitting}>
-                {categories.map(item => <option key={item} value={item}>{item}</option>)}
-              </select>
-            </label>
-            <label className="block space-y-2">
-              <span className="block text-xs font-black text-[#344054]">עדיפות</span>
-              <select value={priority} onChange={e => setPriority(e.target.value as RequestPriority)} className="command-select" disabled={isSubmitting}>
-                {priorities.map(item => <option key={item} value={item}>{item}</option>)}
-              </select>
-            </label>
-            <label className="block space-y-2 lg:col-span-2">
-              <span className="block text-xs font-black text-[#344054]">שייך למופע</span>
-              <select
-                value={selectedEventId}
-                onChange={event => setSelectedEventId(event.target.value)}
-                className="command-select"
-                disabled={isSubmitting}
-              >
-                <option value="none">ללא שיוך</option>
-                {eventOptions.map(event => (
-                  <option key={event.id} value={event.id}>
-                    {event.title} — {event.starts_at ? formatDateTime(event.starts_at) : 'ללא זמן'}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="flex flex-col gap-2 lg:col-span-2 sm:flex-row">
-              <GlossyButton type="submit" variant="orange" size="lg" disabled={isSubmitting} className="flex-1">
-                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                שמור בקשה
-              </GlossyButton>
-              <GlossyButton type="button" variant="slate" size="lg" onClick={() => setIsFormOpen(false)} disabled={isSubmitting} className="flex-1">
-                ביטול
-              </GlossyButton>
-            </div>
-          </form>
-        </GlassCard>
-      )}
+          <CommandSelect label="שייך למופע" value={selectedEventId} onChange={event => setSelectedEventId(event.target.value)} disabled={isSubmitting}>
+            <option value="none">ללא שיוך</option>
+            {eventOptions.map(event => (
+              <option key={event.id} value={event.id}>
+                {event.title} — {event.starts_at ? formatDateTime(event.starts_at) : 'ללא זמן'}
+              </option>
+            ))}
+          </CommandSelect>
+        </form>
+      </CommandOverlay>
 
       {success && (
         <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-700">
@@ -1064,13 +1034,13 @@ export default function RequestsPage() {
         </div>
       )}
       {error && (
-        <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-700">
+        <div className="rounded-2xl border border-[var(--color-danger)]/20 bg-[var(--color-danger)]/10 px-4 py-3 text-sm font-bold text-[var(--color-danger)]">
           {error}
         </div>
       )}
 
       {/* Tab bar */}
-      <div className="flex items-center gap-1 overflow-x-auto rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/60 p-1 backdrop-blur-xl">
+      <div className="flex items-center gap-1 overflow-x-auto rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
         {TABS.map(tab => {
           const count = tabCounts[tab.id] ?? 0;
           const isActive = activeTab === tab.id;
@@ -1080,8 +1050,8 @@ export default function RequestsPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`touch-target flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black transition duration-150 ${
                 isActive
-                  ? 'bg-[#FF6B02] text-white shadow-[0_4px_12px_rgba(255,107,2,0.28)]'
-                  : 'text-[#667085] hover:bg-[#FF6B02]/10 hover:text-[#020108]'
+                  ? 'bg-[var(--action)] text-white shadow-[0_4px_12px_rgba(255,107,2,0.28)]'
+                  : 'text-[#667085] hover:bg-[var(--action)]/10 hover:text-[#020108]'
               }`}
             >
               {tab.label}
@@ -1181,7 +1151,7 @@ export default function RequestsPage() {
                       <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${priorityStyles[requestPriority]}`}>
                         {requestPriority}
                       </span>
-                      <span className="rounded-full border border-[#FF6B02]/20 bg-[#FF6B02]/10 px-2.5 py-0.5 text-[11px] font-bold text-[#C54F00]">
+                      <span className="rounded-full border border-[var(--action)]/20 bg-[var(--action)]/10 px-2.5 py-0.5 text-[11px] font-bold text-[#C54F00]">
                         {requestCategory}
                       </span>
                     </div>
@@ -1211,7 +1181,7 @@ export default function RequestsPage() {
                 </div>
 
                 {request.event_id && request.eventTitle && (
-                  <div className="flex items-center gap-2 rounded-2xl border border-[#FF6B02]/15 bg-[#FF6B02]/8 px-3 py-2 text-xs font-bold text-[#C54F00]">
+                  <div className="flex items-center gap-2 rounded-2xl border border-[var(--action)]/15 bg-[var(--action)]/8 px-3 py-2 text-xs font-bold text-[#C54F00]">
                     <Clock3 className="h-4 w-4" />
                     <span>מופע: {request.eventTitle}{request.eventTimeLabel ? ` · ${request.eventTimeLabel}` : ''}</span>
                   </div>
@@ -1238,9 +1208,9 @@ export default function RequestsPage() {
                         </option>
                       ))}
                     </select>
-                    {isUpdatingAssignee && <Loader2 className="h-4 w-4 animate-spin text-[#FF6B02]" />}
+                    {isUpdatingAssignee && <Loader2 className="h-4 w-4 animate-spin text-[var(--action)]" />}
                     {assigneeLoadError && (
-                      <span className="text-[11px] font-bold text-red-700">{assigneeLoadError}</span>
+                      <span className="text-[11px] font-bold text-[var(--color-danger)]">{assigneeLoadError}</span>
                     )}
                   </div>
                 )}
@@ -1274,7 +1244,7 @@ export default function RequestsPage() {
                         >
                           {statusOptions.map(s => <option key={s} value={s}>{statusLabels[s]}</option>)}
                         </select>
-                        {isUpdating && <Loader2 className="h-4 w-4 animate-spin text-[#FF6B02]" />}
+                        {isUpdating && <Loader2 className="h-4 w-4 animate-spin text-[var(--action)]" />}
                       </>
                     )}
                   </div>
@@ -1298,9 +1268,9 @@ export default function RequestsPage() {
                       type="button"
                       variant="slate"
                       size="sm"
-                      onClick={() => handleDeleteClosedRequest(request)}
+                      onClick={() => setConfirmDeleteRequest(request)}
                       disabled={isDeleting}
-                      className="text-red-700 hover:border-red-500/25 hover:bg-red-500/10"
+                      className="text-[var(--color-danger)] hover:border-[var(--color-danger)]/25 hover:bg-[var(--color-danger)]/10"
                     >
                       {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                       מחק
@@ -1313,12 +1283,12 @@ export default function RequestsPage() {
                   <button
                     type="button"
                     onClick={() => toggleComments(request.id)}
-                    className="inline-flex min-h-10 items-center gap-2 rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/60 px-3 py-2 text-xs font-black text-[#020108] transition duration-150 hover:border-[#FF6B02]/30 hover:bg-[#FF6B02]/10"
+                    className="inline-flex min-h-10 items-center gap-2 rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/60 px-3 py-2 text-xs font-black text-[#020108] transition duration-150 hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10"
                   >
-                    <MessageSquareText className="h-4 w-4 text-[#FF6B02]" />
+                    <MessageSquareText className="h-4 w-4 text-[var(--action)]" />
                     {isCommentsOpen ? 'הסתר היסטוריית טיפול' : 'הצג היסטוריית טיפול'}
                     {comments.length > 0 && (
-                      <span className="rounded-full bg-[#FF6B02]/12 px-2 py-0.5 text-[10px] text-[#C54F00]">
+                      <span className="rounded-full bg-[var(--action)]/12 px-2 py-0.5 text-[10px] text-[#C54F00]">
                         {comments.length}
                       </span>
                     )}
@@ -1328,11 +1298,11 @@ export default function RequestsPage() {
                     <div className="mt-3 space-y-3 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/52 p-3">
                       <div className="flex items-center justify-between gap-3">
                         <h4 className="text-xs font-black text-[#020108]">היסטוריית טיפול</h4>
-                        {isLoadingComments && <Loader2 className="h-4 w-4 animate-spin text-[#FF6B02]" />}
+                        {isLoadingComments && <Loader2 className="h-4 w-4 animate-spin text-[var(--action)]" />}
                       </div>
 
                       {commentError && (
-                        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-700">
+                        <div className="rounded-xl border border-[var(--color-danger)]/20 bg-[var(--color-danger)]/10 px-3 py-2 text-xs font-bold text-[var(--color-danger)]">
                           {commentError}
                         </div>
                       )}
@@ -1395,110 +1365,72 @@ export default function RequestsPage() {
         </div>
       )}
 
-      {editingRequest && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/20 p-3 sm:p-6"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="request-edit-title"
-          onClick={closeEditRequest}
-        >
-          <div
-            className="w-full max-w-2xl rounded-3xl border border-white/72 bg-white/92 shadow-[0_24px_70px_rgba(2,1,8,0.18)] backdrop-blur-2xl"
-            onClick={event => event.stopPropagation()}
-            dir="rtl"
-          >
-            <div className="flex items-start justify-between gap-4 border-b border-[rgba(2,1,8,0.08)] px-5 py-4">
-              <div>
-                <h2 id="request-edit-title" className="text-lg font-black text-[#020108]">עריכת דרישה</h2>
-                <p className="mt-1 text-xs font-semibold text-[#667085]">עדכון פרטי הדרישה בלי לשנות סטטוס, מטפל או היסטוריית טיפול.</p>
+      <CommandOverlay
+        open={Boolean(editingRequest)}
+        onClose={closeEditRequest}
+        title="עריכת דרישה"
+        description="עדכון פרטי הדרישה בלי לשנות סטטוס, מטפל או היסטוריית טיפול."
+        variant="sheet"
+        dismissible={!isEditSubmitting}
+        footer={
+          <>
+            <CommandButton variant="ghost" onClick={closeEditRequest} disabled={isEditSubmitting}>
+              ביטול
+            </CommandButton>
+            <CommandButton
+              type="submit"
+              form="request-edit-form"
+              variant="primary"
+              loading={isEditSubmitting}
+              icon={<CheckCircle2 className="h-4 w-4" />}
+            >
+              שמור שינויים
+            </CommandButton>
+          </>
+        }
+      >
+        {editingRequest && (
+          <form id="request-edit-form" onSubmit={handleEditRequest} className="space-y-4">
+            {editError && (
+              <div className="rounded-xl border border-[var(--color-danger)]/20 bg-[var(--color-danger)]/10 px-3.5 py-2.5 text-sm font-bold text-[var(--color-danger)]" role="alert">
+                {editError}
               </div>
-              <button
-                type="button"
-                onClick={closeEditRequest}
-                disabled={isEditSubmitting}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 text-[#020108] transition hover:border-[#FF6B02]/30 hover:bg-[#FF6B02]/10 disabled:opacity-50"
-                aria-label="סגירת עריכת דרישה"
-              >
-                <X className="h-5 w-5" />
-              </button>
+            )}
+            <CommandInput label="כותרת" required value={editTitle} onChange={event => setEditTitle(event.target.value)} disabled={isEditSubmitting} />
+            <CommandTextarea label="פירוט" value={editDescription} onChange={event => setEditDescription(event.target.value)} disabled={isEditSubmitting} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <CommandSelect label="קטגוריה" value={editCategory} onChange={event => setEditCategory(event.target.value as RequestCategory)} disabled={isEditSubmitting}>
+                {categories.map(item => <option key={item} value={item}>{item}</option>)}
+              </CommandSelect>
+              <CommandSelect label="עדיפות" value={editPriority} onChange={event => setEditPriority(event.target.value as RequestPriority)} disabled={isEditSubmitting}>
+                {priorities.map(item => <option key={item} value={item}>{item}</option>)}
+              </CommandSelect>
             </div>
-
-            <form onSubmit={handleEditRequest} className="grid max-h-[75vh] gap-4 overflow-y-auto px-5 py-5 lg:grid-cols-2">
-              {editError && (
-                <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-700 lg:col-span-2">
-                  {editError}
-                </div>
+            <CommandSelect label="שייך למופע" value={editEventId} onChange={event => setEditEventId(event.target.value)} disabled={isEditSubmitting}>
+              <option value="none">ללא שיוך</option>
+              {editingRequest.event_id && !eventOptions.some(event => event.id === editingRequest.event_id) && (
+                <option value={editingRequest.event_id}>מופע נוכחי</option>
               )}
+              {eventOptions.map(event => (
+                <option key={event.id} value={event.id}>
+                  {event.title} — {event.starts_at ? formatDateTime(event.starts_at) : 'ללא זמן'}
+                </option>
+              ))}
+            </CommandSelect>
+          </form>
+        )}
+      </CommandOverlay>
 
-              <label className="block space-y-2 lg:col-span-2">
-                <span className="block text-xs font-black text-[#344054]">כותרת</span>
-                <input
-                  required
-                  value={editTitle}
-                  onChange={event => setEditTitle(event.target.value)}
-                  className="command-input"
-                  disabled={isEditSubmitting}
-                />
-              </label>
-
-              <label className="block space-y-2 lg:col-span-2">
-                <span className="block text-xs font-black text-[#344054]">פירוט</span>
-                <textarea
-                  value={editDescription}
-                  onChange={event => setEditDescription(event.target.value)}
-                  className="command-input min-h-28 resize-none"
-                  disabled={isEditSubmitting}
-                />
-              </label>
-
-              <label className="block space-y-2">
-                <span className="block text-xs font-black text-[#344054]">קטגוריה</span>
-                <select value={editCategory} onChange={event => setEditCategory(event.target.value as RequestCategory)} className="command-select" disabled={isEditSubmitting}>
-                  {categories.map(item => <option key={item} value={item}>{item}</option>)}
-                </select>
-              </label>
-
-              <label className="block space-y-2">
-                <span className="block text-xs font-black text-[#344054]">עדיפות</span>
-                <select value={editPriority} onChange={event => setEditPriority(event.target.value as RequestPriority)} className="command-select" disabled={isEditSubmitting}>
-                  {priorities.map(item => <option key={item} value={item}>{item}</option>)}
-                </select>
-              </label>
-
-              <label className="block space-y-2 lg:col-span-2">
-                <span className="block text-xs font-black text-[#344054]">שייך למופע</span>
-                <select
-                  value={editEventId}
-                  onChange={event => setEditEventId(event.target.value)}
-                  className="command-select"
-                  disabled={isEditSubmitting}
-                >
-                  <option value="none">ללא שיוך</option>
-                  {editingRequest.event_id && !eventOptions.some(event => event.id === editingRequest.event_id) && (
-                    <option value={editingRequest.event_id}>מופע נוכחי</option>
-                  )}
-                  {eventOptions.map(event => (
-                    <option key={event.id} value={event.id}>
-                      {event.title} — {event.starts_at ? formatDateTime(event.starts_at) : 'ללא זמן'}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <div className="flex flex-col gap-2 border-t border-[rgba(2,1,8,0.08)] pt-4 lg:col-span-2 sm:flex-row">
-                <GlossyButton type="submit" variant="orange" size="lg" disabled={isEditSubmitting} className="flex-1">
-                  {isEditSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                  שמור שינויים
-                </GlossyButton>
-                <GlossyButton type="button" variant="slate" size="lg" onClick={closeEditRequest} disabled={isEditSubmitting} className="flex-1">
-                  ביטול
-                </GlossyButton>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <CommandConfirmDialog
+        open={Boolean(confirmDeleteRequest)}
+        onCancel={() => setConfirmDeleteRequest(null)}
+        onConfirm={() => confirmDeleteRequest && handleDeleteClosedRequest(confirmDeleteRequest)}
+        title="מחיקת דרישה סגורה"
+        description={`למחוק לצמיתות את הדרישה "${confirmDeleteRequest?.title ?? ''}"? לא ניתן לשחזר פעולה זו.`}
+        confirmLabel="מחק דרישה"
+        destructive
+        loading={Boolean(deletingRequestId)}
+      />
     </div>
   );
 }

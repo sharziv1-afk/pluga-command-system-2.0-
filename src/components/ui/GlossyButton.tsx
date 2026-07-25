@@ -7,6 +7,11 @@ interface GlossyButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement
   size?: 'sm' | 'md' | 'lg';
 }
 
+/**
+ * Legacy button API (cyan/orange/slate) kept for compatibility across screens,
+ * restyled to the Light Gloss Operational tokens: accessible action colour,
+ * restrained elevation, no plastic gloss overlay.
+ */
 export const GlossyButton: React.FC<GlossyButtonProps> = ({
   children,
   className,
@@ -19,24 +24,20 @@ export const GlossyButton: React.FC<GlossyButtonProps> = ({
     <button
       type={type}
       className={cn(
-        "touch-target relative overflow-hidden font-bold transition duration-150 rounded-2xl cursor-pointer select-none active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#FF6B02]/20",
-        
-        // Variants
-        variant === 'cyan' && "bg-[#0F766E] hover:bg-[#115E59] text-white shadow-[0_12px_26px_rgba(15,118,110,0.16)] border border-[#0F766E]/40",
-        variant === 'orange' && "bg-[#FF6B02] hover:bg-[#E65F00] text-white shadow-[0_14px_28px_rgba(255,107,2,0.24)] border border-[#FF6B02]/45",
-        variant === 'slate' && "bg-white/76 hover:bg-[#FF6B02]/10 text-[#020108] border border-[rgba(2,1,8,0.10)] hover:border-[#FF6B02]/30 shadow-[0_10px_24px_rgba(2,1,8,0.06)] backdrop-blur-xl",
-        
-        // Sizes
-        size === 'sm' && "text-xs min-h-9 px-3 rounded-xl",
-        size === 'md' && "text-sm min-h-10 px-4 rounded-xl",
-        size === 'lg' && "text-sm min-h-11 px-5 rounded-2xl",
-        
-        className
+        'touch-target relative font-bold transition duration-[var(--motion-fast)] rounded-xl cursor-pointer select-none active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none inline-flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring)]',
+
+        variant === 'cyan' && 'bg-[var(--color-teal)] hover:bg-[var(--color-teal-hover)] text-white shadow-[var(--shadow-xs)] border border-transparent',
+        variant === 'orange' && 'bg-[var(--action)] hover:bg-[var(--action-hover)] text-white shadow-[var(--shadow-xs)] border border-transparent',
+        variant === 'slate' && 'bg-[var(--surface)] hover:border-[var(--action)]/30 hover:text-[var(--action)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-[var(--shadow-xs)]',
+
+        size === 'sm' && 'text-xs min-h-9 px-3',
+        size === 'md' && 'text-sm min-h-10 px-4',
+        size === 'lg' && 'text-sm min-h-11 px-5',
+
+        className,
       )}
       {...props}
     >
-      {/* Gloss overlay */}
-      <span className="absolute inset-x-0 top-0 h-[42%] bg-gradient-to-b from-white/30 to-transparent pointer-events-none" />
       <span className="relative z-10 flex items-center gap-1.5">{children}</span>
     </button>
   );

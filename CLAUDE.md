@@ -1,5 +1,16 @@
 @AGENTS.md
 
+## Agentic Workspace (Claude Code)
+
+1. Read `AGENTS.md` first; `.ai-workspace/` is the shared workflow source of truth (`ACTIONS.md`, `ROLE-MATRIX.md`, `WORKFLOW.md`, contracts, playbooks, templates).
+2. The Claude config is canonical under `.ai-workspace/adapters/claude/` (tracked) and synced to the git-ignored `.claude/` via `.\.ai-workspace\bin\ai.cmd claude-sync` (`claude-status` / `claude-validate` / `claude-sync -DryRun`).
+3. The **main session is the orchestrator**; use **Plan mode** for complex work and approve the plan before implementing.
+4. Delegate isolated research, design, implementation, debugging, QA and independent review to the subagents in `.claude/agents/` (or `/plan`, `/design-audit`, `/implement`, `/debug`, `/qa`, `/review`, `/security-review`, `/performance-review`, `/preflight`, `/handoff`).
+5. Never run two **writing** agents on the same files in parallel — isolate parallel writers in git worktrees (`/worktree`).
+6. `/GOAL` and `/LOOP` are for long or complex tasks only.
+7. **No commit/push without explicit approval.** **No Notion writes without an explicit instruction** (draft only).
+8. Rules live in `.ai-workspace/adapters/claude/rules/`; end significant batches with independent review + handoff.
+
 Project-specific notes for Claude Code:
 
 - Read `README.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`, `PROJECT_SUMMARY.md`, `AGENTS.md`, and this file before making changes.

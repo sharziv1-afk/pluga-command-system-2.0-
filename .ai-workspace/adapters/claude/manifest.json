@@ -1,0 +1,38 @@
+{
+  "name": "commander-claude-adapter",
+  "version": "1.0.0",
+  "description": "Canonical Claude Code configuration for pluga-command-system. Source of truth is tracked here under .ai-workspace/adapters/claude; ai-claude-sync.ps1 copies these files into the git-ignored local .claude/ adapter. Rules, templates and README are canonical docs referenced from CLAUDE.md and are intentionally NOT synced (Claude Code does not auto-load .claude/rules or .claude/templates).",
+  "sourceRoot": ".ai-workspace/adapters/claude",
+  "destinationRoot": ".claude",
+  "protected": [
+    "skills",
+    "settings.local.json"
+  ],
+  "files": [
+    { "source": "agents/product-planner.md", "destination": "agents/product-planner.md" },
+    { "source": "agents/ui-ux-designer.md", "destination": "agents/ui-ux-designer.md" },
+    { "source": "agents/implementation-engineer.md", "destination": "agents/implementation-engineer.md" },
+    { "source": "agents/runtime-debugger.md", "destination": "agents/runtime-debugger.md" },
+    { "source": "agents/qa-browser.md", "destination": "agents/qa-browser.md" },
+    { "source": "agents/code-reviewer.md", "destination": "agents/code-reviewer.md" },
+    { "source": "agents/security-performance-reviewer.md", "destination": "agents/security-performance-reviewer.md" },
+    { "source": "agents/release-handoff-manager.md", "destination": "agents/release-handoff-manager.md" },
+    { "source": "commands/plan.md", "destination": "commands/plan.md" },
+    { "source": "commands/design-audit.md", "destination": "commands/design-audit.md" },
+    { "source": "commands/implement.md", "destination": "commands/implement.md" },
+    { "source": "commands/debug.md", "destination": "commands/debug.md" },
+    { "source": "commands/qa.md", "destination": "commands/qa.md" },
+    { "source": "commands/review.md", "destination": "commands/review.md" },
+    { "source": "commands/security-review.md", "destination": "commands/security-review.md" },
+    { "source": "commands/performance-review.md", "destination": "commands/performance-review.md" },
+    { "source": "commands/preflight.md", "destination": "commands/preflight.md" },
+    { "source": "commands/handoff.md", "destination": "commands/handoff.md" },
+    { "source": "commands/notion-update.md", "destination": "commands/notion-update.md" },
+    { "source": "commands/worktree.md", "destination": "commands/worktree.md" },
+    { "source": "hooks/session-context.ps1", "destination": "hooks/session-context.ps1" },
+    { "source": "hooks/guard-bash.ps1", "destination": "hooks/guard-bash.ps1" },
+    { "source": "hooks/subagent-log.ps1", "destination": "hooks/subagent-log.ps1" },
+    { "source": "hooks/stop-reminder.ps1", "destination": "hooks/stop-reminder.ps1" },
+    { "source": "settings.json", "destination": "settings.json" }
+  ]
+}

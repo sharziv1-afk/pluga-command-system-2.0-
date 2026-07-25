@@ -59,6 +59,8 @@
 :root {
   --background: #f6f7f9;
   --foreground: #020108;
+  --color-app-bg: #f6f7f9;
+  --brand: #ff6b02;
   
   --tactical-dark: #ffffff;
   --tactical-glass: rgba(255, 255, 255, 0.72);
@@ -110,6 +112,7 @@
 :root[data-theme="dark"] {
   --background: #101114;
   --foreground: #f8fafc;
+  --color-app-bg: #101114;
   --tactical-glass: rgba(255, 255, 255, 0.08);
   --tactical-strong-glass: rgba(255, 255, 255, 0.12);
   --tactical-border: rgba(255, 255, 255, 0.14);
@@ -164,9 +167,9 @@ body {
 
 a,
 button,
-input,
-select,
-textarea {
+input:not([aria-invalid="true"]),
+select:not([aria-invalid="true"]),
+textarea:not([aria-invalid="true"]) {
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -485,9 +488,9 @@ textarea {
   color: #020108 !important;
 }
 
-:root[data-theme="dark"] input,
-:root[data-theme="dark"] select,
-:root[data-theme="dark"] textarea {
+:root[data-theme="dark"] input:not([aria-invalid="true"]),
+:root[data-theme="dark"] select:not([aria-invalid="true"]),
+:root[data-theme="dark"] textarea:not([aria-invalid="true"]) {
   background-color: rgba(255, 255, 255, 0.1) !important;
   border-color: rgba(255, 255, 255, 0.14) !important;
   color: #f6f7f9 !important;
@@ -648,9 +651,9 @@ option {
   color: #ffb077 !important;
 }
 
-:root[data-theme="dark"] input,
-:root[data-theme="dark"] select,
-:root[data-theme="dark"] textarea,
+:root[data-theme="dark"] input:not([aria-invalid="true"]),
+:root[data-theme="dark"] select:not([aria-invalid="true"]),
+:root[data-theme="dark"] textarea:not([aria-invalid="true"]),
 :root[data-theme="dark"] .auth-dark-input {
   background-color: rgba(255, 255, 255, 0.1) !important;
   border-color: rgba(255, 255, 255, 0.14) !important;

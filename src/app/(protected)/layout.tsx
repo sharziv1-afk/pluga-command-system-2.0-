@@ -91,13 +91,13 @@ export default function ProtectedLayout({ children }: Readonly<{ children: React
   const loading = authStatus === 'loading';
 
   return (
-    <div className="protected-layout-shell flex h-svh overflow-hidden bg-[var(--color-app-bg)]">
+    <div className="protected-layout-shell flex h-svh min-w-0 max-w-full overflow-hidden bg-[var(--color-app-bg)]">
       <AppSidebar />
 
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 max-w-full flex-1 flex-col">
         <MobileHeader />
 
-        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 pb-24 custom-scrollbar sm:px-5 md:pb-6 xl:px-6">
+        <main className="min-h-0 min-w-0 max-w-full flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 pb-24 custom-scrollbar sm:px-5 md:pb-6 xl:px-6">
           {loading ? (
             <ContentSkeleton />
           ) : (

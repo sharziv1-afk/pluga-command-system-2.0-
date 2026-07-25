@@ -1,9 +1,12 @@
 -- 016_users_rls_auth_hardening.sql
 -- Additive draft for review. Apply manually in Supabase only after approval.
 
+begin;
+
 -- Keep the existing commander rules, but make the helper's volatility explicit
 -- for policy planning and query stability.
 alter function public.is_commander(uuid) stable;
+alter function public.is_commander(uuid) set search_path = public;
 
 -- Reconcile the users policy names observed in the live snapshot and in the
 -- repository. Authenticated is intentional: anonymous callers must not enter
@@ -85,7 +88,18 @@ begin
 
   -- The only non-commander re-link allowed is the verified-email claim RPC
   -- for an existing unlinked profile. RLS prevents direct access to that row.
+  -- The claim operation may attach auth_user_id and update safe profile state,
+  -- but it must preserve every sensitive field from the unlinked row.
   if old.auth_user_id is null and new.auth_user_id = v_auth_id then
+    if new.email is distinct from old.email
+       or new.role is distinct from old.role
+       or new.unit_id is distinct from old.unit_id
+       or new.commanded_unit_id is distinct from old.commanded_unit_id
+       or new.permission_level is distinct from old.permission_level
+       or new.role_approval_status is distinct from old.role_approval_status
+       or new.status is distinct from old.status then
+      raise exception 'users sensitive fields are managed by the approval flow';
+    end if;
     return new;
   end if;
 
@@ -113,6 +127,8 @@ create trigger guard_users_sensitive_fields_before_write
 -- Claim only an unlinked profile whose normalized email matches the verified
 -- Auth email. Sensitive values are fixed to safe pending defaults here rather
 -- than accepted from the browser as authority.
+-- Supabase Auth Confirm email is enabled in the supplied snapshot; keep it
+-- enabled because this RPC trusts only the verified email in auth.jwt().
 create or replace function public.claim_own_profile(
   p_email text,
   p_name text,
@@ -165,14 +181,8 @@ begin
   if v_profile_id is not null then
     update public.users
        set auth_user_id = v_auth_id,
-           email = v_email,
            name = v_name,
-           role = v_role,
-           unit_id = p_unit_id,
-           permission_level = 0,
            has_completed_onboarding = true,
-           role_approval_status = 'pending',
-           status = 'pending',
            last_login_at = now(),
            updated_at = now()
      where id = v_profile_id;
@@ -206,8 +216,15 @@ begin
   returning id into v_profile_id;
 
   return v_profile_id;
+exception
+  when unique_violation then
+    raise exception using
+      errcode = '23505',
+      message = 'profile claim conflict';
 end;
 $$;
 
 revoke all on function public.claim_own_profile(text, text, text, uuid) from public;
 grant execute on function public.claim_own_profile(text, text, text, uuid) to authenticated;
+
+commit;

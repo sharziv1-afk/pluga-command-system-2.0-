@@ -167,9 +167,9 @@ body {
 
 a,
 button,
-input:not([aria-invalid="true"]),
-select:not([aria-invalid="true"]),
-textarea:not([aria-invalid="true"]) {
+input,
+select,
+textarea {
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -480,9 +480,9 @@ textarea:not([aria-invalid="true"]) {
   color: #98A2B3 !important;
 }
 
-input,
-select,
-textarea {
+input:not([aria-invalid="true"]),
+select:not([aria-invalid="true"]),
+textarea:not([aria-invalid="true"]) {
   background-color: rgba(255, 255, 255, 0.92) !important;
   border-color: rgba(2, 1, 8, 0.1) !important;
   color: #020108 !important;

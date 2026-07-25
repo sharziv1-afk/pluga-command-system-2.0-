@@ -42,6 +42,15 @@ yarn-error.log*
 .agents/
 .codex/
 
+# generated local AI runtime data
+/.ai-workspace/runs/
+/.ai-workspace/artifacts/
+/.ai-workspace/screenshots/
+/.ai-workspace/traces/
+/.ai-workspace/logs/
+/.ai-workspace/tmp/
+/.ai-workspace/state/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

@@ -4,6 +4,11 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+## Local AI Execution
+
+- Use [`.ai-workspace/README.md`](.ai-workspace/README.md) as the shared local execution source of truth.
+- Run the mandatory preflight and choose a workflow from [`.ai-workspace/WORKFLOW.md`](.ai-workspace/WORKFLOW.md) before changing files.
+
 ## Project-Specific Guardrails
 
 - Use Next.js 16 `src/proxy.ts`; do not create or rename to `middleware.ts`.

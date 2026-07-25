@@ -481,7 +481,9 @@ export default function LoginPage() {
 
       if (claimError) {
         logDevelopmentError('Registration profile claim failed', claimError);
-        setError('לא הצלחנו ליצור או לעדכן את פרטי המשתמש. נסה שוב בעוד רגע.');
+        setError(claimError.code === '23505'
+          ? 'כבר קיים פרופיל מקושר למייל הזה. פנה למנהל המערכת.'
+          : 'לא הצלחנו ליצור או לעדכן את פרטי המשתמש. נסה שוב בעוד רגע.');
         return;
       }
 

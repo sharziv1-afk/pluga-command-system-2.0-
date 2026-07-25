@@ -32,6 +32,15 @@ no migration run, no DB/RLS change, no code beyond approved docs unless explicit
 4D default company + backfill → 4E company-scope RLS hardening → 4F invitations + RPCs → 4G Manage
 Members / Invite UI → 4H join/accept flow → 4I multi-company leak QA.
 
+## Current Local Snapshot — P0 Local Stabilization Batch A
+
+- Batch A started from `main` at `fc33736`; PR #1 is merged into `main`.
+- The Light Gloss Operational Shell, shared AI workspace, and Claude adapter are merged.
+- Audit verdict remains **PRODUCTION NOT READY**.
+- Local Batch A code checkpoint is `7b9587e`; shell overflow, design tokens, CommandField error borders, and lint vendor warnings are addressed locally.
+- Remaining true P0 items are live Supabase `pg_policies` verification, Auth/RLS hardening, and observability.
+- Do not start Vercel or 21st.dev implementation before P0 security is triaged.
+
 ## Current Snapshot - Batch 3A Clipboard Copy Fallback (pushed)
 
 **Product:** `pluga-command-system` / "המפקד"  

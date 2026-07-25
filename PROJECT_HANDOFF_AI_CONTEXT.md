@@ -2,6 +2,15 @@
 
 Authoritative technical handoff for AI agents and developers continuing work on `pluga-command-system`.
 
+## Current Local Snapshot — P0 Local Stabilization Batch A
+
+- Batch A started from `main` at `fc33736`; PR #1 is merged into `main`.
+- The Light Gloss Operational Shell, shared AI workspace, and Claude adapter are merged.
+- Audit verdict remains **PRODUCTION NOT READY**.
+- Local Batch A code checkpoint is `7b9587e`; shell overflow, design tokens, CommandField error borders, and lint vendor warnings are addressed locally.
+- Remaining true P0 items are live Supabase `pg_policies` verification, Auth/RLS hardening, and observability.
+- Do not start Vercel or 21st.dev implementation before P0 security is triaged.
+
 ## Current Override - Batch 4B: Multi-Company Architecture Plan v1 (PLANNING ONLY — no code)
 
 **Status:** Planning/docs only. No code, no SQL, no RLS, no Auth, no migration, no commit, no push.

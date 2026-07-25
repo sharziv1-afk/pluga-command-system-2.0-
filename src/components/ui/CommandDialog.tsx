@@ -59,13 +59,21 @@ export const CommandOverlay: React.FC<CommandOverlayProps> = ({
       event.preventDefault();
       if (dismissible) onClose();
     };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (!dialog.open || event.key !== 'Escape' || !dismissible) return;
+      event.preventDefault();
+      event.stopPropagation();
+      onClose();
+    };
     const handleClose = () => {
       document.body.style.overflow = '';
     };
     dialog.addEventListener('cancel', handleCancel);
+    dialog.addEventListener('keydown', handleEscape, true);
     dialog.addEventListener('close', handleClose);
     return () => {
       dialog.removeEventListener('cancel', handleCancel);
+      dialog.removeEventListener('keydown', handleEscape, true);
       dialog.removeEventListener('close', handleClose);
       document.body.style.overflow = '';
     };

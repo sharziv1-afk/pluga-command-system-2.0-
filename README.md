@@ -23,6 +23,15 @@ implemented** — no code/SQL/RLS/Auth/migration/commit. Full plan in
   migration run, no DB/RLS change, no code beyond approved docs unless explicitly approved later) →
   4D backfill → 4E RLS hardening → 4F invitations/RPCs → 4G invite UI → 4H join flow → 4I leak QA.
 
+## Current Local Snapshot — P0 Local Stabilization Batch A
+
+- Batch A started from `main` at `fc33736`; PR #1 is merged into `main`.
+- The Light Gloss Operational Shell, shared AI workspace, and Claude adapter are merged.
+- Audit verdict remains **PRODUCTION NOT READY**.
+- Local Batch A code checkpoint is `7b9587e`; shell overflow, design tokens, CommandField error borders, and lint vendor warnings are addressed locally.
+- Remaining true P0 items are live Supabase `pg_policies` verification, Auth/RLS hardening, and observability.
+- Do not start Vercel or 21st.dev implementation before P0 security is triaged.
+
 ## Batch 3A Clipboard Copy Fallback Checkpoint (HEAD `f23952e`)
 
 **Git:** `main = origin/main`, working tree clean. Latest pushed work: `4177a10..f23952e`, `f23952e Add clipboard fallback for copy actions`. Work only from `C:\dev\pluga-command-system`. No deployment/Vercel yet.

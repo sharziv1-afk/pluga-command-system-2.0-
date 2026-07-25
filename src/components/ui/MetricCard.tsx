@@ -8,7 +8,7 @@ type Tone = 'neutral' | 'brand' | 'teal' | 'success' | 'warning' | 'danger' | 'i
 
 const toneStyles: Record<Tone, string> = {
   neutral: 'text-[var(--text-secondary)] bg-[var(--surface-muted)]',
-  brand: 'text-[var(--action)] bg-[var(--brand)]/10',
+  brand: 'text-[var(--color-action-on-surface)] bg-[var(--brand)]/10',
   teal: 'text-[var(--color-teal)] bg-[var(--color-teal)]/10',
   success: 'text-[var(--color-success)] bg-[var(--color-success)]/10',
   warning: 'text-[var(--color-warning)] bg-[var(--color-warning)]/10',

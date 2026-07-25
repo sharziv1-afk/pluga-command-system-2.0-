@@ -1208,7 +1208,7 @@ export default function RequestsPage() {
                         </option>
                       ))}
                     </select>
-                    {isUpdatingAssignee && <Loader2 className="h-4 w-4 animate-spin text-[var(--action)]" />}
+                    {isUpdatingAssignee && <Loader2 className="h-4 w-4 animate-spin text-[var(--color-action-on-surface)]" />}
                     {assigneeLoadError && (
                       <span className="text-[11px] font-bold text-[var(--color-danger)]">{assigneeLoadError}</span>
                     )}
@@ -1244,7 +1244,7 @@ export default function RequestsPage() {
                         >
                           {statusOptions.map(s => <option key={s} value={s}>{statusLabels[s]}</option>)}
                         </select>
-                        {isUpdating && <Loader2 className="h-4 w-4 animate-spin text-[var(--action)]" />}
+                        {isUpdating && <Loader2 className="h-4 w-4 animate-spin text-[var(--color-action-on-surface)]" />}
                       </>
                     )}
                   </div>
@@ -1285,7 +1285,7 @@ export default function RequestsPage() {
                     onClick={() => toggleComments(request.id)}
                     className="inline-flex min-h-10 items-center gap-2 rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/60 px-3 py-2 text-xs font-black text-[#020108] transition duration-150 hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10"
                   >
-                    <MessageSquareText className="h-4 w-4 text-[var(--action)]" />
+                    <MessageSquareText className="h-4 w-4 text-[var(--color-action-on-surface)]" />
                     {isCommentsOpen ? 'הסתר היסטוריית טיפול' : 'הצג היסטוריית טיפול'}
                     {comments.length > 0 && (
                       <span className="rounded-full bg-[var(--action)]/12 px-2 py-0.5 text-[10px] text-[#C54F00]">
@@ -1298,7 +1298,7 @@ export default function RequestsPage() {
                     <div className="mt-3 space-y-3 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/52 p-3">
                       <div className="flex items-center justify-between gap-3">
                         <h4 className="text-xs font-black text-[#020108]">היסטוריית טיפול</h4>
-                        {isLoadingComments && <Loader2 className="h-4 w-4 animate-spin text-[var(--action)]" />}
+                        {isLoadingComments && <Loader2 className="h-4 w-4 animate-spin text-[var(--color-action-on-surface)]" />}
                       </div>
 
                       {commentError && (

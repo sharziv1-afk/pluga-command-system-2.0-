@@ -71,7 +71,7 @@ export const AppSidebar: React.FC<{ className?: string }> = ({ className }) => {
     >
       {/* Brand */}
       <div className="flex items-center gap-2.5 border-b border-[var(--border-subtle)] p-3 lg:p-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--action)]/25 bg-[var(--brand)]/10 text-[var(--action)]">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--action)]/25 bg-[var(--brand)]/10 text-[var(--color-action-on-surface)]">
           <Shield className="h-5 w-5" />
         </div>
         <div className={cn('min-w-0', labelCls === 'hidden' ? 'hidden' : 'hidden lg:block')}>
@@ -105,11 +105,11 @@ export const AppSidebar: React.FC<{ className?: string }> = ({ className }) => {
                 collapsed ? 'lg:justify-center' : 'lg:justify-start',
                 'justify-center lg:justify-start',
                 isActive
-                  ? 'border-[var(--action)]/25 bg-[var(--brand)]/10 text-[var(--action)]'
+                  ? 'border-[var(--action)]/25 bg-[var(--brand)]/10 text-[var(--color-action-on-surface)]'
                   : 'border-transparent text-[var(--text-secondary)] hover:bg-[var(--surface-muted)] hover:text-[var(--text-primary)]',
               )}
             >
-              <Icon className={cn('h-[18px] w-[18px] shrink-0', isActive ? 'text-[var(--action)]' : 'text-[var(--text-muted-accessible)] group-hover:text-[var(--action)]')} />
+              <Icon className={cn('h-[18px] w-[18px] shrink-0', isActive ? 'text-[var(--color-action-on-surface)]' : 'text-[var(--text-muted-accessible)] group-hover:text-[var(--color-action-on-surface)]')} />
               <span className={labelCls}>{item.name}</span>
             </Link>
           );

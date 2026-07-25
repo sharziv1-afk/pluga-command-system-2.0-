@@ -20,10 +20,10 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
     <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end">
       <div className="min-w-0">
         <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold text-[var(--text-muted-accessible)]">
-          <Shield className="h-3.5 w-3.5 text-[var(--action)]" />
+          <Shield className="h-3.5 w-3.5 text-[var(--color-action-on-surface)]" />
           <span>{category}</span>
           <span aria-hidden>·</span>
-          <span className="text-[var(--action)]">{title}</span>
+          <span className="text-[var(--color-action-on-surface)]">{title}</span>
         </div>
 
         <h1 className="text-xl font-black tracking-tight text-[var(--text-primary)] sm:text-2xl">{title}</h1>

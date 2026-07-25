@@ -24,6 +24,7 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     ".claude/**", // local AI tooling / vendored skills
+    ".agents/**", // local agent tooling / vendored skills
   ]),
 ]);
 

@@ -10,7 +10,7 @@ Runbook זה מרכז את סדר הפעולות, בדיקות החובה וכל
 
 **המסמך קיים כי הידע הזה לא יכול לחיות רק במחשב מקומי.** ה-runbook התפעולי המקורי נוצר תחת `.ai-workspace/runs/`, שמוחרג מגיט — ולכן סדר הפריסה, שהוא הסיכון המבצעי המרכזי כאן, לא היה מנוהל בבקרת גרסאות.
 
-> **PR #3 אינו production-ready.** הביקורת הסטטית עברה, אך **טרם בוצעה ולו בדיקת כתיבה ידנית אחת** מול DB אמיתי. עד שהבדיקות בסעיף 5 יעברו — PR #3 נשאר Draft.
+> **PR #3 מוכן ל-Ready for review בלבד.** הביקורת הסטטית ובדיקות ה-staging הידניות A–J עברו. הוא עדיין **אינו מאושר למיזוג או לפריסה ל-production**; לפני production נדרש snapshot טרי וסדר הפריסה המחייב בסעיפים 3 ו-7.
 
 ---
 
@@ -18,15 +18,14 @@ Runbook זה מרכז את סדר הפעולות, בדיקות החובה וכל
 
 | פריט | מצב |
 |---|---|
-| PR #3 | **Draft** |
+| PR #3 | **Ready for review; not approved for merge/deploy** |
 | קבצים ב-PR | `supabase/migrations/016_users_rls_auth_hardening.sql`, `src/app/(auth)/login/page.tsx` |
 | migration 016 ב-`hamifkad-staging` | **עברה** (מבנית) |
 | post-snapshot אחרי 016 | **תקין** — ראה סעיף 4 |
-| `public.users` | **0 שורות** |
-| `auth.users` | **0 שורות** |
-| הוכחת runtime | **אין** |
+| Email OTP ב-staging | **עבר** באמצעות SMTP ייעודי ותבנית `{{ .Token }}` |
+| הוכחת runtime | **בדיקות A–J עברו** |
 
-מכיוון ששתי הטבלאות ריקות, `claim_own_profile` מעולם לא הופעל ו-`guard_users_sensitive_fields` מעולם לא ירה. המנגנון **נבדק בקריאה בלבד**.
+`claim_own_profile` והטריגר `guard_users_sensitive_fields` הופעלו בפועל ב-`hamifkad-staging`: הרשמה, חסימת self-escalation, אישור מפקד, profile claim, linked-email conflict ועדכון `last_login_at` עברו כמצופה.
 
 ---
 
@@ -100,17 +99,17 @@ Runbook זה מרכז את סדר הפעולות, בדיקות החובה וכל
 בכל סביבת Supabase שמריצה את האפליקציה, תבנית Confirm signup חייבת לכלול
 `{{ .Token }}` כדי שהמייל יספק קוד OTP, ולא רק confirmation link.
 
-לפני תחילת בדיקות A–J חובה:
+לפני תחילת בדיקות A–J חובה בכל סביבת staging חדשה:
 
 1. להגדיר Custom SMTP בסביבת staging.
 2. לעדכן את Confirm signup template כך שתציג `{{ .Token }}`.
 3. לשלוח מייל הרשמה חדש ולוודא שהוא מכיל קוד OTP.
 4. רק אז לבצע את בדיקות ההרשמה והאבטחה להלן.
 
-בלי Custom SMTP ותבנית הכוללת `{{ .Token }}`, בדיקת ההרשמה הידנית **חסומה**.
-אין להשתמש ב-confirmation link כתחליף, ואין ללחוץ על confirmation links
-שנשלחו במיילים קודמים. PR #3 נשאר Draft עד שה-template מוגדר ובדיקת
-ההרשמה עוברת.
+ב-`hamifkad-staging` הוגדר SMTP ייעודי באמצעות Mailtrap ותבנית הכוללת
+`{{ .Token }}`; קבלת OTP ובדיקת ההרשמה עברו. אין להשתמש ב-confirmation link
+כתחליף, ואין ללחוץ על confirmation links שנשלחו במיילים קודמים.
+הקשחת callback/link flow נשארת follow-up מתועד ואינה blocker ל-PR #3.
 
 כל קטעי ה-SQL המודפסים להלן הם **read-only** ומיועדים ל-**staging בלבד**.
 הצ'קליסט כולל גם פעולות כתיבה ידניות ומבוקרות ב-staging לצורכי בדיקת registration,
@@ -212,6 +211,20 @@ select email, last_login_at from public.users order by last_login_at desc limit 
 ### J. No raw DB errors in UI
 לאורך כל הבדיקות: אף מסך לא מציג SQLSTATE, שם constraint, שם טבלה, hint או stack trace. רק הודעות בעברית מנוסחות מראש.
 
+### Staging validation result — A–J passed
+
+| בדיקה | תוצאה |
+|---|---|
+| A–B — OTP registration + pending defaults | **PASSED** — נוצר פרופיל מקושר עם `permission_level = 0`, `status = pending`, `role_approval_status = pending` |
+| C–D — sensitive-field protection | **PASSED** — self-escalation נדחה עם `users sensitive fields are managed by the approval flow`; ערכי ה-pending לא השתנו |
+| E — commander approval + regular-user denial | **PASSED** — אישור דרך Admin UI העביר מ״מ 1 ל-`active`/`approved` עם `permission_level = 70`; משתמש רגיל לא ראה Admin ונחסם ב-`/admin` |
+| F–G — unlinked profile claim | **PASSED** — `auth_user_id` חובר, נשמרה שורה יחידה, והשדות הרגישים נשמרו (`permission_level = 70`, `active`, `approved`) |
+| H — linked-email conflict | **PASSED** — הוצגה הודעת "המייל בשימוש" ידידותית ולא נוצרה כפילות |
+| I — `last_login_at` | **PASSED** — הערך קיים והתעדכן לאחר התחברות |
+| J — no raw DB errors | **PASSED** — לא הוצגו SQLSTATE, constraint או פרטי DB גולמיים |
+
+הבדיקות בוצעו ב-`hamifkad-staging` בלבד. הן אינן אישור להריץ migration או לפרוס קוד ל-production.
+
 ---
 
 ## 6. Profile claim semantics — אזהרת invitation
@@ -278,26 +291,24 @@ where tgrelid = 'public.users'::regclass and not tgisinternal;
 
 ## 9. Ready for review criteria
 
-PR #3 יוצא מ-Draft **רק** כאשר כל התנאים הבאים מתקיימים:
+PR #3 יכול לצאת מ-Draft ל-Ready for review לאחר עדכון המסמכים וגוף ה-PR, משום שכל התנאים הבאים התקיימו:
 
-- [ ] הרשמה רגילה עברה ב-staging (A).
-- [ ] ברירות המחדל pending תקינות (B).
-- [ ] self-escalation נחסם (C, D).
-- [ ] אישור מפקד עובד, ומשתמש רגיל נחסם מ-`/admin` (E).
-- [ ] profile claim עובד למייל מאומת (F).
-- [ ] ה-claim משמר את השדות הרגישים כמתועד (G).
-- [ ] זרימת conflict מציגה הודעה ידידותית (H).
-- [ ] `last_login_at` ממשיך להתעדכן (I).
-- [ ] אין שגיאות DB גולמיות בממשק (J).
-- [ ] **סדר הפריסה מסעיף 3 מתועד ב-PR body.**
-- [ ] לא נגעו ב-production, ולא נחשפו secrets.
+- [x] הרשמה רגילה עברה ב-staging (A).
+- [x] ברירות המחדל pending תקינות (B).
+- [x] self-escalation נחסם (C, D).
+- [x] אישור מפקד עובד, ומשתמש רגיל נחסם מ-`/admin` (E).
+- [x] profile claim עובד למייל מאומת (F).
+- [x] ה-claim משמר את השדות הרגישים כמתועד (G).
+- [x] זרימת conflict מציגה הודעה ידידותית (H).
+- [x] `last_login_at` ממשיך להתעדכן (I).
+- [x] אין שגיאות DB גולמיות בממשק (J).
+- [x] **סדר הפריסה מסעיף 3 מתועד ב-PR body.**
+- [x] לא נגעו ב-production, ולא נחשפו secrets.
+
+Ready for review אינו אישור למיזוג או לפריסה.
 
 ---
 
 ## 10. Exact next action
 
-1. להגדיר Custom SMTP ב-`hamifkad-staging`.
-2. לעדכן את Confirm signup template כך שתכלול `{{ .Token }}`.
-3. לשלוח מייל הרשמה חדש ולוודא שמתקבל קוד OTP; אין להשתמש בקישור ישן.
-4. **Run manual staging registration test** — בדיקה A בסעיף 5.
-5. **Keep PR #3 as Draft.**
+לבצע final code/security review ל-PR #3 במצב Ready for review. אין למזג או לפרוס ל-production לפני אישור review מפורש, snapshot production טרי והרצת migration 016 לפני code deploy.

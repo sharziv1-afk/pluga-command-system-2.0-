@@ -2,9 +2,10 @@
 
 Authoritative technical handoff for AI agents and developers continuing work on `pluga-command-system`.
 
-## PR #3 Security/RLS Draft Status
+## PR #3 Security/RLS Review Readiness
 
-- **PR #3 is a Draft** on branch `fix/security-users-rls-auth-hardening`.
+- **PR #3 is ready for review** on branch `fix/security-users-rls-auth-hardening`.
+  This is not approval to merge or deploy it to production.
   Its runtime/security changes are limited to `supabase/migrations/016_users_rls_auth_hardening.sql`
   and `src/app/(auth)/login/page.tsx`; the branch also adds the managed deployment documents below
   and updates this handoff.
@@ -15,11 +16,16 @@ Authoritative technical handoff for AI agents and developers continuing work on 
 - **Migration 016 passed a structural staging migration** in `hamifkad-staging`: 5 policies on
   `public.users`, `is_commander` STABLE, `claim_own_profile` and `guard_users_sensitive_fields`
   present, trigger `guard_users_sensitive_fields_before_write` present.
-- **Manual staging write tests are still required.** `public.users` and `auth.users` are both empty,
-  so `claim_own_profile` has never executed and the guard trigger has never fired. There is no
-  runtime proof yet — only static review.
-- **Do not mark PR #3 Ready for review, do not merge, and do not deploy it** before the manual
-  staging tests in runbook §5 pass.
+- **Manual staging tests A–J passed.** Mailtrap SMTP and an OTP `{{ .Token }}` template were
+  configured in staging; OTP registration created safe pending defaults; self-escalation was
+  blocked; commander approval produced an active/approved מ״מ 1 with the expected
+  `permission_level = 70`; a regular user was denied `/admin`; unlinked profile claim preserved
+  sensitive fields; linked-email conflict was friendly and duplicate-free; `last_login_at`
+  updated; and no raw DB error appeared in the UI.
+- **OTP code flow is the supported registration path.** Confirmation-link/callback hardening
+  remains a documented follow-up, not a blocker for PR #3 review.
+- **PR #3 may be marked Ready for review, but must not be merged or deployed yet.** It still needs
+  final code/security review and the production preflight below.
 - **Mandatory order — migration before code deploy.** `login/page.tsx` calls the RPC
   `claim_own_profile` by string name, so `lint`/`tsc`/`build` all pass even when the function does
   not exist in the target DB. Deploying the code first breaks every new registration (`PGRST202`),
@@ -28,6 +34,9 @@ Authoritative technical handoff for AI agents and developers continuing work on 
   `commanded_unit_id`, `permission_level`, `role_approval_status` and `status`. This makes the claim
   path an implicit invitation mechanism — see runbook §6 before building any feature that creates
   unlinked profiles.
+- **Production warning:** the staging result does not authorize production migration. Capture a
+  fresh production snapshot, verify policy/function/trigger names, then apply migration 016 before
+  deploying the application code.
 
 ## Current Local Snapshot — P0 Local Stabilization Batch A
 

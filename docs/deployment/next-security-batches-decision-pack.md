@@ -4,18 +4,17 @@
 
 ---
 
-## 1. Current blocking state
+## 1. Current review state
 
-**PR #3 נשאר Draft עד שבדיקות ה-staging הידניות יעברו.**
+**בדיקות ה-staging הידניות A–J עברו, ו-PR #3 מוכן ל-Ready for review בלבד. הוא עדיין אינו מאושר למיזוג או לפריסה ל-production.**
 
 הביקורת הסטטית של PR #3 הושלמה ועברה: migration 016 עטופה ב-`begin`/`commit`, אינה מוחקת נתונים, כל ה-policies הן `to authenticated` ואין `using(true)`, הטריגר מגן על שבעת השדות הרגישים בשני ענפיו, ו-`claim_own_profile` הוא `SECURITY DEFINER` עם `search_path` בטוח וממפה `unique_violation` להודעה נקייה.
 
-**מה שחסר אינו איכות קוד אלא ראיה התנהגותית.** ב-`hamifkad-staging` יש `users = 0` ו-`auth.users = 0`, ולכן `claim_own_profile` מעולם לא הופעל ו-`guard_users_sensitive_fields` מעולם לא ירה. כל עוד זה המצב — אין ל-PR #3 הוכחת runtime.
+ב-`hamifkad-staging` הוגדר SMTP ייעודי באמצעות Mailtrap ותבנית Confirm signup הכוללת `{{ .Token }}`. זרימת Email OTP code-only עבדה, ו-`claim_own_profile` והטריגר `guard_users_sensitive_fields` הוכחו ב-runtime.
 
-בדיקת ההרשמה נעצרה לפני יצירת משתמש: תבנית ברירת המחדל של Confirm signup
-שלחה `{{ .ConfirmationURL }}`, בעוד האפליקציה תומכת בזרימת Email OTP code-only.
-נדרש Custom SMTP ותבנית הכוללת `{{ .Token }}` לפני שאפשר להמשיך בבדיקה.
-אין להשתמש ב-confirmation link כתחליף למסלול שמפעיל `claim_own_profile`.
+עברו: הרשמה עם pending defaults, חסימת self-escalation, אישור מפקד דרך Admin UI, חסימת `/admin` למשתמש רגיל, profile claim תוך שמירת השדות הרגישים, linked-email conflict ללא כפילות או שגיאת DB גולמית, ועדכון `last_login_at`.
+
+אין להשתמש ב-confirmation link כתחליף למסלול OTP. הקשחת callback/link flow נשארת follow-up מתועד, לא blocker ל-PR #3.
 
 הצ'קליסט המלא נמצא ב-[`users-rls-auth-hardening-runbook.md`](users-rls-auth-hardening-runbook.md) סעיף 5.
 
@@ -25,10 +24,10 @@
 
 | # | Batch | למה בסדר הזה |
 |---|---|---|
-| 1 | **Configure staging Custom SMTP** | נדרש כדי לשלוט בתבנית Confirm signup ולשלוח OTP code |
-| 2 | **Update Confirm signup template to OTP Token** | התבנית חייבת לכלול `{{ .Token }}`, לא רק `{{ .ConfirmationURL }}` |
-| 3 | **Send a fresh test registration email with OTP** | מאמת שהגדרת המייל עובדת לפני יצירת משתמש בדיקה |
-| 4 | **Manual staging registration/security tests עבור PR #3** | רק מסלול הקוד מפעיל את `claim_own_profile` שה-PR צריך להוכיח |
+| 1 | **Configure staging Custom SMTP** | **DONE** — Mailtrap הוגדר ב-staging |
+| 2 | **Update Confirm signup template to OTP Token** | **DONE** — התבנית כוללת `{{ .Token }}` |
+| 3 | **Send a fresh test registration email with OTP** | **DONE** — קוד OTP התקבל ועבד |
+| 4 | **Manual staging registration/security tests עבור PR #3** | **DONE** — בדיקות A–J עברו |
 | 5 | **Minimal production-safe observability** | קטן, סיכון נמוך, ומאפשר לדבג כל מה שאחריו |
 | 6 | **Proxy gating ל-pending/blocked** | נוגע בנתיב auth — רק אחרי ש-PR #3 הוכח |
 | 7 | **Vercel Preview/Staging env separation** | חובה לפני כל deploy ציבורי |
@@ -88,7 +87,7 @@
 
 ## 4. Proxy gating decision spec
 
-> תכנון בלבד. אין לממש ללא אישור, **ולא לפני** שבדיקות PR #3 עוברות.
+> תכנון בלבד. אין לממש ללא אישור ובמסגרת PR נפרד.
 
 **המצב היום:** `src/proxy.ts` בודק **קיום session בלבד** (`if (!user)`), ללא בדיקת `status` או `role_approval_status`. לכן משתמש `pending`, `blocked` או `inactive` מקבל את כל ה-shell ואת כל חבילות ה-JS — כולל פאנל האדמין. רק אחר כך `src/app/(protected)/layout.tsx` מרנדר מסך הודעה במקום התוכן, על בסיס `authStatus`. `fetchCurrentProfile` כבר מסווג נכון לשבעה מצבים, כך שהמידע קיים — הוא פשוט לא נאכף בשרת.
 
@@ -103,7 +102,7 @@
 
 **סיכון שיש לתמחר:** בדיקה כזו מוסיפה **שאילתת פרופיל אחת בכל ניווט מוגן**. האינדקס `idx_users_auth_user_id` קיים מ-`001`, ובקנה מידה של פלוגה העלות זניחה — אבל היא אמיתית וצריכה להיאמד. חלופה ללא RTT: לשקף `status` ל-`app_metadata` של ה-JWT דרך Auth Hook. **עדיף כשלב מאוחר יותר**, לא בסבב הזה.
 
-**המלצה:** לא לממש לפני שבדיקות PR #3 הידניות עוברות. שני שינויים במקביל בנתיב ה-auth מקשים על בידוד תקלות.
+**המלצה:** בדיקות PR #3 עברו, אך יש לממש proxy gating רק בסבב נפרד ומאושר כדי לא לערב שני שינויי auth באותו PR.
 
 **Size:** S–M · **Risk:** בינוני (נוגע בנתיב auth — דורש QA לכל אחד מהמצבים)
 
@@ -113,7 +112,7 @@
 
 | סיכון | מצב | פעולה נדרשת |
 |---|---|---|
-| **Confirm signup שולח link במקום OTP** | 🔴 פתוח | בכל סביבת Supabase שמריצה את האפליקציה יש להגדיר Custom SMTP ותבנית Confirm signup הכוללת `{{ .Token }}`, לא רק `{{ .ConfirmationURL }}` |
+| **Confirm signup שולח link במקום OTP** | 🟢 נסגר ב-staging | Mailtrap ותבנית `{{ .Token }}` אומתו ב-`hamifkad-staging`. הדרישה חלה בנפרד על כל סביבת Supabase שמריצה את האפליקציה |
 | **Vercel Preview יורש env של production** | 🔴 פתוח | כל PR preview עלול להתחבר ל-DB האמיתי. חובה להגדיר Preview scope נפרד עם פרטי staging. במערכת פיקודית — בלתי מתקבל |
 | **Redirect URLs ל-staging/preview** | 🟠 חלקי | ב-staging הוגדר `localhost` בלבד. לפני deploy יש להוסיף את דומיין היעד, אחרת reset-password ו-magic-link נשברים |
 | **service role בצד לקוח** | 🟢 נקי | אומת: אין `service_role` בשום מקום ב-`src/` וב-`.env.example`. **לשמר** |
@@ -126,14 +125,6 @@
 
 ## 6. Exact next action
 
-1. להגדיר Custom SMTP ב-`hamifkad-staging`.
-2. לעדכן את Confirm signup template כך שתכלול `{{ .Token }}`.
-3. לשלוח מייל הרשמה חדש ולוודא שהוא מכיל קוד OTP.
-4. רק אז לבצע את בדיקה A ב-[`users-rls-auth-hardening-runbook.md`](users-rls-auth-hardening-runbook.md) סעיף 5.
+להעביר את PR #3 ל-Ready for review ולבצע final code/security review. אין למזג או לפרוס ל-production עדיין.
 
-בדיקת ההרשמה הידנית היא שמפעילה לראשונה את `claim_own_profile` ואת
-`guard_users_sensitive_fields` יחד, ומכסה בבת אחת את A ו-B. אם היא עוברת —
-שאר הצ'קליסט הוא הרחבה. אם היא נכשלת — נדע מיד מה לתקן, לפני שנוגעים בכל
-דבר אחר.
-
-**PR #3 נשאר Draft.**
+לפני production חובה לבצע snapshot טרי, לאמת את שמות ה-policies והפונקציות, ולהחיל migration 016 לפני code deploy. לאחר review, הסבבים הבאים נשארים proxy gating, production observability והקשחת callback/link flow — כל אחד ב-scope נפרד ומאושר.

@@ -12,6 +12,11 @@
 
 **מה שחסר אינו איכות קוד אלא ראיה התנהגותית.** ב-`hamifkad-staging` יש `users = 0` ו-`auth.users = 0`, ולכן `claim_own_profile` מעולם לא הופעל ו-`guard_users_sensitive_fields` מעולם לא ירה. כל עוד זה המצב — אין ל-PR #3 הוכחת runtime.
 
+בדיקת ההרשמה נעצרה לפני יצירת משתמש: תבנית ברירת המחדל של Confirm signup
+שלחה `{{ .ConfirmationURL }}`, בעוד האפליקציה תומכת בזרימת Email OTP code-only.
+נדרש Custom SMTP ותבנית הכוללת `{{ .Token }}` לפני שאפשר להמשיך בבדיקה.
+אין להשתמש ב-confirmation link כתחליף למסלול שמפעיל `claim_own_profile`.
+
 הצ'קליסט המלא נמצא ב-[`users-rls-auth-hardening-runbook.md`](users-rls-auth-hardening-runbook.md) סעיף 5.
 
 ---
@@ -20,15 +25,18 @@
 
 | # | Batch | למה בסדר הזה |
 |---|---|---|
-| 1 | **Manual staging registration/security tests עבור PR #3** | ללא זה, כל השאר נבנה על הנחה לא מאומתת |
-| 2 | **Minimal production-safe observability** | קטן, סיכון נמוך, ומאפשר לדבג כל מה שאחריו |
-| 3 | **Proxy gating ל-pending/blocked** | נוגע בנתיב auth — רק אחרי ש-PR #3 הוכח |
-| 4 | **Vercel Preview/Staging env separation** | חובה לפני כל deploy ציבורי |
-| 5 | **Redirect URLs ל-staging/preview** | אחרת reset-password ו-magic-link נשברים |
-| 6 | **אימות ניקוי dev credentials** | בדיקה, לא בהכרח שינוי קוד |
-| 7 | **favicon / manifest** | פוליש; אחרון |
+| 1 | **Configure staging Custom SMTP** | נדרש כדי לשלוט בתבנית Confirm signup ולשלוח OTP code |
+| 2 | **Update Confirm signup template to OTP Token** | התבנית חייבת לכלול `{{ .Token }}`, לא רק `{{ .ConfirmationURL }}` |
+| 3 | **Send a fresh test registration email with OTP** | מאמת שהגדרת המייל עובדת לפני יצירת משתמש בדיקה |
+| 4 | **Manual staging registration/security tests עבור PR #3** | רק מסלול הקוד מפעיל את `claim_own_profile` שה-PR צריך להוכיח |
+| 5 | **Minimal production-safe observability** | קטן, סיכון נמוך, ומאפשר לדבג כל מה שאחריו |
+| 6 | **Proxy gating ל-pending/blocked** | נוגע בנתיב auth — רק אחרי ש-PR #3 הוכח |
+| 7 | **Vercel Preview/Staging env separation** | חובה לפני כל deploy ציבורי |
+| 8 | **Redirect URLs ל-staging/preview** | אחרת reset-password ו-magic-link נשברים |
+| 9 | **אימות ניקוי dev credentials** | בדיקה, לא בהכרח שינוי קוד |
+| 10 | **favicon / manifest** | פוליש; אחרון |
 
-**הערה על סדר 2 לפני 3:** יש פיתוי להקדים את ה-proxy gating כי הוא "אבטחתי יותר". זו טעות — gating נוגע בנתיב ההתחברות, ואם הוא ישבור משהו בלי לוגים, הדיבוג יהיה בניחושים.
+**הערה על סדר 5 לפני 6:** יש פיתוי להקדים את ה-proxy gating כי הוא "אבטחתי יותר". זו טעות — gating נוגע בנתיב ההתחברות, ואם הוא ישבור משהו בלי לוגים, הדיבוג יהיה בניחושים.
 
 ---
 
@@ -105,6 +113,7 @@
 
 | סיכון | מצב | פעולה נדרשת |
 |---|---|---|
+| **Confirm signup שולח link במקום OTP** | 🔴 פתוח | בכל סביבת Supabase שמריצה את האפליקציה יש להגדיר Custom SMTP ותבנית Confirm signup הכוללת `{{ .Token }}`, לא רק `{{ .ConfirmationURL }}` |
 | **Vercel Preview יורש env של production** | 🔴 פתוח | כל PR preview עלול להתחבר ל-DB האמיתי. חובה להגדיר Preview scope נפרד עם פרטי staging. במערכת פיקודית — בלתי מתקבל |
 | **Redirect URLs ל-staging/preview** | 🟠 חלקי | ב-staging הוגדר `localhost` בלבד. לפני deploy יש להוסיף את דומיין היעד, אחרת reset-password ו-magic-link נשברים |
 | **service role בצד לקוח** | 🟢 נקי | אומת: אין `service_role` בשום מקום ב-`src/` וב-`.env.example`. **לשמר** |
@@ -117,8 +126,14 @@
 
 ## 6. Exact next action
 
-**Manual staging registration test** — בדיקה A ב-[`users-rls-auth-hardening-runbook.md`](users-rls-auth-hardening-runbook.md) סעיף 5.
+1. להגדיר Custom SMTP ב-`hamifkad-staging`.
+2. לעדכן את Confirm signup template כך שתכלול `{{ .Token }}`.
+3. לשלוח מייל הרשמה חדש ולוודא שהוא מכיל קוד OTP.
+4. רק אז לבצע את בדיקה A ב-[`users-rls-auth-hardening-runbook.md`](users-rls-auth-hardening-runbook.md) סעיף 5.
 
-זו הפעולה היחידה שהופכת את PR #3 מ"נראה נכון" ל"הוכח נכון": היא מפעילה לראשונה את `claim_own_profile` ואת `guard_users_sensitive_fields` יחד, ומכסה בבת אחת את A ו-B. אם היא עוברת — שאר הצ'קליסט הוא הרחבה. אם היא נכשלת — נדע מיד מה לתקן, לפני שנוגעים בכל דבר אחר.
+בדיקת ההרשמה הידנית היא שמפעילה לראשונה את `claim_own_profile` ואת
+`guard_users_sensitive_fields` יחד, ומכסה בבת אחת את A ו-B. אם היא עוברת —
+שאר הצ'קליסט הוא הרחבה. אם היא נכשלת — נדע מיד מה לתקן, לפני שנוגעים בכל
+דבר אחר.
 
 **PR #3 נשאר Draft.**

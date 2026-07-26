@@ -85,6 +85,33 @@ Runbook זה מרכז את סדר הפעולות, בדיקות החובה וכל
 
 ## 5. Manual staging test checklist
 
+### Prerequisite: Email OTP Template Requirement
+
+זרימת ההרשמה של "המפקד" היא **Email OTP code-only**. החלטת המוצר היא להשתמש
+בקוד אימות שהמשתמש מזין באפליקציה, ולא ב-confirmation link כברירת מחדל.
+
+`login/page.tsx` מפעיל `signInWithOtp`, מאמת את הקוד באמצעות `verifyOtp` עם
+`token` ו-`type: 'email'`, ורק לאחר אימות מוצלח קורא ל-`claim_own_profile`.
+`registrationDraft` נשמר ב-React state בלבד. ה-auth callback אינו קורא
+ל-`claim_own_profile`, ולכן confirmation link אינו תחליף לבדיקה של מסלול
+ההרשמה האמיתי ועלול להשאיר auth user ללא פרופיל מלא או עם פרופיל חלקי.
+
+תבנית ברירת המחדל של Supabase Confirm signup שולחת `{{ .ConfirmationURL }}`.
+בכל סביבת Supabase שמריצה את האפליקציה, תבנית Confirm signup חייבת לכלול
+`{{ .Token }}` כדי שהמייל יספק קוד OTP, ולא רק confirmation link.
+
+לפני תחילת בדיקות A–J חובה:
+
+1. להגדיר Custom SMTP בסביבת staging.
+2. לעדכן את Confirm signup template כך שתציג `{{ .Token }}`.
+3. לשלוח מייל הרשמה חדש ולוודא שהוא מכיל קוד OTP.
+4. רק אז לבצע את בדיקות ההרשמה והאבטחה להלן.
+
+בלי Custom SMTP ותבנית הכוללת `{{ .Token }}`, בדיקת ההרשמה הידנית **חסומה**.
+אין להשתמש ב-confirmation link כתחליף, ואין ללחוץ על confirmation links
+שנשלחו במיילים קודמים. PR #3 נשאר Draft עד שה-template מוגדר ובדיקת
+ההרשמה עוברת.
+
 כל קטעי ה-SQL המודפסים להלן הם **read-only** ומיועדים ל-**staging בלבד**.
 הצ'קליסט כולל גם פעולות כתיבה ידניות ומבוקרות ב-staging לצורכי בדיקת registration,
 bootstrap ו-profile claim; הן מסומנות במפורש ואינן מורצות כחלק מהמסמך.
@@ -269,5 +296,8 @@ PR #3 יוצא מ-Draft **רק** כאשר כל התנאים הבאים מתקי�
 
 ## 10. Exact next action
 
-1. **Run manual staging registration test** — בדיקה A בסעיף 5.
-2. **Keep PR #3 as Draft.**
+1. להגדיר Custom SMTP ב-`hamifkad-staging`.
+2. לעדכן את Confirm signup template כך שתכלול `{{ .Token }}`.
+3. לשלוח מייל הרשמה חדש ולוודא שמתקבל קוד OTP; אין להשתמש בקישור ישן.
+4. **Run manual staging registration test** — בדיקה A בסעיף 5.
+5. **Keep PR #3 as Draft.**

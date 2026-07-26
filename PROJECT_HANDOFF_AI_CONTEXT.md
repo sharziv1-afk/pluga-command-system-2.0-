@@ -2,6 +2,33 @@
 
 Authoritative technical handoff for AI agents and developers continuing work on `pluga-command-system`.
 
+## PR #3 Security/RLS Draft Status
+
+- **PR #3 is a Draft** on branch `fix/security-users-rls-auth-hardening`.
+  Its runtime/security changes are limited to `supabase/migrations/016_users_rls_auth_hardening.sql`
+  and `src/app/(auth)/login/page.tsx`; the branch also adds the managed deployment documents below
+  and updates this handoff.
+- **Managed runbook added:** [`docs/deployment/users-rls-auth-hardening-runbook.md`](docs/deployment/users-rls-auth-hardening-runbook.md).
+  Batch planning lives in [`docs/deployment/next-security-batches-decision-pack.md`](docs/deployment/next-security-batches-decision-pack.md).
+  These replace the previous runbook under `.ai-workspace/runs/`, which is git-ignored and therefore
+  did not carry the deployment-order knowledge across machines.
+- **Migration 016 passed a structural staging migration** in `hamifkad-staging`: 5 policies on
+  `public.users`, `is_commander` STABLE, `claim_own_profile` and `guard_users_sensitive_fields`
+  present, trigger `guard_users_sensitive_fields_before_write` present.
+- **Manual staging write tests are still required.** `public.users` and `auth.users` are both empty,
+  so `claim_own_profile` has never executed and the guard trigger has never fired. There is no
+  runtime proof yet — only static review.
+- **Do not mark PR #3 Ready for review, do not merge, and do not deploy it** before the manual
+  staging tests in runbook §5 pass.
+- **Mandatory order — migration before code deploy.** `login/page.tsx` calls the RPC
+  `claim_own_profile` by string name, so `lint`/`tsc`/`build` all pass even when the function does
+  not exist in the target DB. Deploying the code first breaks every new registration (`PGRST202`),
+  with no production log to diagnose it.
+- **Claim semantics:** claiming an unlinked profile intentionally preserves its `role`, `unit_id`,
+  `commanded_unit_id`, `permission_level`, `role_approval_status` and `status`. This makes the claim
+  path an implicit invitation mechanism — see runbook §6 before building any feature that creates
+  unlinked profiles.
+
 ## Current Local Snapshot — P0 Local Stabilization Batch A
 
 - Batch A started from `main` at `fc33736`; PR #1 is merged into `main`.

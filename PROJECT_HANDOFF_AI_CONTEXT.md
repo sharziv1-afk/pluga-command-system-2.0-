@@ -2,6 +2,22 @@
 
 Authoritative technical handoff for AI agents and developers continuing work on `pluga-command-system`.
 
+# Current Freeze Checkpoint — 2026-07-27
+
+המצב המחייב כרגע מתועד ב־
+[`docs/checkpoints/2026-07-27-project-freeze-platform-state.md`](docs/checkpoints/2026-07-27-project-freeze-platform-state.md).
+
+- `main` נקי ומסונכרן ב־`fec9a91`.
+- PR #3 (`fix/security-users-rls-auth-hardening`, ‏`03d36ee`) פתוח, Ready for
+  review, לא מוזג ולא מאושר ל־production.
+- staging עם migration 016 עבר A–J; `main` ו־production אינם מיושרים אליו.
+- Supabase production מחובר לפי platform inspection ל־GitHub עם deploy
+  מ־`main`; לכן merge אינו החלטת Git בלבד.
+- החלטה: **DO NOT MERGE**, אין SQL/migration/Supabase/UI continuation.
+- protected UI-1 נשאר חסום עד אבחון Auth read-only נפרד.
+
+סעיף זה גובר על כל “Current Snapshot/Override” היסטורי בהמשך המסמך.
+
 ## Current Local Snapshot — P0 Local Stabilization Batch A
 
 - Batch A started from `main` at `fc33736`; PR #1 is merged into `main`.

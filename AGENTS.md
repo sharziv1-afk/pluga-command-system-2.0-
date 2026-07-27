@@ -4,14 +4,14 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
-## Current Local Snapshot — P0 Local Stabilization Batch A
+## Current Freeze Checkpoint — 2026-07-27
 
-- Batch A started from `main` at `fc33736`; PR #1 is merged into `main`.
-- The Light Gloss Operational Shell, shared AI workspace, and Claude adapter are merged.
-- Audit verdict remains **PRODUCTION NOT READY**.
-- Local Batch A code checkpoint is `7b9587e`; shell overflow, design tokens, CommandField error borders, and lint vendor warnings are addressed locally.
-- Remaining true P0 items are live Supabase `pg_policies` verification, Auth/RLS hardening, and observability.
-- Do not start Vercel or 21st.dev implementation before P0 security is triaged.
+- Read [`docs/checkpoints/2026-07-27-project-freeze-platform-state.md`](docs/checkpoints/2026-07-27-project-freeze-platform-state.md) before any new work.
+- Verified `main`: `fec9a91`, clean and synced. PR #3 head: `03d36ee`; open, unmerged and not production-approved.
+- Staging passed migration 016 and manual A–J tests; `main` does not contain PR #3.
+- Supabase production is reportedly connected to GitHub with deploy from `main`; treat PR #3 merge as a potential production migration.
+- Current decision: **DO NOT MERGE**. No SQL, migration, Supabase changes, protected UI continuation or login-password guessing.
+- Resume only after choosing an explicit production strategy and re-verifying platform state.
 
 ## Local AI Execution
 

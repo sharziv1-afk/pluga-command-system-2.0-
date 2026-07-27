@@ -1,5 +1,17 @@
 # pluga-command-system - "המפקד"
 
+## Current Operational Freeze — 2026-07-27
+
+הפרויקט מוקפא לצורך חזרה בטוחה. `main` מסונכרן ב־`fec9a91`; PR #3
+(`fix/security-users-rls-auth-hardening`, ‏`03d36ee`) פתוח ולא מוזג. למרות
+שבדיקות staging A–J עברו, Supabase production מחובר לפי הבדיקה הידנית ל־GitHub
+עם deploy מ־`main`, ולכן ההחלטה הנוכחית היא **DO NOT MERGE / NO PRODUCTION
+MIGRATION** עד בחירת אסטרטגיית deployment מפורשת ו־production preflight.
+
+מקור האמת לחזרה:
+[`docs/checkpoints/2026-07-27-project-freeze-platform-state.md`](docs/checkpoints/2026-07-27-project-freeze-platform-state.md).
+אין להמשיך protected UI QA לפני אבחון Auth read-only נפרד.
+
 ## Multi-Company Architecture Plan v1 — Batch 4B (PLANNING ONLY, no code)
 
 Planned direction: multi-company (multi-פלוגה) with commander-driven invitations. **Not

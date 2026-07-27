@@ -1,5 +1,14 @@
 # Project Summary - pluga-command-system
 
+## Current Freeze — 2026-07-27
+
+המצב התפעולי העדכני, פערי `main`/staging/production, סטטוס PR #3 וכללי העצירה
+נמצאים ב־
+[`docs/checkpoints/2026-07-27-project-freeze-platform-state.md`](docs/checkpoints/2026-07-27-project-freeze-platform-state.md).
+החלטה נוכחית: **DO NOT MERGE**; אין production migration או המשך protected
+UI QA עד החלטת platform ואבחון Auth נפרד. סעיף זה גובר על snapshots ישנים
+בהמשך המסמך.
+
 ## Multi-Company Architecture Plan v1 — Batch 4B (PLANNING ONLY, no code)
 
 Target: turn the single-פלוגה MVP into a multi-company system where every מ״פ opens their own

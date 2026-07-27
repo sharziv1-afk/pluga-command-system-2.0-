@@ -1,13 +1,14 @@
 @AGENTS.md
 
-## Current Local Snapshot — P0 Local Stabilization Batch A
+## Current Freeze Checkpoint — 2026-07-27
 
-- Batch A started from `main` at `fc33736`; PR #1 is merged into `main`.
-- The Light Gloss Operational Shell, shared AI workspace, and Claude adapter are merged.
-- Audit verdict remains **PRODUCTION NOT READY**.
-- Local Batch A code checkpoint is `7b9587e`; shell overflow, design tokens, CommandField error borders, and lint vendor warnings are addressed locally.
-- Remaining true P0 items are live Supabase `pg_policies` verification, Auth/RLS hardening, and observability.
-- Do not start Vercel or 21st.dev implementation before P0 security is triaged.
+- Read [`docs/checkpoints/2026-07-27-project-freeze-platform-state.md`](docs/checkpoints/2026-07-27-project-freeze-platform-state.md) first; it supersedes current-state claims below.
+- Verified `main`: `fec9a91`, clean and synced. PR #3 head: `03d36ee`; Ready for review, unmerged and not production-approved.
+- Staging passed migration 016 and manual A–J tests. `main` does not include PR #3.
+- Supabase production is reportedly integrated with this GitHub repo and deploys from `main`; a merge may apply migration 016.
+- Red-team conclusion: `MERGE_NOT_DECIDABLE_FROM_REPO_ONLY`. Current decision: **DO NOT MERGE**.
+- No SQL, migration, Supabase changes, protected UI continuation, password guessing or `.claude` sync during the freeze.
+- Resume only after platform re-verification and an explicit production strategy.
 
 ## Agentic Workspace (Claude Code)
 

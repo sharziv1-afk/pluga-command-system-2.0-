@@ -22,7 +22,8 @@ import { SkeletonCard } from '@/components/ui/Skeleton';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { createAuditLog } from '@/lib/audit';
 import { useApp } from '@/lib/context/AppContext';
-import { getPermissionLevelForRole } from '@/lib/permissions';
+import { getPermissionLevelForRole, hasCompanyWideUiAccess } from '@/lib/permissions';
+import { getScheduleDisplayStatus } from '@/lib/schedule';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
 import type { DbTask } from '@/lib/types';
@@ -55,6 +56,7 @@ type EventOption = {
   title: string;
   starts_at: string | null;
   ends_at?: string | null;
+  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
 };
 
 type TaskMetadata = {
@@ -104,16 +106,6 @@ const priorityStyles: Record<TaskPriority, string> = {
   דחופה: 'border-[#FF6B02]/25 bg-[#FF6B02]/10 text-[#C54F00]',
   קריטית: 'border-red-500/20 bg-red-500/10 text-red-700',
 };
-
-function normalizeRole(role: string) {
-  return role.replace(/[״׳'"]/g, '"');
-}
-
-function isCommanderRole(role: string, permissionLevel: number) {
-  const normalizedRole = normalizeRole(role);
-  const inferredLevel = getPermissionLevelForRole(normalizedRole);
-  return permissionLevel >= 90 || inferredLevel >= 90 || normalizedRole.includes('מ"פ') || normalizedRole.includes('סמ"פ');
-}
 
 function formatDate(value: string | null) {
   if (!value) return 'לא נקבע';
@@ -196,8 +188,7 @@ const taskQuickFilters: { id: Exclude<TaskQuickFilter, 'none'>; label: string }[
 ];
 
 export default function TasksPage() {
-  const { currentUser, isLoading: isContextLoading } = useApp();
-  const [dbProfile, setDbProfile] = useState<DbProfile | null>(null);
+  const { currentUser, isLoading: isContextLoading, refreshProfile } = useApp();
   const [tasks, setTasks] = useState<TaskView[]>([]);
   const [assignableUsers, setAssignableUsers] = useState<TaskUser[]>([]);
   const [eventOptions, setEventOptions] = useState<EventOption[]>([]);
@@ -232,8 +223,19 @@ export default function TasksPage() {
   const [editOutputRequired, setEditOutputRequired] = useState('');
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const dbProfile = useMemo<DbProfile | null>(() => currentUser ? {
+    id: currentUser.id,
+    name: currentUser.full_name,
+    email: currentUser.email,
+    role: currentUser.role,
+    unit_id: currentUser.unit_id,
+    permission_level: currentUser.permission_level,
+    units: { name: currentUser.assigned_frame },
+  } : null, [currentUser]);
   const profilePermissionLevel = dbProfile?.permission_level ?? getPermissionLevelForRole(currentUser?.role ?? '');
-  const canSeeAll = Boolean(currentUser && isCommanderRole(dbProfile?.role ?? currentUser.role, profilePermissionLevel));
+  const canSeeAll = Boolean(currentUser && hasCompanyWideUiAccess(dbProfile?.role ?? currentUser.role, profilePermissionLevel));
+  // ponytail: one page-wide write lock; split by task only if concurrent edits become necessary.
+  const isTaskWritePending = isSubmitting || isEditSubmitting || Boolean(updatingTaskId || deletingTaskId);
 
   const loadTasks = async () => {
     if (!currentUser) {
@@ -245,42 +247,11 @@ export default function TasksPage() {
     setError(null);
 
     try {
-      const { data: profileRow, error: profileError } = await supabase
-        .from('users')
-        .select('id,name,email,role,unit_id,permission_level')
-        .eq('id', currentUser.id)
-        .maybeSingle<DbProfile>();
-
-      if (profileError) {
-        logSupabaseError('Tasks profile lookup failed', profileError, { currentUserId: currentUser.id });
+      const profileData = dbProfile;
+      if (!profileData) {
         setError('לא נמצא פרופיל משתמש. יש להתחבר מחדש.');
         return;
       }
-
-      if (!profileRow) {
-        setError('לא נמצא פרופיל משתמש. יש להתחבר מחדש.');
-        return;
-      }
-
-      let profileData = profileRow;
-      if (profileData.unit_id) {
-        const { data: unitData, error: unitError } = await supabase
-          .from('units')
-          .select('name')
-          .eq('id', profileData.unit_id)
-          .maybeSingle<{ name: string }>();
-
-        if (unitError) {
-          logSupabaseError('Tasks profile unit lookup failed', unitError, {
-            profileId: profileData.id,
-            unitId: profileData.unit_id,
-          });
-        }
-
-        profileData = { ...profileData, units: unitData ? { name: unitData.name } : null };
-      }
-
-      setDbProfile(profileData);
 
       const { data: taskData, error: tasksError } = await supabase
         .from('tasks')
@@ -344,7 +315,7 @@ export default function TasksPage() {
       }
 
       let usersForAssignment: TaskUser[] = [];
-      if (isCommanderRole(profileData.role, profileData.permission_level)) {
+      if (hasCompanyWideUiAccess(profileData.role, profileData.permission_level)) {
         const { data: activeUsers, error: usersError } = await supabase
           .from('users')
           .select('id,name,email,role,unit_id')
@@ -363,7 +334,7 @@ export default function TasksPage() {
 
       const { data: visibleEvents, error: eventsError } = await supabase
         .from('events')
-        .select('id,title,starts_at')
+        .select('id,title,starts_at,ends_at,status')
         .in('status', ['scheduled', 'in_progress'])
         .order('starts_at', { ascending: true })
         .returns<EventOption[]>();
@@ -372,7 +343,11 @@ export default function TasksPage() {
         logSupabaseError('Task event options load failed', eventsError);
         setEventOptions([]);
       } else {
-        setEventOptions(visibleEvents ?? []);
+        setEventOptions((visibleEvents ?? []).filter(event => getScheduleDisplayStatus({
+          status: event.status,
+          starts_at: event.starts_at ?? '',
+          ends_at: event.ends_at ?? null,
+        }) !== 'completed'));
       }
 
       setTasks(rawTasks.map(task => {
@@ -386,6 +361,9 @@ export default function TasksPage() {
           eventTimeLabel: task.event_id ? (eventDetails[task.event_id]?.timeLabel ?? null) : null,
         };
       }));
+    } catch (loadError) {
+      logSupabaseError('Tasks load failed unexpectedly', loadError);
+      setError('לא ניתן לטעון את המשימות כרגע. נסה לרענן את הדף בעוד רגע.');
     } finally {
       setIsLoading(false);
     }
@@ -460,36 +438,11 @@ export default function TasksPage() {
     setOutputRequired('');
   };
 
-  const resolveTaskUnitId = async () => {
-    if (!dbProfile) return null;
-    if (dbProfile.unit_id) return dbProfile.unit_id;
-
-    const fallbackUnitName = dbProfile.units?.name || currentUser?.assigned_frame;
-    if (!fallbackUnitName) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[tasks] user profile has no unit_id or unit name; task.unit_id will be null');
-      }
-      return null;
-    }
-
-    const { data: unit, error: unitError } = await supabase
-      .from('units')
-      .select('id')
-      .eq('name', fallbackUnitName)
-      .maybeSingle<{ id: string }>();
-
-    if (unitError || !unit) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[tasks] could not resolve unit_id for task:', unitError?.message ?? fallbackUnitName);
-      }
-      return null;
-    }
-
-    return unit.id;
-  };
+  const resolveTaskUnitId = async () => dbProfile?.unit_id ?? null;
 
   const handleCreateTask = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isTaskWritePending) return;
     if (!currentUser || !dbProfile) {
       setError('לא נמצא פרופיל משתמש. יש להתחבר מחדש.');
       return;
@@ -505,6 +458,7 @@ export default function TasksPage() {
     setError(null);
     setSuccess(null);
 
+    try {
     const taskUnitId = await resolveTaskUnitId();
     const metadata: TaskMetadata = {
       category: category.trim() || undefined,
@@ -534,8 +488,6 @@ export default function TasksPage() {
       .select('id,title,status,priority,event_id')
       .single<Pick<DbTask, 'id' | 'title' | 'status' | 'priority' | 'event_id'>>();
 
-    setIsSubmitting(false);
-
     if (insertError || !createdTask) {
       if (insertError) logSupabaseError('Task create failed', insertError);
       setError('לא הצלחנו ליצור את המשימה. בדוק שיש לך הרשאה לפעולה זו ונסה שוב.');
@@ -562,6 +514,12 @@ export default function TasksPage() {
     setIsFormOpen(false);
     setSuccess('המשימה נוצרה ונשמרה במערכת.');
     await loadTasks();
+    } catch (createError) {
+      logSupabaseError('Task create failed unexpectedly', createError);
+      setError('לא הצלחנו ליצור את המשימה. נסה שוב בעוד רגע.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const canUpdateTaskStatus = (task: TaskView) => {
@@ -579,7 +537,7 @@ export default function TasksPage() {
   };
 
   const openEditTask = (task: TaskView) => {
-    if (!canEditTask(task)) return;
+    if (isTaskWritePending || !canEditTask(task)) return;
 
     const metadata = getTaskMetadata(task);
     const taskPriority = priorityOptions.includes(task.priority as TaskPriority) ? (task.priority as TaskPriority) : 'רגילה';
@@ -612,7 +570,7 @@ export default function TasksPage() {
 
   const handleEditTask = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!dbProfile || !editingTask || !canEditTask(editingTask)) return;
+    if (!dbProfile || isTaskWritePending || !editingTask || !canEditTask(editingTask)) return;
 
     const cleanTitle = editTitle.trim();
     if (!cleanTitle) {
@@ -642,12 +600,11 @@ export default function TasksPage() {
     setError(null);
     setSuccess(null);
 
+    try {
     const { error: updateError } = await supabase
       .from('tasks')
       .update(nextValues)
       .eq('id', editingTask.id);
-
-    setIsEditSubmitting(false);
 
     if (updateError) {
       logSupabaseError('Task edit failed', updateError);
@@ -689,16 +646,23 @@ export default function TasksPage() {
     setEditingTask(null);
     setSuccess('המשימה עודכנה.');
     await loadTasks();
+    } catch (updateError) {
+      logSupabaseError('Task edit failed unexpectedly', updateError);
+      setError('לא ניתן לעדכן את המשימה. נסה שוב בעוד רגע.');
+    } finally {
+      setIsEditSubmitting(false);
+    }
   };
 
   const handleStatusChange = async (task: TaskView, nextStatus: TaskStatus) => {
-    if (!dbProfile || task.status === nextStatus || !canUpdateTaskStatus(task)) return;
+    if (!dbProfile || isTaskWritePending || task.status === nextStatus || !canUpdateTaskStatus(task)) return;
 
     const oldStatus = task.status;
     setUpdatingTaskId(task.id);
     setError(null);
     setSuccess(null);
 
+    try {
     const { error: updateError } = await supabase
       .from('tasks')
       .update({
@@ -706,8 +670,6 @@ export default function TasksPage() {
         completed_at: nextStatus === 'completed' ? new Date().toISOString() : null,
       })
       .eq('id', task.id);
-
-    setUpdatingTaskId(null);
 
     if (updateError) {
       logSupabaseError('Task status update failed', updateError);
@@ -732,10 +694,16 @@ export default function TasksPage() {
         : item
     )));
     setSuccess('סטטוס המשימה עודכן.');
+    } catch (updateError) {
+      logSupabaseError('Task status update failed unexpectedly', updateError);
+      setError('לא ניתן לעדכן את סטטוס המשימה כרגע. נסה שוב בעוד רגע.');
+    } finally {
+      setUpdatingTaskId(null);
+    }
   };
 
   const handleDeleteTask = async (task: TaskView) => {
-    if (!dbProfile || !canDeleteTask(task)) return;
+    if (!dbProfile || isTaskWritePending || !canDeleteTask(task)) return;
 
     const confirmed = window.confirm('האם למחוק משימה סגורה זו?');
     if (!confirmed) return;
@@ -744,12 +712,11 @@ export default function TasksPage() {
     setError(null);
     setSuccess(null);
 
+    try {
     const { error: deleteError } = await supabase
       .from('tasks')
       .delete()
       .eq('id', task.id);
-
-    setDeletingTaskId(null);
 
     if (deleteError) {
       logSupabaseError('Task delete failed', deleteError);
@@ -779,6 +746,12 @@ export default function TasksPage() {
 
     setTasks(current => current.filter(item => item.id !== task.id));
     setSuccess('המשימה הסגורה נמחקה מהרשימה.');
+    } catch (deleteError) {
+      logSupabaseError('Task delete failed unexpectedly', deleteError);
+      setError('לא ניתן למחוק את המשימה. בדוק שיש לך הרשאה למחוק משימה זו.');
+    } finally {
+      setDeletingTaskId(null);
+    }
   };
 
   return (
@@ -851,7 +824,7 @@ export default function TasksPage() {
           </div>
 
           <div className="flex gap-2">
-            <GlossyButton variant="slate" size="sm" onClick={() => void loadTasks()} disabled={isLoading}>
+            <GlossyButton variant="slate" size="sm" onClick={() => void refreshProfile()} disabled={isLoading}>
               <RefreshCw className="h-4 w-4" />
               רענן
             </GlossyButton>
@@ -1082,6 +1055,7 @@ export default function TasksPage() {
                           variant="slate"
                           size="sm"
                           onClick={() => openEditTask(task)}
+                          disabled={isTaskWritePending}
                         >
                           <Pencil className="h-4 w-4" />
                           ערוך
@@ -1092,7 +1066,7 @@ export default function TasksPage() {
                         <select
                           value={taskStatus}
                           onChange={(event) => void handleStatusChange(task, event.target.value as TaskStatus)}
-                          disabled={updatingTaskId === task.id}
+                          disabled={isTaskWritePending}
                           className="rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-3 py-2 text-xs font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
                         >
                           {statusOptions.map(status => <option key={status} value={status}>{statusLabels[status]}</option>)}
@@ -1104,7 +1078,7 @@ export default function TasksPage() {
                           variant="slate"
                           size="sm"
                           onClick={() => void handleDeleteTask(task)}
-                          disabled={deletingTaskId === task.id}
+                          disabled={isTaskWritePending}
                           className="text-red-700 hover:border-red-500/30 hover:bg-red-500/10"
                         >
                           {deletingTaskId === task.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}

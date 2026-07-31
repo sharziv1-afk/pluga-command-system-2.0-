@@ -25,7 +25,8 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { createAuditLog } from '@/lib/audit';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import { useApp } from '@/lib/context/AppContext';
-import { getPermissionLevelForRole } from '@/lib/permissions';
+import { getPermissionLevelForRole, hasCompanyWideUiAccess } from '@/lib/permissions';
+import { getScheduleDisplayStatus } from '@/lib/schedule';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
 import type { DbEvent } from '@/lib/types';
@@ -126,16 +127,6 @@ const eventTypeStyles: Record<EventType, string> = {
   other: 'border-zinc-500/20 bg-zinc-500/10 text-zinc-700',
 };
 
-function normalizeRole(role: string) {
-  return role.replace(/[״׳'"]/g, '"');
-}
-
-function isCommanderRole(role: string, permissionLevel: number) {
-  const normalizedRole = normalizeRole(role);
-  const inferredLevel = getPermissionLevelForRole(normalizedRole);
-  return permissionLevel >= 90 || inferredLevel >= 90 || normalizedRole.includes('מ"פ') || normalizedRole.includes('סמ"פ');
-}
-
 function getUserDisplayName(user: Pick<EventUser, 'name' | 'email'>) {
   return user.name || user.email;
 }
@@ -235,13 +226,6 @@ function isEventVisibleInDefaultSchedule(event: DbEvent) {
   return eventEnd >= cutoff;
 }
 
-function shouldAutoCompleteEvent(event: DbEvent) {
-  if (!['scheduled', 'in_progress'].includes(event.status)) return false;
-
-  const endTime = event.ends_at ? new Date(event.ends_at) : new Date(event.starts_at);
-  return endTime.getTime() < Date.now();
-}
-
 function filterEventByTab(event: EventView, tab: ScheduleTab) {
   if (tab === 'all') return true;
 
@@ -260,8 +244,7 @@ function filterEventByTab(event: EventView, tab: ScheduleTab) {
 }
 
 export default function SchedulePage() {
-  const { currentUser, isLoading: isContextLoading } = useApp();
-  const [dbProfile, setDbProfile] = useState<DbProfile | null>(null);
+  const { currentUser, isLoading: isContextLoading, refreshProfile } = useApp();
   const [events, setEvents] = useState<EventView[]>([]);
   const [responsibleUsers, setResponsibleUsers] = useState<EventUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -296,8 +279,19 @@ export default function SchedulePage() {
   const [editResponsibleUserId, setEditResponsibleUserId] = useState('none');
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const dbProfile = useMemo<DbProfile | null>(() => currentUser ? {
+    id: currentUser.id,
+    name: currentUser.full_name,
+    email: currentUser.email,
+    role: currentUser.role,
+    unit_id: currentUser.unit_id,
+    permission_level: currentUser.permission_level,
+    units: { name: currentUser.assigned_frame },
+  } : null, [currentUser]);
   const profilePermissionLevel = dbProfile?.permission_level ?? getPermissionLevelForRole(currentUser?.role ?? '');
-  const canSeeAll = Boolean(currentUser && isCommanderRole(dbProfile?.role ?? currentUser.role, profilePermissionLevel));
+  const canSeeAll = Boolean(currentUser && hasCompanyWideUiAccess(dbProfile?.role ?? currentUser.role, profilePermissionLevel));
+  // ponytail: one page-wide write lock; split by event only if concurrent edits become necessary.
+  const isEventWritePending = isSubmitting || isEditEventSubmitting || Boolean(updatingEventId) || isDeletingEvent;
 
   const loadEvents = async () => {
     if (!currentUser) {
@@ -309,42 +303,11 @@ export default function SchedulePage() {
     setError(null);
 
     try {
-      const { data: profileRow, error: profileError } = await supabase
-        .from('users')
-        .select('id,name,email,role,unit_id,permission_level')
-        .eq('id', currentUser.id)
-        .maybeSingle<DbProfile>();
-
-      if (profileError) {
-        logSupabaseError('Schedule profile lookup failed', profileError, { currentUserId: currentUser.id });
+      const profileData = dbProfile;
+      if (!profileData) {
         setError('לא נמצא פרופיל משתמש. יש להתחבר מחדש.');
         return;
       }
-
-      if (!profileRow) {
-        setError('לא נמצא פרופיל משתמש. יש להתחבר מחדש.');
-        return;
-      }
-
-      let profileData = profileRow;
-      if (profileData.unit_id) {
-        const { data: unitData, error: unitError } = await supabase
-          .from('units')
-          .select('name')
-          .eq('id', profileData.unit_id)
-          .maybeSingle<{ name: string }>();
-
-        if (unitError) {
-          logSupabaseError('Schedule profile unit lookup failed', unitError, {
-            profileId: profileData.id,
-            unitId: profileData.unit_id,
-          });
-        }
-
-        profileData = { ...profileData, units: unitData ? { name: unitData.name } : null };
-      }
-
-      setDbProfile(profileData);
 
       const { data: eventData, error: eventsError } = await supabase
         .from('events')
@@ -397,7 +360,7 @@ export default function SchedulePage() {
         units: profileData.units,
       }];
 
-      if (isCommanderRole(profileData.role, profileData.permission_level)) {
+      if (hasCompanyWideUiAccess(profileData.role, profileData.permission_level)) {
         const { data: activeUsers, error: usersError } = await supabase
           .from('users')
           .select('id,name,email,role,unit_id')
@@ -416,46 +379,15 @@ export default function SchedulePage() {
       const dedupedUsers = Array.from(new Map(usersForResponsibility.map(user => [user.id, user])).values());
       setResponsibleUsers(dedupedUsers);
 
-      const canAutoCompleteAll = isCommanderRole(profileData.role, profileData.permission_level);
-      const autoCompletedEventIds = new Set<string>();
-      const eventsToAutoComplete = rawEvents.filter(event => (
-        shouldAutoCompleteEvent(event)
-        && (canAutoCompleteAll || event.created_by === profileData.id)
-      ));
-
-      for (const event of eventsToAutoComplete) {
-        const { error: autoCompleteError } = await supabase
-          .from('events')
-          .update({ status: 'completed' })
-          .eq('id', event.id);
-
-        if (autoCompleteError) {
-          if (process.env.NODE_ENV === 'development') {
-            console.warn('[schedule] auto-complete event failed:', autoCompleteError.message);
-          }
-          continue;
-        }
-
-        autoCompletedEventIds.add(event.id);
-        void createAuditLog(supabase, {
-          userId: profileData.id,
-          userName: profileData.name,
-          userRole: profileData.role,
-          actionType: 'event_status_changed',
-          entityType: 'event',
-          entityId: event.id,
-          previousValue: { status: event.status },
-          newValue: { status: 'completed', auto_completed: true },
-        });
-      }
-
       setEvents(rawEvents.map(event => ({
         ...event,
-        status: autoCompletedEventIds.has(event.id) ? 'completed' : event.status,
         creatorName: event.created_by ? (userNames[event.created_by] ?? null) : null,
         responsibleName: event.responsible_user_id ? (userNames[event.responsible_user_id] ?? null) : null,
         unitName: event.unit_id ? (unitNames[event.unit_id] ?? null) : null,
       })));
+    } catch (loadError) {
+      logSupabaseError('Schedule load failed unexpectedly', loadError);
+      setError('לא ניתן לטעון את המופעים כרגע. נסה לרענן את הדף בעוד רגע.');
     } finally {
       setIsLoading(false);
     }
@@ -477,22 +409,22 @@ export default function SchedulePage() {
       }
 
       setIsEventTasksLoading(true);
-      const { data, error: tasksError } = await supabase
-        .from('tasks')
-        .select('id,title,status')
-        .eq('event_id', selectedEvent.id)
-        .returns<EventTaskView[]>();
+      try {
+        const { data, error: tasksError } = await supabase
+          .from('tasks')
+          .select('id,title,status')
+          .eq('event_id', selectedEvent.id)
+          .returns<EventTaskView[]>();
 
-      if (!isMounted) return;
-
-      if (tasksError) {
-        logSupabaseError('Event linked tasks load failed', tasksError);
-        setEventTasks([]);
-      } else {
+        if (tasksError) throw tasksError;
+        if (!isMounted) return;
         setEventTasks(data ?? []);
+      } catch (tasksError) {
+        logSupabaseError('Event linked tasks load failed', tasksError);
+        if (isMounted) setEventTasks([]);
+      } finally {
+        if (isMounted) setIsEventTasksLoading(false);
       }
-
-      setIsEventTasksLoading(false);
     };
 
     void loadEventTasks();
@@ -513,22 +445,22 @@ export default function SchedulePage() {
       }
 
       setIsEventRequestsLoading(true);
-      const { data, error: requestsError } = await supabase
-        .from('requests')
-        .select('id,title,status,request_type')
-        .eq('event_id', selectedEvent.id)
-        .returns<EventRequestView[]>();
+      try {
+        const { data, error: requestsError } = await supabase
+          .from('requests')
+          .select('id,title,status,request_type')
+          .eq('event_id', selectedEvent.id)
+          .returns<EventRequestView[]>();
 
-      if (!isMounted) return;
-
-      if (requestsError) {
-        logSupabaseError('Event linked requests load failed', requestsError);
-        setEventRequests([]);
-      } else {
+        if (requestsError) throw requestsError;
+        if (!isMounted) return;
         setEventRequests(data ?? []);
+      } catch (requestsError) {
+        logSupabaseError('Event linked requests load failed', requestsError);
+        if (isMounted) setEventRequests([]);
+      } finally {
+        if (isMounted) setIsEventRequestsLoading(false);
       }
-
-      setIsEventRequestsLoading(false);
     };
 
     void loadEventRequests();
@@ -610,36 +542,11 @@ export default function SchedulePage() {
     setResponsibleUserId('none');
   };
 
-  const resolveUnitId = async () => {
-    if (!dbProfile) return null;
-    if (dbProfile.unit_id) return dbProfile.unit_id;
-
-    const fallbackUnitName = dbProfile.units?.name || currentUser?.assigned_frame;
-    if (!fallbackUnitName) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[schedule] user profile has no unit_id or unit name; event.unit_id will be null');
-      }
-      return null;
-    }
-
-    const { data: unit, error: unitError } = await supabase
-      .from('units')
-      .select('id')
-      .eq('name', fallbackUnitName)
-      .maybeSingle<{ id: string }>();
-
-    if (unitError || !unit) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[schedule] could not resolve unit_id for event:', unitError?.message ?? fallbackUnitName);
-      }
-      return null;
-    }
-
-    return unit.id;
-  };
+  const resolveUnitId = async () => dbProfile?.unit_id ?? null;
 
   const handleCreateEvent = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isEventWritePending) return;
     if (!currentUser || !dbProfile) {
       setError('לא נמצא פרופיל משתמש. יש להתחבר מחדש.');
       return;
@@ -668,6 +575,7 @@ export default function SchedulePage() {
     setError(null);
     setSuccess(null);
 
+    try {
     const unitId = await resolveUnitId();
     const { data: createdEvent, error: insertError } = await supabase.from('events').insert({
       title: cleanTitle,
@@ -684,8 +592,6 @@ export default function SchedulePage() {
     })
       .select('id,title,event_type,starts_at,status')
       .single<Pick<DbEvent, 'id' | 'title' | 'event_type' | 'starts_at' | 'status'>>();
-
-    setIsSubmitting(false);
 
     if (insertError || !createdEvent) {
       if (insertError) logSupabaseError('Event create failed', insertError);
@@ -713,6 +619,12 @@ export default function SchedulePage() {
     setIsFormOpen(false);
     setSuccess('המופע נוצר ונשמר בלו"ז.');
     await loadEvents();
+    } catch (createError) {
+      logSupabaseError('Event create failed unexpectedly', createError);
+      setError('לא הצלחנו ליצור את המופע. נסה שוב בעוד רגע.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const canUpdateEventStatus = (event: EventView) => {
@@ -731,7 +643,7 @@ export default function SchedulePage() {
   };
 
   const openEditEvent = (event: EventView) => {
-    if (!canEditEvent(event)) return;
+    if (isEventWritePending || !canEditEvent(event)) return;
 
     setSelectedEvent(null);
     setEditingEvent(event);
@@ -755,7 +667,7 @@ export default function SchedulePage() {
 
   const handleEditEvent = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!dbProfile || !editingEvent || !canEditEvent(editingEvent)) return;
+    if (!dbProfile || isEventWritePending || !editingEvent || !canEditEvent(editingEvent)) return;
 
     const cleanTitle = editEventTitle.trim();
     const cleanDescription = editEventDescription.trim();
@@ -798,12 +710,11 @@ export default function SchedulePage() {
     setIsEditEventSubmitting(true);
     setEditEventError(null);
 
+    try {
     const { error: updateError } = await supabase
       .from('events')
       .update(updatePayload)
       .eq('id', editingEvent.id);
-
-    setIsEditEventSubmitting(false);
 
     if (updateError) {
       logSupabaseError('Event edit failed', updateError);
@@ -861,22 +772,27 @@ export default function SchedulePage() {
     setEditingEvent(null);
     setSuccess('המופע עודכן.');
     await loadEvents();
+    } catch (updateError) {
+      logSupabaseError('Event edit failed unexpectedly', updateError);
+      setEditEventError('לא ניתן לעדכן את המופע כרגע. נסה שוב בעוד רגע.');
+    } finally {
+      setIsEditEventSubmitting(false);
+    }
   };
 
   const handleStatusChange = async (event: EventView, nextStatus: EventStatus) => {
-    if (!dbProfile || event.status === nextStatus || !canUpdateEventStatus(event)) return;
+    if (!dbProfile || isEventWritePending || event.status === nextStatus || !canUpdateEventStatus(event)) return;
 
     const oldStatus = event.status;
     setUpdatingEventId(event.id);
     setError(null);
     setSuccess(null);
 
+    try {
     const { error: updateError } = await supabase
       .from('events')
       .update({ status: nextStatus })
       .eq('id', event.id);
-
-    setUpdatingEventId(null);
 
     if (updateError) {
       logSupabaseError('Event status update failed', updateError);
@@ -898,10 +814,16 @@ export default function SchedulePage() {
     setEvents(current => current.map(item => (item.id === event.id ? { ...item, status: nextStatus } : item)));
     setSelectedEvent(current => current && current.id === event.id ? { ...current, status: nextStatus } : current);
     setSuccess('סטטוס המופע עודכן.');
+    } catch (updateError) {
+      logSupabaseError('Event status update failed unexpectedly', updateError);
+      setError('לא ניתן לעדכן את סטטוס המופע כרגע. נסה שוב בעוד רגע.');
+    } finally {
+      setUpdatingEventId(null);
+    }
   };
 
   const handleDeleteEvent = async (event: EventView) => {
-    if (!dbProfile || !canDeleteEvent(event)) return;
+    if (!dbProfile || isEventWritePending || !canDeleteEvent(event)) return;
 
     const confirmed = window.confirm('האם למחוק מופע זה? משימות ודרישות הקשורות אליו יתנתקו מהמופע אך לא יימחקו.');
     if (!confirmed) return;
@@ -910,12 +832,11 @@ export default function SchedulePage() {
     setError(null);
     setSuccess(null);
 
+    try {
     const { error: deleteError } = await supabase
       .from('events')
       .delete()
       .eq('id', event.id);
-
-    setIsDeletingEvent(false);
 
     if (deleteError) {
       logSupabaseError('Event delete failed', deleteError);
@@ -945,6 +866,12 @@ export default function SchedulePage() {
     setSelectedEvent(null);
     setSuccess('המופע הסגור נמחק.');
     await loadEvents();
+    } catch (deleteError) {
+      logSupabaseError('Event delete failed unexpectedly', deleteError);
+      setError('לא ניתן למחוק את המופע כרגע.');
+    } finally {
+      setIsDeletingEvent(false);
+    }
   };
 
   const copyTomorrowSchedule = async () => {
@@ -1048,7 +975,7 @@ export default function SchedulePage() {
               <Clipboard className="h-4 w-4" />
               העתק לו״ז מחר
             </GlossyButton>
-            <GlossyButton variant="slate" size="sm" onClick={() => void loadEvents()} disabled={isLoading}>
+            <GlossyButton variant="slate" size="sm" onClick={() => void refreshProfile()} disabled={isLoading}>
               <RefreshCw className="h-4 w-4" />
               רענן
             </GlossyButton>
@@ -1219,7 +1146,7 @@ export default function SchedulePage() {
                               <span className="shrink-0 font-mono text-[11px] font-black text-[#FF6B02]">
                                 {formatTime(event.starts_at)}
                               </span>
-                              <StatusBadge status={statusLabels[event.status]} className="min-h-5 shrink-0 px-2 text-[10px]" />
+                              <StatusBadge status={statusLabels[getScheduleDisplayStatus(event)]} className="min-h-5 shrink-0 px-2 text-[10px]" />
                             </div>
                             <h3 className="mt-1 line-clamp-2 text-xs font-black leading-5 text-[#020108]">{event.title}</h3>
                             {event.location && (
@@ -1280,7 +1207,7 @@ export default function SchedulePage() {
                                   <span className={`inline-flex min-h-5 items-center rounded-full border px-2 py-0.5 text-[10px] font-bold ${eventTypeStyles[event.event_type]}`}>
                                     {eventTypeLabels[event.event_type]}
                                   </span>
-                                  <StatusBadge status={statusLabels[event.status]} className="min-h-5 px-2 text-[10px]" />
+                                  <StatusBadge status={statusLabels[getScheduleDisplayStatus(event)]} className="min-h-5 px-2 text-[10px]" />
                                 </div>
                               </div>
                             </button>
@@ -1330,7 +1257,7 @@ export default function SchedulePage() {
                 <span className={`inline-flex min-h-6 items-center rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${eventTypeStyles[selectedEvent.event_type]}`}>
                   {eventTypeLabels[selectedEvent.event_type]}
                 </span>
-                <StatusBadge status={statusLabels[selectedEvent.status]} />
+                <StatusBadge status={statusLabels[getScheduleDisplayStatus(selectedEvent)]} />
               </div>
 
               {selectedEvent.description && (
@@ -1442,16 +1369,21 @@ export default function SchedulePage() {
             <div className="flex shrink-0 flex-col gap-3 border-t border-[rgba(2,1,8,0.08)] bg-white/76 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
               {canUpdateEventStatus(selectedEvent) ? (
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-[#667085]">עדכון סטטוס</span>
+                  <span className="text-xs font-bold text-[#667085]">סטטוס שמור</span>
                   <select
                     value={selectedEvent.status}
                     onChange={(event) => void handleStatusChange(selectedEvent, event.target.value as EventStatus)}
-                    disabled={updatingEventId === selectedEvent.id}
+                    disabled={isEventWritePending}
                     className="rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-3 py-2 text-xs font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
                   >
                     {eventStatuses.map(status => <option key={status} value={status}>{statusLabels[status]}</option>)}
                   </select>
                   {updatingEventId === selectedEvent.id && <Loader2 className="h-4 w-4 animate-spin text-[#FF6B02]" />}
+                  {getScheduleDisplayStatus(selectedEvent) !== selectedEvent.status && (
+                    <span className="text-[11px] font-bold text-[#667085]">
+                      התג למעלה מחושב לפי זמן; שינוי כאן נשמר ידנית.
+                    </span>
+                  )}
                 </div>
               ) : (
                 <p className="text-xs font-bold text-[#98A2B3]">אין הרשאת עדכון למופע זה</p>
@@ -1463,7 +1395,7 @@ export default function SchedulePage() {
                     variant="slate"
                     size="sm"
                     onClick={() => openEditEvent(selectedEvent)}
-                    disabled={isEditEventSubmitting}
+                    disabled={isEventWritePending}
                   >
                     <Pencil className="h-4 w-4" />
                     ערוך מופע
@@ -1474,7 +1406,7 @@ export default function SchedulePage() {
                     variant="slate"
                     size="sm"
                     onClick={() => void handleDeleteEvent(selectedEvent)}
-                    disabled={isDeletingEvent}
+                    disabled={isEventWritePending}
                     className="text-red-700 hover:border-red-500/30 hover:bg-red-500/10"
                   >
                     {isDeletingEvent ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}

@@ -28,7 +28,8 @@ import { CommandButton } from '@/components/ui/CommandButton';
 import { CommandInput, CommandSelect, CommandTextarea } from '@/components/ui/CommandField';
 import { createAuditLog } from '@/lib/audit';
 import { useApp } from '@/lib/context/AppContext';
-import { getPermissionLevelForRole } from '@/lib/permissions';
+import { getPermissionLevelForRole, hasCompanyWideUiAccess, normalizeRole } from '@/lib/permissions';
+import { getScheduleDisplayStatus } from '@/lib/schedule';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
 
@@ -61,6 +62,7 @@ type EventOption = {
   title: string;
   starts_at: string | null;
   ends_at?: string | null;
+  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
 };
 
 type RequestMetadata = {
@@ -161,16 +163,6 @@ const STATUS_ACTIONS: Partial<Record<RequestStatus, Array<{ label: string; nextS
   ],
 };
 
-function normalizeRole(role: string) {
-  return role.replace(/[״׳´"“”]/g, '"');
-}
-
-function isCommanderRole(role: string, permissionLevel: number) {
-  const normalizedRole = normalizeRole(role);
-  const inferredLevel = getPermissionLevelForRole(normalizedRole);
-  return permissionLevel >= 90 || inferredLevel >= 90 || normalizedRole.includes('מ"פ') || normalizedRole.includes('סמ"פ');
-}
-
 function professionalCategories(role: string): RequestCategory[] {
   const normalizedRole = normalizeRole(role);
   if (normalizedRole.includes('רס"פ') || role.includes('לוגיסטיקה')) return ['לוגיסטיקה', 'רכב'];
@@ -255,8 +247,7 @@ function getTabEmptyText(tab: TabId): { title: string; description: string } {
 }
 
 export default function RequestsPage() {
-  const { currentUser, isLoading: isContextLoading } = useApp();
-  const [dbProfile, setDbProfile] = useState<DbProfile | null>(null);
+  const { currentUser, isLoading: isContextLoading, refreshProfile } = useApp();
   const [requests, setRequests] = useState<DbRequest[]>([]);
   const [assigneeUsers, setAssigneeUsers] = useState<AssigneeUser[]>([]);
   const [eventOptions, setEventOptions] = useState<EventOption[]>([]);
@@ -295,10 +286,23 @@ export default function RequestsPage() {
   const [filterPriority, setFilterPriority] = useState<RequestPriority | 'הכל'>('הכל');
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const dbProfile = useMemo<DbProfile | null>(() => currentUser ? {
+    id: currentUser.id,
+    name: currentUser.full_name,
+    email: currentUser.email,
+    role: currentUser.role,
+    unit_id: currentUser.unit_id,
+    permission_level: currentUser.permission_level,
+    units: { name: currentUser.assigned_frame },
+  } : null, [currentUser]);
 
   const profilePermissionLevel = dbProfile?.permission_level ?? getPermissionLevelForRole(currentUser?.role ?? '');
-  const canSeeAll = Boolean(currentUser && isCommanderRole(dbProfile?.role ?? currentUser.role, profilePermissionLevel));
+  const canSeeAll = Boolean(currentUser && hasCompanyWideUiAccess(dbProfile?.role ?? currentUser.role, profilePermissionLevel));
   const categoryAccess = professionalCategories(dbProfile?.role ?? currentUser?.role ?? '');
+  // ponytail: one page-wide write lock; split by request only if concurrent edits become necessary.
+  const isRequestWritePending = isSubmitting
+    || isEditSubmitting
+    || Boolean(updatingStatusId || updatingAssigneeId || deletingRequestId || submittingCommentId);
 
   const loadRequests = async () => {
     if (!currentUser) { setIsLoading(false); return; }
@@ -307,43 +311,14 @@ export default function RequestsPage() {
     setAssigneeLoadError(null);
 
     try {
-      const { data: profileRow, error: profileError } = await supabase
-        .from('users')
-        .select('id,name,role,unit_id,permission_level')
-        .eq('id', currentUser.id)
-        .maybeSingle<DbProfile>();
-
-      if (profileError) {
-        logSupabaseError('Requests profile lookup failed', profileError, { currentUserId: currentUser.id });
+      const profileData = dbProfile;
+      if (!profileData) {
         setError('לא נמצא פרופיל משתמש. יש להתחבר מחדש.');
         return;
       }
-      if (!profileRow) {
-        setError('לא נמצא פרופיל משתמש. יש להתחבר מחדש.');
-        return;
-      }
-
-      let profileData = profileRow;
-      if (profileData.unit_id) {
-        const { data: unitData, error: unitError } = await supabase
-          .from('units')
-          .select('name')
-          .eq('id', profileData.unit_id)
-          .maybeSingle<{ name: string }>();
-
-        if (unitError) {
-          logSupabaseError('Requests profile unit lookup failed', unitError, {
-            profileId: profileData.id,
-            unitId: profileData.unit_id,
-          });
-        }
-
-        profileData = { ...profileData, units: unitData ? { name: unitData.name } : null };
-      }
-      setDbProfile(profileData);
 
       let assignableUsers: AssigneeUser[] = [];
-      if (isCommanderRole(profileData.role, profileData.permission_level)) {
+      if (hasCompanyWideUiAccess(profileData.role, profileData.permission_level)) {
         const { data: usersData, error: usersError } = await supabase
           .from('users')
           .select('id,name,email,role,unit_id')
@@ -438,7 +413,7 @@ export default function RequestsPage() {
 
       const { data: visibleEvents, error: eventsError } = await supabase
         .from('events')
-        .select('id,title,starts_at,ends_at')
+        .select('id,title,starts_at,ends_at,status')
         .in('status', ['scheduled', 'in_progress'])
         .order('starts_at', { ascending: true })
         .returns<EventOption[]>();
@@ -447,7 +422,11 @@ export default function RequestsPage() {
         logSupabaseError('Request event options load failed', eventsError);
         setEventOptions([]);
       } else {
-        setEventOptions(visibleEvents ?? []);
+        setEventOptions((visibleEvents ?? []).filter(event => getScheduleDisplayStatus({
+          status: event.status,
+          starts_at: event.starts_at ?? '',
+          ends_at: event.ends_at ?? null,
+        }) !== 'completed'));
       }
 
       setRequests(raw.map(r => ({
@@ -457,6 +436,9 @@ export default function RequestsPage() {
         eventTitle: r.event_id ? (eventDetails[r.event_id]?.title ?? null) : null,
         eventTimeLabel: r.event_id ? (eventDetails[r.event_id]?.timeLabel ?? null) : null,
       })));
+    } catch (loadError) {
+      logSupabaseError('Requests load failed unexpectedly', loadError);
+      setError('לא ניתן לטעון את הבקשות כרגע. נסה לרענן את הדף בעוד רגע.');
     } finally {
       setIsLoading(false);
     }
@@ -516,41 +498,17 @@ export default function RequestsPage() {
     setSelectedEventId('none');
   };
 
-  const resolveRequestUnitId = async () => {
-    if (!dbProfile) return null;
-    if (dbProfile.unit_id) return dbProfile.unit_id;
-
-    const fallbackUnitName = dbProfile.units?.name || currentUser?.assigned_frame;
-    if (!fallbackUnitName) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[requests] user profile has no unit_id or unit name; request.unit_id will be null');
-      }
-      return null;
-    }
-
-    const { data: unit, error: unitError } = await supabase
-      .from('units')
-      .select('id')
-      .eq('name', fallbackUnitName)
-      .maybeSingle<{ id: string }>();
-
-    if (unitError || !unit) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[requests] could not resolve unit_id for request:', unitError?.message ?? fallbackUnitName);
-      }
-      return null;
-    }
-
-    return unit.id;
-  };
+  const resolveRequestUnitId = async () => dbProfile?.unit_id ?? null;
 
   const handleCreateRequest = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isRequestWritePending) return;
     if (!currentUser || !dbProfile) { setError('לא נמצא פרופיל משתמש. יש להתחבר מחדש.'); return; }
     setIsSubmitting(true);
     setError(null);
     setSuccess(null);
 
+    try {
     const metadata: RequestMetadata = {
       category,
       priority,
@@ -573,7 +531,6 @@ export default function RequestsPage() {
       .select('id,title,status,request_type,event_id')
       .single<Pick<RawRequest, 'id' | 'title' | 'status' | 'request_type' | 'event_id'>>();
 
-    setIsSubmitting(false);
     if (insertError || !createdRequest) {
       if (insertError) {
         logSupabaseError('Request create failed', insertError);
@@ -600,13 +557,19 @@ export default function RequestsPage() {
     setIsFormOpen(false);
     setSuccess('הבקשה נפתחה ונשמרה במערכת.');
     await loadRequests();
+    } catch (createError) {
+      logSupabaseError('Request create failed unexpectedly', createError);
+      setError('לא הצלחנו לפתוח את הבקשה. נסה שוב בעוד רגע.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const canEditRequest = (request: DbRequest) =>
     Boolean(dbProfile && (canSeeAll || request.requested_by === dbProfile.id));
 
   const openEditRequest = (request: DbRequest) => {
-    if (!canEditRequest(request)) return;
+    if (isRequestWritePending || !canEditRequest(request)) return;
     const metadata = request.metadata ?? {};
 
     setEditingRequest(request);
@@ -628,7 +591,7 @@ export default function RequestsPage() {
 
   const handleEditRequest = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!dbProfile || !editingRequest || !canEditRequest(editingRequest)) return;
+    if (!dbProfile || isRequestWritePending || !editingRequest || !canEditRequest(editingRequest)) return;
 
     const cleanTitle = editTitle.trim();
     const cleanDescription = editDescription.trim();
@@ -649,6 +612,7 @@ export default function RequestsPage() {
     setIsEditSubmitting(true);
     setEditError(null);
 
+    try {
     const { error: updateError } = await supabase
       .from('requests')
       .update({
@@ -659,8 +623,6 @@ export default function RequestsPage() {
         metadata: mergedMetadata,
       })
       .eq('id', editingRequest.id);
-
-    setIsEditSubmitting(false);
 
     if (updateError) {
       logSupabaseError('Request edit failed', updateError);
@@ -694,6 +656,12 @@ export default function RequestsPage() {
     setEditingRequest(null);
     setSuccess('הדרישה עודכנה.');
     await loadRequests();
+    } catch (updateError) {
+      logSupabaseError('Request edit failed unexpectedly', updateError);
+      setEditError('לא ניתן לעדכן את הדרישה כרגע. נסה שוב בעוד רגע.');
+    } finally {
+      setIsEditSubmitting(false);
+    }
   };
 
   const canUpdateRequestStatus = (request: DbRequest) => {
@@ -703,6 +671,7 @@ export default function RequestsPage() {
   };
 
   const handleStatusChange = async (requestId: string, nextStatus: RequestStatus) => {
+    if (isRequestWritePending) return;
     const request = requests.find(item => item.id === requestId);
     if (!request || !dbProfile) return;
     const oldStatus = request.status;
@@ -711,9 +680,9 @@ export default function RequestsPage() {
     setError(null);
     setSuccess(null);
 
+    try {
     const { error: updateError } = await supabase.from('requests').update({ status: nextStatus }).eq('id', requestId);
 
-    setUpdatingStatusId(null);
     if (updateError) {
       logSupabaseError('Request status update failed', updateError);
       setError('לא ניתן לעדכן את הסטטוס כרגע. נסה שוב בעוד רגע.');
@@ -731,23 +700,29 @@ export default function RequestsPage() {
     });
     setRequests(current => current.map(r => r.id === requestId ? { ...r, status: nextStatus } : r));
     setSuccess('סטטוס הבקשה עודכן.');
+    } catch (updateError) {
+      logSupabaseError('Request status update failed unexpectedly', updateError);
+      setError('לא ניתן לעדכן את הסטטוס כרגע. נסה שוב בעוד רגע.');
+    } finally {
+      setUpdatingStatusId(null);
+    }
   };
 
   const hasActiveFilters = searchText !== '' || filterCategory !== 'הכל' || filterPriority !== 'הכל';
   const handleAssigneeChange = async (request: DbRequest, value: string) => {
-    if (!canSeeAll || !dbProfile) return;
+    if (!canSeeAll || !dbProfile || isRequestWritePending) return;
     const nextAssigneeId = value === 'none' ? null : value;
     const oldAssigneeId = request.assigned_to;
     setUpdatingAssigneeId(request.id);
     setError(null);
     setSuccess(null);
 
+    try {
     const { error: updateError } = await supabase
       .from('requests')
       .update({ assigned_to: nextAssigneeId })
       .eq('id', request.id);
 
-    setUpdatingAssigneeId(null);
     if (updateError) {
       logSupabaseError('Request assignee update failed', updateError);
       setError('לא ניתן לעדכן מטפל לבקשה');
@@ -777,6 +752,12 @@ export default function RequestsPage() {
         : item
     )));
     setSuccess('המטפל עודכן');
+    } catch (updateError) {
+      logSupabaseError('Request assignee update failed unexpectedly', updateError);
+      setError('לא ניתן לעדכן מטפל לבקשה');
+    } finally {
+      setUpdatingAssigneeId(null);
+    }
   };
 
   const canDeleteRequest = (request: DbRequest) => {
@@ -787,19 +768,19 @@ export default function RequestsPage() {
   };
 
   const handleDeleteClosedRequest = async (request: DbRequest) => {
-    if (!dbProfile || !canDeleteRequest(request)) return;
+    if (!dbProfile || isRequestWritePending || !canDeleteRequest(request)) return;
     setConfirmDeleteRequest(null);
 
     setDeletingRequestId(request.id);
     setError(null);
     setSuccess(null);
 
+    try {
     const { error: deleteError } = await supabase
       .from('requests')
       .delete()
       .eq('id', request.id);
 
-    setDeletingRequestId(null);
     if (deleteError) {
       logSupabaseError('Request delete failed', deleteError);
       setError('לא ניתן למחוק את הדרישה. בדוק שיש לך הרשאה למחוק בקשה זו.');
@@ -827,12 +808,20 @@ export default function RequestsPage() {
 
     setRequests(current => current.filter(item => item.id !== request.id));
     setSuccess('הדרישה הסגורה נמחקה.');
+    } catch (deleteError) {
+      logSupabaseError('Request delete failed unexpectedly', deleteError);
+      setError('לא ניתן למחוק את הדרישה. בדוק שיש לך הרשאה למחוק בקשה זו.');
+    } finally {
+      setDeletingRequestId(null);
+    }
   };
 
   const loadComments = async (requestId: string) => {
+    if (loadingCommentsId) return;
     setLoadingCommentsId(requestId);
     setCommentErrors(current => ({ ...current, [requestId]: null }));
 
+    try {
     const { data, error: commentsError } = await supabase
       .from('comments')
       .select('id,entity_type,entity_id,user_id,body,metadata,created_at,updated_at,users:user_id(name,email,role)')
@@ -841,7 +830,6 @@ export default function RequestsPage() {
       .order('created_at', { ascending: true })
       .returns<DbComment[]>();
 
-    setLoadingCommentsId(null);
     if (commentsError) {
       logSupabaseError('Request comments load failed', commentsError);
       setCommentErrors(current => ({ ...current, [requestId]: 'לא ניתן לטעון את היסטוריית הטיפול' }));
@@ -849,9 +837,16 @@ export default function RequestsPage() {
     }
 
     setCommentsByRequest(current => ({ ...current, [requestId]: data ?? [] }));
+    } catch (commentsError) {
+      logSupabaseError('Request comments load failed unexpectedly', commentsError);
+      setCommentErrors(current => ({ ...current, [requestId]: 'לא ניתן לטעון את היסטוריית הטיפול' }));
+    } finally {
+      setLoadingCommentsId(null);
+    }
   };
 
   const toggleComments = async (requestId: string) => {
+    if (loadingCommentsId) return;
     const nextOpen = !openComments[requestId];
     setOpenComments(current => ({ ...current, [requestId]: nextOpen }));
     if (nextOpen && !commentsByRequest[requestId]) {
@@ -860,7 +855,7 @@ export default function RequestsPage() {
   };
 
   const handleAddComment = async (request: DbRequest) => {
-    if (!currentUser || !dbProfile) return;
+    if (!currentUser || !dbProfile || isRequestWritePending) return;
     const body = (commentDrafts[request.id] ?? '').trim();
     if (!body) {
       setCommentErrors(current => ({ ...current, [request.id]: 'יש לכתוב עדכון טיפול לפני השליחה' }));
@@ -872,6 +867,7 @@ export default function RequestsPage() {
     setError(null);
     setSuccess(null);
 
+    try {
     const metadata: CommentMetadata = {
       author_name: dbProfile.name || currentUser.full_name,
       author_role: dbProfile.role || currentUser.role,
@@ -889,7 +885,6 @@ export default function RequestsPage() {
       .select('id,entity_type,entity_id,user_id,body,metadata,created_at,updated_at,users:user_id(name,email,role)')
       .single<DbComment>();
 
-    setSubmittingCommentId(null);
     if (insertError) {
       logSupabaseError('Request comment insert failed', insertError);
       setCommentErrors(current => ({ ...current, [request.id]: 'לא ניתן להוסיף עדכון טיפול' }));
@@ -914,6 +909,12 @@ export default function RequestsPage() {
     }
     setCommentDrafts(current => ({ ...current, [request.id]: '' }));
     setSuccess('עדכון הטיפול נשמר');
+    } catch (insertError) {
+      logSupabaseError('Request comment insert failed unexpectedly', insertError);
+      setCommentErrors(current => ({ ...current, [request.id]: 'לא ניתן להוסיף עדכון טיפול' }));
+    } finally {
+      setSubmittingCommentId(null);
+    }
   };
 
   const emptyText = getTabEmptyText(activeTab);
@@ -1095,7 +1096,7 @@ export default function RequestsPage() {
           <option value="הכל">כל העדיפויות</option>
           {priorities.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
-        <GlossyButton variant="slate" size="sm" onClick={loadRequests} className="w-full sm:col-span-2 xl:col-span-1 xl:w-auto">
+        <GlossyButton variant="slate" size="sm" onClick={() => void refreshProfile()} className="w-full sm:col-span-2 xl:col-span-1 xl:w-auto">
           <RefreshCw className="h-4 w-4" />
           רענון
         </GlossyButton>
@@ -1194,7 +1195,7 @@ export default function RequestsPage() {
                       value={request.assigned_to ?? 'none'}
                       onChange={event => handleAssigneeChange(request, event.target.value)}
                       className="command-select min-h-10 flex-1 text-xs"
-                      disabled={isUpdatingAssignee || (assigneeUsers.length === 0 && !request.assigned_to)}
+                      disabled={isRequestWritePending || (assigneeUsers.length === 0 && !request.assigned_to)}
                     >
                       <option value="none">{request.assigned_to ? 'הסר שיוך' : 'בחר מטפל'}</option>
                       {request.assigned_to && !assigneeUsers.some(user => user.id === request.assigned_to) && (
@@ -1226,7 +1227,7 @@ export default function RequestsPage() {
                             variant={action.tone}
                             size="sm"
                             onClick={() => handleStatusChange(request.id, action.nextStatus)}
-                            disabled={isUpdating}
+                            disabled={isRequestWritePending}
                           >
                             {isUpdating && <Loader2 className="h-3 w-3 animate-spin" />}
                             {action.label}
@@ -1240,7 +1241,7 @@ export default function RequestsPage() {
                           value={request.status}
                           onChange={e => handleStatusChange(request.id, e.target.value as RequestStatus)}
                           className="command-select min-h-10 max-w-xs text-xs"
-                          disabled={isUpdating}
+                          disabled={isRequestWritePending}
                         >
                           {statusOptions.map(s => <option key={s} value={s}>{statusLabels[s]}</option>)}
                         </select>
@@ -1258,6 +1259,7 @@ export default function RequestsPage() {
                         variant="slate"
                         size="sm"
                         onClick={() => openEditRequest(request)}
+                        disabled={isRequestWritePending}
                       >
                         <Pencil className="h-4 w-4" />
                         ערוך
@@ -1269,7 +1271,7 @@ export default function RequestsPage() {
                       variant="slate"
                       size="sm"
                       onClick={() => setConfirmDeleteRequest(request)}
-                      disabled={isDeleting}
+                      disabled={isRequestWritePending}
                       className="text-[var(--color-danger)] hover:border-[var(--color-danger)]/25 hover:bg-[var(--color-danger)]/10"
                     >
                       {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
@@ -1283,6 +1285,7 @@ export default function RequestsPage() {
                   <button
                     type="button"
                     onClick={() => toggleComments(request.id)}
+                    disabled={Boolean(loadingCommentsId)}
                     className="inline-flex min-h-10 items-center gap-2 rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/60 px-3 py-2 text-xs font-black text-[#020108] transition duration-150 hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10"
                   >
                     <MessageSquareText className="h-4 w-4 text-[var(--color-action-on-surface)]" />
@@ -1341,7 +1344,7 @@ export default function RequestsPage() {
                           onChange={event => setCommentDrafts(current => ({ ...current, [request.id]: event.target.value }))}
                           className="command-input min-h-24 resize-none text-sm"
                           placeholder="כתוב עדכון טיפול..."
-                          disabled={isSubmittingComment}
+                          disabled={isRequestWritePending}
                         />
                         <div className="flex justify-end">
                           <GlossyButton
@@ -1349,7 +1352,7 @@ export default function RequestsPage() {
                             variant="orange"
                             size="sm"
                             onClick={() => handleAddComment(request)}
-                            disabled={isSubmittingComment}
+                            disabled={isRequestWritePending}
                           >
                             {isSubmittingComment && <Loader2 className="h-4 w-4 animate-spin" />}
                             הוסף עדכון

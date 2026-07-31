@@ -2,6 +2,7 @@ import { createSupabaseBrowserClient } from './browser';
 import { isAuthSessionMissingError } from '@supabase/supabase-js';
 import { Profile, RoleType, FrameType, UserStatusType } from '../types';
 import { logSupabaseError } from './error';
+import { isActiveApprovedProfile } from '../permissions';
 
 export type CurrentProfileResult =
   | { status: 'unauthenticated'; profile: null; authUserId: null }
@@ -141,6 +142,11 @@ export function mapDbUserToProfile(dbUser: DbUserProfile): Profile {
     full_name: dbUser.name,
     role: dbUser.role as RoleType,
     assigned_frame: dbUser.units.name as FrameType,
+    unit_id: dbUser.unit_id,
+    permission_level: dbUser.permission_level,
+    account_status: dbUser.status,
+    role_approval_status: dbUser.role_approval_status,
+    is_active_approved: isActiveApprovedProfile(dbUser.status, dbUser.role_approval_status),
     status: dbUser.role_approval_status as UserStatusType,
     created_at: dbUser.created_at,
   };

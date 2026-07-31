@@ -63,18 +63,20 @@ export async function createAuditLog(
   supabase: SupabaseClient,
   params: CreateAuditLogParams,
 ): Promise<void> {
-  const { error } = await supabase.from('audit_logs').insert({
-    user_id: params.userId,
-    user_name: params.userName,
-    user_role: params.userRole,
-    action_type: params.actionType,
-    entity_type: params.entityType,
-    entity_id: params.entityId,
-    previous_value: params.previousValue ?? null,
-    new_value: params.newValue ?? null,
-  });
+  try {
+    const { error } = await supabase.from('audit_logs').insert({
+      user_id: params.userId,
+      user_name: params.userName,
+      user_role: params.userRole,
+      action_type: params.actionType,
+      entity_type: params.entityType,
+      entity_id: params.entityId,
+      previous_value: params.previousValue ?? null,
+      new_value: params.newValue ?? null,
+    });
 
-  if (error) {
-    console.warn('[audit] insert failed:', error.message);
+    if (error) console.warn('[audit] insert failed:', error.message);
+  } catch (error) {
+    console.warn('[audit] insert failed:', error);
   }
 }

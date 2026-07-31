@@ -45,7 +45,7 @@ import { copyTextToClipboard } from '@/lib/clipboard';
 import { aggregateCompanyStructured, assignPlatoonReports } from '@/lib/forum/companyReport';
 import type { CompanyReportInput, CompanyReportPlatoon } from '@/lib/forum/companyReport';
 import { useApp } from '@/lib/context/AppContext';
-import { getPermissionLevelForRole } from '@/lib/permissions';
+import { getPermissionLevelForRole, hasCompanyWideUiAccess, normalizeRole } from '@/lib/permissions';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
 
@@ -239,10 +239,6 @@ const companyReadSections: Array<{ key: keyof CompanyContent; label: string; ico
   { key: 'commander_closing', label: 'דגשי מ״פ', icon: Star },
 ];
 
-function normalizeRole(role: string) {
-  return role.replace(/[״׳´"“”]/g, '"');
-}
-
 function findPlatoonSummaryOwner(
   owners: ReportOwnerOption[],
   platoonLabel: string,
@@ -299,12 +295,6 @@ function findStaffOwner(
     const unitMatches = staffUnitHints[staffId].some(hint => unitName.includes(normalizeRole(hint).toLowerCase()));
     return inferStaffRole(owner.role ?? '') === staffId && unitMatches;
   }) ?? null;
-}
-
-function isCommanderRole(role: string, permissionLevel: number) {
-  const normalizedRole = normalizeRole(role);
-  const inferredLevel = getPermissionLevelForRole(normalizedRole);
-  return permissionLevel >= 90 || inferredLevel >= 90 || normalizedRole.includes('מ"פ') || normalizedRole.includes('סמ"פ');
 }
 
 function isPlatoonCommander(role: string) {
@@ -426,8 +416,7 @@ function isDateInputValue(value: string) {
 }
 
 export default function ForumPage() {
-  const { currentUser, isLoading: isContextLoading } = useApp();
-  const [dbProfile, setDbProfile] = useState<DbProfile | null>(null);
+  const { currentUser, isLoading: isContextLoading, refreshProfile } = useApp();
   const [posts, setPosts] = useState<ForumPostView[]>([]);
   const [activeTab, setActiveTab] = useState<ForumTab>('posts');
   const [isLoading, setIsLoading] = useState(true);
@@ -451,6 +440,8 @@ export default function ForumPage() {
   // role default (commanders start collapsed, everyone else starts expanded).
   const [groupToggles, setGroupToggles] = useState<Record<string, boolean>>({});
   const reportPanelRef = useRef<HTMLElement>(null);
+  const dailyLoadVersion = useRef(0);
+  const loadedDailyScope = useRef<string | null>(null);
   const [reportDraft, setReportDraft] = useState<ReportDraft>(() => emptyReportDraft());
   const [isDailyLoading, setIsDailyLoading] = useState(false);
   const [isDailySaving, setIsDailySaving] = useState(false);
@@ -471,8 +462,16 @@ export default function ForumPage() {
   const lastHydratedCompanyReportId = useRef<string | null | undefined>(undefined);
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const dbProfile = useMemo<DbProfile | null>(() => currentUser ? {
+    id: currentUser.id,
+    name: currentUser.full_name,
+    email: currentUser.email,
+    role: currentUser.role,
+    unit_id: currentUser.unit_id,
+    permission_level: currentUser.permission_level,
+  } : null, [currentUser]);
   const profilePermissionLevel = dbProfile?.permission_level ?? getPermissionLevelForRole(currentUser?.role ?? '');
-  const canSeeAll = Boolean(currentUser && isCommanderRole(dbProfile?.role ?? currentUser.role, profilePermissionLevel));
+  const canSeeAll = Boolean(currentUser && hasCompanyWideUiAccess(dbProfile?.role ?? currentUser.role, profilePermissionLevel));
   const staffRole = useMemo(() => inferStaffRole(dbProfile?.role ?? currentUser?.role ?? ''), [currentUser?.role, dbProfile?.role]);
   const ownerLabels = useMemo(() => new Map(ownerOptions.map(owner => [
     owner.id,
@@ -912,91 +911,85 @@ export default function ForumPage() {
 
     setIsLoading(true);
     setError(null);
+    try {
+      const { data: rawPosts, error: postsError } = await supabase
+        .from('forum_posts')
+        .select('id,title,body,author_id,unit_id,is_pinned,metadata,created_at,updated_at')
+        .order('is_pinned', { ascending: false })
+        .order('created_at', { ascending: false })
+        .returns<ForumPostRow[]>();
 
-    const { data: profileData, error: profileError } = await supabase
-      .from('users')
-      .select('id,name,email,role,unit_id,permission_level')
-      .eq('id', currentUser.id)
-      .maybeSingle<DbProfile>();
+      if (postsError) throw postsError;
 
-    if (profileError || !profileData) {
-      if (profileError) logSupabaseError('Forum profile lookup failed', profileError);
-      setDbProfile(null);
-      setPosts([]);
-      setError('לא נמצא פרופיל משתמש פעיל. יש להתחבר מחדש או לפנות למפקד.');
-      setIsLoading(false);
-      return;
-    }
+      const authorIds = [...new Set((rawPosts ?? []).map(post => post.author_id).filter((id): id is string => Boolean(id)))];
+      const unitIds = [...new Set((rawPosts ?? []).map(post => post.unit_id).filter((id): id is string => Boolean(id)))];
+      const [authorsResult, unitsResult] = await Promise.all([
+        authorIds.length
+          ? supabase.from('users').select('id,name,email').in('id', authorIds).returns<UserLookup[]>()
+          : Promise.resolve({ data: [] as UserLookup[], error: null }),
+        unitIds.length
+          ? supabase.from('units').select('id,name').in('id', unitIds).returns<UnitLookup[]>()
+          : Promise.resolve({ data: [] as UnitLookup[], error: null }),
+      ]);
 
-    setDbProfile(profileData);
+      if (authorsResult.error) logSupabaseError('Forum author lookup failed', authorsResult.error);
+      if (unitsResult.error) logSupabaseError('Forum unit lookup failed', unitsResult.error);
 
-    const { data: rawPosts, error: postsError } = await supabase
-      .from('forum_posts')
-      .select('id,title,body,author_id,unit_id,is_pinned,metadata,created_at,updated_at')
-      .order('is_pinned', { ascending: false })
-      .order('created_at', { ascending: false })
-      .returns<ForumPostRow[]>();
-
-    if (postsError) {
-      logSupabaseError('Forum posts load failed', postsError);
-      setPosts([]);
+      const authorNames = new Map((authorsResult.data ?? []).map(user => [user.id, user.name || user.email]));
+      const unitNames = new Map((unitsResult.data ?? []).map(unit => [unit.id, unit.name]));
+      setPosts((rawPosts ?? []).map(post => ({
+        ...post,
+        authorName: post.author_id ? authorNames.get(post.author_id) ?? null : null,
+        unitName: post.unit_id ? unitNames.get(post.unit_id) ?? null : null,
+      })));
+    } catch (loadError) {
+      logSupabaseError('Forum posts load failed', loadError);
       setError('לא ניתן לטעון את הפורום כרגע. נסה לרענן את הדף בעוד רגע.');
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    const authorIds = [...new Set((rawPosts ?? []).map(post => post.author_id).filter((id): id is string => Boolean(id)))];
-    const unitIds = [...new Set((rawPosts ?? []).map(post => post.unit_id).filter((id): id is string => Boolean(id)))];
-
-    const [authorsResult, unitsResult] = await Promise.all([
-      authorIds.length
-        ? supabase.from('users').select('id,name,email').in('id', authorIds).returns<UserLookup[]>()
-        : Promise.resolve({ data: [] as UserLookup[], error: null }),
-      unitIds.length
-        ? supabase.from('units').select('id,name').in('id', unitIds).returns<UnitLookup[]>()
-        : Promise.resolve({ data: [] as UnitLookup[], error: null }),
-    ]);
-
-    if (authorsResult.error) logSupabaseError('Forum author lookup failed', authorsResult.error);
-    if (unitsResult.error) logSupabaseError('Forum unit lookup failed', unitsResult.error);
-
-    const authorNames = new Map((authorsResult.data ?? []).map(user => [user.id, user.name || user.email]));
-    const unitNames = new Map((unitsResult.data ?? []).map(unit => [unit.id, unit.name]));
-
-    setPosts((rawPosts ?? []).map(post => ({
-      ...post,
-      authorName: post.author_id ? authorNames.get(post.author_id) ?? null : null,
-      unitName: post.unit_id ? unitNames.get(post.unit_id) ?? null : null,
-    })));
-    setIsLoading(false);
   }, [currentUser, isContextLoading, supabase]);
 
   const loadDailyReports = useCallback(async (date: string) => {
     if (!dbProfile) return;
 
-    setIsDailyLoading(true);
-    setDailyError(null);
-    setDailySuccess(null);
-
-    const { data, error: loadError } = await supabase
-      .from('forum_daily_reports')
-      .select('id,report_date,company_unit_id,platoon_unit_id,squad_unit_id,report_level,staff_role,parent_report_id,created_by,owner_user_id,status,content,summary_text,whatsapp_text,metadata,created_at,updated_at')
-      .eq('report_date', date)
-      .order('report_level', { ascending: true })
-      .order('created_at', { ascending: true })
-      .returns<DailyReportRow[]>();
-
-    if (loadError) {
-      logSupabaseError('Forum daily reports load failed', loadError);
+    const loadVersion = ++dailyLoadVersion.current;
+    const loadScope = [
+      dbProfile.id,
+      dbProfile.unit_id ?? '',
+      dbProfile.role,
+      dbProfile.permission_level,
+      date,
+    ].join(':');
+    if (loadedDailyScope.current !== loadScope) {
       setDailyReports([]);
       setReportDraft(emptyReportDraft());
-      setDailyError('לא ניתן לטעון את הדיווחים היומיים כרגע. נסה שוב בעוד רגע.');
-      setIsDailyLoading(false);
-      return;
     }
+    setIsDailyLoading(true);
+    setDailyError(null);
 
-    setDailyReports(data ?? []);
-    setIsDailyLoading(false);
+    try {
+      const { data, error: loadError } = await supabase
+        .from('forum_daily_reports')
+        .select('id,report_date,company_unit_id,platoon_unit_id,squad_unit_id,report_level,staff_role,parent_report_id,created_by,owner_user_id,status,content,summary_text,whatsapp_text,metadata,created_at,updated_at')
+        .eq('report_date', date)
+        .order('report_level', { ascending: true })
+        .order('created_at', { ascending: true })
+        .returns<DailyReportRow[]>();
+
+      if (loadError) throw loadError;
+      if (loadVersion === dailyLoadVersion.current) {
+        loadedDailyScope.current = loadScope;
+        setDailyReports(data ?? []);
+      }
+    } catch (loadError) {
+      logSupabaseError('Forum daily reports load failed', loadError);
+      if (loadVersion === dailyLoadVersion.current) {
+        setDailyError('לא ניתן לטעון את הדיווחים היומיים כרגע. נסה שוב בעוד רגע.');
+      }
+    } finally {
+      if (loadVersion === dailyLoadVersion.current) setIsDailyLoading(false);
+    }
   }, [dbProfile, supabase]);
 
   const loadOwnerOptions = useCallback(async () => {
@@ -1048,9 +1041,9 @@ export default function ForumPage() {
   }, [loadPosts]);
 
   useEffect(() => {
-    if (activeTab !== 'daily' || isLoading || !dbProfile) return;
+    if (activeTab !== 'daily' || !dbProfile) return;
     void loadDailyReports(selectedDate);
-  }, [activeTab, dbProfile, isLoading, loadDailyReports, selectedDate]);
+  }, [activeTab, dbProfile, loadDailyReports, selectedDate]);
 
   useEffect(() => {
     if (activeTab !== 'daily' || !canSeeAll) return;
@@ -2832,7 +2825,7 @@ export default function ForumPage() {
         subtitle="מרכז עדכונים, סיכומי מפקדים והודעות תיאום לכלל הפלוגה"
         category="פלוגה א׳"
         actions={(
-          <GlossyButton variant="slate" size="sm" onClick={() => activeTab === 'posts' ? void loadPosts() : void loadDailyReports(selectedDate)} disabled={isSubmitting || isDailySaving}>
+          <GlossyButton variant="slate" size="sm" onClick={() => void refreshProfile()} disabled={isSubmitting || isDailySaving}>
             <RefreshCw className="h-4 w-4" />
             רענן
           </GlossyButton>

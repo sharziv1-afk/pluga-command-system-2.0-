@@ -53,6 +53,23 @@ test('operational pages do not refetch the current profile', () => {
   }
 });
 
+test('profile refresh keeps protected pages mounted and reloads operational data once', () => {
+  const context = readFileSync('src/lib/context/AppContext.tsx', 'utf8');
+  assert.match(context, /const loadCurrentProfile = async \(preserveReadyState = false\)/);
+  assert.match(context, /if \(!preserveReadyState\) \{\s*setCurrentUser\(null\);\s*setAuthStatus\('loading'\)/);
+  assert.match(context, /refreshProfileRef\.current = \(\) => loadCurrentProfile\(true\)/);
+
+  for (const page of ['schedule', 'requests', 'tasks', 'forum']) {
+    const source = readFileSync(`src/app/(protected)/${page}/page.tsx`, 'utf8');
+    assert.match(source, /onClick=\{\(\) => void refreshProfile\(\)\}/, page);
+  }
+
+  for (const page of ['schedule', 'requests', 'tasks']) {
+    const source = readFileSync(`src/app/(protected)/${page}/page.tsx`, 'utf8');
+    assert.match(source, /\[isContextLoading, currentUser\]/, page);
+  }
+});
+
 test('event consumers reuse the derived schedule status', () => {
   for (const page of ['dashboard', 'requests', 'tasks']) {
     const source = readFileSync(`src/app/(protected)/${page}/page.tsx`, 'utf8');

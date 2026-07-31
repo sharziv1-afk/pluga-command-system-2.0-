@@ -396,7 +396,7 @@ export default function SchedulePage() {
   useEffect(() => {
     if (!isContextLoading) void loadEvents();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isContextLoading, currentUser?.id]);
+  }, [isContextLoading, currentUser]);
 
   useEffect(() => {
     let isMounted = true;

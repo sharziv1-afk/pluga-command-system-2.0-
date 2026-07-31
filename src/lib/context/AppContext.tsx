@@ -91,11 +91,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       removeLegacySession();
     };
 
-    const loadCurrentProfile = async () => {
+    const loadCurrentProfile = async (preserveReadyState = false) => {
       cancelProfileLoad();
       const version = ++loadVersion;
-      setCurrentUser(null);
-      setAuthStatus('loading');
+      if (!preserveReadyState) {
+        setCurrentUser(null);
+        setAuthStatus('loading');
+      }
       setAuthError(null);
 
       const deadline = createProfileLoadDeadline();
@@ -151,7 +153,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setAuthError(PROFILE_LOAD_ERROR_MESSAGE);
     };
 
-    refreshProfileRef.current = loadCurrentProfile;
+    refreshProfileRef.current = () => loadCurrentProfile(true);
     removeLegacySession();
     void loadCurrentProfile();
 

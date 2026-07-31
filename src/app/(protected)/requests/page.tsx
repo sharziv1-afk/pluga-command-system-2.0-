@@ -447,7 +447,7 @@ export default function RequestsPage() {
   useEffect(() => {
     if (!isContextLoading) { loadRequests(); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isContextLoading, currentUser?.id]);
+  }, [isContextLoading, currentUser]);
 
   const visibleRequests = useMemo(() => {
     if (!dbProfile || !currentUser) return [];

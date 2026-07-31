@@ -372,7 +372,7 @@ export default function TasksPage() {
   useEffect(() => {
     if (!isContextLoading) void loadTasks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isContextLoading, currentUser?.id]);
+  }, [isContextLoading, currentUser]);
 
   const tabCounts = useMemo(() => {
     const counts: Partial<Record<TaskTab, number>> = {};

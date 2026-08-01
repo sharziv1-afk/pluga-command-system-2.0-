@@ -1449,65 +1449,104 @@ export default function ForumPage() {
     setDailySuccess(null);
     const draftToSave = snapshotDraftFields(reportDraftRef.current, reportDraftFields);
 
-    if (!selectedReport) {
-      if (!canUseDraftFormForSelectedNode) {
-        setDailyError('נדרש שיוך משתמש לפני פתיחת דוח לגורם הזה.');
-        recordDailyDraftSave(draftToSave, false);
-        dailySaveInFlight.current = false;
-        setIsDailySaving(false);
+    try {
+      if (!selectedReport) {
+        if (!canUseDraftFormForSelectedNode) {
+          setDailyError('נדרש שיוך משתמש לפני פתיחת דוח לגורם הזה.');
+          recordDailyDraftSave(draftToSave, false);
+          return;
+        }
+
+        const nextReportLevel = selectedNode.level;
+        const nextStaffRole = nextReportLevel === 'staff' ? selectedNode.staffRole ?? null : null;
+        const ownerId = selectedNode.ownerUserId ?? dbProfile.id;
+        const ownerUnitId = selectedNode.unitId ?? dbProfile.unit_id;
+        const selectedOwner = selectedNode.ownerUserId
+          ? ownerOptions.find(owner => owner.id === selectedNode.ownerUserId) ?? null
+          : null;
+        const createdForByCommander = ownerId !== dbProfile.id;
+        const updatePayload = {
+          content: draftToSave,
+          status: 'in_progress' as ReportStatus,
+          summary_text: selectedNode.level === 'staff' ? draftToSave.notes : draftToSave.personal_note || draftToSave.company_summary,
+          whatsapp_text: selectedNode.level === 'company' ? generateWhatsappText('detailed') : null,
+        };
+
+        const { data: createdReport, error: createError } = await supabase
+          .from('forum_daily_reports')
+          .insert({
+            report_date: selectedDate,
+            company_unit_id: ownerUnitId,
+            platoon_unit_id: nextReportLevel === 'platoon' || nextReportLevel === 'squad' ? ownerUnitId : null,
+            squad_unit_id: nextReportLevel === 'squad' ? ownerUnitId : null,
+            report_level: nextReportLevel,
+            staff_role: nextStaffRole,
+            parent_report_id: null,
+            created_by: dbProfile.id,
+            owner_user_id: ownerId,
+            status: updatePayload.status,
+            content: updatePayload.content,
+            summary_text: updatePayload.summary_text,
+            whatsapp_text: updatePayload.whatsapp_text,
+            metadata: {
+              node_id: selectedNode.id,
+              node_label: selectedNode.label,
+              created_from_draft_form: true,
+              ui_gated_scope: true,
+              created_for_by_commander: createdForByCommander,
+              created_for_user_name: selectedOwner?.name ?? null,
+              created_for_user_role: selectedOwner?.role ?? null,
+            },
+          })
+          .select('id,report_date,company_unit_id,platoon_unit_id,squad_unit_id,report_level,staff_role,parent_report_id,created_by,owner_user_id,status,content,summary_text,whatsapp_text,metadata,created_at,updated_at')
+          .single<DailyReportRow>();
+
+        if (createError || !createdReport) {
+          if (createError) logSupabaseError('Forum daily report draft create failed', createError);
+          setDailyError('לא ניתן לשמור את הטיוטה כרגע. בדוק הרשאות או נסה שוב.');
+          recordDailyDraftSave(draftToSave, false);
+          return;
+        }
+
+        void createAuditLog(supabase, {
+          userId: dbProfile.id,
+          userName: dbProfile.name,
+          userRole: dbProfile.role,
+          actionType: 'forum_daily_report_created',
+          entityType: 'forum_daily_report',
+          entityId: createdReport.id,
+          previousValue: null,
+          newValue: createdReport,
+        });
+
+        recordDailyDraftSave(draftToSave, true);
+        setSelectedNodeId(selectedNode.id);
+        setDailySuccess('טיוטת הדיווח נשמרה ונפתחה לעבודה.');
+        try {
+          await loadDailyReports(selectedDate);
+        } catch (refreshError) {
+          logSupabaseError('Forum daily reports refresh after create failed', refreshError);
+          setDailyError('הטיוטה נשמרה, אך רענון הנתונים נכשל. נסה לרענן שוב.');
+        }
         return;
       }
 
-      const nextReportLevel = selectedNode.level;
-      const nextStaffRole = nextReportLevel === 'staff' ? selectedNode.staffRole ?? null : null;
-      const ownerId = selectedNode.ownerUserId ?? dbProfile.id;
-      const ownerUnitId = selectedNode.unitId ?? dbProfile.unit_id;
-      const selectedOwner = selectedNode.ownerUserId
-        ? ownerOptions.find(owner => owner.id === selectedNode.ownerUserId) ?? null
-        : null;
-      const createdForByCommander = ownerId !== dbProfile.id;
       const updatePayload = {
         content: draftToSave,
-        status: 'in_progress' as ReportStatus,
+        status: selectedReport.status === 'draft' ? 'in_progress' : selectedReport.status,
         summary_text: selectedNode.level === 'staff' ? draftToSave.notes : draftToSave.personal_note || draftToSave.company_summary,
-        whatsapp_text: selectedNode.level === 'company' ? generateWhatsappText('detailed') : null,
+        whatsapp_text: selectedNode.level === 'company' ? generateWhatsappText('detailed') : selectedReport.whatsapp_text,
       };
 
-      const { data: createdReport, error: createError } = await supabase
+      const { error: updateError } = await supabase
         .from('forum_daily_reports')
-        .insert({
-          report_date: selectedDate,
-          company_unit_id: ownerUnitId,
-          platoon_unit_id: nextReportLevel === 'platoon' || nextReportLevel === 'squad' ? ownerUnitId : null,
-          squad_unit_id: nextReportLevel === 'squad' ? ownerUnitId : null,
-          report_level: nextReportLevel,
-          staff_role: nextStaffRole,
-          parent_report_id: null,
-          created_by: dbProfile.id,
-          owner_user_id: ownerId,
-          status: updatePayload.status,
-          content: updatePayload.content,
-          summary_text: updatePayload.summary_text,
-          whatsapp_text: updatePayload.whatsapp_text,
-          metadata: {
-            node_id: selectedNode.id,
-            node_label: selectedNode.label,
-            created_from_draft_form: true,
-            ui_gated_scope: true,
-            created_for_by_commander: createdForByCommander,
-            created_for_user_name: selectedOwner?.name ?? null,
-            created_for_user_role: selectedOwner?.role ?? null,
-          },
-        })
-        .select('id,report_date,company_unit_id,platoon_unit_id,squad_unit_id,report_level,staff_role,parent_report_id,created_by,owner_user_id,status,content,summary_text,whatsapp_text,metadata,created_at,updated_at')
-        .single<DailyReportRow>();
+        .update(updatePayload)
+        .eq('id', selectedReport.id);
 
-      if (createError || !createdReport) {
-        if (createError) logSupabaseError('Forum daily report draft create failed', createError);
-        setDailyError('לא ניתן לשמור את הטיוטה כרגע. בדוק הרשאות או נסה שוב.');
+      if (updateError) {
+        logSupabaseError('Forum daily report update failed', updateError);
+        setDailyError('לא ניתן לשמור את הדיווח כרגע. בדוק הרשאות או נסה שוב.');
         recordDailyDraftSave(draftToSave, false);
-        dailySaveInFlight.current = false;
-        setIsDailySaving(false);
         return;
       }
 
@@ -1515,62 +1554,32 @@ export default function ForumPage() {
         userId: dbProfile.id,
         userName: dbProfile.name,
         userRole: dbProfile.role,
-        actionType: 'forum_daily_report_created',
+        actionType: 'forum_daily_report_updated',
         entityType: 'forum_daily_report',
-        entityId: createdReport.id,
-        previousValue: null,
-        newValue: createdReport,
+        entityId: selectedReport.id,
+        previousValue: {
+          status: selectedReport.status,
+          content: selectedReport.content,
+        },
+        newValue: updatePayload,
       });
 
       recordDailyDraftSave(draftToSave, true);
-      setSelectedNodeId(selectedNode.id);
-      setDailySuccess('טיוטת הדיווח נשמרה ונפתחה לעבודה.');
-      await loadDailyReports(selectedDate);
-      dailySaveInFlight.current = false;
-      setIsDailySaving(false);
-      return;
-    }
-
-    const updatePayload = {
-      content: draftToSave,
-      status: selectedReport.status === 'draft' ? 'in_progress' : selectedReport.status,
-      summary_text: selectedNode.level === 'staff' ? draftToSave.notes : draftToSave.personal_note || draftToSave.company_summary,
-      whatsapp_text: selectedNode.level === 'company' ? generateWhatsappText('detailed') : selectedReport.whatsapp_text,
-    };
-
-    const { error: updateError } = await supabase
-      .from('forum_daily_reports')
-      .update(updatePayload)
-      .eq('id', selectedReport.id);
-
-    if (updateError) {
-      logSupabaseError('Forum daily report update failed', updateError);
-      setDailyError('לא ניתן לשמור את הדיווח כרגע. בדוק הרשאות או נסה שוב.');
+      setDailySuccess('הדיווח נשמר');
+      try {
+        await loadDailyReports(selectedDate);
+      } catch (refreshError) {
+        logSupabaseError('Forum daily reports refresh after save failed', refreshError);
+        setDailyError('הדיווח נשמר, אך רענון הנתונים נכשל. נסה לרענן שוב.');
+      }
+    } catch (saveError) {
+      logSupabaseError('Forum daily report save threw', saveError);
+      setDailyError('לא ניתן לשמור את הדיווח כרגע. בדוק את החיבור ונסה שוב.');
       recordDailyDraftSave(draftToSave, false);
+    } finally {
       dailySaveInFlight.current = false;
       setIsDailySaving(false);
-      return;
     }
-
-    void createAuditLog(supabase, {
-      userId: dbProfile.id,
-      userName: dbProfile.name,
-      userRole: dbProfile.role,
-      actionType: 'forum_daily_report_updated',
-      entityType: 'forum_daily_report',
-      entityId: selectedReport.id,
-      previousValue: {
-        status: selectedReport.status,
-        content: selectedReport.content,
-      },
-      newValue: updatePayload,
-    });
-
-    recordDailyDraftSave(draftToSave, true);
-    setDailySuccess('הדיווח נשמר');
-    await loadDailyReports(selectedDate);
-    dailySaveInFlight.current = false;
-    setIsDailySaving(false);
   };
 
   const submitSelectedReport = async () => {
@@ -1582,36 +1591,46 @@ export default function ForumPage() {
     setDailySuccess(null);
     const draftToSubmit = snapshotDraftFields(reportDraftRef.current, reportDraftFields);
 
-    const { error: submitError } = await supabase
-      .from('forum_daily_reports')
-      .update({ status: 'submitted', content: draftToSubmit })
-      .eq('id', selectedReport.id);
+    try {
+      const { error: submitError } = await supabase
+        .from('forum_daily_reports')
+        .update({ status: 'submitted', content: draftToSubmit })
+        .eq('id', selectedReport.id);
 
-    if (submitError) {
-      logSupabaseError('Forum daily report submit failed', submitError);
-      setDailyError('לא ניתן להגיש את הדיווח כרגע.');
+      if (submitError) {
+        logSupabaseError('Forum daily report submit failed', submitError);
+        setDailyError('לא ניתן להגיש את הדיווח כרגע.');
+        recordDailyDraftSave(draftToSubmit, false);
+        return;
+      }
+
+      void createAuditLog(supabase, {
+        userId: dbProfile.id,
+        userName: dbProfile.name,
+        userRole: dbProfile.role,
+        actionType: 'forum_daily_report_submitted',
+        entityType: 'forum_daily_report',
+        entityId: selectedReport.id,
+        previousValue: { status: selectedReport.status },
+        newValue: { status: 'submitted' },
+      });
+
+      recordDailyDraftSave(draftToSubmit, true);
+      setDailySuccess('הדיווח הוגש');
+      try {
+        await loadDailyReports(selectedDate);
+      } catch (refreshError) {
+        logSupabaseError('Forum daily reports refresh after submit failed', refreshError);
+        setDailyError('הדיווח הוגש, אך רענון הנתונים נכשל. נסה לרענן שוב.');
+      }
+    } catch (submitError) {
+      logSupabaseError('Forum daily report submit threw', submitError);
+      setDailyError('לא ניתן להגיש את הדיווח כרגע. בדוק את החיבור ונסה שוב.');
       recordDailyDraftSave(draftToSubmit, false);
+    } finally {
       dailySaveInFlight.current = false;
       setIsDailySaving(false);
-      return;
     }
-
-    void createAuditLog(supabase, {
-      userId: dbProfile.id,
-      userName: dbProfile.name,
-      userRole: dbProfile.role,
-      actionType: 'forum_daily_report_submitted',
-      entityType: 'forum_daily_report',
-      entityId: selectedReport.id,
-      previousValue: { status: selectedReport.status },
-      newValue: { status: 'submitted' },
-    });
-
-    recordDailyDraftSave(draftToSubmit, true);
-    setDailySuccess('הדיווח הוגש');
-    await loadDailyReports(selectedDate);
-    dailySaveInFlight.current = false;
-    setIsDailySaving(false);
   };
 
   const carryForwardClosedReport = async (sourceReport: DailyReportRow): Promise<void> => {

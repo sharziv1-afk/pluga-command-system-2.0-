@@ -141,13 +141,90 @@ test('forum daily draft protection handles hydration, transitions, saves, and st
   assert.equal(isLatestDailyLoad(5, 5), true);
 
   const source = readFileSync('src/app/(protected)/forum/page.tsx', 'utf8');
-  const saveFlow = source.slice(source.indexOf('const saveSelectedReport'), source.indexOf('const carryForwardClosedReport'));
+  const saveFlow = source.slice(source.indexOf('const saveSelectedReport'), source.indexOf('const submitSelectedReport'));
+  const submitFlow = source.slice(source.indexOf('const submitSelectedReport'), source.indexOf('const carryForwardClosedReport'));
   const transitionFlow = source.slice(source.indexOf('const requestDailyScopeTransition'), source.indexOf('const transitionDailyDate'));
   const hydrationFlow = source.slice(source.indexOf('useEffect(() => {\n    if (activeTab !== \'daily\''), source.indexOf('// Hydrate the company-report editor meta'));
-  assert.match(saveFlow, /dailySaveInFlight\.current/);
-  assert.match(saveFlow, /await loadDailyReports\(selectedDate\);\s*dailySaveInFlight\.current = false;/);
+  for (const flow of [saveFlow, submitFlow]) {
+    const beforeFinally = flow.slice(0, flow.indexOf('} finally {'));
+    assert.match(flow, /dailySaveInFlight\.current = true;\s*setIsDailySaving\(true\);[\s\S]*?try \{/);
+    assert.match(flow, /catch \([^)]*Error\) \{[\s\S]*?logSupabaseError\([\s\S]*?recordDailyDraftSave\([^,]+, false\);/);
+    assert.match(flow, /finally \{\s*dailySaveInFlight\.current = false;\s*setIsDailySaving\(false\);\s*\}/);
+    assert.doesNotMatch(beforeFinally, /dailySaveInFlight\.current = false|setIsDailySaving\(false\)/);
+  }
   assert.match(transitionFlow, /if \(dailySaveInFlight\.current\) return false;/);
   assert.match(hydrationFlow, /selectedReport\?\.content\.company_report_manually_edited === true/);
+});
+
+test('forum daily save lifecycle unlocks after success, returned errors, and exceptions', async () => {
+  const fields = ['notes'];
+  const baseline = { notes: 'server' };
+  const draft = { notes: 'local' };
+
+  const runMutation = async (mutation, refresh = async () => undefined) => {
+    let locked = true;
+    let loading = true;
+    let savedBaseline = baseline;
+
+    try {
+      const { error } = await mutation();
+      if (error) {
+        savedBaseline = nextDraftBaseline(savedBaseline, draft, false, fields);
+      } else {
+        savedBaseline = nextDraftBaseline(savedBaseline, draft, true, fields);
+        try {
+          await refresh();
+        } catch {
+          // Persistence already succeeded, so a refresh failure must not dirty the baseline.
+        }
+      }
+    } catch {
+      savedBaseline = nextDraftBaseline(savedBaseline, draft, false, fields);
+    } finally {
+      locked = false;
+      loading = false;
+    }
+
+    return {
+      dirty: isDraftDirty(draft, savedBaseline, fields),
+      loading,
+      locked,
+    };
+  };
+
+  const saved = await runMutation(async () => ({ error: null }));
+  assert.deepEqual(saved, { dirty: false, loading: false, locked: false });
+
+  const returnedError = await runMutation(async () => ({ error: new Error('denied') }));
+  assert.deepEqual(returnedError, { dirty: true, loading: false, locked: false });
+
+  const saveException = await runMutation(async () => { throw new Error('offline'); });
+  assert.deepEqual(saveException, { dirty: true, loading: false, locked: false });
+
+  const submitException = await runMutation(async () => { throw new Error('offline'); });
+  assert.equal(submitException.locked, false);
+
+  const refreshException = await runMutation(
+    async () => ({ error: null }),
+    async () => { throw new Error('refresh offline'); },
+  );
+  assert.deepEqual(refreshException, { dirty: false, loading: false, locked: false });
+
+  let attempts = 0;
+  await runMutation(async () => {
+    attempts += 1;
+    throw new Error('first attempt failed');
+  });
+  const retry = await runMutation(async () => {
+    attempts += 1;
+    return { error: null };
+  });
+  assert.equal(attempts, 2);
+  assert.equal(retry.dirty, false);
+
+  const scope = '2026-08-01|owner-1';
+  const nextScope = '2026-08-02|owner-1';
+  assert.equal(saveException.locked || !canTransitionDraft(scope, nextScope, saveException.dirty, () => true), false);
 });
 
 test('row status mutations use a global guard and finally cleanup', () => {

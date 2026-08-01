@@ -44,6 +44,15 @@ import type { AuditActionType } from '@/lib/audit';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import { aggregateCompanyStructured, assignPlatoonReports } from '@/lib/forum/companyReport';
 import type { CompanyReportInput, CompanyReportPlatoon } from '@/lib/forum/companyReport';
+import {
+  canTransitionDraft,
+  dailyDraftScopeKey,
+  isDraftDirty,
+  isLatestDailyLoad,
+  nextDraftBaseline,
+  shouldHydrateDraft,
+  snapshotDraftFields,
+} from '@/lib/forum/draftProtection';
 import { useApp } from '@/lib/context/AppContext';
 import { getPermissionLevelForRole, hasCompanyWideUiAccess, normalizeRole } from '@/lib/permissions';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
@@ -377,6 +386,8 @@ function emptyReportDraft(): ReportDraft {
   };
 }
 
+const reportDraftFields = Object.keys(emptyReportDraft()) as (keyof ReportDraft)[];
+
 function draftFromReport(report: DailyReportRow | null): ReportDraft {
   if (!report) return emptyReportDraft();
   return { ...emptyReportDraft(), ...report.content };
@@ -443,6 +454,10 @@ export default function ForumPage() {
   const dailyLoadVersion = useRef(0);
   const loadedDailyScope = useRef<string | null>(null);
   const [reportDraft, setReportDraft] = useState<ReportDraft>(() => emptyReportDraft());
+  const reportDraftRef = useRef(reportDraft);
+  const reportDraftBaseline = useRef(reportDraft);
+  const hydratedDailyDraftScope = useRef<string | null>(null);
+  const dailySaveInFlight = useRef(false);
   const [isDailyLoading, setIsDailyLoading] = useState(false);
   const [isDailySaving, setIsDailySaving] = useState(false);
   const [dailyError, setDailyError] = useState<string | null>(null);
@@ -481,16 +496,6 @@ export default function ForumPage() {
   useEffect(() => {
     setDailyDateInputValue(selectedDate);
   }, [selectedDate]);
-
-  const commitDailyDateInput = useCallback((value = dailyDateInputValue) => {
-    const nextDate = value.trim();
-    if (isDateInputValue(nextDate)) {
-      setDailyDateInputValue(nextDate);
-      setSelectedDate(nextDate);
-      return;
-    }
-    setDailyDateInputValue(selectedDate);
-  }, [dailyDateInputValue, selectedDate]);
 
   const dailyNodes = useMemo<DailyNode[]>(() => {
     if (canSeeAll) {
@@ -668,9 +673,69 @@ export default function ForumPage() {
 
   const selectedNode = dailyNodes.find(node => node.id === selectedNodeId) ?? dailyNodes[0];
 
+  const getDailyDraftScope = (date: string, nodeId: string, ownerSelection = selectedOwnerId) => {
+    const node = dailyNodes.find(item => item.id === nodeId) ?? selectedNode;
+    return dailyDraftScopeKey({
+      date,
+      profileId: dbProfile?.id ?? '',
+      nodeId: node?.id ?? nodeId,
+      ownerId: node?.ownerUserId ?? (node?.owned ? dbProfile?.id ?? '' : ownerSelection),
+      reportLevel: node?.level ?? 'unknown',
+      staffRole: node?.staffRole,
+    });
+  };
+
+  const selectedDailyDraftScope = getDailyDraftScope(selectedDate, selectedNodeId);
+
+  const requestDailyScopeTransition = (nextScope: string) => {
+    if (dailySaveInFlight.current) return false;
+    const draftIsDirty = isDraftDirty(reportDraftRef.current, reportDraftBaseline.current, reportDraftFields);
+    const currentDraftScope = hydratedDailyDraftScope.current ?? selectedDailyDraftScope;
+    if (!canTransitionDraft(
+      currentDraftScope,
+      nextScope,
+      draftIsDirty,
+      () => window.confirm('יש שינויים שלא נשמרו. מעבר לתאריך או לדוח אחר ימחק אותם. להמשיך?'),
+    )) return false;
+
+    if (nextScope !== currentDraftScope) {
+      const emptyDraft = emptyReportDraft();
+      reportDraftRef.current = emptyDraft;
+      reportDraftBaseline.current = emptyDraft;
+      hydratedDailyDraftScope.current = null;
+      setReportDraft(emptyDraft);
+      setIsEditingReport(false);
+      setCompanyGeneratedAt(null);
+      setCompanyReportWarnings([]);
+    }
+    return true;
+  };
+
+  const transitionDailyDate = (nextDate: string) => {
+    if (nextDate === selectedDate) return true;
+    const nextScope = getDailyDraftScope(nextDate, selectedNodeId);
+    if (!requestDailyScopeTransition(nextScope)) return false;
+
+    dailyLoadVersion.current += 1;
+    loadedDailyScope.current = null;
+    setDailyReports([]);
+    setSelectedDate(nextDate);
+    setDailyDateInputValue(nextDate);
+    return true;
+  };
+
+  const commitDailyDateInput = (value = dailyDateInputValue) => {
+    const nextDate = value.trim();
+    if (isDateInputValue(nextDate) && transitionDailyDate(nextDate)) return;
+    setDailyDateInputValue(selectedDate);
+  };
+
   const handleSelectDailyNode = (event: React.MouseEvent<HTMLButtonElement>) => {
     const nodeId = event.currentTarget.dataset.nodeId;
     if (!nodeId) return;
+
+    const nextScope = getDailyDraftScope(selectedDate, nodeId);
+    if (!requestDailyScopeTransition(nextScope)) return;
 
     setSelectedNodeId(nodeId);
     requestAnimationFrame(() => {
@@ -680,6 +745,36 @@ export default function ForumPage() {
         behavior: prefersReducedMotion ? 'auto' : 'smooth',
       });
     });
+  };
+
+  const handleForumTabChange = (nextTab: ForumTab) => {
+    if (nextTab === activeTab) return;
+    if (activeTab === 'daily' && !requestDailyScopeTransition(`tab:${nextTab}`)) return;
+    setActiveTab(nextTab);
+  };
+
+  const handleDailyOwnerChange = (nextOwnerId: string) => {
+    const nextScope = getDailyDraftScope(selectedDate, selectedNodeId, nextOwnerId);
+    if (!requestDailyScopeTransition(nextScope)) return;
+    setSelectedOwnerId(nextOwnerId);
+  };
+
+  const replaceWithCleanDailyDraft = (draft: ReportDraft, scope = selectedDailyDraftScope) => {
+    const snapshot = snapshotDraftFields(draft, reportDraftFields);
+    reportDraftRef.current = snapshot;
+    reportDraftBaseline.current = snapshot;
+    hydratedDailyDraftScope.current = scope;
+    setReportDraft(snapshot);
+  };
+
+  const recordDailyDraftSave = (draft: ReportDraft, succeeded: boolean) => {
+    reportDraftBaseline.current = nextDraftBaseline(
+      reportDraftBaseline.current,
+      draft,
+      succeeded,
+      reportDraftFields,
+    );
+    if (succeeded) hydratedDailyDraftScope.current = selectedDailyDraftScope;
   };
 
   const toggleDailyGroup = (groupName: string, currentlyExpanded: boolean) => {
@@ -961,10 +1056,6 @@ export default function ForumPage() {
       dbProfile.permission_level,
       date,
     ].join(':');
-    if (loadedDailyScope.current !== loadScope) {
-      setDailyReports([]);
-      setReportDraft(emptyReportDraft());
-    }
     setIsDailyLoading(true);
     setDailyError(null);
 
@@ -978,17 +1069,17 @@ export default function ForumPage() {
         .returns<DailyReportRow[]>();
 
       if (loadError) throw loadError;
-      if (loadVersion === dailyLoadVersion.current) {
+      if (isLatestDailyLoad(loadVersion, dailyLoadVersion.current)) {
         loadedDailyScope.current = loadScope;
         setDailyReports(data ?? []);
       }
     } catch (loadError) {
       logSupabaseError('Forum daily reports load failed', loadError);
-      if (loadVersion === dailyLoadVersion.current) {
+      if (isLatestDailyLoad(loadVersion, dailyLoadVersion.current)) {
         setDailyError('לא ניתן לטעון את הדיווחים היומיים כרגע. נסה שוב בעוד רגע.');
       }
     } finally {
-      if (loadVersion === dailyLoadVersion.current) setIsDailyLoading(false);
+      if (isLatestDailyLoad(loadVersion, dailyLoadVersion.current)) setIsDailyLoading(false);
     }
   }, [dbProfile, supabase]);
 
@@ -1051,9 +1142,23 @@ export default function ForumPage() {
   }, [activeTab, canSeeAll, loadOwnerOptions]);
 
   useEffect(() => {
-    setReportDraft(draftFromReport(selectedReport));
+    if (activeTab !== 'daily' || selectedNode?.level === 'whatsapp') return;
+    const draftIsDirty = isDraftDirty(reportDraftRef.current, reportDraftBaseline.current, reportDraftFields);
+    if (!shouldHydrateDraft(draftIsDirty)) return;
+
+    const nextDraft = draftFromReport(selectedReport);
+    const snapshot = snapshotDraftFields(nextDraft, reportDraftFields);
+    reportDraftRef.current = snapshot;
+    reportDraftBaseline.current = snapshot;
+    hydratedDailyDraftScope.current = selectedDailyDraftScope;
+    setReportDraft(snapshot);
     setIsEditingReport(false);
-  }, [selectedReport?.id, selectedReport]);
+    if (selectedNode.level === 'company') {
+      setCompanyManuallyEdited(selectedReport?.content.company_report_manually_edited === true);
+      setCompanyGeneratedAt(null);
+      setCompanyReportWarnings([]);
+    }
+  }, [activeTab, selectedDailyDraftScope, selectedNode?.level, selectedReport]);
 
   // Hydrate the company-report editor meta from its row, but only when the underlying report
   // identity changes — so a content reload (e.g. our own save) never re-flags manual edits or
@@ -1085,6 +1190,7 @@ export default function ForumPage() {
 
   useEffect(() => {
     if (dailyNodes.some(node => node.id === selectedNodeId)) return;
+    if (isDraftDirty(reportDraftRef.current, reportDraftBaseline.current, reportDraftFields)) return;
     setSelectedNodeId(dailyNodes[0]?.id ?? 'own-report');
   }, [dailyNodes, selectedNodeId]);
 
@@ -1234,7 +1340,7 @@ export default function ForumPage() {
 
     const existing = findReportForNode(node);
     if (existing) {
-      setReportDraft(draftFromReport(existing));
+      replaceWithCleanDailyDraft(draftFromReport(existing));
       return;
     }
 
@@ -1268,7 +1374,10 @@ export default function ForumPage() {
 
     if (existingForOwner) {
       setSelectedNodeId(`report-${existingForOwner.id}`);
-      setReportDraft(draftFromReport(existingForOwner));
+      replaceWithCleanDailyDraft(
+        draftFromReport(existingForOwner),
+        getDailyDraftScope(selectedDate, `report-${existingForOwner.id}`),
+      );
       setDailySuccess('דיווח קיים נפתח.');
       setIsDailySaving(false);
       return;
@@ -1332,15 +1441,19 @@ export default function ForumPage() {
   };
 
   const saveSelectedReport = async () => {
-    if (!dbProfile || !selectedNode || selectedNode.level === 'whatsapp') return;
+    if (!dbProfile || !selectedNode || selectedNode.level === 'whatsapp' || dailySaveInFlight.current) return;
 
+    dailySaveInFlight.current = true;
     setIsDailySaving(true);
     setDailyError(null);
     setDailySuccess(null);
+    const draftToSave = snapshotDraftFields(reportDraftRef.current, reportDraftFields);
 
     if (!selectedReport) {
       if (!canUseDraftFormForSelectedNode) {
         setDailyError('נדרש שיוך משתמש לפני פתיחת דוח לגורם הזה.');
+        recordDailyDraftSave(draftToSave, false);
+        dailySaveInFlight.current = false;
         setIsDailySaving(false);
         return;
       }
@@ -1354,9 +1467,9 @@ export default function ForumPage() {
         : null;
       const createdForByCommander = ownerId !== dbProfile.id;
       const updatePayload = {
-        content: reportDraft,
+        content: draftToSave,
         status: 'in_progress' as ReportStatus,
-        summary_text: selectedNode.level === 'staff' ? reportDraft.notes : reportDraft.personal_note || reportDraft.company_summary,
+        summary_text: selectedNode.level === 'staff' ? draftToSave.notes : draftToSave.personal_note || draftToSave.company_summary,
         whatsapp_text: selectedNode.level === 'company' ? generateWhatsappText('detailed') : null,
       };
 
@@ -1392,6 +1505,8 @@ export default function ForumPage() {
       if (createError || !createdReport) {
         if (createError) logSupabaseError('Forum daily report draft create failed', createError);
         setDailyError('לא ניתן לשמור את הטיוטה כרגע. בדוק הרשאות או נסה שוב.');
+        recordDailyDraftSave(draftToSave, false);
+        dailySaveInFlight.current = false;
         setIsDailySaving(false);
         return;
       }
@@ -1407,18 +1522,20 @@ export default function ForumPage() {
         newValue: createdReport,
       });
 
+      recordDailyDraftSave(draftToSave, true);
       setSelectedNodeId(selectedNode.id);
       setDailySuccess('טיוטת הדיווח נשמרה ונפתחה לעבודה.');
-      setIsDailySaving(false);
       await loadDailyReports(selectedDate);
+      dailySaveInFlight.current = false;
+      setIsDailySaving(false);
       return;
     }
 
     const updatePayload = {
-      content: reportDraft,
+      content: draftToSave,
       status: selectedReport.status === 'draft' ? 'in_progress' : selectedReport.status,
-      summary_text: selectedNode?.level === 'staff' ? reportDraft.notes : reportDraft.personal_note || reportDraft.company_summary,
-      whatsapp_text: selectedNode?.level === 'company' ? generateWhatsappText('detailed') : selectedReport.whatsapp_text,
+      summary_text: selectedNode.level === 'staff' ? draftToSave.notes : draftToSave.personal_note || draftToSave.company_summary,
+      whatsapp_text: selectedNode.level === 'company' ? generateWhatsappText('detailed') : selectedReport.whatsapp_text,
     };
 
     const { error: updateError } = await supabase
@@ -1429,6 +1546,8 @@ export default function ForumPage() {
     if (updateError) {
       logSupabaseError('Forum daily report update failed', updateError);
       setDailyError('לא ניתן לשמור את הדיווח כרגע. בדוק הרשאות או נסה שוב.');
+      recordDailyDraftSave(draftToSave, false);
+      dailySaveInFlight.current = false;
       setIsDailySaving(false);
       return;
     }
@@ -1447,26 +1566,32 @@ export default function ForumPage() {
       newValue: updatePayload,
     });
 
+    recordDailyDraftSave(draftToSave, true);
     setDailySuccess('הדיווח נשמר');
-    setIsDailySaving(false);
     await loadDailyReports(selectedDate);
+    dailySaveInFlight.current = false;
+    setIsDailySaving(false);
   };
 
   const submitSelectedReport = async () => {
-    if (!selectedReport || !dbProfile) return;
+    if (!selectedReport || !dbProfile || dailySaveInFlight.current) return;
 
+    dailySaveInFlight.current = true;
     setIsDailySaving(true);
     setDailyError(null);
     setDailySuccess(null);
+    const draftToSubmit = snapshotDraftFields(reportDraftRef.current, reportDraftFields);
 
     const { error: submitError } = await supabase
       .from('forum_daily_reports')
-      .update({ status: 'submitted', content: reportDraft })
+      .update({ status: 'submitted', content: draftToSubmit })
       .eq('id', selectedReport.id);
 
     if (submitError) {
       logSupabaseError('Forum daily report submit failed', submitError);
       setDailyError('לא ניתן להגיש את הדיווח כרגע.');
+      recordDailyDraftSave(draftToSubmit, false);
+      dailySaveInFlight.current = false;
       setIsDailySaving(false);
       return;
     }
@@ -1482,9 +1607,11 @@ export default function ForumPage() {
       newValue: { status: 'submitted' },
     });
 
+    recordDailyDraftSave(draftToSubmit, true);
     setDailySuccess('הדיווח הוגש');
-    setIsDailySaving(false);
     await loadDailyReports(selectedDate);
+    dailySaveInFlight.current = false;
+    setIsDailySaving(false);
   };
 
   const carryForwardClosedReport = async (sourceReport: DailyReportRow): Promise<void> => {
@@ -1748,7 +1875,7 @@ export default function ForumPage() {
       },
     });
 
-    setReportDraft(emptyReportDraft());
+    replaceWithCleanDailyDraft(emptyReportDraft());
     setDailySuccess('הדוח אופס וחזר לטיוטה.');
     setIsDailySaving(false);
     await loadDailyReports(selectedDate);
@@ -1798,14 +1925,18 @@ export default function ForumPage() {
 
     setDailyReports(current => current.filter(report => report.id !== selectedReport.id));
     setSelectedNodeId(canSeeAll ? 'whatsapp' : 'own-report');
-    setReportDraft(emptyReportDraft());
+    replaceWithCleanDailyDraft(emptyReportDraft());
     setDailySuccess('הדוח נמחק.');
     setIsDailySaving(false);
     await loadDailyReports(selectedDate);
   };
 
   const updateDraft = (field: keyof ReportDraft, value: string) => {
-    setReportDraft(current => ({ ...current, [field]: value }));
+    setReportDraft(current => {
+      const nextDraft = { ...current, [field]: value };
+      reportDraftRef.current = nextDraft;
+      return nextDraft;
+    });
   };
 
   // Same as updateDraft, but on the company report it also flags a manual edit so a later
@@ -1948,7 +2079,11 @@ export default function ForumPage() {
   const applyCompanyAggregation = () => {
     if (isCompanyReportLocked) return;
     const result = aggregateCompanyStructured(buildCompanyReportInput());
-    setReportDraft(current => ({ ...current, ...result.fields }));
+    setReportDraft(current => {
+      const nextDraft = { ...current, ...result.fields };
+      reportDraftRef.current = nextDraft;
+      return nextDraft;
+    });
     setCompanyManuallyEdited(false);
     setCompanyGeneratedAt(new Date().toISOString());
     setCompanyReportWarnings(result.warnings);
@@ -1995,6 +2130,7 @@ export default function ForumPage() {
       setShowCompanyPublishConfirm(false);
       return;
     }
+    recordDailyDraftSave(snapshotDraftFields(reportDraftRef.current, reportDraftFields), true);
 
     // 2) Bulk-close every still-open report for this date (RLS limits this to permitted rows).
     const { data: closedRows, error: closeError } = await supabase
@@ -2316,7 +2452,7 @@ export default function ForumPage() {
             <div className="mx-auto mt-5 grid max-w-2xl gap-3 rounded-3xl border border-[rgba(2,1,8,0.08)] bg-white/70 p-4 text-right lg:grid-cols-3">
               <label className="block">
                 <span className="mb-2 block text-sm font-black text-[#020108]">צור דוח עבור משתמש</span>
-                <select value={selectedOwnerId} onChange={event => setSelectedOwnerId(event.target.value)} className="command-select">
+                <select value={selectedOwnerId} onChange={event => handleDailyOwnerChange(event.target.value)} className="command-select">
                   <option value="">עבורי</option>
                   {ownerOptions.map(owner => (
                     <option key={owner.id} value={owner.id}>
@@ -2597,7 +2733,7 @@ export default function ForumPage() {
                   <GlossyButton
                     variant="slate"
                     onClick={() => {
-                      setReportDraft(draftFromReport(selectedReport));
+                      replaceWithCleanDailyDraft(draftFromReport(selectedReport));
                       setIsEditingReport(false);
                     }}
                     disabled={isDailySaving}
@@ -2648,12 +2784,12 @@ export default function ForumPage() {
       <div className="tactical-glass-card rounded-3xl p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap items-center gap-2">
-            <GlossyButton variant="slate" size="sm" onClick={() => setSelectedDate(current => shiftDateString(current, -1))} disabled={isDailySaving}>
+            <GlossyButton variant="slate" size="sm" onClick={() => transitionDailyDate(shiftDateString(selectedDate, -1))} disabled={isDailySaving}>
               <ChevronRight className="h-4 w-4" />
               יום קודם
             </GlossyButton>
-            <GlossyButton variant="slate" size="sm" onClick={() => setSelectedDate(getJerusalemDateString())} disabled={isDailySaving}>היום</GlossyButton>
-            <GlossyButton variant="slate" size="sm" onClick={() => setSelectedDate(current => shiftDateString(current, 1))} disabled={isDailySaving}>
+            <GlossyButton variant="slate" size="sm" onClick={() => transitionDailyDate(getJerusalemDateString())} disabled={isDailySaving}>היום</GlossyButton>
+            <GlossyButton variant="slate" size="sm" onClick={() => transitionDailyDate(shiftDateString(selectedDate, 1))} disabled={isDailySaving}>
               יום הבא
               <ChevronLeft className="h-4 w-4" />
             </GlossyButton>
@@ -2667,7 +2803,9 @@ export default function ForumPage() {
               onChange={event => {
                 const nextDate = event.target.value;
                 setDailyDateInputValue(nextDate);
-                if (isDateInputValue(nextDate)) setSelectedDate(nextDate);
+                if (isDateInputValue(nextDate) && !transitionDailyDate(nextDate)) {
+                  setDailyDateInputValue(selectedDate);
+                }
               }}
               onBlur={() => commitDailyDateInput()}
               onKeyDown={event => {
@@ -2840,7 +2978,7 @@ export default function ForumPage() {
           <button
             key={tab.id}
             type="button"
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => handleForumTabChange(tab.id)}
             className={`min-h-11 rounded-2xl px-4 py-2 text-sm font-black transition ${activeTab === tab.id ? 'bg-[#FF6B02] text-white shadow-[0_10px_22px_rgba(255,107,2,0.22)]' : 'text-[#667085] hover:bg-white hover:text-[#020108]'}`}
           >
             {tab.label}

@@ -10,6 +10,14 @@ import {
   normalizeRole,
 } from '../src/lib/permissions.ts';
 import { getScheduleDisplayStatus } from '../src/lib/schedule.ts';
+import {
+  canTransitionDraft,
+  dailyDraftScopeKey,
+  isDraftDirty,
+  isLatestDailyLoad,
+  nextDraftBaseline,
+  shouldHydrateDraft,
+} from '../src/lib/forum/draftProtection.ts';
 
 test('schedule derives completed display state without changing persisted state', () => {
   const now = Date.parse('2026-07-31T12:00:00Z');
@@ -79,13 +87,67 @@ test('event consumers reuse the derived schedule status', () => {
   assert.match(tasks, /select\('id,title,starts_at,ends_at,status'\)/);
 });
 
-test('forum clears reports before loading a different date', () => {
+test('forum protects draft hydration and clears reports only after an approved scope change', () => {
   const source = readFileSync('src/app/(protected)/forum/page.tsx', 'utf8');
   const loader = source.slice(source.indexOf('const loadDailyReports'), source.indexOf('const loadOwnerOptions'));
 
-  assert.match(loader, /loadedDailyScope\.current !== loadScope/);
-  assert.match(loader, /setDailyReports\(\[\]\)/);
   assert.match(loader, /loadedDailyScope\.current = loadScope/);
+  assert.doesNotMatch(loader, /setReportDraft/);
+  assert.match(source, /if \(!requestDailyScopeTransition\(nextScope\)\) return false;/);
+  assert.match(source, /setDailyReports\(\[\]\)/);
+});
+
+test('forum daily draft protection handles hydration, transitions, saves, and stale loads', () => {
+  const fields = ['notes', 'summary'];
+  const baseline = { notes: 'server', summary: '' };
+  const dirtyDraft = { notes: 'local', summary: '' };
+  const cleanDraft = { ...baseline };
+  const scope = dailyDraftScopeKey({
+    date: '2026-08-01',
+    profileId: 'profile-1',
+    nodeId: 'own-report',
+    ownerId: 'profile-1',
+    reportLevel: 'squad',
+  });
+  const nextScope = dailyDraftScopeKey({
+    date: '2026-08-02',
+    profileId: 'profile-1',
+    nodeId: 'own-report',
+    ownerId: 'profile-1',
+    reportLevel: 'squad',
+  });
+
+  assert.equal(isDraftDirty(dirtyDraft, baseline, fields), true);
+  assert.equal(shouldHydrateDraft(isDraftDirty(dirtyDraft, baseline, fields)), false);
+  assert.equal(shouldHydrateDraft(isDraftDirty(cleanDraft, baseline, fields)), true);
+
+  let confirmCalls = 0;
+  assert.equal(canTransitionDraft(scope, nextScope, true, () => {
+    confirmCalls += 1;
+    return false;
+  }), false);
+  assert.equal(canTransitionDraft(scope, nextScope, true, () => {
+    confirmCalls += 1;
+    return true;
+  }), true);
+  assert.equal(confirmCalls, 2);
+
+  const savedBaseline = nextDraftBaseline(baseline, dirtyDraft, true, fields);
+  assert.equal(isDraftDirty(dirtyDraft, savedBaseline, fields), false);
+  const failedBaseline = nextDraftBaseline(baseline, dirtyDraft, false, fields);
+  assert.equal(isDraftDirty(dirtyDraft, failedBaseline, fields), true);
+
+  assert.equal(isLatestDailyLoad(4, 5), false);
+  assert.equal(isLatestDailyLoad(5, 5), true);
+
+  const source = readFileSync('src/app/(protected)/forum/page.tsx', 'utf8');
+  const saveFlow = source.slice(source.indexOf('const saveSelectedReport'), source.indexOf('const carryForwardClosedReport'));
+  const transitionFlow = source.slice(source.indexOf('const requestDailyScopeTransition'), source.indexOf('const transitionDailyDate'));
+  const hydrationFlow = source.slice(source.indexOf('useEffect(() => {\n    if (activeTab !== \'daily\''), source.indexOf('// Hydrate the company-report editor meta'));
+  assert.match(saveFlow, /dailySaveInFlight\.current/);
+  assert.match(saveFlow, /await loadDailyReports\(selectedDate\);\s*dailySaveInFlight\.current = false;/);
+  assert.match(transitionFlow, /if \(dailySaveInFlight\.current\) return false;/);
+  assert.match(hydrationFlow, /selectedReport\?\.content\.company_report_manually_edited === true/);
 });
 
 test('row status mutations use a global guard and finally cleanup', () => {

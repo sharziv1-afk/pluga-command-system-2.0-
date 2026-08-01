@@ -20,6 +20,11 @@ export interface Profile {
   full_name: string;
   role: RoleType;
   assigned_frame: FrameType;
+  unit_id: string | null;
+  permission_level: number;
+  account_status: 'active' | 'pending' | 'blocked' | 'inactive';
+  role_approval_status: UserStatusType;
+  is_active_approved: boolean;
   status: UserStatusType;
   created_at: string;
 }

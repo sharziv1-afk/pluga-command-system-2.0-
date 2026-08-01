@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Profile } from '../types';
 import { fetchCurrentProfile } from '../supabase/profile';
 import { createSupabaseBrowserClient } from '../supabase/browser';
@@ -20,6 +20,7 @@ interface AppContextProps {
   isLoading: boolean;
   authStatus: AppAuthStatus;
   authError: string | null;
+  refreshProfile: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextProps | undefined>(undefined);
@@ -34,6 +35,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentUser, setCurrentUser] = useState<Profile | null>(null);
   const [authStatus, setAuthStatus] = useState<AppAuthStatus>('loading');
   const [authError, setAuthError] = useState<string | null>(null);
+  const refreshProfileRef = useRef<() => Promise<void>>(async () => undefined);
+  const refreshProfile = useCallback(() => refreshProfileRef.current(), []);
 
   useEffect(() => {
     const supabase = createSupabaseBrowserClient();
@@ -88,11 +91,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       removeLegacySession();
     };
 
-    const loadCurrentProfile = async () => {
+    const loadCurrentProfile = async (preserveReadyState = false) => {
       cancelProfileLoad();
       const version = ++loadVersion;
-      setCurrentUser(null);
-      setAuthStatus('loading');
+      if (!preserveReadyState) {
+        setCurrentUser(null);
+        setAuthStatus('loading');
+      }
       setAuthError(null);
 
       const deadline = createProfileLoadDeadline();
@@ -148,6 +153,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setAuthError(PROFILE_LOAD_ERROR_MESSAGE);
     };
 
+    refreshProfileRef.current = () => loadCurrentProfile(true);
     removeLegacySession();
     void loadCurrentProfile();
 
@@ -160,7 +166,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return;
       }
 
-      if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && activeAuthUserId !== session.user.id) {
+      if (
+        (event === 'SIGNED_IN' && activeAuthUserId !== session.user.id)
+        || event === 'USER_UPDATED'
+      ) {
         cancelProfileLoad();
         loadVersion += 1;
         setCurrentUser(null);
@@ -180,6 +189,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       loadVersion += 1;
       if (reloadTimer !== undefined) window.clearTimeout(reloadTimer);
       subscription.unsubscribe();
+      refreshProfileRef.current = async () => undefined;
     };
   }, []);
 
@@ -189,6 +199,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       isLoading: authStatus === 'loading',
       authStatus,
       authError,
+      refreshProfile,
     }}>
       {children}
     </AppContext.Provider>

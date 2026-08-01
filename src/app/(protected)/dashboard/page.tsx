@@ -24,7 +24,8 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { createAuditLog } from '@/lib/audit';
 import { useApp } from '@/lib/context/AppContext';
-import { getPermissionLevelForRole } from '@/lib/permissions';
+import { getPermissionLevelForRole, hasCompanyWideUiAccess } from '@/lib/permissions';
+import { getScheduleDisplayStatus } from '@/lib/schedule';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
 import type { DbAuditLog, DbEvent, DbTask } from '@/lib/types';
@@ -248,16 +249,6 @@ const toneClasses: Record<SummaryCard['tone'], string> = {
   red: 'border-red-500/18 bg-red-500/10 text-red-700',
 };
 
-function normalizeRole(role: string) {
-  return role.replace(/[״׳´׳³'"]/g, '"');
-}
-
-function isCommanderRole(role: string, permissionLevel: number) {
-  const normalizedRole = normalizeRole(role);
-  const inferredLevel = getPermissionLevelForRole(normalizedRole);
-  return permissionLevel >= 90 || inferredLevel >= 90 || normalizedRole.includes('מ"פ') || normalizedRole.includes('סמ"פ');
-}
-
 function isActiveRequest(request: DashboardRequest) {
   return request.status === 'open' || request.status === 'in_progress' || request.status === 'approved';
 }
@@ -402,7 +393,10 @@ function buildCommandBrief(
   const urgentRequests = data.requests.filter(request => isActiveRequest(request) && isUrgentRequest(request)).length;
   const blockedTasks = activeTasks.filter(task => task.status === 'blocked').length;
   const overdueTasks = activeTasks.filter(task => isOverdueTask(task)).length;
-  const activeTodayEvents = todayEvents.filter(event => event.status !== 'completed' && event.status !== 'cancelled').length;
+  const activeTodayEvents = todayEvents.filter(event => {
+    const status = getScheduleDisplayStatus(event);
+    return status !== 'completed' && status !== 'cancelled';
+  }).length;
 
   const items = [
     urgentRequests > 0 ? `${urgentRequests} דרישות בעדיפות גבוהה` : null,
@@ -490,7 +484,7 @@ function buildAttentionItems(data: DashboardData): DashboardItem[] {
       type: 'event',
       title: event.title,
       meta: event.location || 'ללא מיקום',
-      status: eventStatusLabels[event.status],
+      status: eventStatusLabels[getScheduleDisplayStatus(event)],
       href: '/schedule',
       priority: 6,
       time: formatShortDateTime(event.starts_at),
@@ -555,12 +549,8 @@ export default function DashboardPage() {
     setIsLoading(true);
     const nextData: DashboardData = { ...emptyDashboardData, errors: [] };
 
-    const [profileResult, requestsResult, tasksResult, eventsResult, auditResult] = await Promise.all([
-      supabase
-        .from('users')
-        .select('id,name,email,role,unit_id,permission_level')
-        .eq('id', currentUser.id)
-        .maybeSingle<DbProfile>(),
+    try {
+    const [requestsResult, tasksResult, eventsResult, auditResult] = await Promise.all([
       supabase
         .from('requests')
         .select('id,title,description,status,request_type,requested_by,assigned_to,unit_id,event_id,metadata,created_at,updated_at')
@@ -587,29 +577,16 @@ export default function DashboardPage() {
         .returns<DbAuditLog[]>(),
     ]);
 
-    const { data: profileRow, error: profileError } = profileResult;
-
-    if (profileError) {
-      logSupabaseError('Dashboard profile lookup failed', profileError, {
-        currentUserId: currentUser.id,
-        currentUserEmail: currentUser.email,
-      });
-      nextData.errors.push('טעינת פרופיל המשתמש נכשלה.');
-    }
-
-    const profileData = profileRow
-      ? {
-          ...profileRow,
-          unit_name: currentUser.assigned_frame,
-          units: { name: currentUser.assigned_frame },
-        }
-      : null;
-
-    if (!profileData) {
-      nextData.errors.push('לא נמצא פרופיל פעיל בטבלת המשתמשים. ייתכן שנדרש שיוך או אישור מנהל.');
-    }
-
-    nextData.profile = profileData ?? null;
+    nextData.profile = {
+      id: currentUser.id,
+      name: currentUser.full_name,
+      email: currentUser.email,
+      role: currentUser.role,
+      unit_id: currentUser.unit_id,
+      permission_level: currentUser.permission_level,
+      unit_name: currentUser.assigned_frame,
+      units: { name: currentUser.assigned_frame },
+    };
 
     if (requestsResult.error) {
       logSupabaseError('Dashboard requests lookup failed', requestsResult.error);
@@ -668,7 +645,12 @@ export default function DashboardPage() {
     }
 
     setDashboardData(nextData);
-    setIsLoading(false);
+    } catch (loadError) {
+      logSupabaseError('Dashboard load failed unexpectedly', loadError);
+      setDashboardData({ ...emptyDashboardData, errors: ['לא ניתן לטעון את תמונת המצב כרגע. נסה שוב בעוד רגע.'] });
+    } finally {
+      setIsLoading(false);
+    }
   }, [currentUser, supabase]);
 
   useEffect(() => {
@@ -677,7 +659,7 @@ export default function DashboardPage() {
 
   const profile = dashboardData.profile;
   const permissionLevel = profile?.permission_level ?? getPermissionLevelForRole(currentUser?.role ?? '');
-  const canSeeAll = Boolean(currentUser && isCommanderRole(profile?.role ?? currentUser.role, permissionLevel));
+  const canSeeAll = Boolean(currentUser && hasCompanyWideUiAccess(profile?.role ?? currentUser.role, permissionLevel));
   const summaryCards = useMemo(() => buildSummaryCards(dashboardData, profile?.id ?? currentUser?.id ?? null), [dashboardData, profile?.id, currentUser?.id]);
   const attentionItems = useMemo(() => buildAttentionItems(dashboardData), [dashboardData]);
   const openTasks = useMemo(() => getOpenTasks(dashboardData), [dashboardData]);
@@ -688,7 +670,10 @@ export default function DashboardPage() {
       .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
   }, [dashboardData.events]);
   const eventOptions = useMemo(
-    () => dashboardData.events.filter(event => event.status === 'scheduled' || event.status === 'in_progress'),
+    () => dashboardData.events.filter(event => {
+      const status = getScheduleDisplayStatus(event);
+      return status === 'scheduled' || status === 'in_progress';
+    }),
     [dashboardData.events],
   );
   const assignableUsers = useMemo(
@@ -1553,7 +1538,7 @@ function TodayEventCard({
             </span>
           )}
         </div>
-        <StatusBadge status={eventStatusLabels[event.status]} className="shrink-0" />
+        <StatusBadge status={eventStatusLabels[getScheduleDisplayStatus(event)]} className="shrink-0" />
       </div>
     </Link>
   );

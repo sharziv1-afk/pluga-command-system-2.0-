@@ -2,7 +2,16 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { runWithInFlightLock } from '../src/lib/inFlightLock.ts';
+import {
+  isAmbiguousMutationFailure,
+  runWithInFlightLock,
+} from '../src/lib/inFlightLock.ts';
+
+test('mutation responses without an HTTP status are treated as ambiguous', () => {
+  assert.equal(isAmbiguousMutationFailure(0), true);
+  assert.equal(isAmbiguousMutationFailure(undefined), true);
+  assert.equal(isAmbiguousMutationFailure(403), false);
+});
 
 test('in-flight lock suppresses duplicate work and releases after success', async () => {
   const lock = { current: false };
@@ -54,6 +63,7 @@ test('dashboard quick-create flows use the tested shared lock lifecycle', () => 
     const flow = dashboardSource.slice(start, end);
 
     assert.match(flow, /runWithInFlightLock\(quickCreateInFlight, setIsQuickCreateSubmitting/);
+    assert.match(flow, /isAmbiguousMutationFailure\(status\)/);
     assert.match(flow, /catch \(submitError\)/);
     assert.doesNotMatch(flow, /setIsQuickCreateSubmitting\(false\)/);
   }

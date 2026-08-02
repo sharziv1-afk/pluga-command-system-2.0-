@@ -24,7 +24,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { createAuditLog } from '@/lib/audit';
 import { useApp } from '@/lib/context/AppContext';
-import { runWithInFlightLock } from '@/lib/inFlightLock';
+import { isAmbiguousMutationFailure, runWithInFlightLock } from '@/lib/inFlightLock';
 import { getPermissionLevelForRole, hasCompanyWideUiAccess } from '@/lib/permissions';
 import { getScheduleDisplayStatus } from '@/lib/schedule';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
@@ -719,53 +719,55 @@ export default function DashboardPage() {
     }
 
     try {
-    await runWithInFlightLock(quickCreateInFlight, setIsQuickCreateSubmitting, async () => {
-    setQuickCreateError(null);
-    const eventId = requestForm.eventId === 'none' ? null : requestForm.eventId;
-    const metadata = {
-      category: requestForm.category,
-      priority: requestForm.priority,
-      creator_name: profile.name || currentUser.full_name,
-      creator_role: profile.role || currentUser.role,
-      creator_unit: profile.units?.name || currentUser.assigned_frame,
-    };
+      await runWithInFlightLock(quickCreateInFlight, setIsQuickCreateSubmitting, async () => {
+        setQuickCreateError(null);
+        const eventId = requestForm.eventId === 'none' ? null : requestForm.eventId;
+        const metadata = {
+          category: requestForm.category,
+          priority: requestForm.priority,
+          creator_name: profile.name || currentUser.full_name,
+          creator_role: profile.role || currentUser.role,
+          creator_unit: profile.units?.name || currentUser.assigned_frame,
+        };
 
-    const { data: createdRequest, error } = await supabase
-      .from('requests')
-      .insert({
-        title,
-        description: requestForm.description.trim() || null,
-        request_type: requestForm.category,
-        status: 'open',
-        requested_by: currentUser.id,
-        unit_id: profile.unit_id,
-        event_id: eventId,
-        metadata,
-      })
-      .select('id')
-      .single<{ id: string }>();
+        const { data: createdRequest, error, status } = await supabase
+          .from('requests')
+          .insert({
+            title,
+            description: requestForm.description.trim() || null,
+            request_type: requestForm.category,
+            status: 'open',
+            requested_by: currentUser.id,
+            unit_id: profile.unit_id,
+            event_id: eventId,
+            metadata,
+          })
+          .select('id')
+          .single<{ id: string }>();
 
-    if (error) {
-      logSupabaseError('Dashboard quick request insert failed', error);
-      setQuickCreateError('יצירת הדרישה נכשלה. בדוק הרשאות או נסה שוב.');
-      return;
-    }
+        if (error) {
+          logSupabaseError('Dashboard quick request insert failed', error);
+          setQuickCreateError(isAmbiguousMutationFailure(status)
+            ? 'לא התקבל אישור מהשרת. בדוק אם הדרישה נוצרה לפני ניסיון נוסף.'
+            : 'יצירת הדרישה נכשלה. בדוק הרשאות או נסה שוב.');
+          return;
+        }
 
-    void createAuditLog(supabase, {
-      userId: profile.id,
-      userName: profile.name,
-      userRole: profile.role,
-      actionType: 'request_created',
-      entityType: 'request',
-      entityId: createdRequest.id,
-      newValue: { title, request_type: requestForm.category, status: 'open', event_id: eventId, metadata },
-    });
+        void createAuditLog(supabase, {
+          userId: profile.id,
+          userName: profile.name,
+          userRole: profile.role,
+          actionType: 'request_created',
+          entityType: 'request',
+          entityId: createdRequest.id,
+          newValue: { title, request_type: requestForm.category, status: 'open', event_id: eventId, metadata },
+        });
 
-    setQuickCreateType(null);
-    resetQuickForms();
-    setSuccessMessage('הדרישה נוצרה בהצלחה.');
-    await loadDashboard();
-    });
+        setQuickCreateType(null);
+        resetQuickForms();
+        setSuccessMessage('הדרישה נוצרה בהצלחה.');
+        await loadDashboard();
+      });
     } catch (submitError) {
       logSupabaseError('Dashboard quick request insert threw', submitError);
       setQuickCreateError('לא התקבל אישור מהשרת. בדוק אם הדרישה נוצרה לפני ניסיון נוסף.');
@@ -785,58 +787,60 @@ export default function DashboardPage() {
     }
 
     try {
-    await runWithInFlightLock(quickCreateInFlight, setIsQuickCreateSubmitting, async () => {
-    setQuickCreateError(null);
-    const assignedTo = taskForm.assignedTo === 'none' ? null : taskForm.assignedTo;
-    const eventId = taskForm.eventId === 'none' ? null : taskForm.eventId;
-    const dueAt = taskForm.dueAt ? new Date(taskForm.dueAt).toISOString() : null;
-    const metadata = {
-      source_type: 'manual',
-      source_id: null,
-      creator_name: profile.name || currentUser.full_name,
-      creator_role: profile.role || currentUser.role,
-      creator_unit: profile.units?.name || currentUser.assigned_frame,
-    };
+      await runWithInFlightLock(quickCreateInFlight, setIsQuickCreateSubmitting, async () => {
+        setQuickCreateError(null);
+        const assignedTo = taskForm.assignedTo === 'none' ? null : taskForm.assignedTo;
+        const eventId = taskForm.eventId === 'none' ? null : taskForm.eventId;
+        const dueAt = taskForm.dueAt ? new Date(taskForm.dueAt).toISOString() : null;
+        const metadata = {
+          source_type: 'manual',
+          source_id: null,
+          creator_name: profile.name || currentUser.full_name,
+          creator_role: profile.role || currentUser.role,
+          creator_unit: profile.units?.name || currentUser.assigned_frame,
+        };
 
-    const { data: createdTask, error } = await supabase
-      .from('tasks')
-      .insert({
-        title,
-        description: taskForm.description.trim() || null,
-        status: 'open',
-        priority: taskForm.priority,
-        assigned_to: assignedTo,
-        created_by: profile.id,
-        unit_id: profile.unit_id,
-        event_id: eventId,
-        due_at: dueAt,
-        completed_at: null,
-        metadata,
-      })
-      .select('id')
-      .single<{ id: string }>();
+        const { data: createdTask, error, status } = await supabase
+          .from('tasks')
+          .insert({
+            title,
+            description: taskForm.description.trim() || null,
+            status: 'open',
+            priority: taskForm.priority,
+            assigned_to: assignedTo,
+            created_by: profile.id,
+            unit_id: profile.unit_id,
+            event_id: eventId,
+            due_at: dueAt,
+            completed_at: null,
+            metadata,
+          })
+          .select('id')
+          .single<{ id: string }>();
 
-    if (error) {
-      logSupabaseError('Dashboard quick task insert failed', error);
-      setQuickCreateError('יצירת המשימה נכשלה. בדוק הרשאות או נסה שוב.');
-      return;
-    }
+        if (error) {
+          logSupabaseError('Dashboard quick task insert failed', error);
+          setQuickCreateError(isAmbiguousMutationFailure(status)
+            ? 'לא התקבל אישור מהשרת. בדוק אם המשימה נוצרה לפני ניסיון נוסף.'
+            : 'יצירת המשימה נכשלה. בדוק הרשאות או נסה שוב.');
+          return;
+        }
 
-    void createAuditLog(supabase, {
-      userId: profile.id,
-      userName: profile.name,
-      userRole: profile.role,
-      actionType: 'task_created',
-      entityType: 'task',
-      entityId: createdTask.id,
-      newValue: { title, status: 'open', priority: taskForm.priority, assigned_to: assignedTo, due_at: dueAt, event_id: eventId, metadata },
-    });
+        void createAuditLog(supabase, {
+          userId: profile.id,
+          userName: profile.name,
+          userRole: profile.role,
+          actionType: 'task_created',
+          entityType: 'task',
+          entityId: createdTask.id,
+          newValue: { title, status: 'open', priority: taskForm.priority, assigned_to: assignedTo, due_at: dueAt, event_id: eventId, metadata },
+        });
 
-    setQuickCreateType(null);
-    resetQuickForms();
-    setSuccessMessage('המשימה נוצרה בהצלחה.');
-    await loadDashboard();
-    });
+        setQuickCreateType(null);
+        resetQuickForms();
+        setSuccessMessage('המשימה נוצרה בהצלחה.');
+        await loadDashboard();
+      });
     } catch (submitError) {
       logSupabaseError('Dashboard quick task insert threw', submitError);
       setQuickCreateError('לא התקבל אישור מהשרת. בדוק אם המשימה נוצרה לפני ניסיון נוסף.');
@@ -861,50 +865,52 @@ export default function DashboardPage() {
     }
 
     try {
-    await runWithInFlightLock(quickCreateInFlight, setIsQuickCreateSubmitting, async () => {
-    setQuickCreateError(null);
-    const startsAt = new Date(eventForm.startsAt).toISOString();
-    const endsAt = eventForm.endsAt ? new Date(eventForm.endsAt).toISOString() : null;
+      await runWithInFlightLock(quickCreateInFlight, setIsQuickCreateSubmitting, async () => {
+        setQuickCreateError(null);
+        const startsAt = new Date(eventForm.startsAt).toISOString();
+        const endsAt = eventForm.endsAt ? new Date(eventForm.endsAt).toISOString() : null;
 
-    const { data: createdEvent, error } = await supabase
-      .from('events')
-      .insert({
-        title,
-        description: eventForm.description.trim() || null,
-        event_type: eventForm.eventType,
-        starts_at: startsAt,
-        ends_at: endsAt,
-        location: eventForm.location.trim() || null,
-        unit_id: profile.unit_id,
-        created_by: profile.id,
-        responsible_user_id: null,
-        status: 'scheduled',
-        metadata: {},
-      })
-      .select('id')
-      .single<{ id: string }>();
+        const { data: createdEvent, error, status } = await supabase
+          .from('events')
+          .insert({
+            title,
+            description: eventForm.description.trim() || null,
+            event_type: eventForm.eventType,
+            starts_at: startsAt,
+            ends_at: endsAt,
+            location: eventForm.location.trim() || null,
+            unit_id: profile.unit_id,
+            created_by: profile.id,
+            responsible_user_id: null,
+            status: 'scheduled',
+            metadata: {},
+          })
+          .select('id')
+          .single<{ id: string }>();
 
-    if (error) {
-      logSupabaseError('Dashboard quick event insert failed', error);
-      setQuickCreateError('יצירת המופע נכשלה. בדוק הרשאות או נסה שוב.');
-      return;
-    }
+        if (error) {
+          logSupabaseError('Dashboard quick event insert failed', error);
+          setQuickCreateError(isAmbiguousMutationFailure(status)
+            ? 'לא התקבל אישור מהשרת. בדוק אם המופע נוצר לפני ניסיון נוסף.'
+            : 'יצירת המופע נכשלה. בדוק הרשאות או נסה שוב.');
+          return;
+        }
 
-    void createAuditLog(supabase, {
-      userId: profile.id,
-      userName: profile.name,
-      userRole: profile.role,
-      actionType: 'event_created',
-      entityType: 'event',
-      entityId: createdEvent.id,
-      newValue: { title, event_type: eventForm.eventType, starts_at: startsAt, ends_at: endsAt, status: 'scheduled' },
-    });
+        void createAuditLog(supabase, {
+          userId: profile.id,
+          userName: profile.name,
+          userRole: profile.role,
+          actionType: 'event_created',
+          entityType: 'event',
+          entityId: createdEvent.id,
+          newValue: { title, event_type: eventForm.eventType, starts_at: startsAt, ends_at: endsAt, status: 'scheduled' },
+        });
 
-    setQuickCreateType(null);
-    resetQuickForms();
-    setSuccessMessage('המופע נוצר בהצלחה.');
-    await loadDashboard();
-    });
+        setQuickCreateType(null);
+        resetQuickForms();
+        setSuccessMessage('המופע נוצר בהצלחה.');
+        await loadDashboard();
+      });
     } catch (submitError) {
       logSupabaseError('Dashboard quick event insert threw', submitError);
       setQuickCreateError('לא התקבל אישור מהשרת. בדוק אם המופע נוצר לפני ניסיון נוסף.');

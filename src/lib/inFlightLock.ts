@@ -1,5 +1,9 @@
 export type InFlightLock = { current: boolean };
 
+export function isAmbiguousMutationFailure(status: number | null | undefined): boolean {
+  return !status;
+}
+
 export async function runWithInFlightLock(
   lock: InFlightLock,
   setBusy: (busy: boolean) => void,

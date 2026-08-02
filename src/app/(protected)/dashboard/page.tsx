@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   Activity,
@@ -24,6 +24,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { createAuditLog } from '@/lib/audit';
 import { useApp } from '@/lib/context/AppContext';
+import { runWithInFlightLock } from '@/lib/inFlightLock';
 import { getPermissionLevelForRole, hasCompanyWideUiAccess } from '@/lib/permissions';
 import { getScheduleDisplayStatus } from '@/lib/schedule';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
@@ -533,6 +534,7 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [quickCreateType, setQuickCreateType] = useState<QuickCreateType | null>(null);
   const [isQuickCreateSubmitting, setIsQuickCreateSubmitting] = useState(false);
+  const quickCreateInFlight = useRef(false);
   const [quickCreateError, setQuickCreateError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [requestForm, setRequestForm] = useState<QuickRequestForm>(defaultRequestForm);
@@ -693,7 +695,7 @@ export default function DashboardPage() {
   };
 
   const closeQuickCreate = () => {
-    if (isQuickCreateSubmitting) return;
+    if (quickCreateInFlight.current || isQuickCreateSubmitting) return;
     setQuickCreateType(null);
     resetQuickForms();
   };
@@ -716,9 +718,9 @@ export default function DashboardPage() {
       return;
     }
 
-    setIsQuickCreateSubmitting(true);
+    try {
+    await runWithInFlightLock(quickCreateInFlight, setIsQuickCreateSubmitting, async () => {
     setQuickCreateError(null);
-
     const eventId = requestForm.eventId === 'none' ? null : requestForm.eventId;
     const metadata = {
       category: requestForm.category,
@@ -746,7 +748,6 @@ export default function DashboardPage() {
     if (error) {
       logSupabaseError('Dashboard quick request insert failed', error);
       setQuickCreateError('יצירת הדרישה נכשלה. בדוק הרשאות או נסה שוב.');
-      setIsQuickCreateSubmitting(false);
       return;
     }
 
@@ -764,7 +765,11 @@ export default function DashboardPage() {
     resetQuickForms();
     setSuccessMessage('הדרישה נוצרה בהצלחה.');
     await loadDashboard();
-    setIsQuickCreateSubmitting(false);
+    });
+    } catch (submitError) {
+      logSupabaseError('Dashboard quick request insert threw', submitError);
+      setQuickCreateError('לא התקבל אישור מהשרת. בדוק אם הדרישה נוצרה לפני ניסיון נוסף.');
+    }
   };
 
   const handleQuickTaskSubmit = async () => {
@@ -779,9 +784,9 @@ export default function DashboardPage() {
       return;
     }
 
-    setIsQuickCreateSubmitting(true);
+    try {
+    await runWithInFlightLock(quickCreateInFlight, setIsQuickCreateSubmitting, async () => {
     setQuickCreateError(null);
-
     const assignedTo = taskForm.assignedTo === 'none' ? null : taskForm.assignedTo;
     const eventId = taskForm.eventId === 'none' ? null : taskForm.eventId;
     const dueAt = taskForm.dueAt ? new Date(taskForm.dueAt).toISOString() : null;
@@ -814,7 +819,6 @@ export default function DashboardPage() {
     if (error) {
       logSupabaseError('Dashboard quick task insert failed', error);
       setQuickCreateError('יצירת המשימה נכשלה. בדוק הרשאות או נסה שוב.');
-      setIsQuickCreateSubmitting(false);
       return;
     }
 
@@ -832,7 +836,11 @@ export default function DashboardPage() {
     resetQuickForms();
     setSuccessMessage('המשימה נוצרה בהצלחה.');
     await loadDashboard();
-    setIsQuickCreateSubmitting(false);
+    });
+    } catch (submitError) {
+      logSupabaseError('Dashboard quick task insert threw', submitError);
+      setQuickCreateError('לא התקבל אישור מהשרת. בדוק אם המשימה נוצרה לפני ניסיון נוסף.');
+    }
   };
 
   const handleQuickEventSubmit = async () => {
@@ -852,9 +860,9 @@ export default function DashboardPage() {
       return;
     }
 
-    setIsQuickCreateSubmitting(true);
+    try {
+    await runWithInFlightLock(quickCreateInFlight, setIsQuickCreateSubmitting, async () => {
     setQuickCreateError(null);
-
     const startsAt = new Date(eventForm.startsAt).toISOString();
     const endsAt = eventForm.endsAt ? new Date(eventForm.endsAt).toISOString() : null;
 
@@ -879,7 +887,6 @@ export default function DashboardPage() {
     if (error) {
       logSupabaseError('Dashboard quick event insert failed', error);
       setQuickCreateError('יצירת המופע נכשלה. בדוק הרשאות או נסה שוב.');
-      setIsQuickCreateSubmitting(false);
       return;
     }
 
@@ -897,7 +904,11 @@ export default function DashboardPage() {
     resetQuickForms();
     setSuccessMessage('המופע נוצר בהצלחה.');
     await loadDashboard();
-    setIsQuickCreateSubmitting(false);
+    });
+    } catch (submitError) {
+      logSupabaseError('Dashboard quick event insert threw', submitError);
+      setQuickCreateError('לא התקבל אישור מהשרת. בדוק אם המופע נוצר לפני ניסיון נוסף.');
+    }
   };
 
   if (isContextLoading || isLoading) {

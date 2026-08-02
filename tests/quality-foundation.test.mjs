@@ -58,3 +58,16 @@ test('dashboard quick-create flows use the tested shared lock lifecycle', () => 
     assert.doesNotMatch(flow, /setIsQuickCreateSubmitting\(false\)/);
   }
 });
+
+test('tracking removes its redundant auth request and starts exactly four data reads', () => {
+  const trackingSource = readFileSync('src/app/(protected)/tracking/page.tsx', 'utf8');
+  const loadStart = trackingSource.indexOf('const loadTrackingData = useCallback');
+  const loadEnd = trackingSource.indexOf('useEffect(() =>', loadStart);
+  assert.ok(loadStart >= 0 && loadEnd > loadStart, 'missing tracking loader');
+  const loader = trackingSource.slice(loadStart, loadEnd);
+
+  assert.doesNotMatch(loader, /auth\.getUser\(/);
+  assert.doesNotMatch(trackingSource, /useRouter/);
+  assert.match(loader, /Promise\.all\(\[/);
+  assert.equal([...loader.matchAll(/supabase\s*\.from\(/g)].length, 4);
+});

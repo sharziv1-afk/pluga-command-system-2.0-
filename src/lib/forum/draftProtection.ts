@@ -44,6 +44,21 @@ export function shouldHydrateDraft(isDirty: boolean) {
   return !isDirty;
 }
 
+export function canMutateDailyDraft(parts: {
+  selectedNodeExists: boolean;
+  hydratedScope: string | null;
+  selectedScope: string;
+}) {
+  return parts.selectedNodeExists && parts.hydratedScope === parts.selectedScope;
+}
+
+export function didPersistDailyReport(
+  result: { id?: string } | null,
+  expectedId: string,
+) {
+  return result?.id === expectedId;
+}
+
 export function canTransitionDraft(
   currentScope: string,
   nextScope: string,

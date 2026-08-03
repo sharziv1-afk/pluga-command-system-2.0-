@@ -3,14 +3,94 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
+  ambiguousMutationMessage,
+  classifyMutationFailure,
   isAmbiguousMutationFailure,
+  mutationFailureMessage,
+  runQuickCreateMutation,
   runWithInFlightLock,
 } from '../src/lib/inFlightLock.ts';
 
-test('mutation responses without an HTTP status are treated as ambiguous', () => {
-  assert.equal(isAmbiguousMutationFailure(0), true);
-  assert.equal(isAmbiguousMutationFailure(undefined), true);
-  assert.equal(isAmbiguousMutationFailure(403), false);
+test('mutation failures distinguish ambiguous completion from definitive failure', () => {
+  for (const status of [0, undefined, 408, 502, 503, 504]) {
+    assert.equal(classifyMutationFailure(status), 'ambiguous_completion', String(status));
+    assert.equal(isAmbiguousMutationFailure(status), true, String(status));
+  }
+
+  for (const status of [400, 403, 409, 422, 500]) {
+    assert.equal(classifyMutationFailure(status), 'definitive_failure', String(status));
+    assert.equal(isAmbiguousMutationFailure(status), false, String(status));
+  }
+});
+
+test('ambiguous completion releases the lock without retrying automatically', async () => {
+  const lock = { current: false };
+  const busyStates = [];
+  let attempts = 0;
+  let classification = null;
+  let message = null;
+
+  await runWithInFlightLock(lock, value => busyStates.push(value), async () => {
+    attempts += 1;
+    classification = classifyMutationFailure(504);
+    message = mutationFailureMessage(504, 'נסה שוב');
+  });
+
+  assert.equal(classification, 'ambiguous_completion');
+  assert.equal(message, ambiguousMutationMessage);
+  assert.equal(attempts, 1);
+  assert.equal(lock.current, false);
+  assert.deepEqual(busyStates, [true, false]);
+});
+
+test('quick-create ambiguous failures retain modal and form state', async () => {
+  const lock = { current: false };
+  const busyStates = [];
+  const form = { title: 'preserve me' };
+  let modalOpen = true;
+  let attempts = 0;
+  let message = null;
+  let successCalls = 0;
+
+  await runQuickCreateMutation(
+    lock,
+    value => busyStates.push(value),
+    async () => {
+      attempts += 1;
+      return { data: null, error: new Error('gateway timeout'), status: 504 };
+    },
+    'נסה שוב',
+    value => { message = value; },
+    () => {
+      successCalls += 1;
+      form.title = '';
+      modalOpen = false;
+    },
+  );
+
+  assert.equal(attempts, 1);
+  assert.equal(message, ambiguousMutationMessage);
+  assert.equal(successCalls, 0);
+  assert.deepEqual(form, { title: 'preserve me' });
+  assert.equal(modalOpen, true);
+  assert.equal(lock.current, false);
+  assert.deepEqual(busyStates, [true, false]);
+});
+
+test('definitive failure releases the lock and permits a manual retry', async () => {
+  const lock = { current: false };
+  let attempts = 0;
+
+  const attempt = () => runWithInFlightLock(lock, () => undefined, async () => {
+    attempts += 1;
+    assert.equal(classifyMutationFailure(403), 'definitive_failure');
+    assert.equal(mutationFailureMessage(403, 'permission denied'), 'permission denied');
+  });
+
+  assert.equal(await attempt(), true);
+  assert.equal(await attempt(), true);
+  assert.equal(attempts, 2);
+  assert.equal(lock.current, false);
 });
 
 test('in-flight lock suppresses duplicate work and releases after success', async () => {
@@ -62,8 +142,7 @@ test('dashboard quick-create flows use the tested shared lock lifecycle', () => 
     assert.ok(start >= 0 && end > start, `missing ${startMarker} flow`);
     const flow = dashboardSource.slice(start, end);
 
-    assert.match(flow, /runWithInFlightLock\(quickCreateInFlight, setIsQuickCreateSubmitting/);
-    assert.match(flow, /isAmbiguousMutationFailure\(status\)/);
+    assert.match(flow, /runQuickCreateMutation\(\s*quickCreateInFlight,\s*setIsQuickCreateSubmitting/);
     assert.match(flow, /catch \(submitError\)/);
     assert.doesNotMatch(flow, /setIsQuickCreateSubmitting\(false\)/);
   }

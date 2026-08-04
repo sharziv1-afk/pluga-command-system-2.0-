@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   Activity,
@@ -24,6 +24,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { createAuditLog } from '@/lib/audit';
 import { useApp } from '@/lib/context/AppContext';
+import { ambiguousMutationMessage, runQuickCreateMutation } from '@/lib/inFlightLock';
 import { getPermissionLevelForRole, hasCompanyWideUiAccess } from '@/lib/permissions';
 import { getScheduleDisplayStatus } from '@/lib/schedule';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
@@ -533,6 +534,7 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [quickCreateType, setQuickCreateType] = useState<QuickCreateType | null>(null);
   const [isQuickCreateSubmitting, setIsQuickCreateSubmitting] = useState(false);
+  const quickCreateInFlight = useRef(false);
   const [quickCreateError, setQuickCreateError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [requestForm, setRequestForm] = useState<QuickRequestForm>(defaultRequestForm);
@@ -693,7 +695,7 @@ export default function DashboardPage() {
   };
 
   const closeQuickCreate = () => {
-    if (isQuickCreateSubmitting) return;
+    if (quickCreateInFlight.current || isQuickCreateSubmitting) return;
     setQuickCreateType(null);
     resetQuickForms();
   };
@@ -716,55 +718,61 @@ export default function DashboardPage() {
       return;
     }
 
-    setIsQuickCreateSubmitting(true);
-    setQuickCreateError(null);
+    try {
+      const eventId = requestForm.eventId === 'none' ? null : requestForm.eventId;
+      const metadata = {
+        category: requestForm.category,
+        priority: requestForm.priority,
+        creator_name: profile.name || currentUser.full_name,
+        creator_role: profile.role || currentUser.role,
+        creator_unit: profile.units?.name || currentUser.assigned_frame,
+      };
 
-    const eventId = requestForm.eventId === 'none' ? null : requestForm.eventId;
-    const metadata = {
-      category: requestForm.category,
-      priority: requestForm.priority,
-      creator_name: profile.name || currentUser.full_name,
-      creator_role: profile.role || currentUser.role,
-      creator_unit: profile.units?.name || currentUser.assigned_frame,
-    };
+      await runQuickCreateMutation(
+        quickCreateInFlight,
+        setIsQuickCreateSubmitting,
+        async () => {
+          setQuickCreateError(null);
+          const result = await supabase
+            .from('requests')
+            .insert({
+              title,
+              description: requestForm.description.trim() || null,
+              request_type: requestForm.category,
+              status: 'open',
+              requested_by: currentUser.id,
+              unit_id: profile.unit_id,
+              event_id: eventId,
+              metadata,
+            })
+            .select('id')
+            .single<{ id: string }>();
+          if (result.error) logSupabaseError('Dashboard quick request insert failed', result.error);
+          return result;
+        },
+        'יצירת הדרישה נכשלה. בדוק הרשאות או נסה שוב.',
+        setQuickCreateError,
+        async createdRequest => {
+          void createAuditLog(supabase, {
+            userId: profile.id,
+            userName: profile.name,
+            userRole: profile.role,
+            actionType: 'request_created',
+            entityType: 'request',
+            entityId: createdRequest.id,
+            newValue: { title, request_type: requestForm.category, status: 'open', event_id: eventId, metadata },
+          });
 
-    const { data: createdRequest, error } = await supabase
-      .from('requests')
-      .insert({
-        title,
-        description: requestForm.description.trim() || null,
-        request_type: requestForm.category,
-        status: 'open',
-        requested_by: currentUser.id,
-        unit_id: profile.unit_id,
-        event_id: eventId,
-        metadata,
-      })
-      .select('id')
-      .single<{ id: string }>();
-
-    if (error) {
-      logSupabaseError('Dashboard quick request insert failed', error);
-      setQuickCreateError('יצירת הדרישה נכשלה. בדוק הרשאות או נסה שוב.');
-      setIsQuickCreateSubmitting(false);
-      return;
+          setQuickCreateType(null);
+          resetQuickForms();
+          setSuccessMessage('הדרישה נוצרה בהצלחה.');
+          await loadDashboard();
+        },
+      );
+    } catch (submitError) {
+      logSupabaseError('Dashboard quick request insert threw', submitError);
+      setQuickCreateError(ambiguousMutationMessage);
     }
-
-    void createAuditLog(supabase, {
-      userId: profile.id,
-      userName: profile.name,
-      userRole: profile.role,
-      actionType: 'request_created',
-      entityType: 'request',
-      entityId: createdRequest.id,
-      newValue: { title, request_type: requestForm.category, status: 'open', event_id: eventId, metadata },
-    });
-
-    setQuickCreateType(null);
-    resetQuickForms();
-    setSuccessMessage('הדרישה נוצרה בהצלחה.');
-    await loadDashboard();
-    setIsQuickCreateSubmitting(false);
   };
 
   const handleQuickTaskSubmit = async () => {
@@ -779,60 +787,66 @@ export default function DashboardPage() {
       return;
     }
 
-    setIsQuickCreateSubmitting(true);
-    setQuickCreateError(null);
+    try {
+      const assignedTo = taskForm.assignedTo === 'none' ? null : taskForm.assignedTo;
+      const eventId = taskForm.eventId === 'none' ? null : taskForm.eventId;
+      const dueAt = taskForm.dueAt ? new Date(taskForm.dueAt).toISOString() : null;
+      const metadata = {
+        source_type: 'manual',
+        source_id: null,
+        creator_name: profile.name || currentUser.full_name,
+        creator_role: profile.role || currentUser.role,
+        creator_unit: profile.units?.name || currentUser.assigned_frame,
+      };
 
-    const assignedTo = taskForm.assignedTo === 'none' ? null : taskForm.assignedTo;
-    const eventId = taskForm.eventId === 'none' ? null : taskForm.eventId;
-    const dueAt = taskForm.dueAt ? new Date(taskForm.dueAt).toISOString() : null;
-    const metadata = {
-      source_type: 'manual',
-      source_id: null,
-      creator_name: profile.name || currentUser.full_name,
-      creator_role: profile.role || currentUser.role,
-      creator_unit: profile.units?.name || currentUser.assigned_frame,
-    };
+      await runQuickCreateMutation(
+        quickCreateInFlight,
+        setIsQuickCreateSubmitting,
+        async () => {
+          setQuickCreateError(null);
+          const result = await supabase
+            .from('tasks')
+            .insert({
+              title,
+              description: taskForm.description.trim() || null,
+              status: 'open',
+              priority: taskForm.priority,
+              assigned_to: assignedTo,
+              created_by: profile.id,
+              unit_id: profile.unit_id,
+              event_id: eventId,
+              due_at: dueAt,
+              completed_at: null,
+              metadata,
+            })
+            .select('id')
+            .single<{ id: string }>();
+          if (result.error) logSupabaseError('Dashboard quick task insert failed', result.error);
+          return result;
+        },
+        'יצירת המשימה נכשלה. בדוק הרשאות או נסה שוב.',
+        setQuickCreateError,
+        async createdTask => {
+          void createAuditLog(supabase, {
+            userId: profile.id,
+            userName: profile.name,
+            userRole: profile.role,
+            actionType: 'task_created',
+            entityType: 'task',
+            entityId: createdTask.id,
+            newValue: { title, status: 'open', priority: taskForm.priority, assigned_to: assignedTo, due_at: dueAt, event_id: eventId, metadata },
+          });
 
-    const { data: createdTask, error } = await supabase
-      .from('tasks')
-      .insert({
-        title,
-        description: taskForm.description.trim() || null,
-        status: 'open',
-        priority: taskForm.priority,
-        assigned_to: assignedTo,
-        created_by: profile.id,
-        unit_id: profile.unit_id,
-        event_id: eventId,
-        due_at: dueAt,
-        completed_at: null,
-        metadata,
-      })
-      .select('id')
-      .single<{ id: string }>();
-
-    if (error) {
-      logSupabaseError('Dashboard quick task insert failed', error);
-      setQuickCreateError('יצירת המשימה נכשלה. בדוק הרשאות או נסה שוב.');
-      setIsQuickCreateSubmitting(false);
-      return;
+          setQuickCreateType(null);
+          resetQuickForms();
+          setSuccessMessage('המשימה נוצרה בהצלחה.');
+          await loadDashboard();
+        },
+      );
+    } catch (submitError) {
+      logSupabaseError('Dashboard quick task insert threw', submitError);
+      setQuickCreateError(ambiguousMutationMessage);
     }
-
-    void createAuditLog(supabase, {
-      userId: profile.id,
-      userName: profile.name,
-      userRole: profile.role,
-      actionType: 'task_created',
-      entityType: 'task',
-      entityId: createdTask.id,
-      newValue: { title, status: 'open', priority: taskForm.priority, assigned_to: assignedTo, due_at: dueAt, event_id: eventId, metadata },
-    });
-
-    setQuickCreateType(null);
-    resetQuickForms();
-    setSuccessMessage('המשימה נוצרה בהצלחה.');
-    await loadDashboard();
-    setIsQuickCreateSubmitting(false);
   };
 
   const handleQuickEventSubmit = async () => {
@@ -852,52 +866,58 @@ export default function DashboardPage() {
       return;
     }
 
-    setIsQuickCreateSubmitting(true);
-    setQuickCreateError(null);
+    try {
+      const startsAt = new Date(eventForm.startsAt).toISOString();
+      const endsAt = eventForm.endsAt ? new Date(eventForm.endsAt).toISOString() : null;
 
-    const startsAt = new Date(eventForm.startsAt).toISOString();
-    const endsAt = eventForm.endsAt ? new Date(eventForm.endsAt).toISOString() : null;
+      await runQuickCreateMutation(
+        quickCreateInFlight,
+        setIsQuickCreateSubmitting,
+        async () => {
+          setQuickCreateError(null);
+          const result = await supabase
+            .from('events')
+            .insert({
+              title,
+              description: eventForm.description.trim() || null,
+              event_type: eventForm.eventType,
+              starts_at: startsAt,
+              ends_at: endsAt,
+              location: eventForm.location.trim() || null,
+              unit_id: profile.unit_id,
+              created_by: profile.id,
+              responsible_user_id: null,
+              status: 'scheduled',
+              metadata: {},
+            })
+            .select('id')
+            .single<{ id: string }>();
+          if (result.error) logSupabaseError('Dashboard quick event insert failed', result.error);
+          return result;
+        },
+        'יצירת המופע נכשלה. בדוק הרשאות או נסה שוב.',
+        setQuickCreateError,
+        async createdEvent => {
+          void createAuditLog(supabase, {
+            userId: profile.id,
+            userName: profile.name,
+            userRole: profile.role,
+            actionType: 'event_created',
+            entityType: 'event',
+            entityId: createdEvent.id,
+            newValue: { title, event_type: eventForm.eventType, starts_at: startsAt, ends_at: endsAt, status: 'scheduled' },
+          });
 
-    const { data: createdEvent, error } = await supabase
-      .from('events')
-      .insert({
-        title,
-        description: eventForm.description.trim() || null,
-        event_type: eventForm.eventType,
-        starts_at: startsAt,
-        ends_at: endsAt,
-        location: eventForm.location.trim() || null,
-        unit_id: profile.unit_id,
-        created_by: profile.id,
-        responsible_user_id: null,
-        status: 'scheduled',
-        metadata: {},
-      })
-      .select('id')
-      .single<{ id: string }>();
-
-    if (error) {
-      logSupabaseError('Dashboard quick event insert failed', error);
-      setQuickCreateError('יצירת המופע נכשלה. בדוק הרשאות או נסה שוב.');
-      setIsQuickCreateSubmitting(false);
-      return;
+          setQuickCreateType(null);
+          resetQuickForms();
+          setSuccessMessage('המופע נוצר בהצלחה.');
+          await loadDashboard();
+        },
+      );
+    } catch (submitError) {
+      logSupabaseError('Dashboard quick event insert threw', submitError);
+      setQuickCreateError(ambiguousMutationMessage);
     }
-
-    void createAuditLog(supabase, {
-      userId: profile.id,
-      userName: profile.name,
-      userRole: profile.role,
-      actionType: 'event_created',
-      entityType: 'event',
-      entityId: createdEvent.id,
-      newValue: { title, event_type: eventForm.eventType, starts_at: startsAt, ends_at: endsAt, status: 'scheduled' },
-    });
-
-    setQuickCreateType(null);
-    resetQuickForms();
-    setSuccessMessage('המופע נוצר בהצלחה.');
-    await loadDashboard();
-    setIsQuickCreateSubmitting(false);
   };
 
   if (isContextLoading || isLoading) {

@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   CheckCircle2,
   ClipboardCheck,
@@ -160,7 +159,6 @@ function getUnitLabel(unit: DbUnit) {
 }
 
 export default function TrackingPage() {
-  const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { currentUser } = useApp();
 
@@ -195,16 +193,6 @@ export default function TrackingPage() {
     setErrorMessage(null);
 
     try {
-      const {
-        data: { user },
-        error: userError,
-      } = await withTimeout(supabase.auth.getUser(), 10000, 'tracking auth');
-
-      if (userError || !user) {
-        router.replace('/login?next=/tracking');
-        return;
-      }
-
       const [soldiersResult, itemsResult, recordsResult, unitsResult] = await withTimeout(
         Promise.all([
           supabase
@@ -256,7 +244,7 @@ export default function TrackingPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [router, supabase]);
+  }, [supabase]);
 
   useEffect(() => {
     void loadTrackingData();

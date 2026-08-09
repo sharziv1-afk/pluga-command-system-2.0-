@@ -309,22 +309,11 @@ export default function LoginPage() {
         return;
       }
 
-      let { data: profile, error: profileError } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('users')
         .select(profileSelect)
         .eq('auth_user_id', authUser.id)
         .maybeSingle<AppUserProfile>();
-
-      if (!profile && !profileError) {
-        const result = await supabase
-          .from('users')
-          .select(profileSelect)
-          .eq('email', normalizedEmail)
-          .maybeSingle<AppUserProfile>();
-
-        profile = result.data;
-        profileError = result.error;
-      }
 
       if (profileError) {
         setError('לא ניתן לטעון את פרטי המשתמש כרגע. נסה שוב בעוד רגע.');
@@ -352,7 +341,8 @@ export default function LoginPage() {
       const { error: updateError } = await supabase
         .from('users')
         .update({ last_login_at: new Date().toISOString() })
-        .eq('id', profile.id);
+        .eq('id', profile.id)
+        .eq('auth_user_id', authUser.id);
 
       if (updateError) {
         logDevelopmentError('Existing user last_login_at update failed', updateError);
@@ -482,38 +472,18 @@ export default function LoginPage() {
         }
       }
 
-      const now = new Date().toISOString();
-      const profilePayload = {
-        auth_user_id: verifyData.user.id,
-        email: registrationDraft.email,
-        name: registrationDraft.fullName,
-        role: registrationDraft.role,
-        unit_id: registrationDraft.unitId,
-        permission_level: 0,
-        has_completed_onboarding: true,
-        role_approval_status: 'pending',
-        status: 'pending',
-        last_login_at: now,
-      };
+      const { error: claimError } = await supabase.rpc('claim_own_profile', {
+        p_email: registrationDraft.email,
+        p_name: registrationDraft.fullName,
+        p_role: registrationDraft.role,
+        p_unit_id: registrationDraft.unitId,
+      });
 
-      const { data: existingProfile, error: lookupError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', registrationDraft.email)
-        .maybeSingle<{ id: string }>();
-
-      if (lookupError) {
-        setError('לא ניתן לבדוק את פרטי המשתמש כרגע. נסה שוב בעוד רגע.');
-        return;
-      }
-
-      const result = existingProfile
-        ? await supabase.from('users').update(profilePayload).eq('id', existingProfile.id).select('id').single()
-        : await supabase.from('users').insert(profilePayload).select('id').single();
-
-      if (result.error) {
-        logDevelopmentError('Registration profile upsert failed', result.error);
-        setError('לא הצלחנו ליצור או לעדכן את פרטי המשתמש. נסה שוב בעוד רגע.');
+      if (claimError) {
+        logDevelopmentError('Registration profile claim failed', claimError);
+        setError(claimError.code === '23505'
+          ? 'כבר קיים פרופיל מקושר למייל הזה. פנה למנהל המערכת.'
+          : 'לא הצלחנו ליצור או לעדכן את פרטי המשתמש. נסה שוב בעוד רגע.');
         return;
       }
 

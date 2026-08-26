@@ -42,7 +42,12 @@ import { SkeletonCard } from '@/components/ui/Skeleton';
 import { createAuditLog } from '@/lib/audit';
 import type { AuditActionType } from '@/lib/audit';
 import { copyTextToClipboard } from '@/lib/clipboard';
-import { aggregateCompanyStructured, assignPlatoonReports } from '@/lib/forum/companyReport';
+import {
+  aggregateCompanyStructured,
+  assignPlatoonReports,
+  parsePlatoonUnitSnapshot,
+  snapshotFromPlatoons,
+} from '@/lib/forum/companyReport';
 import type { CompanyReportInput, CompanyReportPlatoon } from '@/lib/forum/companyReport';
 import {
   canMutateDailyDraft,
@@ -881,6 +886,35 @@ export default function ForumPage() {
   );
   const isCompanyReportLocked = companyReport?.status === 'closed';
 
+  // Live-resolved מ״מ 1-4 -> owner/unit for the current moment. Used as (a) the fallback
+  // resolution signal when no forum has been opened yet for this date, and (b) the source the
+  // explicit per-forum snapshot below is captured from, once, when the company report is first
+  // created.
+  const currentPlatoons = useMemo<CompanyReportPlatoon[]>(
+    () => platoonNodes.map((platoon, index) => {
+      const owner = findPlatoonSummaryOwner(ownerOptions, platoon.label);
+      return {
+        number: index + 1,
+        label: platoon.label,
+        ownerUserId: owner?.id ?? null,
+        unitId: owner?.unit_id ?? null,
+      };
+    }),
+    [ownerOptions],
+  );
+
+  // Explicit מ״מ-number -> unitId snapshot frozen once at this forum's company-report creation
+  // time (see the `platoon_unit_map` metadata writes below). Falls back to a live snapshot only
+  // when this date's company report doesn't have one yet (nothing frozen to read) — it is never
+  // rewritten onto an existing report, so a later unit rename or owner reassignment can't
+  // reshuffle which platoon a historical report belongs to.
+  const platoonUnitSnapshot = useMemo(
+    () =>
+      parsePlatoonUnitSnapshot(companyReport?.metadata?.platoon_unit_map) ??
+      snapshotFromPlatoons(currentPlatoons),
+    [companyReport?.metadata, currentPlatoons],
+  );
+
   const generateWhatsappText = useCallback((mode: 'short' | 'detailed' = whatsappMode) => {
     const divider = '─'.repeat(22);
     const lines = [`📋 *פורום מוביל פלוגתי — ${formatSelectedDate(selectedDate)}*`];
@@ -888,15 +922,12 @@ export default function ForumPage() {
     lines.push(divider, `סטטוס כללי: ${dailyReports.length} דיווחים נטענו`);
 
     // Resolve platoon reports the same way the (QA-passed) structured company aggregation
-    // does: owner_user_id (מ״מ N role + מחלקה N unit) first, metadata.node_label only as a
-    // last-resort fallback. Never by array index/order — that swapped מחלקה 1/2 content.
-    const platoons: CompanyReportPlatoon[] = platoonNodes.map((platoon, index) => ({
-      number: index + 1,
-      label: platoon.label,
-      ownerUserId: findPlatoonSummaryOwner(ownerOptions, platoon.label)?.id ?? null,
-    }));
+    // does: the explicit per-forum unitId snapshot first, then owner_user_id (מ״מ N role +
+    // מחלקה N unit) live match, then metadata.node_label as a last-resort fallback. Never by
+    // array index/order — that swapped מחלקה 1/2 content.
+    const platoons: CompanyReportPlatoon[] = currentPlatoons;
     const { byNumber: platoonByNumber, unidentified: unidentifiedPlatoonReports } =
-      assignPlatoonReports(dailyReports, platoons);
+      assignPlatoonReports(dailyReports, platoons, platoonUnitSnapshot);
     const squadReports = dailyReports.filter(report => report.report_level === 'squad');
 
     // Company manpower overview — sum present/total across the mapped platoons using the same
@@ -1010,7 +1041,7 @@ export default function ForumPage() {
     lines.push('', divider, '_"המשימה מעל הכול — והאנשים בראש"_');
 
     return lines.join('\n');
-  }, [dailyReports, dbProfile, ownerOptions, selectedDate, whatsappMode]);
+  }, [currentPlatoons, dailyReports, dbProfile, platoonUnitSnapshot, selectedDate, whatsappMode]);
 
   const copyWhatsappText = async () => {
     const result = await copyTextToClipboard(generateWhatsappText());
@@ -1527,6 +1558,12 @@ export default function ForumPage() {
               created_for_by_commander: createdForByCommander,
               created_for_user_name: selectedOwner?.name ?? null,
               created_for_user_role: selectedOwner?.role ?? null,
+              // Explicit מ״מ 1-4 -> unitId snapshot, frozen once when the first company-level
+              // report for this date is created this way (e.g. the commander typing directly
+              // into "סיכום פלוגתי" before ever running the platoon aggregation).
+              ...(nextReportLevel === 'company'
+                ? { platoon_unit_map: snapshotFromPlatoons(currentPlatoons) }
+                : {}),
             },
           })
           .select('id,report_date,company_unit_id,platoon_unit_id,squad_unit_id,report_level,staff_role,parent_report_id,created_by,owner_user_id,status,content,summary_text,whatsapp_text,metadata,created_at,updated_at')
@@ -2016,12 +2053,9 @@ export default function ForumPage() {
   const buildCompanyReportInput = (): CompanyReportInput => ({
     reports: dailyReports,
     formattedDate: formatSelectedDate(selectedDate),
-    platoons: platoonNodes.map((platoon, index) => ({
-      number: index + 1,
-      label: platoon.label,
-      ownerUserId: findPlatoonSummaryOwner(ownerOptions, platoon.label)?.id ?? null,
-    })),
+    platoons: currentPlatoons,
     staff: staffNodes.map(staff => ({ role: staff.id, label: staff.label })),
+    platoonUnitSnapshot,
   });
 
   // Snapshot the whole company structured form (aggregated + manual fields) for a merge-safe
@@ -2114,6 +2148,9 @@ export default function ForumPage() {
           node_label: 'סיכום פלוגתי',
           ui_gated_scope: true,
           company_report: true,
+          // Explicit מ״מ 1-4 -> unitId snapshot, frozen once at this forum's creation. Never
+          // rewritten afterwards (see the update branch above, which only touches `content`).
+          platoon_unit_map: snapshotFromPlatoons(currentPlatoons),
         },
       })
       .select('id,report_date,company_unit_id,platoon_unit_id,squad_unit_id,report_level,staff_role,parent_report_id,created_by,owner_user_id,status,content,summary_text,whatsapp_text,metadata,created_at,updated_at')

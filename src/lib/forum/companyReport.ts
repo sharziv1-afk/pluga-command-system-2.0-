@@ -34,6 +34,8 @@ export interface CompanyReportSource {
   status: CompanyReportStatus;
   content: Record<string, unknown>;
   metadata?: Record<string, unknown> | null;
+  /** Stable `units.id` FK captured once on the report row at creation time. Never re-derived. */
+  platoon_unit_id?: string | null;
 }
 
 export interface CompanyReportPlatoon {
@@ -43,6 +45,8 @@ export interface CompanyReportPlatoon {
   label: string;
   /** Mapped מ״מ user id, when a user is matched to this platoon; otherwise null. */
   ownerUserId: string | null;
+  /** Currently-known stable unit id for this מ״מ slot (from live owner/unit lookup). */
+  unitId?: string | null;
 }
 
 export interface CompanyReportStaffSlot {
@@ -62,6 +66,17 @@ export interface CompanyReportInput {
   staff: CompanyReportStaffSlot[];
   /** Commander free-text "פערים מרכזיים". Injected verbatim, never derived. */
   keyGaps?: string;
+  /**
+   * Explicit מ״מ-number -> unitId snapshot, captured once when this forum's company report
+   * was first created (see `snapshotFromPlatoons` usage in forum/page.tsx). When present it is
+   * the authoritative signal for matching a report's stable `platoon_unit_id` to a platoon
+   * number, so a later unit rename or owner/role reassignment can never re-shuffle which
+   * platoon a historical report belongs to. Absent for reports/backups predating this
+   * snapshot (or before any forum was opened this session) — resolution then falls back to
+   * the pre-existing owner/label matching unchanged; a missing snapshot is never guessed at
+   * or backfilled onto historical data.
+   */
+  platoonUnitSnapshot?: Record<number, string>;
 }
 
 export interface CompanyReportStats {
@@ -138,16 +153,71 @@ function hasPlatoonContent(content: Record<string, unknown>): boolean {
   return PLATOON_CONTENT_KEYS.some((key) => getString(content, key).length > 0);
 }
 
+/**
+ * Build a מ״מ-number -> unitId snapshot from the currently-known platoon owners. This is the
+ * value that gets frozen into a forum's company-report metadata once, at creation time, so
+ * later renames/reassignments can never re-shuffle which platoon a historical report belongs
+ * to. Platoons with no currently-known unit (no mapped owner yet) are simply omitted — a
+ * partial snapshot is fine, never a guess.
+ */
+export function snapshotFromPlatoons(platoons: CompanyReportPlatoon[]): Record<number, string> {
+  const snapshot: Record<number, string> = {};
+  for (const platoon of platoons) {
+    if (platoon.unitId) snapshot[platoon.number] = platoon.unitId;
+  }
+  return snapshot;
+}
+
+/**
+ * Defensively parse a persisted `metadata.platoon_unit_map` value back into a
+ * `Record<number, string>`. Returns `undefined` for anything not shaped like a snapshot
+ * (missing, legacy report, corrupted data) so callers fall back to the pre-existing
+ * owner/label matching — never throws, never guesses.
+ */
+export function parsePlatoonUnitSnapshot(raw: unknown): Record<number, string> | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const snapshot: Record<number, string> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    const number = Number(key);
+    if (!Number.isInteger(number) || number < 1 || number > 4) continue;
+    if (typeof value !== 'string' || !value) continue;
+    snapshot[number] = value;
+  }
+  return Object.keys(snapshot).length > 0 ? snapshot : undefined;
+}
+
 function resolvePlatoonNumber(
   report: CompanyReportSource,
   platoons: CompanyReportPlatoon[],
+  platoonUnitSnapshot?: Record<number, string>,
 ): number | null {
+  // 1. Explicit per-forum snapshot (captured once at company-report creation time): the most
+  //    stable signal, since it matches the report's own persisted unit id against a mapping
+  //    that was frozen the day the forum opened — immune to later unit renames or owner/role
+  //    reassignment that would otherwise reshuffle a live-recomputed mapping.
+  if (platoonUnitSnapshot && report.platoon_unit_id) {
+    const fromSnapshot = Object.entries(platoonUnitSnapshot).find(
+      ([, unitId]) => unitId === report.platoon_unit_id,
+    );
+    if (fromSnapshot) return Number(fromSnapshot[0]);
+  }
+  // 2. No snapshot available (legacy report/backup, or no forum opened yet this session):
+  //    fall back to matching the report's persisted unit id against the currently-known
+  //    platoon unit — still stable-id-based, just not frozen at creation time.
+  if (report.platoon_unit_id) {
+    const matchedByUnit = platoons.find(
+      (platoon) => platoon.unitId && platoon.unitId === report.platoon_unit_id,
+    );
+    if (matchedByUnit) return matchedByUnit.number;
+  }
+  // 3. Pre-existing behavior: match by the report's owner against the live owner mapping.
   if (report.owner_user_id) {
     const matched = platoons.find(
       (platoon) => platoon.ownerUserId && platoon.ownerUserId === report.owner_user_id,
     );
     if (matched) return matched.number;
   }
+  // 4. Pre-existing behavior: legacy metadata.node_label fallback for very old reports.
   const label =
     report.metadata && typeof report.metadata.node_label === 'string'
       ? report.metadata.node_label
@@ -173,12 +243,13 @@ function manpowerText(content: Record<string, unknown>): string {
 export function assignPlatoonReports(
   reports: CompanyReportSource[],
   platoons: CompanyReportPlatoon[],
+  platoonUnitSnapshot?: Record<number, string>,
 ): { byNumber: Map<number, CompanyReportSource>; unidentified: CompanyReportSource[] } {
   const platoonReports = reports.filter((report) => report.report_level === 'platoon');
   const byNumber = new Map<number, CompanyReportSource>();
   const unidentified: CompanyReportSource[] = [];
   for (const report of platoonReports) {
-    const number = resolvePlatoonNumber(report, platoons);
+    const number = resolvePlatoonNumber(report, platoons, platoonUnitSnapshot);
     if (number && !byNumber.has(number)) {
       byNumber.set(number, report);
     } else {
@@ -264,12 +335,12 @@ function rollupTextField(
  * "דגשי מ״פ" (commander_closing) is intentionally NOT produced here — it stays manual.
  */
 export function aggregateCompanyStructured(input: CompanyReportInput): CompanyStructuredResult {
-  const { reports, platoons, staff } = input;
+  const { reports, platoons, staff, platoonUnitSnapshot } = input;
   const warnings: string[] = [];
   const usedIds = new Set<string>();
 
   const orderedPlatoons = [...platoons].sort((a, b) => a.number - b.number);
-  const { byNumber, unidentified } = assignPlatoonReports(reports, platoons);
+  const { byNumber, unidentified } = assignPlatoonReports(reports, platoons, platoonUnitSnapshot);
 
   let presentTotal: number | null = null;
   let sdkTotal: number | null = null;
@@ -333,22 +404,12 @@ export function aggregateCompanyStructured(input: CompanyReportInput): CompanySt
  * Build the deterministic company summary text from already-loaded daily reports.
  */
 export function buildCompanyReport(input: CompanyReportInput): CompanyReportResult {
-  const { reports, formattedDate, platoons, staff, keyGaps } = input;
+  const { reports, formattedDate, platoons, staff, keyGaps, platoonUnitSnapshot } = input;
   const warnings: string[] = [];
   const usedIds = new Set<string>();
 
   // --- Assign platoon reports to platoon numbers (deterministic, never guesses by unit). ---
-  const platoonReports = reports.filter((report) => report.report_level === 'platoon');
-  const byNumber = new Map<number, CompanyReportSource>();
-  const unidentified: CompanyReportSource[] = [];
-  for (const report of platoonReports) {
-    const number = resolvePlatoonNumber(report, platoons);
-    if (number && !byNumber.has(number)) {
-      byNumber.set(number, report);
-    } else {
-      unidentified.push(report);
-    }
-  }
+  const { byNumber, unidentified } = assignPlatoonReports(reports, platoons, platoonUnitSnapshot);
 
   const orderedPlatoons = [...platoons].sort((a, b) => a.number - b.number);
 

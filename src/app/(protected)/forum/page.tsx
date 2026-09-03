@@ -224,7 +224,7 @@ const platoonNodes = [
 
 const staffNodes: Array<{ id: StaffRole; label: string; roleHints: string[] }> = [
   { id: 'medic', label: 'חופ״ל', roleHints: ['חופ"ל', 'חובש', 'רפואה'] },
-  { id: 'assistant_commander', label: 'ע. מ״פ', roleHints: ['ע. מ"פ', 'ע מ"פ', 'עוזר'] },
+  { id: 'assistant_commander', label: 'מש״ד', roleHints: ['מש"ד', 'עוזר'] },
   { id: 'logistics_nco', label: 'רס״פ', roleHints: ['רס"פ', 'לוגיסט'] },
   { id: 'deputy_commander', label: 'סמ״פ', roleHints: ['סמ"פ'] },
 ];

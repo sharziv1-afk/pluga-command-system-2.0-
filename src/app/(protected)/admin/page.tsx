@@ -64,7 +64,7 @@ function suggestMembershipUnitName(role: string): string | null {
   const n = normalizeRoleName(role);
   const platoon = n.match(/^(?:מ"מ|מ"כ|סמל) ([1-4])/);
   if (platoon) return `מחלקה ${platoon[1]}`;
-  if (n === 'מ"פ' || n === 'סמ"פ' || n === 'ע. מ"פ') return 'פלוגה';
+  if (n === 'מ"פ' || n === 'סמ"פ' || n === 'מש"ד') return 'פלוגה';
   if (n.includes('רס"פ') || n.includes('לוגיסטיקה')) return 'לוגיסטיקה';
   if (n === 'חובש פלוגתי') return 'רפואה';
   if (n === 'קשר פלוגתי') return 'קשר';

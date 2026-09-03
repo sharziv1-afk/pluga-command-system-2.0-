@@ -60,7 +60,7 @@ export default function ProfilePage() {
   const role = currentUser.role as string;
   if (role === 'מ״פ' || role === 'מ"פ') permissionLabel = 'הרשאה פלוגתית עליונה (מפקד פלוגה)';
   else if (role === 'סמ״פ' || role === 'סמ"פ') permissionLabel = 'הרשאה פלוגתית גבוהה (סגן מפקד)';
-  else if (role === 'ע. מ״פ' || role === 'ע. מ"פ') permissionLabel = 'הרשאת פיקוד ומנהלה (עוזר מ״פ)';
+  else if (role === 'מש״ד' || role === 'מש"ד') permissionLabel = 'הרשאת פיקוד ומנהלה (עוזר מ״פ, אחראי הדרכה)';
   else if (role === 'רס״פ / לוגיסטיקה' || role === 'רס"פ') permissionLabel = 'הרשאת ניהול לוגיסטיקה';
   else if (role.startsWith('מ״מ') || role.startsWith('מ"מ')) permissionLabel = 'הרשאת ניהול מחלקה';
   else if (role.startsWith('מ״כ') || role.startsWith('מ"כ')) permissionLabel = 'הרשאה כיתתית';

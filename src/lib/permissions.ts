@@ -12,7 +12,7 @@ export function getPermissionLevelForRole(role: string | null | undefined): numb
 
   if (normalizedRole === 'מ"פ') return 100;
   if (normalizedRole === 'סמ"פ') return 90;
-  if (normalizedRole === 'ע. מ"פ') return 85;
+  if (normalizedRole === 'מש"ד') return 85;
   if (normalizedRole === 'רס"פ / לוגיסטיקה' || normalizedRole === 'רס"פ') return 75;
   if (normalizedRole.startsWith('מ"מ')) return 70;
   if (normalizedRole === 'חובש פלוגתי') return 70;
@@ -25,7 +25,8 @@ export function getPermissionLevelForRole(role: string | null | undefined): numb
 
 /**
  * Existing UI visibility rule. Database RLS remains the authorization boundary.
- * This intentionally includes assistant-company-command roles containing מ"פ.
+ * This intentionally includes company-command roles containing מ"פ, plus
+ * מש"ד (עוזר מ"פ) explicitly — its title doesn't contain that substring.
  */
 export function hasCompanyWideUiAccess(
   role: string | null | undefined,
@@ -35,7 +36,8 @@ export function hasCompanyWideUiAccess(
   return storedPermissionLevel >= 90
     || getPermissionLevelForRole(normalizedRole) >= 90
     || normalizedRole.includes('מ"פ')
-    || normalizedRole.includes('סמ"פ');
+    || normalizedRole.includes('סמ"פ')
+    || normalizedRole === 'מש"ד';
 }
 
 export function isActiveApprovedProfile(

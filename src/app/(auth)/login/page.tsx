@@ -40,13 +40,12 @@ function isNoInvitationError(error: { message?: string; code?: string } | null) 
 
 function logDevelopmentError(message: string, error: unknown) {
   if (process.env.NODE_ENV !== 'development') return;
-  const details = error as { message?: string; code?: string; details?: string; hint?: string } | null;
-  console.error(message, {
-    message: details?.message,
-    code: details?.code,
-    details: details?.details,
-    hint: details?.hint,
-  });
+  // Log the raw error directly — narrowing to a fixed shape (message/code/
+  // details/hint) silently hides real fields when the thrown value doesn't
+  // match that shape, which is exactly what happened here: Supabase's fetch
+  // wrapper can throw a plain AuthRetryableFetchError whose useful data
+  // (name, status, cause) isn't message/code/details/hint at all.
+  console.error(message, error);
 }
 
 export default function LoginPage() {

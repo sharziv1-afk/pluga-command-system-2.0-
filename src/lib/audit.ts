@@ -10,6 +10,7 @@ export type AuditActionType =
   | 'gap_created'
   | 'gap_status_changed'
   | 'gap_converted_to_request'
+  | 'user_invited'
   | 'task_created'
   | 'task_updated'
   | 'task_status_changed'
@@ -49,6 +50,7 @@ interface CreateAuditLogParams {
   entityType:
     | 'request'
     | 'gap'
+    | 'user'
     | 'task'
     | 'event'
     | 'forum_post'

@@ -5,20 +5,25 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { GlossyButton } from '@/components/ui/GlossyButton';
+import { CommandOverlay } from '@/components/ui/CommandDialog';
+import { CommandButton } from '@/components/ui/CommandButton';
+import { CommandInput, CommandSelect } from '@/components/ui/CommandField';
+import { createAuditLog } from '@/lib/audit';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
 import { useApp } from '@/lib/context/AppContext';
 import { getPermissionLevelForRole } from '@/lib/permissions';
-import { 
-  Shield, 
-  UserCheck, 
-  UserX, 
-  Clock, 
-  Database, 
-  ShieldAlert, 
-  Loader2, 
-  Check, 
-  X, 
+import {
+  Shield,
+  UserCheck,
+  UserX,
+  UserPlus,
+  Clock,
+  Database,
+  ShieldAlert,
+  Loader2,
+  Check,
+  X,
   Edit2,
   Lock
 } from 'lucide-react';
@@ -95,72 +100,82 @@ export default function AdminPage() {
   const [editCommandedUnitId, setEditCommandedUnitId] = useState<string>('none');
   const [editPermissionLevel, setEditPermissionLevel] = useState<number>(0);
 
+  // Invite new user
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [inviteName, setInviteName] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState('');
+  const [inviteUnitId, setInviteUnitId] = useState('none');
+  const [isInviting, setIsInviting] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
-  useEffect(() => {
-    async function loadAdminData() {
-      setIsLoadingData(true);
-      setRlsError(null);
-      setReferenceDataError(null);
+  const loadAdminData = async () => {
+    setIsLoadingData(true);
+    setRlsError(null);
+    setReferenceDataError(null);
 
-      try {
-        const [
-          { data: rolesData, error: rolesError },
-          { data: unitsData, error: unitsError },
-          { data: usersData, error: usersError }
-        ] = await Promise.all([
-          supabase.from('roles').select('name').order('permission_level', { ascending: false }),
-          supabase.from('units').select('id,name').order('created_at', { ascending: true }),
-          supabase.from('users').select('*').order('created_at', { ascending: false })
-        ]);
+    try {
+      const [
+        { data: rolesData, error: rolesError },
+        { data: unitsData, error: unitsError },
+        { data: usersData, error: usersError }
+      ] = await Promise.all([
+        supabase.from('roles').select('name').order('permission_level', { ascending: false }),
+        supabase.from('units').select('id,name').order('created_at', { ascending: true }),
+        supabase.from('users').select('*').order('created_at', { ascending: false })
+      ]);
 
-        if (rolesData) setRoles(rolesData);
-        if (unitsData) setUnits(unitsData);
+      if (rolesData) setRoles(rolesData);
+      if (unitsData) setUnits(unitsData);
 
-        // Reference data (roles/units) feeds the edit dropdowns. A failed load or an
-        // empty list leaves those selects silently blank, so surface a non-blocking
-        // warning. Distinguish a real load error from an empty result for diagnosis.
-        if (rolesError || unitsError) {
-          logSupabaseError('Admin reference data fetch error', rolesError || unitsError, {
-            roles: !!rolesError,
-            units: !!unitsError
-          });
-          setReferenceDataError('בעיה בטעינת תפקידים/מסגרות — רשימות הבחירה בעריכה עשויות להופיע ריקות. נסה לרענן את הדף; אם הבעיה נמשכת, ייתכן שנדרשת בדיקת הרשאות במערכת.');
-        } else if (!rolesData?.length || !unitsData?.length) {
-          setReferenceDataError('בעיה בטעינת תפקידים/מסגרות — רשימות הבחירה בעריכה עשויות להופיע ריקות. נסה לרענן את הדף; אם הבעיה נמשכת, ייתכן שנדרשת בדיקת הרשאות במערכת.');
-        }
-
-        if (usersError) {
-          console.error('Database users fetch error:', usersError);
-          // "בינתיים אפשר להציג error ברור: נדרשת מדיניות RLS נוספת לניהול משתמשים"
-          if (usersError.code === '42501') {
-            setRlsError('אין לך הרשאה מתאימה לניהול משתמשים כרגע. פנה למנהל המערכת.');
-          } else {
-            setRlsError('לא ניתן לטעון את רשימת המשתמשים כרגע. נסה שוב בעוד רגע.');
-          }
-        } else if (usersData) {
-          const unitMap = new Map((unitsData || []).map((unit) => [unit.id, unit.name]));
-          const mappedUsers = usersData.map((user) => ({
-            ...user,
-            units: user.unit_id ? { name: unitMap.get(user.unit_id) || 'לא מזוהה' } : null,
-            commanded_units: user.commanded_unit_id
-              ? { name: unitMap.get(user.commanded_unit_id) || 'לא מזוהה' }
-              : null
-          }));
-
-          setProfilesList(mappedUsers as AdminUserProfile[]);
-        }
-      } catch (err) {
-        console.error('Failed to load admin data:', err);
-        setRlsError('שגיאה בלתי צפויה בטעינת נתוני מנהל.');
-      } finally {
-        setIsLoadingData(false);
+      // Reference data (roles/units) feeds the edit dropdowns. A failed load or an
+      // empty list leaves those selects silently blank, so surface a non-blocking
+      // warning. Distinguish a real load error from an empty result for diagnosis.
+      if (rolesError || unitsError) {
+        logSupabaseError('Admin reference data fetch error', rolesError || unitsError, {
+          roles: !!rolesError,
+          units: !!unitsError
+        });
+        setReferenceDataError('בעיה בטעינת תפקידים/מסגרות — רשימות הבחירה בעריכה עשויות להופיע ריקות. נסה לרענן את הדף; אם הבעיה נמשכת, ייתכן שנדרשת בדיקת הרשאות במערכת.');
+      } else if (!rolesData?.length || !unitsData?.length) {
+        setReferenceDataError('בעיה בטעינת תפקידים/מסגרות — רשימות הבחירה בעריכה עשויות להופיע ריקות. נסה לרענן את הדף; אם הבעיה נמשכת, ייתכן שנדרשת בדיקת הרשאות במערכת.');
       }
-    }
 
+      if (usersError) {
+        console.error('Database users fetch error:', usersError);
+        // "בינתיים אפשר להציג error ברור: נדרשת מדיניות RLS נוספת לניהול משתמשים"
+        if (usersError.code === '42501') {
+          setRlsError('אין לך הרשאה מתאימה לניהול משתמשים כרגע. פנה למנהל המערכת.');
+        } else {
+          setRlsError('לא ניתן לטעון את רשימת המשתמשים כרגע. נסה שוב בעוד רגע.');
+        }
+      } else if (usersData) {
+        const unitMap = new Map((unitsData || []).map((unit) => [unit.id, unit.name]));
+        const mappedUsers = usersData.map((user) => ({
+          ...user,
+          units: user.unit_id ? { name: unitMap.get(user.unit_id) || 'לא מזוהה' } : null,
+          commanded_units: user.commanded_unit_id
+            ? { name: unitMap.get(user.commanded_unit_id) || 'לא מזוהה' }
+            : null
+        }));
+
+        setProfilesList(mappedUsers as AdminUserProfile[]);
+      }
+    } catch (err) {
+      console.error('Failed to load admin data:', err);
+      setRlsError('שגיאה בלתי צפויה בטעינת נתוני מנהל.');
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
+
+  useEffect(() => {
     if (currentUser) {
       loadAdminData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, supabase]);
 
   // Authorization Check
@@ -359,16 +374,153 @@ export default function AdminPage() {
     }
   };
 
+  const openInvite = () => {
+    setInviteName('');
+    setInviteEmail('');
+    setInviteRole(roles[0]?.name ?? '');
+    setInviteUnitId(resolveUnitIdByName(suggestMembershipUnitName(roles[0]?.name ?? '')) ?? 'none');
+    setInviteError(null);
+    setIsInviteOpen(true);
+  };
+
+  const handleInviteRoleChange = (selectedRole: string) => {
+    setInviteRole(selectedRole);
+    const suggestedUnitId = resolveUnitIdByName(suggestMembershipUnitName(selectedRole));
+    if (suggestedUnitId) setInviteUnitId(suggestedUnitId);
+  };
+
+  const handleInviteSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (isInviting || !currentUser) return;
+
+    const cleanName = inviteName.trim();
+    const cleanEmail = inviteEmail.trim().toLowerCase();
+    if (!cleanName || !cleanEmail || !inviteRole) {
+      setInviteError('שם, דוא״ל ותפקיד הם שדות חובה.');
+      return;
+    }
+
+    setIsInviting(true);
+    setInviteError(null);
+
+    try {
+      const mappedUnitId = inviteUnitId === 'none' ? null : inviteUnitId;
+      const { data: created, error: insertError } = await supabase
+        .from('users')
+        .insert({
+          email: cleanEmail,
+          name: cleanName,
+          role: inviteRole,
+          unit_id: mappedUnitId,
+          permission_level: 0,
+          has_completed_onboarding: true,
+          role_approval_status: 'pending',
+          status: 'pending',
+        })
+        .select('id')
+        .single<{ id: string }>();
+
+      if (insertError || !created) {
+        if (insertError?.code === '23505') {
+          setInviteError('כבר קיים משתמש עם דוא״ל זה במערכת.');
+        } else if (insertError?.code === '42501') {
+          setInviteError('אין לך הרשאה להוסיף משתמשים כרגע.');
+        } else {
+          console.error('Failed to invite user:', insertError);
+          setInviteError('לא הצלחנו להוסיף את המשתמש. נסה שוב בעוד רגע.');
+        }
+        return;
+      }
+
+      void createAuditLog(supabase, {
+        userId: currentUser.id,
+        userName: currentUser.full_name,
+        userRole: currentUser.role,
+        actionType: 'user_invited',
+        entityType: 'user',
+        entityId: created.id,
+        previousValue: null,
+        newValue: { email: cleanEmail, name: cleanName, role: inviteRole },
+      });
+
+      setIsInviteOpen(false);
+      await loadAdminData();
+    } catch (err) {
+      console.error(err);
+      setInviteError('שגיאה בלתי צפויה בעת הוספת המשתמש.');
+    } finally {
+      setIsInviting(false);
+    }
+  };
+
   const activeRequests = profilesList.filter(r => r.role_approval_status === 'pending');
   const pastRequests = profilesList.filter(r => r.role_approval_status !== 'pending');
 
   return (
     <div className="space-y-6 text-right">
       {/* Page Header */}
-      <PageHeader 
-        title="ניהול הרשאות ואישור מפקדים" 
+      <PageHeader
+        title="ניהול הרשאות ואישור מפקדים"
         subtitle="בקרת גישה פלוגתית מאובטחת. כאן מפקד הפלוגה (המ״פ) או הסמ״פ מאשרים בקשות הצטרפות של מפקדים וסגל המפל״ג למערכת."
+        actions={
+          <GlossyButton variant="orange" size="sm" onClick={openInvite}>
+            <UserPlus className="h-4 w-4" />
+            הוסף משתמש חדש
+          </GlossyButton>
+        }
       />
+
+      <CommandOverlay
+        open={isInviteOpen}
+        onClose={() => setIsInviteOpen(false)}
+        title="הוספת משתמש חדש"
+        description="המשתמש ייכנס בעצמו בעמוד ההתחברות עם המייל הזה — אין צורך בסיסמה. הוא יופיע כאן ממתין לאישורך."
+        variant="sheet"
+        dismissible={!isInviting}
+        footer={
+          <>
+            <CommandButton variant="ghost" onClick={() => setIsInviteOpen(false)} disabled={isInviting}>
+              ביטול
+            </CommandButton>
+            <CommandButton type="submit" form="invite-user-form" variant="primary" loading={isInviting}>
+              הוסף משתמש
+            </CommandButton>
+          </>
+        }
+      >
+        <form id="invite-user-form" onSubmit={handleInviteSubmit} className="space-y-4">
+          {inviteError && (
+            <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-3.5 py-2.5 text-sm font-bold text-red-800" role="alert">
+              {inviteError}
+            </div>
+          )}
+          <CommandInput
+            label="שם מלא ודרגה"
+            required
+            value={inviteName}
+            onChange={e => setInviteName(e.target.value)}
+            placeholder='לדוגמה: סג"ם רועי לוי'
+            disabled={isInviting}
+          />
+          <CommandInput
+            label="דוא״ל"
+            type="email"
+            dir="ltr"
+            required
+            value={inviteEmail}
+            onChange={e => setInviteEmail(e.target.value)}
+            placeholder="commander@example.com"
+            disabled={isInviting}
+          />
+          <CommandSelect label="תפקיד" required value={inviteRole} onChange={e => handleInviteRoleChange(e.target.value)} disabled={isInviting}>
+            {roles.map(r => <option key={r.name} value={r.name}>{r.name}</option>)}
+          </CommandSelect>
+          <CommandSelect label="מסגרת" value={inviteUnitId} onChange={e => setInviteUnitId(e.target.value)} disabled={isInviting}>
+            <option value="none">ללא</option>
+            {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+          </CommandSelect>
+        </form>
+      </CommandOverlay>
 
       {rlsError && (
         <div className="flex items-start gap-2.5 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm leading-relaxed text-red-800">

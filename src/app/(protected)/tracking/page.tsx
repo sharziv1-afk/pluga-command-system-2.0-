@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FieldPrivacyHint } from '@/components/ui/FieldPrivacyHint';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlossyButton } from '@/components/ui/GlossyButton';
 import { createAuditLog } from '@/lib/audit';
@@ -917,6 +918,7 @@ export default function TrackingPage() {
                 placeholder="אופציונלי"
                 disabled={isSoldierSubmitting}
               />
+              <FieldPrivacyHint />
             </label>
 
             <div className="flex flex-col gap-2 lg:col-span-2 sm:flex-row">

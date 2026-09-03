@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { FieldPrivacyHint } from '@/components/ui/FieldPrivacyHint';
 import { GlossyButton } from '@/components/ui/GlossyButton';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { createAuditLog } from '@/lib/audit';
@@ -195,15 +196,15 @@ const squadManpowerFields: Array<{ key: keyof SquadContent; label: string }> = [
   { key: 'total_count', label: 'סד״כ' },
 ];
 
-const squadPrimaryFields: Array<{ key: keyof SquadContent; label: string }> = [
+const squadPrimaryFields: Array<{ key: keyof SquadContent; label: string; sensitive?: boolean }> = [
   { key: 'personnel', label: 'כוח אדם' },
   { key: 'readiness', label: 'כוננות' },
-  { key: 'welfare', label: 'ת״ש' },
-  { key: 'medical', label: 'רפואה' },
+  { key: 'welfare', label: 'ת״ש', sensitive: true },
+  { key: 'medical', label: 'רפואה', sensitive: true },
   { key: 'safety', label: 'בטיחות' },
-  { key: 'discipline', label: 'משמעת' },
+  { key: 'discipline', label: 'משמעת', sensitive: true },
   { key: 'logistics', label: 'לוגיסטיקה' },
-  { key: 'personal_requests', label: 'בקשות אישיות' },
+  { key: 'personal_requests', label: 'בקשות אישיות', sensitive: true },
   { key: 'plan_vs_actual', label: 'תכנון מול ביצוע' },
   { key: 'next_actions', label: 'פעולות להמשך' },
 ];
@@ -2753,6 +2754,7 @@ export default function ForumPage() {
                   <label key={field.key} className="block">
                     <span className="mb-2 block text-sm font-black text-[#020108]">{field.label}</span>
                     <textarea value={reportDraft[field.key]} onChange={event => handleStructuredFieldChange(field.key, event.target.value)} className="command-input min-h-20 resize-none" disabled={isDailySaving || isSelectedReportReadOnly} />
+                    {field.sensitive && <FieldPrivacyHint />}
                   </label>
                 ))}
               </div>

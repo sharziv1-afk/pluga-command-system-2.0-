@@ -2,7 +2,7 @@ import { createSupabaseBrowserClient } from './browser';
 import { isAuthSessionMissingError } from '@supabase/supabase-js';
 import { Profile, RoleType, FrameType, UserStatusType } from '../types';
 import { logSupabaseError } from './error';
-import { isActiveApprovedProfile } from '../permissions';
+import { isActiveApprovedProfile, isOperationalScopeRole } from '../permissions';
 
 export type CurrentProfileResult =
   | { status: 'unauthenticated'; profile: null; authUserId: null }
@@ -96,6 +96,10 @@ export async function fetchCurrentProfile(): Promise<CurrentProfileResult> {
       || dbUser.status === 'inactive'
       || dbUser.role_approval_status === 'rejected'
     ) {
+      return { status: 'access_blocked', profile: null, authUserId };
+    }
+
+    if (!isOperationalScopeRole(dbUser.role)) {
       return { status: 'access_blocked', profile: null, authUserId };
     }
 

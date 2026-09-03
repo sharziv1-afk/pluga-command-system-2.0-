@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { ArrowLeft, CheckCircle2, Eye, EyeOff, KeyRound, Loader2, Mail, ShieldCheck, UserRound } from 'lucide-react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlossyButton } from '@/components/ui/GlossyButton';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { isOperationalScopeRole } from '@/lib/permissions';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 
 type AuthMode = 'existing' | 'register';
@@ -15,6 +15,7 @@ type AppUserProfile = {
   id: string;
   auth_user_id: string | null;
   email: string;
+  role: string;
   status: 'active' | 'pending' | 'blocked' | 'inactive';
   role_approval_status: 'pending' | 'approved' | 'rejected';
   has_completed_onboarding: boolean;
@@ -37,42 +38,12 @@ type RegistrationDraft = {
   password?: string;
 };
 
-const profileSelect = 'id,auth_user_id,email,status,role_approval_status,has_completed_onboarding';
+const profileSelect = 'id,auth_user_id,email,role,status,role_approval_status,has_completed_onboarding';
 
 const fallbackRoles: RoleOption[] = [
   { name: 'מ״פ' },
   { name: 'סמ״פ' },
   { name: 'ע. מ״פ' },
-  { name: 'רס״פ / לוגיסטיקה' },
-  { name: 'חובש פלוגתי' },
-  { name: 'קשר פלוגתי' },
-  { name: 'מ״מ 1' },
-  { name: 'מ״מ 2' },
-  { name: 'מ״מ 3' },
-  { name: 'מ״מ 4' },
-  { name: 'מ״כ 1א' },
-  { name: 'מ״כ 1ב' },
-  { name: 'מ״כ 1ג' },
-  { name: 'מ״כ 1ד' },
-  { name: 'מ״כ 2א' },
-  { name: 'מ״כ 2ב' },
-  { name: 'מ״כ 2ג' },
-  { name: 'מ״כ 2ד' },
-  { name: 'מ״כ 3א' },
-  { name: 'מ״כ 3ב' },
-  { name: 'מ״כ 3ג' },
-  { name: 'מ״כ 3ד' },
-  { name: 'מ״כ 4א' },
-  { name: 'מ״כ 4ב' },
-  { name: 'מ״כ 4ג' },
-  { name: 'מ״כ 4ד' },
-  { name: 'סמל 1' },
-  { name: 'סמל 2' },
-  { name: 'סמל 3' },
-  { name: 'סמל 4' },
-  { name: 'ב.קוד / נהג' },
-  { name: 'ב.קוד' },
-  { name: 'נהג' },
 ];
 
 const fallbackUnits: UnitOption[] = [
@@ -337,6 +308,12 @@ export default function LoginPage() {
         return;
       }
 
+      if (!isOperationalScopeRole(profile.role)) {
+        setError('הכניסה לתפקידי מ״מ ומ״כ מושהית כרגע. המערכת פתוחה רק לצוות הפיקוד המצומצם.');
+        await supabase.auth.signOut();
+        return;
+      }
+
       if (profile.status === 'blocked') {
         setError('המשתמש חסום. פנה למנהל המערכת.');
         await supabase.auth.signOut();
@@ -398,6 +375,11 @@ export default function LoginPage() {
     }
     if (!selectedRole) {
       setError('תפקיד מבוקש הוא שדה חובה');
+      return;
+    }
+
+    if (!isOperationalScopeRole(selectedRole)) {
+      setError('ההרשמה כרגע פתוחה רק לצוות הפיקוד המצומצם.');
       return;
     }
 
@@ -517,7 +499,7 @@ export default function LoginPage() {
         return;
       }
 
-      window.location.href = '/onboarding';
+      window.location.href = '/pending-approval';
     } catch (unknownError) {
       logDevelopmentError('Registration OTP verify threw', unknownError);
       setError('אימות הקוד נכשל. בדוק את הקוד ונסה שוב.');
@@ -996,10 +978,10 @@ export default function LoginPage() {
           )}
 
           <div className="mt-5 flex flex-col items-center justify-between gap-3 border-t border-[rgba(2,1,8,0.08)] pt-5 text-xs font-bold text-[#667085] sm:flex-row">
-            <Link href="/onboarding" className="flex items-center gap-1 transition-colors hover:text-[#FF6B02]">
+            <button type="button" onClick={() => resetOtpState('register')} className="flex items-center gap-1 transition-colors hover:text-[#FF6B02]">
               <span>רישום ראשוני</span>
               <ArrowLeft className="h-3.5 w-3.5" />
-            </Link>
+            </button>
             <span className="text-[#98A2B3]">אין מידע מבצעי אמיתי במערכת</span>
           </div>
         </GlassCard>

@@ -7,6 +7,7 @@ import {
   hasAdminAccess,
   hasCompanyWideUiAccess,
   isActiveApprovedProfile,
+  isOperationalScopeRole,
   normalizeRole,
 } from '../src/lib/permissions.ts';
 import { getScheduleDisplayStatus } from '../src/lib/schedule.ts';
@@ -54,6 +55,13 @@ test('role normalization and existing UI capability rules share one truth table'
   assert.equal(hasCompanyWideUiAccess('מ״מ 1', 70), false);
   assert.equal(isActiveApprovedProfile('active', 'approved'), true);
   assert.equal(isActiveApprovedProfile('pending', 'approved'), false);
+});
+
+test('operational scope keeps the temporary MVP commander-only', () => {
+  assert.equal(isOperationalScopeRole('מ״פ'), true);
+  assert.equal(isOperationalScopeRole('ע. מ״פ'), true);
+  assert.equal(isOperationalScopeRole('מ״מ 1'), false);
+  assert.equal(isOperationalScopeRole('מ״כ 1א'), false);
 });
 
 test('operational pages do not refetch the current profile', () => {
@@ -143,7 +151,7 @@ test('forum daily draft protection handles hydration, transitions, saves, and st
   assert.equal(isLatestDailyLoad(4, 5), false);
   assert.equal(isLatestDailyLoad(5, 5), true);
 
-  const source = readFileSync('src/app/(protected)/forum/page.tsx', 'utf8');
+  const source = readFileSync('src/app/(protected)/forum/page.tsx', 'utf8').replace(/\r\n/g, '\n');
   const saveFlow = source.slice(source.indexOf('const saveSelectedReport'), source.indexOf('const submitSelectedReport'));
   const submitFlow = source.slice(source.indexOf('const submitSelectedReport'), source.indexOf('const carryForwardClosedReport'));
   const transitionFlow = source.slice(source.indexOf('const requestDailyScopeTransition'), source.indexOf('const transitionDailyDate'));

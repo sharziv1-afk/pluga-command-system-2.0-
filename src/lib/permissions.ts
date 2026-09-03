@@ -2,6 +2,13 @@ export function normalizeRole(role: string | null | undefined): string {
   return (role ?? '').trim().replace(/[\u05F4\u05F3"'´“”‘’]/g, '"');
 }
 
+/** Temporary operational scope while the multi-user hierarchy is on hold. */
+export const OPERATIONAL_SCOPE_ROLES = ['מ"פ', 'סמ"פ', 'ע. מ"פ'] as const;
+
+export function isOperationalScopeRole(role: string | null | undefined): boolean {
+  return OPERATIONAL_SCOPE_ROLES.includes(normalizeRole(role) as typeof OPERATIONAL_SCOPE_ROLES[number]);
+}
+
 export function hasAdminAccess(role: string | null | undefined): boolean {
   const normalizedRole = normalizeRole(role);
   return normalizedRole === 'מ"פ' || normalizedRole === 'סמ"פ';

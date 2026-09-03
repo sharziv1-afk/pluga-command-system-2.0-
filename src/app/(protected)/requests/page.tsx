@@ -17,6 +17,7 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { GapsPanel } from '@/components/gaps/GapsPanel';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlossyButton } from '@/components/ui/GlossyButton';
@@ -246,8 +247,11 @@ function getTabEmptyText(tab: TabId): { title: string; description: string } {
   }
 }
 
+type ViewMode = 'requests' | 'gaps';
+
 export default function RequestsPage() {
   const { currentUser, isLoading: isContextLoading, refreshProfile } = useApp();
+  const [viewMode, setViewMode] = useState<ViewMode>('requests');
   const [requests, setRequests] = useState<DbRequest[]>([]);
   const [assigneeUsers, setAssigneeUsers] = useState<AssigneeUser[]>([]);
   const [eventOptions, setEventOptions] = useState<EventOption[]>([]);
@@ -922,7 +926,7 @@ export default function RequestsPage() {
   if (isContextLoading || isLoading) {
     return (
       <div className="space-y-6">
-        <PageHeader title="דרישות ובקשות" subtitle="מוקד פתיחה, תיעדוף וטיפול בבקשות מהשטח" />
+        <PageHeader title="פערים ודרישות" subtitle="מוקד פתיחה, תיעדוף וטיפול בבקשות ופערים מהשטח" />
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <SkeletonCard />
           <SkeletonCard />
@@ -936,7 +940,7 @@ export default function RequestsPage() {
   if (!currentUser || !dbProfile) {
     return (
       <div className="space-y-6">
-        <PageHeader title="דרישות ובקשות" subtitle="מוקד פתיחה, תיעדוף וטיפול בבקשות מהשטח" />
+        <PageHeader title="פערים ודרישות" subtitle="מוקד פתיחה, תיעדוף וטיפול בבקשות ופערים מהשטח" />
         <GlassCard className="flex flex-col items-center justify-center py-12 text-center">
           <ShieldAlert className="mb-3 h-10 w-10 text-[var(--color-danger)]" />
           <h2 className="text-sm font-black text-[#020108]">לא נמצא פרופיל משתמש</h2>
@@ -951,16 +955,41 @@ export default function RequestsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="דרישות ובקשות"
-        subtitle="מוקד פתיחה, תיעדוף וטיפול בבקשות מהשטח"
+        title="פערים ודרישות"
+        subtitle="מוקד פתיחה, תיעדוף וטיפול בבקשות ופערים מהשטח"
         actions={
-          <GlossyButton variant="orange" size="sm" onClick={() => setIsFormOpen(true)}>
-            <Plus className="h-4 w-4" />
-            פתיחת בקשה חדשה
-          </GlossyButton>
+          viewMode === 'requests' ? (
+            <GlossyButton variant="orange" size="sm" onClick={() => setIsFormOpen(true)}>
+              <Plus className="h-4 w-4" />
+              פתיחת בקשה חדשה
+            </GlossyButton>
+          ) : undefined
         }
       />
 
+      <div className="flex items-center gap-1 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
+        {([
+          { id: 'requests', label: 'דרישות' },
+          { id: 'gaps', label: 'פערים' },
+        ] as const).map(mode => (
+          <button
+            key={mode.id}
+            onClick={() => setViewMode(mode.id)}
+            className={`touch-target flex-1 rounded-xl px-3 py-2 text-sm font-black transition duration-150 ${
+              viewMode === mode.id
+                ? 'bg-[var(--action)] text-white shadow-[0_4px_12px_rgba(255,107,2,0.28)]'
+                : 'text-[#667085] hover:bg-[var(--action)]/10 hover:text-[#020108]'
+            }`}
+          >
+            {mode.label}
+          </button>
+        ))}
+      </div>
+
+      {viewMode === 'gaps' && <GapsPanel />}
+
+      {viewMode === 'requests' && (
+      <>
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <MetricCard label="בקשות פתוחות" value={openCount} icon={Clock3} tone="brand" />
@@ -1434,6 +1463,8 @@ export default function RequestsPage() {
         destructive
         loading={Boolean(deletingRequestId)}
       />
+      </>
+      )}
     </div>
   );
 }

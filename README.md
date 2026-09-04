@@ -1,5 +1,15 @@
 # pluga-command-system - "המפקד"
 
+> ⚠️ **Read `AI_HANDOFF_CHECKPOINT.md` first.** This README is a reverse-chronological
+> pile of round checkpoints going back to 2026-06-10 and is **partly stale**: several
+> sections describe features that were later removed (a password / `/reset-password` /
+> auth-callback flow that does not exist in `src/`), a `#FF6B02` action colour that was
+> deliberately replaced by the AA-safe `--action` (`#c2410c`), a route list missing
+> `/mentoring`, and a design-system section that predates the current tokens. Use it for
+> history. For current state use `AI_HANDOFF_CHECKPOINT.md`, and for the rules that must
+> not be broken use `AGENTS.md`. Consolidating this file is Phase 1.6 of the approved
+> launch plan.
+
 ## Multi-Company Architecture Plan v1 — Batch 4B (PLANNING ONLY, no code)
 
 Planned direction: multi-company (multi-פלוגה) with commander-driven invitations. **Not
@@ -17,8 +27,8 @@ implemented** — no code/SQL/RLS/Auth/migration/commit. Full plan in
   the DB before company scope + RLS hardening pass leak QA.**
 - **Note:** the forum `company_unit_id` is a report-hierarchy field, **not** the future tenant
   `company_id`.
-- **Prerequisites:** real logout (BUG-AUTH-008); remove/gate AppContext demo-commander fallback
-  (BUG-CONTEXT-009); company-scoped RLS; no migration before approval.
+- **Prerequisites:** company-scoped RLS; no migration before approval. (The two former
+  prerequisites, BUG-AUTH-008 and BUG-CONTEXT-009, were verified FIXED on 2026-09-04.)
 - **Batches (plan only):** 4C schema/migration **draft only** (no apply, no SQL execution, no
   migration run, no DB/RLS change, no code beyond approved docs unless explicitly approved later) →
   4D backfill → 4E RLS hardening → 4F invitations/RPCs → 4G invite UI → 4H join flow → 4I leak QA.
@@ -47,7 +57,7 @@ implemented** — no code/SQL/RLS/Auth/migration/commit. Full plan in
 
 **QA basis:** `npm run lint`, `npx tsc -p tsconfig.json --noEmit`, and `npm run build` passed. Authenticated QA passed as MP and MM1. Forum known-good date `2026-08-20` passed with `124/138`, platoon counts `32/35`, `30/34`, `28/33`, `34/36`, the UPDATED marker present, and no platoon swap. Desktop copy passed for Forum WhatsApp and Schedule. iPhone Safari over HTTP LAN (`http://192.168.1.250:3100`) passed physically: Forum WhatsApp pasted full output, Schedule pasted full output for tomorrow's schedule, and visual/scroll remained usable.
 
-**Known remaining issues not fixed in Batch 3A:** BUG-AUTH-008 logout does not call `signOut`; BUG-CONTEXT-009 AppContext demo commander fallback; BUG-TRACK-003 Tracking UI exposes actions that RLS blocks; BUG-REQ-008 Requests specialist/status UI/RLS mismatch; BUG-FORUM-010 bulk close lacks future multi-company scope; BUG-FORUM-011 MM subordinate reports branch shows a linking requirement rather than actual subordinate reports; BUG-TT-007 small touch targets in some non-primary controls.
+**Known remaining issues not fixed in Batch 3A** (BUG-AUTH-008 and BUG-CONTEXT-009 were verified FIXED on 2026-09-04 and removed from this list)**:** BUG-TRACK-003 Tracking UI exposes actions that RLS blocks; BUG-REQ-008 Requests specialist/status UI/RLS mismatch; BUG-FORUM-010 bulk close lacks future multi-company scope; BUG-FORUM-011 MM subordinate reports branch shows a linking requirement rather than actual subordinate reports; BUG-TT-007 small touch targets in some non-primary controls.
 
 **Open after Batch 3A:** fix real logout, review/remove production demo fallback, add Tracking permission-aware UI gating, align Request status UI/RLS, decide creator request cancellation, decide own forum post deletion, improve fetch waterfalls/skeletons, polish small touch targets, and keep code/docs commits separate.
 

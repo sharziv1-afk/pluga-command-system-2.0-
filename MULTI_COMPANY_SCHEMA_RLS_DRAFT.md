@@ -346,8 +346,8 @@ UI gating אינו תחליף ל-RLS.
 
 ### Critical prerequisites
 
-- BUG-AUTH-008: logout ב-AppSidebar אינו קורא `signOut()`.
-- BUG-CONTEXT-009: AppContext עלול לטעון demo commander לאחר כשל profile.
+- ~~BUG-AUTH-008~~ **FIXED** (verified 2026-09-04): `AppSidebar.tsx` and `BottomNav.tsx` both call `auth.signOut()`, and since Phase 0 they also clear the device session.
+- ~~BUG-CONTEXT-009~~ **FIXED** (verified 2026-09-04): there is no demo fallback in `AppContext.tsx`; every failure path sets `currentUser = null`.
 - `canSeeAll` ו-`is_commander()` עדיין גלובליים.
 - אין להכניס פלוגה שנייה לפני תיקון נקודות אלו ו-RLS hardening.
 

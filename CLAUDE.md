@@ -1,13 +1,13 @@
 @AGENTS.md
 
-## Current Local Snapshot — P0 Local Stabilization Batch A
+## Current State (2026-09-04)
 
-- Batch A started from `main` at `fc33736`; PR #1 is merged into `main`.
-- The Light Gloss Operational Shell, shared AI workspace, and Claude adapter are merged.
-- Audit verdict remains **PRODUCTION NOT READY**.
-- Local Batch A code checkpoint is `7b9587e`; shell overflow, design tokens, CommandField error borders, and lint vendor warnings are addressed locally.
-- Remaining true P0 items are live Supabase `pg_policies` verification, Auth/RLS hardening, and observability.
-- Do not start Vercel or 21st.dev implementation before P0 security is triaged.
+- **In real daily use.** The מ״פ signs in from his phone against Supabase Staging `vmfihyritfmjycrfpxjn` daily. Its data is production data.
+- Never deployed to Vercel. A launch-readiness plan is approved and in progress.
+- **Two standing approval gates set by the user:** any *design* change and any *Vercel* action must be presented and approved step by step, one screen / one step at a time. Everything else follows the normal loop (implement → `npm run check` → CRLF scan → browser QA → independent review → commit).
+- `AI_HANDOFF_CHECKPOINT.md` is the most accurate doc here. `README.md`, `PROJECT_SUMMARY.md` and `PROJECT_HANDOFF_AI_CONTEXT.md` still contain stale sections from earlier rounds — believe the checkpoint over them.
+- Last completed work: **Phase 0** (`c05cf51` → `d5304db` → `b871069`) — three security bugs in the offline / write-conflict layer. The invariants it established are in `AGENTS.md` under "Write Conflicts & Offline"; breaking them reopens real bugs.
+- Next: **Phase 1** — 11 sites where an RLS-blocked write reports success to the user, `/mentoring` missing from `src/proxy.ts`, the `/onboarding` dead end, and doc consolidation.
 
 ## Agentic Workspace (Claude Code)
 
@@ -22,27 +22,9 @@
 
 Project-specific notes for Claude Code:
 
-- Read `README.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`, `PROJECT_SUMMARY.md`, `AGENTS.md`, and this file before making changes.
-- Current branch should be `main`.
-- Latest expected commit after the **Forum Daily Structured Company Flow** round (closed; pushed to `origin/main`):
-
-```text
-cdcd99f Fix forum WhatsApp preview platoon mapping
-acd2345 Fix forum report ownership for commander-created slot reports
-92af9b9 Fix forum owner mapping for staff and squad placeholders
-5965615 Document forum QA owner mapping requirements
-604c8cd Polish structured company report state handling
-9699284 Improve forum company report dialog accessibility
-ba903b2 Fix forum date input state update
-996bccb Make company report a structured מ״מ-style form
-e8f2161 Add structured per-field company aggregator
-023fb96 Polish company report status line for in-progress reports
-43d4a08 Add publish and close flow for forum daily reports
-ba554e6 Add company final report editor to forum daily
-c82492c Add deterministic company report generator helpers
-```
-
-(`cdcd99f` is the latest *code* commit and matches `origin/main`. A docs-only checkpoint commit such as "Document forum daily structured flow checkpoint" may sit on top once committed; the latest *code* commit stays `cdcd99f`. The full round detail, work plan, QA checklist, and risk matrix live in `FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`.)
+- Read `AI_HANDOFF_CHECKPOINT.md` and `AGENTS.md` first. `README.md`, `PROJECT_HANDOFF_AI_CONTEXT.md` and `PROJECT_SUMMARY.md` are long and partly stale — use them for history, not for current state.
+- Current branch should be `main`. Do not pin an "expected latest commit" here; it goes stale within a day. Run `git log --oneline -5`.
+- The forum round's detail, invariants, QA checklist and risk matrix live in `FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`. Its six invariants still hold and are restated in `AGENTS.md`.
 
 - Auth/Admin approval flow is OTP-code-only registration (no magic-link placeholders), `has_completed_onboarding=true` at registration, role→unit mapping at registration, pending users see "ממתין לאישור מ״פ", Admin prefills role (gershayim-normalized) and suggests מסגרת/יחידה בפיקוד/רמת הרשאה by role, and an Admin guardrail blocks approval without a valid role + unit.
 - Migration `014_reference_data_read_policies.sql` adds `units: public read` + `roles: public read` SELECT policies. Applied manually in live Supabase on 2026-06-19 (the unit/role dropdowns were empty because RLS was enabled without a read policy). Recorded for sync; do not rerun blindly.
@@ -75,7 +57,10 @@ c82492c Add deterministic company report generator helpers
 ## Current Product State
 
 - Dashboard: Supabase summaries + Quick Create.
-- Auth: existing login, OTP registration, Dev Login in development, Magic Link fallback, and Forgot Password through `/reset-password`.
+- **Auth: email OTP only — invite-only, no passwords.** No Dev Login, no Magic Link fallback, no `/reset-password`, no auth callback route. (Earlier revisions of this file claimed all four; none exist in `src/`.)
+- Gaps (פערים): `gaps` table + `GapsPanel`, rendered as the second view mode inside `/requests`. Converts a gap to a logistics request.
+- Mentoring (תיק חניכה): `mentoring_entries` + `/mentoring`, מ״פ only. Holds the commander's private notes on his direct reports — the most sensitive data in the app.
+- Offline: read cache + author-locked write queue on `/tasks` and `/forum`, device PIN / biometric unlock. See `AGENTS.md` → "Write Conflicts & Offline".
 - Admin: role/unit/permission management plus commanded-unit assignment through `commanded_unit_id`.
 - Requests: full workflow, event link, edit Phase 1, closed deletion.
 - Tasks: Supabase-backed, edit Phase 1, event link, closed deletion, quick filter chips.
@@ -83,14 +68,20 @@ c82492c Add deterministic company report generator helpers
 - Forum posts: `forum_posts`, create/edit/pin, RLS, audit.
 - Forum daily reports: `forum_daily_reports`, fixed slots, read-view card, edit mode, date picker, safe draft creation, create-for-subordinate, submit/return/approve-close/reopen, reset, advanced delete, WhatsApp short/detailed.
 
-## Forum Migrations
+## Migrations
+
+There are **30** migrations. The forum-relevant ones:
 
 - `008_forum_rls.sql` - Forum Phase 1 posts.
-- `009_forum_daily_summaries.sql` - legacy/prototype, do not build on it.
+- `009_forum_daily_summaries.sql` - legacy/prototype, do not build on it (still RLS-active live).
 - `010_forum_hierarchical_daily_reports.sql` - current hierarchical forum model.
 - `011_forum_daily_reports_commander_insert.sql` - commander create-for-subordinate.
 - `012_forum_daily_reports_delete_policy.sql` - advanced delete policy.
 - `013_add_commanded_unit_id.sql` - `users.commanded_unit_id` + index; foundation only.
+
+Later, and load-bearing: `017` rebuilt users/requests/tasks policies against verified live state (and records that `001`/`002` on disk had drifted from reality); `024` added blocked/rejected checks across ~15 policies; `027`–`030` are the write-conflict layer (`updated_by` column, `caller_outranks`, and the trigger that makes `updated_by` non-forgeable).
+
+Nine migrations are annotated "run manually — do not run automatically". There is no `config.toml` and no drift check: **the migration files are a log of manual applications, not an automated chain.** Verify against the live database before trusting them.
 
 ## Forum Limitations
 

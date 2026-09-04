@@ -4,14 +4,13 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
-## Current Local Snapshot — P0 Local Stabilization Batch A
+## Current State (2026-09-04)
 
-- Batch A started from `main` at `fc33736`; PR #1 is merged into `main`.
-- The Light Gloss Operational Shell, shared AI workspace, and Claude adapter are merged.
-- Audit verdict remains **PRODUCTION NOT READY**.
-- Local Batch A code checkpoint is `7b9587e`; shell overflow, design tokens, CommandField error borders, and lint vendor warnings are addressed locally.
-- Remaining true P0 items are live Supabase `pg_policies` verification, Auth/RLS hardening, and observability.
-- Do not start Vercel or 21st.dev implementation before P0 security is triaged.
+- **The app is in real daily use.** The מ״פ signs in from his phone against Supabase Staging `vmfihyritfmjycrfpxjn` every day. Treat its data as production data.
+- Production project `hjltpajvqhnygjybtivd` is wired to nothing. Which project gets promoted is an open decision — do not touch either without explicit approval.
+- Never deployed to Vercel. A launch-readiness plan is approved and in progress; **Vercel and design work each require step-by-step approval from the user before any action.**
+- `AI_HANDOFF_CHECKPOINT.md` is the most accurate document in the repo. When it disagrees with `README.md`, `PROJECT_SUMMARY.md`, or `PROJECT_HANDOFF_AI_CONTEXT.md`, believe the checkpoint — those three carry stale sections from earlier rounds.
+- Latest work: Phase 0 of the launch plan (`c05cf51` → `d5304db` → `b871069`) closed three security bugs in the offline/conflict-resolution layer. See "Write Conflicts & Offline" below.
 
 ## Local AI Execution
 
@@ -22,10 +21,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 - Use Next.js 16 `src/proxy.ts`; do not create or rename to `middleware.ts`.
 - Preserve Hebrew RTL across layouts, forms, navigation, and mobile views.
-- Preserve the Light Gloss Command System: bright background, orange `#FF6B02` actions, glass cards, and dark `#020108` text.
+- Preserve the Light Gloss design language: bright background, glass-accented cards, dark `#020108` text. **`--brand` (`#ff6b02`) is decoration only; `--action` (`#c2410c`) carries every interactive meaning** — the orange fails WCAG AA on white, which is exactly why the two were split in `globals.css`. Do not "restore" `#FF6B02` as the action colour; older docs that say to are wrong.
 - Do not run `npm audit fix --force`.
-- Do not delete or rewrite `src/lib/context/AppContext.tsx` / localStorage demo state without dependency mapping.
-- Do not touch Supabase schema, seed, auth callback, or proxy during design-only work unless a direct verified issue requires it.
+- Do not delete or rewrite `src/lib/context/AppContext.tsx` without dependency mapping. (It no longer contains any demo/localStorage user state — that guardrail's original reason is gone, but the file is now the auth state machine plus the offline-session gate, so it is still delicate.)
+- Do not touch Supabase schema, seed, or `src/proxy.ts` during design-only work unless a direct verified issue requires it. (There is no auth callback route in this codebase.)
 - Never put a service role key in frontend code.
 - Do not propose or run SQL automatically. Propose SQL, then wait for explicit manual execution.
 - Do not re-run migration 001 or 002 in production. They are idempotent but unnecessary.
@@ -52,8 +51,23 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - `users.unit_id` and `users.commanded_unit_id` both reference `units`. Do not use embedded `units(...)` selects from `users`; load units separately and map client-side.
 - `supabase/migrations/013_add_commanded_unit_id.sql` adds `users.commanded_unit_id` as hierarchy foundation only. It was reportedly run manually. Do not rerun without a direct reason.
 - `supabase/migrations/014_reference_data_read_policies.sql` adds `units: public read` + `roles: public read` SELECT policies (`for select to anon, authenticated using (true)`). `units`/`roles` are non-sensitive reference data; without these policies the client unit/role selectors return zero rows. Applied manually in live Supabase on 2026-06-19 and recorded for sync. Idempotent; do not rerun blindly.
-- Registration is OTP-code-only (no `emailRedirectTo` on the registration `signInWithOtp`); the auth callback is reserved for password reset. Registration sets `has_completed_onboarding=true`, maps role→unit, and requires a real `unit_id` when the role maps to a unit. Admin prefills role (gershayim-normalized) and suggests מסגרת/יחידה בפיקוד/רמת הרשאה by role; an Admin guardrail blocks approval without a valid role + `unit_id`. Do not regress these without planning.
+- **Auth is email OTP only. There are no passwords anywhere in this system.** There is no `/reset-password` page, no `src/app/auth/callback/route.ts`, and no `resetPasswordForEmail` call — earlier revisions of this file and of `CLAUDE.md`/`README.md` described a password + reset flow that does not exist. Sign-in is `signInWithOtp` → `verifyOtp` → the `claim_own_profile` RPC. Admin prefills role (gershayim-normalized) and suggests מסגרת/יחידה בפיקוד/רמת הרשאה by role; an Admin guardrail blocks approval without a valid role + `unit_id`. Do not regress these without planning.
 - `commanded_unit_id` is not yet wired into forum visibility or real hierarchy RLS.
-- Forgot Password is implemented through `supabase.auth.resetPasswordForEmail(...)`, `next=/reset-password` in the auth callback, and `/reset-password` with `supabase.auth.updateUser({ password })`.
 - Do not add recurring events, drag/drop, cron jobs, Supabase Edge Functions, or Supabase Realtime without an explicit feature request and planning session.
+
+## Write Conflicts & Offline — invariants (Phase 0, 2026-09-04)
+
+`src/lib/concurrency/hierarchyWrite.ts` resolves concurrent edits **per field**, not per row: only a field both sides actually changed, to different values, is a conflict. Everything else merges. These properties were each bought with a real bug — do not undo them:
+
+- **`updated_by` is owned by the database.** Migration `030_force_updated_by.sql` puts a BEFORE UPDATE trigger on `tasks` and `forum_daily_reports` that overwrites `updated_by` with the caller's real app-user id. Never trust or set it from the client, and never remove the trigger: the conflict resolver decides authority from that column, and while the client could write it, a user could stamp themselves as the last editor and skip the rank check entirely.
+- **Authority is never stated by the browser.** `caller_outranks(target_user_id)` (migration `029`) compares both ranks inside the DB against `current_app_user_id()`. Do not reintroduce a `permission_level` parameter, and do not pass any rank from client code.
+- **An unattributable editor fails closed.** If `updated_by` is null, the caller does *not* win the field. Defaulting that to "I win" was the actual bypass.
+- **Both writes are guarded on `updated_at`** — the optimistic one and the post-conflict merge. An unguarded merge silently clobbers a third save that lands mid-resolution.
+- **A field the user did not edit is never written from their stale copy.** `base === next` means "untouched" and always defers to the server value. Forms here resubmit every field, so without this a save wipes concurrent edits to fields the user never opened.
+- **The offline queue is author-locked.** Each `QueuedWrite` carries `authorUserId` and only ever replays under that account. On a shared phone, replaying under whoever is signed in now forges attribution and resolves conflicts with the wrong person's rank.
+- **Never count an offline failure toward abandoning a queued write.** Being offline is the case the queue exists for; counting it deleted real unsaved work after a few page navigations. If a write is ever dropped, say so in the UI — silent loss is worse than a stuck queue.
+- Cache keys embed the owner's id, and a successful profile load purges any cache entry that isn't the signed-in user's. Sign-out and a different user signing in both clear the device PIN, biometric credential and identity snapshot.
+- The offline identity snapshot expires after 7 days, and an offline session revalidates against the server as soon as connectivity returns — otherwise a blocked or demoted user keeps their old permissions offline indefinitely.
+
+**Still bypassing the resolver** (known, not yet fixed): `submitSelectedReport` in `forum/page.tsx` replaces the whole `content` column with no guard, and the task status change in `tasks/page.tsx` updates without one. Also, PostgREST returns 204 with no error when RLS filters an update, so a denied write is currently indistinguishable from a conflict.
 - Commit messages must be descriptive and specific (e.g., `Add request and event editing`, `Update project handoff after editing milestone`). Do not use generic names like `update`, `fix`, `changes`, or a hash alone.

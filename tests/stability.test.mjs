@@ -11,6 +11,7 @@ import {
 } from '../src/lib/permissions.ts';
 import { getScheduleDisplayStatus } from '../src/lib/schedule.ts';
 import { resolveFieldConflicts } from '../src/lib/concurrency/hierarchyWrite.ts';
+import { TABLE_SYNC_CONFIG } from '../src/lib/offline/tableSyncConfig.ts';
 import {
   canMutateDailyDraft,
   canTransitionDraft,
@@ -301,6 +302,25 @@ test('field-level conflict resolution only escalates fields both sides actually 
   );
   assert.deepEqual(sameValue.merged, { commander_closing: 'y' });
   assert.deepEqual(sameValue.overriddenFields, []);
+});
+
+test('offline sync table config shapes each table\'s payload correctly on replay', () => {
+  // A queued write is replayed after a page reload, so its table config
+  // must be plain data (no closures) — flat tables (tasks) pass values
+  // straight through, a jsonb sub-column (forum content) unwraps on read
+  // and re-wraps into the base snapshot on write.
+  const tasksConfig = TABLE_SYNC_CONFIG.tasks;
+  const flatRow = { title: 'x', description: 'y', updated_by: 'u1' };
+  assert.deepEqual(tasksConfig.extractFields(flatRow), flatRow);
+  assert.deepEqual(tasksConfig.buildPayload({ title: 'new' }), { title: 'new' });
+
+  const forumConfig = TABLE_SYNC_CONFIG.forum_daily_reports;
+  const nestedRow = { content: { commander_closing: 'a', personal_note: 'b' }, updated_by: 'u1' };
+  assert.deepEqual(forumConfig.extractFields(nestedRow), { commander_closing: 'a', personal_note: 'b' });
+  assert.deepEqual(
+    forumConfig.buildPayload({ commander_closing: 'edited' }, { commander_closing: 'a', personal_note: 'b' }),
+    { content: { commander_closing: 'edited', personal_note: 'b' } },
+  );
 });
 
 test('forum daily mutations only succeed when the expected row was returned', () => {

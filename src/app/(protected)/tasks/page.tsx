@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Trash2,
   UserCheck,
+  WifiOff,
   X,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -23,6 +24,8 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { createAuditLog } from '@/lib/audit';
 import { useApp } from '@/lib/context/AppContext';
 import { writeWithHierarchyResolution } from '@/lib/concurrency/hierarchyWrite';
+import { cacheGet, cacheSet } from '@/lib/offline/db';
+import { enqueueWrite, flushWriteQueue, pendingWriteCount } from '@/lib/offline/syncEngine';
 import { getPermissionLevelForRole, hasCompanyWideUiAccess } from '@/lib/permissions';
 import { getScheduleDisplayStatus } from '@/lib/schedule';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
@@ -222,6 +225,9 @@ export default function TasksPage() {
   const [editCategory, setEditCategory] = useState('');
   const [editLocation, setEditLocation] = useState('');
   const [editOutputRequired, setEditOutputRequired] = useState('');
+  const [isOffline, setIsOffline] = useState(false);
+  const [cachedAt, setCachedAt] = useState<number | null>(null);
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const dbProfile = useMemo<DbProfile | null>(() => currentUser ? {
@@ -238,6 +244,8 @@ export default function TasksPage() {
   // ponytail: one page-wide write lock; split by task only if concurrent edits become necessary.
   const isTaskWritePending = isSubmitting || isEditSubmitting || Boolean(updatingTaskId || deletingTaskId);
 
+  const TASKS_CACHE_KEY = 'tasks:list';
+
   const loadTasks = async () => {
     if (!currentUser) {
       setIsLoading(false);
@@ -246,6 +254,16 @@ export default function TasksPage() {
 
     setIsLoading(true);
     setError(null);
+
+    if (!navigator.onLine) {
+      const cached = await cacheGet<TaskView[]>(TASKS_CACHE_KEY);
+      setIsOffline(true);
+      setCachedAt(cached?.cachedAt ?? null);
+      setTasks(cached?.data ?? []);
+      setIsLoading(false);
+      return;
+    }
+    setIsOffline(false);
 
     try {
       const profileData = dbProfile;
@@ -348,7 +366,7 @@ export default function TasksPage() {
         }) !== 'completed'));
       }
 
-      setTasks(rawTasks.map(task => {
+      const mappedTasks = rawTasks.map(task => {
         const metadata = getTaskMetadata(task);
         return {
           ...task,
@@ -358,10 +376,22 @@ export default function TasksPage() {
           eventTitle: task.event_id ? (eventDetails[task.event_id]?.title ?? null) : null,
           eventTimeLabel: task.event_id ? (eventDetails[task.event_id]?.timeLabel ?? null) : null,
         };
-      }));
+      });
+      setTasks(mappedTasks);
+      void cacheSet(TASKS_CACHE_KEY, mappedTasks);
     } catch (loadError) {
       logSupabaseError('Tasks load failed unexpectedly', loadError);
-      setError('לא ניתן לטעון את המשימות כרגע. נסה לרענן את הדף בעוד רגע.');
+      // navigator.onLine can lie (some browsers/networks report "online" on a
+      // dead connection) — a network-shaped failure falls back to cache too,
+      // not just an explicit offline check at the top of this function.
+      const cached = await cacheGet<TaskView[]>(TASKS_CACHE_KEY);
+      if (cached) {
+        setIsOffline(true);
+        setCachedAt(cached.cachedAt);
+        setTasks(cached.data);
+      } else {
+        setError('לא ניתן לטעון את המשימות כרגע. נסה לרענן את הדף בעוד רגע.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -371,6 +401,26 @@ export default function TasksPage() {
     if (!isContextLoading) void loadTasks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isContextLoading, currentUser]);
+
+  useEffect(() => {
+    void pendingWriteCount().then(setPendingSyncCount);
+  }, [tasks]);
+
+  useEffect(() => {
+    if (!dbProfile) return;
+
+    const trySync = async () => {
+      const result = await flushWriteQueue(supabase, dbProfile.id, dbProfile.permission_level);
+      setPendingSyncCount(await pendingWriteCount());
+      if (result.applied > 0) await loadTasks();
+    };
+
+    void trySync();
+    const onOnline = () => void trySync();
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dbProfile?.id]);
 
   const tabCounts = useMemo(() => {
     const counts: Partial<Record<TaskTab, number>> = {};
@@ -617,6 +667,29 @@ export default function TasksPage() {
       metadata: { base: editingTask.metadata, next: nextValues.metadata },
     };
 
+    if (!navigator.onLine) {
+      // Queue the write for the next reconnect instead of failing outright.
+      // It replays later through the exact same field-level, role-hierarchy
+      // conflict resolution a live save uses — a write made offline against
+      // a task someone else also changed while I was gone is resolved the
+      // same way it would be if both saves had happened live.
+      await enqueueWrite({
+        table: 'tasks',
+        rowId: editingTask.id,
+        baseUpdatedAt: editingTask.updated_at,
+        changes,
+        baseSnapshot: editingTask as unknown as Record<string, unknown>,
+      });
+      setPendingSyncCount(await pendingWriteCount());
+      const optimisticTasks = tasks.map(task => (task.id === editingTask.id ? { ...task, ...nextValues } : task));
+      setTasks(optimisticTasks);
+      void cacheSet(TASKS_CACHE_KEY, optimisticTasks);
+      setEditingTask(null);
+      setSuccess('אין רשת — השינוי יישמר אוטומטית כשהחיבור יחזור.');
+      setIsEditSubmitting(false);
+      return;
+    }
+
     const writeResult = await writeWithHierarchyResolution({
       supabase,
       table: 'tasks',
@@ -784,6 +857,22 @@ export default function TasksPage() {
         title="משימות ובקרה פלוגתית"
         subtitle="ניהול משימות: פתיחה, הקצאה, מעקב סטטוס ובקרת ביצוע בסיסית."
       />
+
+      {isOffline && (
+        <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
+          <WifiOff className="h-4 w-4 shrink-0" />
+          <span>
+            אין רשת — מוצגות משימות שנשמרו במכשיר{cachedAt ? ` בשעה ${new Date(cachedAt).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}` : ''}.
+            {pendingSyncCount > 0 && ` יש ${pendingSyncCount} שינויים שממתינים לסנכרון.`}
+          </span>
+        </div>
+      )}
+      {!isOffline && pendingSyncCount > 0 && (
+        <div className="flex items-center gap-3 rounded-2xl border border-[#FF6B02]/25 bg-[#FF6B02]/10 px-4 py-3 text-sm font-bold text-[#C75200]">
+          <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+          <span>מסנכרן {pendingSyncCount} שינויים שנשמרו בזמן שלא הייתה רשת...</span>
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-3">
         <GlassCard className="flex items-center justify-between">

@@ -12,6 +12,8 @@ import { SystemStatusPanel } from '@/components/layout/SystemStatusPanel';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { useApp } from '@/lib/context/AppContext';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
+import { logSupabaseError } from '@/lib/supabase/error';
+import { clearDeviceSession } from '@/lib/offline/session';
 
 const COLLAPSE_KEY = 'command_sidebar_collapsed';
 
@@ -20,6 +22,7 @@ export const AppSidebar: React.FC<{ className?: string }> = ({ className }) => {
   const router = useRouter();
   const { currentUser, isLoading } = useApp();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
@@ -46,10 +49,12 @@ export const AppSidebar: React.FC<{ className?: string }> = ({ className }) => {
     setIsSigningOut(true);
     const { error } = await createSupabaseBrowserClient().auth.signOut();
     if (error) {
-      console.error('Supabase sign out failed:', error.message);
+      logSupabaseError('Sign out failed', error);
+      setSignOutError('לא ניתן להתנתק כרגע. נסה שוב בעוד רגע.');
       setIsSigningOut(false);
       return;
     }
+    await clearDeviceSession();
     router.replace('/login');
     router.refresh();
   };
@@ -165,6 +170,9 @@ export const AppSidebar: React.FC<{ className?: string }> = ({ className }) => {
             </>
           )}
         </div>
+        {signOutError && !collapsed && (
+          <p role="alert" className="mt-2 text-[11px] font-bold text-[var(--color-danger)]">{signOutError}</p>
+        )}
       </div>
     </aside>
   );

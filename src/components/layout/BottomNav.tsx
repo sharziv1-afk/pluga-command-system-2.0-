@@ -9,6 +9,8 @@ import { hasAdminAccess, isCompanyCommander } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/lib/context/AppContext';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
+import { logSupabaseError } from '@/lib/supabase/error';
+import { clearDeviceSession } from '@/lib/offline/session';
 import { CommandOverlay } from '@/components/ui/CommandDialog';
 
 function isActivePath(pathname: string, path: string) {
@@ -20,6 +22,7 @@ export const BottomNav: React.FC = () => {
   const router = useRouter();
   const { currentUser } = useApp();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
 
   const { primary, more } = bottomNavSplit(
     hasAdminAccess(currentUser?.role as string | undefined),
@@ -30,9 +33,11 @@ export const BottomNav: React.FC = () => {
   const handleSignOut = async () => {
     const { error } = await createSupabaseBrowserClient().auth.signOut();
     if (error) {
-      console.error('Supabase sign out failed:', error.message);
+      logSupabaseError('Sign out failed', error);
+      setSignOutError('לא ניתן להתנתק כרגע. נסה שוב בעוד רגע.');
       return;
     }
+    await clearDeviceSession();
     setMoreOpen(false);
     router.replace('/login');
     router.refresh();
@@ -113,6 +118,9 @@ export const BottomNav: React.FC = () => {
             </button>
           </li>
         </ul>
+        {signOutError && (
+          <p role="alert" className="px-3 pb-2 text-xs font-bold text-[var(--color-danger)]">{signOutError}</p>
+        )}
       </CommandOverlay>
     </>
   );

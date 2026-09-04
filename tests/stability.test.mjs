@@ -238,8 +238,10 @@ test('forum daily mutations require the exact hydrated node scope', () => {
 });
 
 test('field-level conflict resolution only escalates fields both sides actually changed', () => {
-  const commander = 100; // מ"פ
-  const squadLeader = 50; // מ"כ
+  // The caller's authority is a boolean decided by the DB (caller_outranks,
+  // migration 029) — never a permission level the browser could state.
+  const iOutrankThem = true;
+  const theyOutrankMe = false;
 
   // Two different fields on the same record — no real collision, both apply.
   const noOverlap = resolveFieldConflicts(
@@ -247,8 +249,7 @@ test('field-level conflict resolution only escalates fields both sides actually 
       commander_closing: { base: 'x', next: 'commander wrote this' },
     },
     { commander_closing: 'x', personal_note: 'squad leader wrote this already saved by them' },
-    commander,
-    squadLeader,
+    iOutrankThem,
   );
   assert.deepEqual(noOverlap.merged, { commander_closing: 'commander wrote this' });
   assert.deepEqual(noOverlap.overriddenFields, []);
@@ -263,8 +264,7 @@ test('field-level conflict resolution only escalates fields both sides actually 
       description: { base: 'original description', next: 'original description' },
     },
     { title: 'old title', description: 'description someone else already changed' },
-    commander,
-    squadLeader,
+    iOutrankThem,
   );
   assert.deepEqual(untouchedFieldNeverOverwrites.merged, {
     title: 'new title I actually typed',
@@ -277,8 +277,7 @@ test('field-level conflict resolution only escalates fields both sides actually 
   const realConflict = resolveFieldConflicts(
     { commander_closing: { base: 'x', next: 'squad leader edit' } },
     { commander_closing: 'commander already changed this' },
-    squadLeader,
-    commander,
+    theyOutrankMe,
   );
   assert.deepEqual(realConflict.merged, { commander_closing: 'commander already changed this' });
   assert.deepEqual(realConflict.overriddenFields, ['commander_closing']);
@@ -287,8 +286,7 @@ test('field-level conflict resolution only escalates fields both sides actually 
   const higherRankWins = resolveFieldConflicts(
     { commander_closing: { base: 'x', next: 'commander edit' } },
     { commander_closing: 'squad leader already changed this' },
-    commander,
-    squadLeader,
+    iOutrankThem,
   );
   assert.deepEqual(higherRankWins.merged, { commander_closing: 'commander edit' });
   assert.deepEqual(higherRankWins.overriddenFields, []);
@@ -297,8 +295,7 @@ test('field-level conflict resolution only escalates fields both sides actually 
   const sameValue = resolveFieldConflicts(
     { commander_closing: { base: 'x', next: 'y' } },
     { commander_closing: 'y' },
-    squadLeader,
-    commander,
+    theyOutrankMe,
   );
   assert.deepEqual(sameValue.merged, { commander_closing: 'y' });
   assert.deepEqual(sameValue.overriddenFields, []);

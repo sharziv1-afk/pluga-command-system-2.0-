@@ -244,7 +244,9 @@ export default function TasksPage() {
   // ponytail: one page-wide write lock; split by task only if concurrent edits become necessary.
   const isTaskWritePending = isSubmitting || isEditSubmitting || Boolean(updatingTaskId || deletingTaskId);
 
-  const TASKS_CACHE_KEY = 'tasks:list';
+  // Cache keys are scoped per user: on a shared phone one commander must
+  // never read another's cached rows offline.
+  const TASKS_CACHE_KEY = `tasks:list:${currentUser?.id ?? 'anonymous'}`;
 
   const loadTasks = async () => {
     if (!currentUser) {
@@ -403,15 +405,17 @@ export default function TasksPage() {
   }, [isContextLoading, currentUser]);
 
   useEffect(() => {
-    void pendingWriteCount().then(setPendingSyncCount);
-  }, [tasks]);
+    if (!dbProfile) return;
+    void pendingWriteCount(dbProfile.id).then(setPendingSyncCount);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks, dbProfile?.id]);
 
   useEffect(() => {
     if (!dbProfile) return;
 
     const trySync = async () => {
-      const result = await flushWriteQueue(supabase, dbProfile.id, dbProfile.permission_level);
-      setPendingSyncCount(await pendingWriteCount());
+      const result = await flushWriteQueue(supabase, dbProfile.id);
+      setPendingSyncCount(await pendingWriteCount(dbProfile.id));
       if (result.applied > 0) await loadTasks();
     };
 
@@ -679,8 +683,9 @@ export default function TasksPage() {
         baseUpdatedAt: editingTask.updated_at,
         changes,
         baseSnapshot: editingTask as unknown as Record<string, unknown>,
+        authorUserId: dbProfile.id,
       });
-      setPendingSyncCount(await pendingWriteCount());
+      setPendingSyncCount(await pendingWriteCount(dbProfile.id));
       const optimisticTasks = tasks.map(task => (task.id === editingTask.id ? { ...task, ...nextValues } : task));
       setTasks(optimisticTasks);
       void cacheSet(TASKS_CACHE_KEY, optimisticTasks);
@@ -700,7 +705,6 @@ export default function TasksPage() {
       extractFields: (row) => row,
       buildPayload: (fields) => fields,
       currentUserId: dbProfile.id,
-      currentPermissionLevel: dbProfile.permission_level,
     });
 
     if (writeResult.status === 'merged' && writeResult.overriddenFields.length > 0) {

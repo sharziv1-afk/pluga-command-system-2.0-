@@ -55,6 +55,23 @@ export async function cacheGet<T>(key: string): Promise<{ data: T; cachedAt: num
   }
 }
 
+/** Wipes every cached read. Used on sign-out — the write queue is deliberately
+ *  NOT cleared: queued writes are unsaved work, and they carry their author so
+ *  they can only ever replay under the account that made them. */
+export async function cacheClear(): Promise<void> {
+  try {
+    const db = await openDb();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(CACHE_STORE, 'readwrite');
+      tx.objectStore(CACHE_STORE).clear();
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch {
+    /* best-effort */
+  }
+}
+
 export async function queueAdd<T extends { id: string }>(item: T): Promise<void> {
   const db = await openDb();
   await new Promise<void>((resolve, reject) => {

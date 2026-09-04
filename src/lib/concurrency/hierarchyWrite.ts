@@ -1,5 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+/** How many times to re-resolve when yet another save lands mid-resolution. */
+const MAX_MERGE_ATTEMPTS = 3;
+
 export interface FieldChange {
   base: unknown;
   next: unknown;
@@ -27,13 +30,16 @@ function valuesEqual(a: unknown, b: unknown): boolean {
  * record never collide just for touching the same row — only a field that
  * BOTH sides actually changed, to different values, is a real conflict.
  * Everything else merges automatically. Only a genuine per-field overlap
- * falls back to role hierarchy: the higher permission_level value wins.
+ * consults rank, via `callerOutranks`.
+ *
+ * `callerOutranks` is deliberately a plain boolean decided by the DB
+ * (`caller_outranks`, migration 029) rather than two permission levels: the
+ * caller's own rank must never be something the browser can state.
  */
 export function resolveFieldConflicts(
   changes: Record<string, FieldChange>,
   currentServerFields: Record<string, unknown>,
-  currentPermissionLevel: number,
-  otherPermissionLevel: number,
+  callerOutranks: boolean,
 ): FieldConflictResolution {
   const merged: Record<string, unknown> = {};
   const overriddenFields: string[] = [];
@@ -57,7 +63,7 @@ export function resolveFieldConflicts(
     }
 
     // Same field, two different new values — an actual conflict.
-    if (currentPermissionLevel > otherPermissionLevel) {
+    if (callerOutranks) {
       merged[field] = next;
     } else {
       merged[field] = currentValue;
@@ -75,14 +81,13 @@ export interface HierarchyWriteParams {
   baseUpdatedAt: string;
   /** Only the fields this save is touching, each with the value it was loaded from and the new value. */
   changes: Record<string, FieldChange>;
-  /** Columns to refetch on conflict — must cover every key in `changes`, plus updated_by. */
+  /** Columns to refetch on conflict — must cover every key in `changes`, plus updated_by. `updated_at` is added automatically. */
   selectColumns: string;
   /** Pulls the diffable field map out of a freshly-fetched row (flat columns: identity; nested e.g. `content`: unwrap it). */
   extractFields: (row: Record<string, unknown>) => Record<string, unknown>;
   /** Shapes resolved field values into the actual DB update payload (flat columns: identity; nested: wrap in `{ content: {...} }`). */
   buildPayload: (resolvedFields: Record<string, unknown>) => Record<string, unknown>;
   currentUserId: string;
-  currentPermissionLevel: number;
 }
 
 export type HierarchyWriteResult =
@@ -101,11 +106,11 @@ export async function writeWithHierarchyResolution({
   extractFields,
   buildPayload,
   currentUserId,
-  currentPermissionLevel,
 }: HierarchyWriteParams): Promise<HierarchyWriteResult> {
   const fullNext: Record<string, unknown> = {};
   for (const [field, { next }] of Object.entries(changes)) fullNext[field] = next;
 
+  // Fast path: nobody has touched the row since it was loaded.
   const { data: applied, error } = await supabase
     .from(table)
     .update({ ...buildPayload(fullNext), updated_by: currentUserId })
@@ -116,41 +121,51 @@ export async function writeWithHierarchyResolution({
   if (error) throw error;
   if (applied && applied.length > 0) return { status: 'applied' };
 
-  const { data: current } = await supabase
-    .from(table)
-    .select(selectColumns)
-    .eq('id', id)
-    .maybeSingle<Record<string, unknown>>();
+  // Conflict path. The merge write is guarded on the updated_at we just read,
+  // so a third save landing between the read and the merge can't be silently
+  // clobbered — it loses the guard, and we re-resolve against the newer state.
+  // `changes` is never rebased: each field's `base` stays the value the user
+  // actually loaded, which is what defines "did I change this field".
+  for (let attempt = 0; attempt < MAX_MERGE_ATTEMPTS; attempt += 1) {
+    const { data: current, error: readError } = await supabase
+      .from(table)
+      .select(`${selectColumns},updated_at`)
+      .eq('id', id)
+      .maybeSingle<Record<string, unknown>>();
 
-  if (!current) throw new Error(`Row ${id} not found in ${table} while resolving a write conflict`);
+    if (readError) throw readError;
+    if (!current) throw new Error(`Row ${id} not found in ${table} while resolving a write conflict`);
 
-  const otherEditorId = (current.updated_by as string | null) ?? null;
-  let otherPermissionLevel = 0;
+    const otherEditorId = (current.updated_by as string | null) ?? null;
+    let callerOutranks = true;
 
-  if (otherEditorId && otherEditorId !== currentUserId) {
-    // Plain RLS only lets a user read their own row, or lets a commander
-    // read everyone — a non-commander resolving a conflict against another
-    // non-commander could never see the other side's real rank. This RPC
-    // (SECURITY DEFINER, see migration 028) exposes just permission_level.
-    const { data: otherUser } = await supabase
-      .rpc('get_user_rank_info', { target_user_id: otherEditorId })
-      .maybeSingle<{ permission_level: number | null }>();
-    otherPermissionLevel = otherUser?.permission_level ?? 0;
+    if (otherEditorId && otherEditorId !== currentUserId) {
+      // Both ranks are compared inside the DB against the caller's JWT
+      // identity — the browser never states its own authority.
+      const { data: outranks, error: rankError } = await supabase
+        .rpc('caller_outranks', { target_user_id: otherEditorId });
+      if (rankError) throw rankError;
+      callerOutranks = outranks === true;
+    }
+
+    const { merged, overriddenFields } = resolveFieldConflicts(
+      changes,
+      extractFields(current),
+      callerOutranks,
+    );
+
+    const { data: mergedRows, error: mergeError } = await supabase
+      .from(table)
+      .update({ ...buildPayload(merged), updated_by: currentUserId })
+      .eq('id', id)
+      .eq('updated_at', current.updated_at as string)
+      .select('id');
+
+    if (mergeError) throw mergeError;
+    if (mergedRows && mergedRows.length > 0) return { status: 'merged', overriddenFields };
   }
 
-  const { merged, overriddenFields } = resolveFieldConflicts(
-    changes,
-    extractFields(current),
-    currentPermissionLevel,
-    otherPermissionLevel,
+  throw new Error(
+    `Could not settle a write conflict on ${table}/${id} after ${MAX_MERGE_ATTEMPTS} attempts`,
   );
-
-  const { error: mergeError } = await supabase
-    .from(table)
-    .update({ ...buildPayload(merged), updated_by: currentUserId })
-    .eq('id', id);
-
-  if (mergeError) throw mergeError;
-
-  return { status: 'merged', overriddenFields };
 }

@@ -23,6 +23,14 @@ interface AppContextProps {
   authStatus: AppAuthStatus;
   authError: string | null;
   refreshProfile: () => Promise<void>;
+  /** True while the app is running on a device-unlocked cached identity with
+   *  no verified network session. Reads come from the IndexedDB cache and
+   *  writes are queued — nothing here has been confirmed against the server. */
+  isOfflineSession: boolean;
+  /** Called by the offline gate once the device PIN or biometric check
+   *  passes: promotes the cached profile to the active user so the normal
+   *  shell can render against the cache instead of a dead-end card. */
+  unlockOfflineSession: () => boolean;
 }
 
 const AppContext = createContext<AppContextProps | undefined>(undefined);
@@ -37,6 +45,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentUser, setCurrentUser] = useState<Profile | null>(null);
   const [authStatus, setAuthStatus] = useState<AppAuthStatus>('loading');
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isOfflineSession, setIsOfflineSession] = useState(false);
+
+  const unlockOfflineSession = useCallback(() => {
+    const snapshot = readCachedProfileSnapshot();
+    if (!snapshot) return false;
+    setCurrentUser(snapshot.profile);
+    setIsOfflineSession(true);
+    setAuthStatus('ready');
+    setAuthError(null);
+    return true;
+  }, []);
   const refreshProfileRef = useRef<() => Promise<void>>(async () => undefined);
   const refreshProfile = useCallback(() => refreshProfileRef.current(), []);
 
@@ -88,6 +107,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       loadVersion += 1;
       activeAuthUserId = null;
       setCurrentUser(null);
+      setIsOfflineSession(false);
       setAuthStatus('unauthenticated');
       setAuthError(null);
       removeLegacySession();
@@ -129,6 +149,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       if (result.status === 'ready') {
         setCurrentUser(result.profile);
+        setIsOfflineSession(false);
         setAuthStatus('ready');
         cacheProfileSnapshot(result.profile);
         return;
@@ -207,6 +228,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       authStatus,
       authError,
       refreshProfile,
+      isOfflineSession,
+      unlockOfflineSession,
     }}>
       {children}
     </AppContext.Provider>

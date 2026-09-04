@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ShieldAlert } from 'lucide-react';
+import { ShieldAlert, WifiOff } from 'lucide-react';
 import { AppSidebar } from '@/components/layout/AppSidebar';
 import { MobileHeader } from '@/components/layout/MobileHeader';
 import { BottomNav } from '@/components/layout/BottomNav';
@@ -29,7 +29,7 @@ function ContentSkeleton() {
 }
 
 export default function ProtectedLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const { authStatus, authError, refreshProfile } = useApp();
+  const { authStatus, authError, refreshProfile, isOfflineSession } = useApp();
 
   if (authStatus === 'offline') {
     return <OfflineGate onRetry={() => void refreshProfile()} />;
@@ -101,6 +101,16 @@ export default function ProtectedLayout({ children }: Readonly<{ children: React
 
       <div className="flex min-h-0 min-w-0 max-w-full flex-1 flex-col">
         <MobileHeader />
+
+        {isOfflineSession && (
+          <div
+            role="status"
+            className="flex shrink-0 items-center justify-center gap-2 bg-[var(--color-warning)]/12 px-4 py-2 text-[11px] font-black text-[var(--color-warning)]"
+          >
+            <WifiOff className="h-3.5 w-3.5 shrink-0" />
+            מצב אופליין — מוצגים נתונים שנשמרו במכשיר. שינויים יסונכרנו כשהחיבור יחזור.
+          </div>
+        )}
 
         <main className="min-h-0 min-w-0 max-w-full flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 pb-24 custom-scrollbar sm:px-5 md:pb-6 xl:px-6">
           {loading ? (

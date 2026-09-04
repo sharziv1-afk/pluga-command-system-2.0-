@@ -1148,7 +1148,9 @@ export default function ForumPage() {
     setIsDailyLoading(true);
     setDailyError(null);
 
-    const cacheKey = `forum:reports:${date}`;
+    // Scoped per user — a shared device must not surface one commander's
+    // cached reports to the next person who signs in.
+    const cacheKey = `forum:reports:${dbProfile.id}:${date}`;
 
     if (!navigator.onLine) {
       const cached = await cacheGet<DailyReportRow[]>(cacheKey);
@@ -1250,15 +1252,17 @@ export default function ForumPage() {
   }, [activeTab, dbProfile, loadDailyReports, selectedDate]);
 
   useEffect(() => {
-    void pendingWriteCount().then(setPendingSyncCount);
-  }, [dailyReports]);
+    if (!dbProfile) return;
+    void pendingWriteCount(dbProfile.id).then(setPendingSyncCount);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dailyReports, dbProfile?.id]);
 
   useEffect(() => {
     if (!dbProfile) return;
 
     const trySync = async () => {
-      const result = await flushWriteQueue(supabase, dbProfile.id, dbProfile.permission_level);
-      setPendingSyncCount(await pendingWriteCount());
+      const result = await flushWriteQueue(supabase, dbProfile.id);
+      setPendingSyncCount(await pendingWriteCount(dbProfile.id));
       if (result.applied > 0) await loadDailyReports(selectedDate);
     };
 
@@ -1698,14 +1702,15 @@ export default function ForumPage() {
           baseUpdatedAt: selectedReport.updated_at,
           changes: contentChanges,
           baseSnapshot: selectedReport.content as unknown as Record<string, unknown>,
+          authorUserId: dbProfile.id,
         });
-        setPendingSyncCount(await pendingWriteCount());
+        setPendingSyncCount(await pendingWriteCount(dbProfile.id));
         const optimisticContent = { ...selectedReport.content, ...draftToSave };
         const optimisticReports = dailyReports.map(report =>
           report.id === selectedReport.id ? { ...report, content: optimisticContent } : report,
         );
         setDailyReports(optimisticReports);
-        void cacheSet(`forum:reports:${selectedDate}`, optimisticReports);
+        void cacheSet(`forum:reports:${dbProfile.id}:${selectedDate}`, optimisticReports);
         recordDailyDraftSave(draftToSave, true);
         setDailySuccess('אין רשת — הדיווח יישמר אוטומטית כשהחיבור יחזור.');
         return;
@@ -1728,7 +1733,6 @@ export default function ForumPage() {
             whatsapp_text: updatePayload.whatsapp_text,
           }),
           currentUserId: dbProfile.id,
-          currentPermissionLevel: dbProfile.permission_level,
         });
       } catch (updateError) {
         logSupabaseError('Forum daily report update failed', updateError);
@@ -2244,7 +2248,6 @@ export default function ForumPage() {
           extractFields: (row) => (row.content as Record<string, unknown>) ?? {},
           buildPayload: (fields) => ({ content: { ...companyReport.content, ...fields } }),
           currentUserId: dbProfile.id,
-          currentPermissionLevel: dbProfile.permission_level,
         });
       } catch (updateError) {
         logSupabaseError('Forum company report save failed', updateError);

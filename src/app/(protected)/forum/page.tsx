@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   AlertCircle,
   AlertTriangle,
@@ -20,6 +21,8 @@ import {
   Megaphone,
   MessageSquare,
   Package,
+  PanelRightClose,
+  PanelRightOpen,
   Pencil,
   Pin,
   RefreshCw,
@@ -394,13 +397,28 @@ function emptyReportDraft(): ReportDraft {
 
 const reportDraftFields = Object.keys(emptyReportDraft()) as (keyof ReportDraft)[];
 
+// report.content is untyped jsonb — a legacy row can hold a number where a
+// string field is expected (this crashed the app once already: present_count/
+// total_count stored as JSON numbers, .trim() throwing with no error
+// boundary). Coerce every string-typed field on read instead of trusting the
+// DB shape matches ReportDraft.
+function sanitizeReportContent(base: ReportDraft, content: Record<string, unknown>): ReportDraft {
+  const next = { ...base };
+  for (const key of Object.keys(base) as Array<keyof ReportDraft>) {
+    if (!(key in content)) continue;
+    const raw = content[key];
+    if (typeof base[key] === 'boolean') {
+      (next as Record<string, unknown>)[key] = raw === true;
+    } else if (raw !== null && raw !== undefined) {
+      (next as Record<string, unknown>)[key] = String(raw);
+    }
+  }
+  return next;
+}
+
 function draftFromReport(report: DailyReportRow | null): ReportDraft {
   if (!report) return emptyReportDraft();
-  return {
-    ...emptyReportDraft(),
-    ...report.content,
-    company_report_manually_edited: report.content.company_report_manually_edited === true,
-  } as ReportDraft;
+  return sanitizeReportContent(emptyReportDraft(), report.content);
 }
 
 function truncateForWhatsapp(value: string) {
@@ -439,7 +457,14 @@ function isDateInputValue(value: string) {
 export default function ForumPage() {
   const { currentUser, isLoading: isContextLoading, refreshProfile } = useApp();
   const [posts, setPosts] = useState<ForumPostView[]>([]);
-  const [activeTab, setActiveTab] = useState<ForumTab>('posts');
+  // ponytail: 'posts' is unreachable now (the tab switcher was removed per the
+  // commander's request — the free-form board is replaced by the דגשי מ״פ
+  // strip above the daily forum). renderPostsTab()/handleForumTabChange and
+  // their dedicated state are left in place, unused, rather than ripped out
+  // in the same pass as this file's own invariants (see
+  // FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md §5) make it the highest-risk
+  // file in the app to bulk-edit blind.
+  const [activeTab, setActiveTab] = useState<ForumTab>('daily');
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -460,6 +485,27 @@ export default function ForumPage() {
   // Explicit user expand/collapse overrides per group name; anything not here follows the
   // role default (commanders start collapsed, everyone else starts expanded).
   const [groupToggles, setGroupToggles] = useState<Record<string, boolean>>({});
+  const [isTreeCollapsed, setIsTreeCollapsed] = useState(false);
+
+  useEffect(() => {
+    try {
+      setIsTreeCollapsed(window.localStorage.getItem('command_forum_tree_collapsed') === '1');
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
+
+  const toggleTreeCollapsed = () => {
+    setIsTreeCollapsed(current => {
+      const next = !current;
+      try {
+        window.localStorage.setItem('command_forum_tree_collapsed', next ? '1' : '0');
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
   const reportPanelRef = useRef<HTMLElement>(null);
   const dailyLoadVersion = useRef(0);
   const loadedDailyScope = useRef<string | null>(null);
@@ -881,6 +927,14 @@ export default function ForumPage() {
     [dailyReports, dbProfile?.id],
   );
   const isCompanyReportLocked = companyReport?.status === 'closed';
+
+  // The מ״פ's own written note for the day — always shown at the top of the
+  // daily forum (not conditionally hidden), so the strip is a stable part of
+  // the page you can always come back to for a given date, per-date like the
+  // report itself, not tied to whether it happens to be filled in yet.
+  const commanderHighlight = String(
+    companyReport?.content.commander_closing ?? companyReport?.content.company_summary ?? '',
+  ).trim();
 
   const generateWhatsappText = useCallback((mode: 'short' | 'detailed' = whatsappMode) => {
     const divider = '─'.repeat(22);
@@ -2587,7 +2641,7 @@ export default function ForumPage() {
 
     const displayedStatus = selectedReport?.status ?? 'draft';
     const isReadView = Boolean(selectedReport) && !isEditingReport;
-    const readContent = { ...emptyReportDraft(), ...(selectedReport?.content ?? {}) };
+    const readContent = sanitizeReportContent(emptyReportDraft(), selectedReport?.content ?? {});
     const hasSecondaryContent = squadSecondaryFields.some(field => readContent[field.key].trim().length > 0);
     const returnedInfo = selectedReport && selectedReport.status === 'in_progress' && selectedReport.metadata?.returned_note
       ? {
@@ -2633,7 +2687,7 @@ export default function ForumPage() {
                 <div>
                   <p className="text-sm font-black text-[#667085]">מצבת חיילים פלוגתית</p>
                   <p className="font-mono text-3xl font-black text-[#FF6B02]" dir="ltr">
-                    {readContent.present_count.trim() || '—'}/{readContent.total_count.trim() || '—'}
+                    {String(readContent.present_count ?? '').trim() || '—'}/{String(readContent.total_count ?? '').trim() || '—'}
                   </p>
                 </div>
                 <span className="mr-auto text-sm font-bold text-[#667085]">נוכחים / סד״כ בבסיס</span>
@@ -2662,7 +2716,7 @@ export default function ForumPage() {
               <div>
                 <p className="text-sm font-black text-[#667085]">מצבת חיילים</p>
                 <p className="font-mono text-3xl font-black text-[#FF6B02]" dir="ltr">
-                  {readContent.present_count.trim() || '—'}/{readContent.total_count.trim() || '—'}
+                  {String(readContent.present_count ?? '').trim() || '—'}/{String(readContent.total_count ?? '').trim() || '—'}
                 </p>
               </div>
               <span className="mr-auto text-sm font-bold text-[#667085]">נוכחים / סד״כ בבסיס</span>
@@ -2723,7 +2777,7 @@ export default function ForumPage() {
                 <div className="min-w-0">
                   <p className="text-sm font-black text-[#020108]">{selectedNode.level === 'company' ? 'מצבת חיילים פלוגתית' : 'מצבת חיילים'}</p>
                   <p className="font-mono text-3xl font-black text-[#FF6B02]" dir="ltr">
-                    {reportDraft.present_count.trim() || '—'}/{reportDraft.total_count.trim() || '—'}
+                    {String(reportDraft.present_count ?? '').trim() || '—'}/{String(reportDraft.total_count ?? '').trim() || '—'}
                   </p>
                 </div>
                 <span className="mr-auto hidden text-sm font-bold text-[#667085] sm:block">
@@ -2915,6 +2969,16 @@ export default function ForumPage() {
         </div>
       </div>
 
+      <div className="flex items-start gap-3 rounded-3xl border border-[#FF6B02]/20 bg-[#FF6B02]/10 px-4 py-3.5">
+        <Megaphone className="mt-0.5 h-5 w-5 shrink-0 text-[#FF6B02]" />
+        <div className="min-w-0 flex-1">
+          <span className="block text-[11px] font-black text-[#C75200]">דגשי מ״פ לפורום מוביל · {formatSelectedDate(selectedDate)}</span>
+          <p className={`mt-0.5 whitespace-pre-wrap text-sm leading-relaxed ${commanderHighlight ? 'font-semibold text-[#020108]' : 'font-bold text-[#98A2B3]'}`}>
+            {commanderHighlight || 'טרם מולאו דגשים ליום זה.'}
+          </p>
+        </div>
+      </div>
+
       {dailyError && (
         <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
@@ -2930,11 +2994,23 @@ export default function ForumPage() {
           <SkeletonCard />
         </div>
       ) : (
-        <div className="grid gap-5 xl:grid-cols-[0.42fr_1fr]">
+        <div className={`grid gap-5 transition-[grid-template-columns] duration-300 ease-out ${isTreeCollapsed ? '' : 'xl:grid-cols-[0.42fr_1fr] xl:items-start'}`}>
+          {!isTreeCollapsed && (
           <aside className="tactical-glass-card rounded-3xl p-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-auto">
-            <div className="mb-4 rounded-3xl border border-[#FF6B02]/20 bg-[#FF6B02]/10 p-4">
-              <h2 className="text-lg font-black text-[#020108]">סדר פורום מוביל</h2>
-              <p className="mt-1 text-xs font-bold leading-relaxed text-[#667085]">לחיצה על קבוצה פותחת את הגורמים שלה. כל גורם נשמר עם סטטוס עצמאי.</p>
+            <div className="mb-4 flex items-center gap-3 rounded-3xl border border-[#FF6B02]/20 bg-[#FF6B02]/10 p-4">
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg font-black text-[#020108]">סדר פורום מוביל</h2>
+                <p className="mt-1 text-xs font-bold leading-relaxed text-[#667085]">לחיצה על קבוצה פותחת את הגורמים שלה. כל גורם נשמר עם סטטוס עצמאי.</p>
+              </div>
+              <button
+                type="button"
+                onClick={toggleTreeCollapsed}
+                aria-expanded={!isTreeCollapsed}
+                aria-label="קפל את רשימת בעלי התפקידים"
+                className="inline-flex shrink-0 rounded-xl border border-[#FF6B02]/25 bg-white/70 p-2 text-[#C75200] transition hover:bg-white"
+              >
+                <PanelRightClose className="h-4 w-4" />
+              </button>
             </div>
             <div className="space-y-2">
               {dailyNodeGroups.map(group => {
@@ -3010,6 +3086,25 @@ export default function ForumPage() {
               })}
             </div>
           </aside>
+          )}
+
+          {isTreeCollapsed && typeof document !== 'undefined' && createPortal(
+            // Portaled to <body>: the page-transition wrapper (.command-page-transition)
+            // sets a CSS transform on every protected page, which makes any descendant's
+            // position:fixed relative to THAT element instead of the viewport (a real,
+            // silent CSS gotcha — confirmed live, the button rendered ~1000px below the
+            // fold). Escaping via a portal is the standard fix, not a workaround.
+            <button
+              type="button"
+              onClick={toggleTreeCollapsed}
+              aria-label="הצג את רשימת בעלי התפקידים"
+              className="fixed bottom-6 left-6 z-40 flex items-center gap-2 rounded-2xl border border-[#FF6B02]/25 bg-white px-4 py-3 text-sm font-black text-[#C75200] shadow-[0_14px_32px_rgba(2,1,8,0.16)] transition hover:bg-[#FF6B02]/10"
+            >
+              <PanelRightOpen className="h-4 w-4" />
+              בעלי תפקידים
+            </button>,
+            document.body,
+          )}
 
           <main ref={reportPanelRef} className="min-w-0 space-y-4">
             {selectedNode && (
@@ -3067,22 +3162,6 @@ export default function ForumPage() {
         )}
       />
 
-      <div className="flex flex-wrap gap-2 rounded-3xl border border-[rgba(2,1,8,0.08)] bg-white/65 p-2 shadow-[0_14px_36px_rgba(2,1,8,0.05)]">
-        {([
-          { id: 'posts', label: 'לוח פוסטים' },
-          { id: 'daily', label: 'פורום מוביל יומי' },
-        ] as Array<{ id: ForumTab; label: string }>).map(tab => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => handleForumTabChange(tab.id)}
-            className={`min-h-11 rounded-2xl px-4 py-2 text-sm font-black transition ${activeTab === tab.id ? 'bg-[#FF6B02] text-white shadow-[0_10px_22px_rgba(255,107,2,0.22)]' : 'text-[#667085] hover:bg-white hover:text-[#020108]'}`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
       {error && (
         <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
@@ -3090,9 +3169,7 @@ export default function ForumPage() {
         </div>
       )}
 
-      {successMessage && activeTab === 'posts' && <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{successMessage}</div>}
-
-      {activeTab === 'posts' ? renderPostsTab() : renderDailyTab()}
+      {renderDailyTab()}
 
       {showCompanyRefreshConfirm && (
         <div

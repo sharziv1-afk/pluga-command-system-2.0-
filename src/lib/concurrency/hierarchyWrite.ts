@@ -41,6 +41,14 @@ export function resolveFieldConflicts(
   for (const [field, { base, next }] of Object.entries(changes)) {
     const currentValue = currentServerFields[field];
 
+    if (valuesEqual(base, next)) {
+      // I never actually changed this field (a form that resubmits every
+      // field even when untouched) — always defer to whatever's on the
+      // server now, never my stale loaded copy of it.
+      merged[field] = currentValue;
+      continue;
+    }
+
     if (valuesEqual(currentValue, base) || valuesEqual(currentValue, next)) {
       // Nobody else touched this field since I loaded it, or they already
       // saved the exact value I'm saving — no real collision either way.
@@ -120,10 +128,12 @@ export async function writeWithHierarchyResolution({
   let otherPermissionLevel = 0;
 
   if (otherEditorId && otherEditorId !== currentUserId) {
+    // Plain RLS only lets a user read their own row, or lets a commander
+    // read everyone — a non-commander resolving a conflict against another
+    // non-commander could never see the other side's real rank. This RPC
+    // (SECURITY DEFINER, see migration 028) exposes just permission_level.
     const { data: otherUser } = await supabase
-      .from('users')
-      .select('permission_level')
-      .eq('id', otherEditorId)
+      .rpc('get_user_rank_info', { target_user_id: otherEditorId })
       .maybeSingle<{ permission_level: number | null }>();
     otherPermissionLevel = otherUser?.permission_level ?? 0;
   }

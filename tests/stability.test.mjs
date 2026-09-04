@@ -252,6 +252,25 @@ test('field-level conflict resolution only escalates fields both sides actually 
   assert.deepEqual(noOverlap.merged, { commander_closing: 'commander wrote this' });
   assert.deepEqual(noOverlap.overriddenFields, []);
 
+  // A field the caller included in `changes` but never actually edited (base
+  // === next — real forms resubmit every field, touched or not) must never
+  // be treated as "my" value to fight over: it always defers to whatever is
+  // on the server now, even when that value differs from both base and next.
+  const untouchedFieldNeverOverwrites = resolveFieldConflicts(
+    {
+      title: { base: 'old title', next: 'new title I actually typed' },
+      description: { base: 'original description', next: 'original description' },
+    },
+    { title: 'old title', description: 'description someone else already changed' },
+    commander,
+    squadLeader,
+  );
+  assert.deepEqual(untouchedFieldNeverOverwrites.merged, {
+    title: 'new title I actually typed',
+    description: 'description someone else already changed',
+  });
+  assert.deepEqual(untouchedFieldNeverOverwrites.overriddenFields, []);
+
   // Same field, genuinely different new values from both sides — the higher
   // rank wins, and the loser is named so the UI can say so.
   const realConflict = resolveFieldConflicts(

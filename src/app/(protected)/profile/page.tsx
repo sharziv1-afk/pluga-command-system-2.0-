@@ -5,20 +5,52 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useApp } from '@/lib/context/AppContext';
-import { User, Mail, ShieldAlert, Award, Calendar, FileText, Smartphone, Trash2 } from 'lucide-react';
+import { User, Mail, ShieldAlert, Award, Calendar, FileText, Smartphone, Trash2, Fingerprint } from 'lucide-react';
 import { hasDevicePin, setDevicePin, clearDevicePin } from '@/lib/offline/devicePin';
+import {
+  hasDeviceBiometric,
+  isBiometricAvailable,
+  registerDeviceBiometric,
+  clearDeviceBiometric,
+} from '@/lib/offline/deviceBiometric';
 
 function DeviceAccessCodeCard() {
+  const { currentUser } = useApp();
   const [hasPin, setHasPin] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [hasBiometric, setHasBiometric] = useState(false);
+  const [biometricSupported, setBiometricSupported] = useState(false);
+  const [isRegisteringBiometric, setIsRegisteringBiometric] = useState(false);
 
   useEffect(() => {
     setHasPin(hasDevicePin());
+    setHasBiometric(hasDeviceBiometric());
+    void isBiometricAvailable().then(setBiometricSupported);
   }, []);
+
+  const handleRegisterBiometric = async () => {
+    if (!currentUser) return;
+    setError(null);
+    setIsRegisteringBiometric(true);
+    const ok = await registerDeviceBiometric(currentUser.full_name);
+    setIsRegisteringBiometric(false);
+    if (ok) {
+      setHasBiometric(true);
+      setSuccess('זיהוי ביומטרי הופעל למכשיר זה.');
+    } else {
+      setError('לא ניתן היה להפעיל זיהוי ביומטרי במכשיר הזה.');
+    }
+  };
+
+  const handleRemoveBiometric = () => {
+    clearDeviceBiometric();
+    setHasBiometric(false);
+    setSuccess('זיהוי ביומטרי הוסר מהמכשיר.');
+  };
 
   const resetForm = () => {
     setPin('');
@@ -128,9 +160,32 @@ function DeviceAccessCodeCard() {
           </form>
         )}
 
-        <p className="mt-4 text-[11px] font-semibold text-[#98A2B3]">
-          בקרוב: אפשרות לפתוח את המכשיר גם עם טביעת אצבע או זיהוי פנים, במקום קוד.
-        </p>
+        {biometricSupported && (
+          <div className="mt-5 border-t border-[var(--border-subtle)] pt-4">
+            <div className="mb-2.5 flex items-center gap-2">
+              <Fingerprint className="h-4 w-4 text-[#FF6B02]" />
+              <span className="text-xs font-black text-[#344054]">זיהוי ביומטרי (טביעת אצבע / זיהוי פנים)</span>
+            </div>
+            <p className="mb-3 text-[11px] font-semibold leading-relaxed text-[#98A2B3]">
+              משתמש בחיישן הביומטרי של המכשיר במקום קוד גישה. גם זה נשאר על המכשיר בלבד.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={hasBiometric ? handleRemoveBiometric : handleRegisterBiometric}
+                disabled={isRegisteringBiometric}
+                className={`inline-flex min-h-10 items-center gap-1.5 rounded-xl px-4 text-xs font-black transition disabled:opacity-50 ${
+                  hasBiometric
+                    ? 'border border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
+                    : 'bg-[var(--action)] text-white hover:bg-[var(--action-hover)]'
+                }`}
+              >
+                {hasBiometric ? <Trash2 className="h-3.5 w-3.5" /> : <Fingerprint className="h-3.5 w-3.5" />}
+                {hasBiometric ? 'ביטול זיהוי ביומטרי' : 'הפעלת זיהוי ביומטרי'}
+              </button>
+            </div>
+          </div>
+        )}
       </GlassCard>
     </div>
   );

@@ -22,6 +22,7 @@ import { SkeletonCard } from '@/components/ui/Skeleton';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { createAuditLog } from '@/lib/audit';
 import { useApp } from '@/lib/context/AppContext';
+import { writeWithHierarchyResolution } from '@/lib/concurrency/hierarchyWrite';
 import { getPermissionLevelForRole, hasCompanyWideUiAccess } from '@/lib/permissions';
 import { getScheduleDisplayStatus } from '@/lib/schedule';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
@@ -606,14 +607,18 @@ export default function TasksPage() {
     setSuccess(null);
 
     try {
-    const { error: updateError } = await supabase
-      .from('tasks')
-      .update(nextValues)
-      .eq('id', editingTask.id);
+    const writeResult = await writeWithHierarchyResolution({
+      supabase,
+      table: 'tasks',
+      id: editingTask.id,
+      baseUpdatedAt: editingTask.updated_at,
+      payload: nextValues,
+      currentUserId: dbProfile.id,
+      currentPermissionLevel: dbProfile.permission_level,
+    });
 
-    if (updateError) {
-      logSupabaseError('Task edit failed', updateError);
-      setError('לא ניתן לעדכן את המשימה. עריכה אפשרית רק ליוצר המשימה או למפקד.');
+    if (writeResult.status === 'blocked') {
+      setError(`המשימה עודכנה בינתיים על ידי ${writeResult.editorName} (${writeResult.editorRole}). רענן ונסה שוב.`);
       return;
     }
 

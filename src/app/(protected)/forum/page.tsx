@@ -45,6 +45,8 @@ import { GlossyButton } from '@/components/ui/GlossyButton';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { createAuditLog } from '@/lib/audit';
 import type { AuditActionType } from '@/lib/audit';
+import { writeWithHierarchyResolution } from '@/lib/concurrency/hierarchyWrite';
+import type { HierarchyWriteResult } from '@/lib/concurrency/hierarchyWrite';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import { aggregateCompanyStructured, assignPlatoonReports } from '@/lib/forum/companyReport';
 import type { CompanyReportInput, CompanyReportPlatoon } from '@/lib/forum/companyReport';
@@ -1624,16 +1626,26 @@ export default function ForumPage() {
         whatsapp_text: selectedNode.level === 'company' ? generateWhatsappText('detailed') : selectedReport.whatsapp_text,
       };
 
-      const { data: updatedReport, error: updateError } = await supabase
-        .from('forum_daily_reports')
-        .update(updatePayload)
-        .eq('id', selectedReport.id)
-        .select('id')
-        .maybeSingle<{ id: string }>();
-
-      if (updateError || !didPersistDailyReport(updatedReport, selectedReport.id)) {
-        if (updateError) logSupabaseError('Forum daily report update failed', updateError);
+      let writeResult: HierarchyWriteResult;
+      try {
+        writeResult = await writeWithHierarchyResolution({
+          supabase,
+          table: 'forum_daily_reports',
+          id: selectedReport.id,
+          baseUpdatedAt: selectedReport.updated_at,
+          payload: updatePayload,
+          currentUserId: dbProfile.id,
+          currentPermissionLevel: dbProfile.permission_level,
+        });
+      } catch (updateError) {
+        logSupabaseError('Forum daily report update failed', updateError);
         setDailyError('לא ניתן לשמור את הדיווח כרגע. בדוק הרשאות או נסה שוב.');
+        recordDailyDraftSave(draftToSave, false);
+        return;
+      }
+
+      if (writeResult.status === 'blocked') {
+        setDailyError(`הדוח עודכן בינתיים על ידי ${writeResult.editorName} (${writeResult.editorRole}). רענן ונסה שוב.`);
         recordDailyDraftSave(draftToSave, false);
         return;
       }
@@ -2119,15 +2131,24 @@ export default function ForumPage() {
 
     if (companyReport) {
       const nextContent = { ...companyReport.content, ...patch };
-      const { data: updatedReport, error: updateError } = await supabase
-        .from('forum_daily_reports')
-        .update({ content: nextContent })
-        .eq('id', companyReport.id)
-        .select('id')
-        .maybeSingle<{ id: string }>();
-      if (updateError || !didPersistDailyReport(updatedReport, companyReport.id)) {
-        if (updateError) logSupabaseError('Forum company report save failed', updateError);
+      let writeResult: HierarchyWriteResult;
+      try {
+        writeResult = await writeWithHierarchyResolution({
+          supabase,
+          table: 'forum_daily_reports',
+          id: companyReport.id,
+          baseUpdatedAt: companyReport.updated_at,
+          payload: { content: nextContent },
+          currentUserId: dbProfile.id,
+          currentPermissionLevel: dbProfile.permission_level,
+        });
+      } catch (updateError) {
+        logSupabaseError('Forum company report save failed', updateError);
         setDailyError('לא ניתן לשמור את הדוח הפלוגתי כרגע. בדוק הרשאות או נסה שוב.');
+        return null;
+      }
+      if (writeResult.status === 'blocked') {
+        setDailyError(`הדוח הפלוגתי עודכן בינתיים על ידי ${writeResult.editorName} (${writeResult.editorRole}). רענן ונסה שוב.`);
         return null;
       }
       void createAuditLog(supabase, {

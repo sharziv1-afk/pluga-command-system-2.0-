@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { RefreshCw, ShieldCheck, WifiOff } from 'lucide-react';
+import { Fingerprint, RefreshCw, ShieldCheck, WifiOff } from 'lucide-react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { hasDevicePin, verifyDevicePin } from '@/lib/offline/devicePin';
+import { hasDeviceBiometric, verifyDeviceBiometric } from '@/lib/offline/deviceBiometric';
 import { readCachedProfileSnapshot } from '@/lib/offline/cachedProfile';
 
 /**
@@ -18,6 +19,7 @@ import { readCachedProfileSnapshot } from '@/lib/offline/cachedProfile';
 export function OfflineGate({ onRetry }: { onRetry: () => void }) {
   const snapshot = readCachedProfileSnapshot();
   const pinConfigured = hasDevicePin();
+  const biometricConfigured = hasDeviceBiometric();
   const [pin, setPin] = useState('');
   const [unlocked, setUnlocked] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +36,18 @@ export function OfflineGate({ onRetry }: { onRetry: () => void }) {
     } else {
       setError('קוד שגוי. נסה שוב.');
       setPin('');
+    }
+  };
+
+  const handleBiometricUnlock = async () => {
+    setError(null);
+    setIsChecking(true);
+    const ok = await verifyDeviceBiometric();
+    setIsChecking(false);
+    if (ok) {
+      setUnlocked(true);
+    } else {
+      setError('האימות הביומטרי נכשל. נסה שוב או השתמש בקוד הגישה.');
     }
   };
 
@@ -68,32 +82,45 @@ export function OfflineGate({ onRetry }: { onRetry: () => void }) {
         <WifiOff className="mx-auto mb-3 h-10 w-10 text-[var(--color-warning)]" />
         <h1 className="text-lg font-black text-[var(--text-primary)]">אין חיבור לרשת</h1>
 
-        {pinConfigured && snapshot ? (
+        {(pinConfigured || biometricConfigured) && snapshot ? (
           <>
             <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
-              הזן את קוד הגישה המהיר של המכשיר כדי להיכנס במצב אופליין.
+              {biometricConfigured ? 'אמת באמצעות זיהוי ביומטרי או קוד הגישה כדי להיכנס במצב אופליין.' : 'הזן את קוד הגישה המהיר של המכשיר כדי להיכנס במצב אופליין.'}
             </p>
-            <form onSubmit={handleUnlock} className="mt-4 space-y-3">
-              <input
-                type="password"
-                inputMode="numeric"
-                autoFocus
-                value={pin}
-                onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 8))}
-                placeholder="קוד גישה"
-                className="command-input text-center text-lg font-black tracking-[0.3em]"
-                disabled={isChecking}
-              />
-              {error && <p className="text-xs font-bold text-[var(--color-danger)]">{error}</p>}
+            {biometricConfigured && (
               <button
-                type="submit"
-                disabled={isChecking || !pin}
-                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--action)] px-4 text-sm font-black text-white transition hover:bg-[var(--action-hover)] disabled:opacity-50"
+                type="button"
+                onClick={handleBiometricUnlock}
+                disabled={isChecking}
+                className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--action)] px-4 text-sm font-black text-white transition hover:bg-[var(--action-hover)] disabled:opacity-50"
               >
-                <ShieldCheck className="h-4 w-4" />
-                כניסה
+                <Fingerprint className="h-4 w-4" />
+                זיהוי ביומטרי
               </button>
-            </form>
+            )}
+            {pinConfigured && (
+              <form onSubmit={handleUnlock} className="mt-4 space-y-3">
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  autoFocus={!biometricConfigured}
+                  value={pin}
+                  onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 8))}
+                  placeholder="קוד גישה"
+                  className="command-input text-center text-lg font-black tracking-[0.3em]"
+                  disabled={isChecking}
+                />
+                <button
+                  type="submit"
+                  disabled={isChecking || !pin}
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--action)] px-4 text-sm font-black text-white transition hover:bg-[var(--action-hover)] disabled:opacity-50"
+                >
+                  <ShieldCheck className="h-4 w-4" />
+                  כניסה
+                </button>
+              </form>
+            )}
+            {error && <p className="mt-3 text-xs font-bold text-[var(--color-danger)]">{error}</p>}
           </>
         ) : (
           <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">

@@ -241,14 +241,25 @@ test('forum daily mutations only succeed when the expected row was returned', ()
   assert.equal(didPersistDailyReport({ id: 'report-2' }, 'report-1'), false);
 
   const source = readFileSync('src/app/(protected)/forum/page.tsx', 'utf8');
+
+  // submitSelectedReport still uses the raw update+select+didPersistDailyReport
+  // pattern — it doesn't yet route through the hierarchy-conflict helper.
+  const submitFlowOnly = source.slice(source.indexOf('const submitSelectedReport'), source.indexOf('const carryForwardClosedReport'));
+  assert.match(submitFlowOnly, /\.select\('id'\)\s*\.maybeSingle<\{ id: string \}>\(\)/);
+  assert.match(submitFlowOnly, /didPersistDailyReport\(/);
+
+  // saveSelectedReport and persistCompanyReportContent are the two highest
+  // write-conflict-risk paths (whole-object overwrite / merged patch onto a
+  // possibly stale base) — both route through writeWithHierarchyResolution,
+  // which guards on updated_at and falls back to role-hierarchy on conflict
+  // instead of plain last-write-wins.
   for (const [startMarker, endMarker] of [
     ['const saveSelectedReport', 'const submitSelectedReport'],
-    ['const submitSelectedReport', 'const carryForwardClosedReport'],
     ['const persistCompanyReportContent', 'const applyCompanyAggregation'],
   ]) {
     const flow = source.slice(source.indexOf(startMarker), source.indexOf(endMarker));
-    assert.match(flow, /\.select\('id'\)\s*\.maybeSingle<\{ id: string \}>\(\)/);
-    assert.match(flow, /didPersistDailyReport\(/);
+    assert.match(flow, /writeWithHierarchyResolution\(/);
+    assert.match(flow, /status === 'blocked'/);
   }
 
   const createFlow = source.slice(source.indexOf('const createOrOpenOwnReport'), source.indexOf('const saveSelectedReport'));

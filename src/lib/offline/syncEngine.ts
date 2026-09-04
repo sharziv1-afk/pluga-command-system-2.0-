@@ -3,8 +3,12 @@ import { writeWithHierarchyResolution, type FieldChange } from '../concurrency/h
 import { queueAdd, queueGetAll, queueRemove } from './db';
 import { TABLE_SYNC_CONFIG, type SyncTable } from './tableSyncConfig';
 
-/** Give up on an item after this many failed flush attempts so a permanently
- *  poisoned write (row deleted, permission revoked) can't wedge the queue. */
+/** Give up on an item after this many failed flush attempts *made while
+ *  actually online*, so a permanently poisoned write (row deleted,
+ *  permission revoked) can't wedge the queue forever. Failures that happen
+ *  with no connectivity are not counted — being offline is the normal case
+ *  this queue exists for, and counting it would delete unsaved field work
+ *  after a handful of page navigations. */
 const MAX_FLUSH_ATTEMPTS = 5;
 
 export interface QueuedWrite {
@@ -68,6 +72,12 @@ export async function flushWriteQueue(
   supabase: SupabaseClient,
   currentUserId: string,
 ): Promise<FlushResult> {
+  // Nothing can succeed with no connectivity, and attempting anyway would
+  // burn attempts against work that was never actually sent.
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return { applied: 0, stillPending: await pendingWriteCount(currentUserId), abandoned: 0 };
+  }
+
   const queued = await queueGetAll<QueuedWrite>();
   let applied = 0;
   let stillPending = 0;
@@ -98,14 +108,25 @@ export async function flushWriteQueue(
       await queueRemove(item.id);
       applied += 1;
     } catch {
-      const attempts = (item.attempts ?? 0) + 1;
+      // Connectivity can drop mid-flush. A failure with no network says
+      // nothing about whether this write is valid, so it must not count
+      // toward abandoning it.
+      const lostConnectivity = typeof navigator !== 'undefined' && !navigator.onLine;
+      const attempts = (item.attempts ?? 0) + (lostConnectivity ? 0 : 1);
+
       if (attempts >= MAX_FLUSH_ATTEMPTS) {
         await queueRemove(item.id);
         abandoned += 1;
       } else {
-        await queueAdd({ ...item, attempts });
+        try {
+          await queueAdd({ ...item, attempts });
+        } catch {
+          // Storage went away mid-flush; the item stays as it was rather
+          // than taking the whole flush down with an unhandled rejection.
+        }
         stillPending += 1;
       }
+      if (lostConnectivity) break;
     }
   }
 

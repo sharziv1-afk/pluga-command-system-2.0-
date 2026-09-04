@@ -416,6 +416,9 @@ export default function TasksPage() {
     const trySync = async () => {
       const result = await flushWriteQueue(supabase, dbProfile.id);
       setPendingSyncCount(await pendingWriteCount(dbProfile.id));
+      if (result.abandoned > 0) {
+        setError(`${result.abandoned} שינויים שנשמרו במכשיר לא הצליחו להישמר בשרת ובוטלו. ייתכן שהמשימה נמחקה או שאין לך הרשאה לערוך אותה.`);
+      }
       if (result.applied > 0) await loadTasks();
     };
 

@@ -136,10 +136,23 @@ export async function writeWithHierarchyResolution({
     if (readError) throw readError;
     if (!current) throw new Error(`Row ${id} not found in ${table} while resolving a write conflict`);
 
+    // `updated_by` is written by a BEFORE UPDATE trigger from the caller's
+    // own JWT identity (migration 030), never from the request payload — so
+    // it is safe to base the authority decision on it. Without that trigger
+    // a client could stamp itself as the last editor and skip the check.
     const otherEditorId = (current.updated_by as string | null) ?? null;
-    let callerOutranks = true;
+    let callerOutranks: boolean;
 
-    if (otherEditorId && otherEditorId !== currentUserId) {
+    if (!otherEditorId) {
+      // Nobody identifiable holds the current value, so there is no rank to
+      // beat. Fail closed: keep what's on the server and report the loss
+      // rather than silently overwriting an edit we can't attribute.
+      callerOutranks = false;
+    } else if (otherEditorId === currentUserId) {
+      // Genuinely my own earlier write (another tab, or a queued offline
+      // edit of mine that already landed) — my newer value supersedes it.
+      callerOutranks = true;
+    } else {
       // Both ranks are compared inside the DB against the caller's JWT
       // identity — the browser never states its own authority.
       const { data: outranks, error: rankError } = await supabase

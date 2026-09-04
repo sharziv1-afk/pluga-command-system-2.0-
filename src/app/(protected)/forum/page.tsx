@@ -1263,6 +1263,9 @@ export default function ForumPage() {
     const trySync = async () => {
       const result = await flushWriteQueue(supabase, dbProfile.id);
       setPendingSyncCount(await pendingWriteCount(dbProfile.id));
+      if (result.abandoned > 0) {
+        setDailyError(`${result.abandoned} שינויים שנשמרו במכשיר לא הצליחו להישמר בשרת ובוטלו. ייתכן שהדוח נמחק או שאין לך הרשאה לערוך אותו.`);
+      }
       if (result.applied > 0) await loadDailyReports(selectedDate);
     };
 
@@ -1270,8 +1273,11 @@ export default function ForumPage() {
     const onOnline = () => void trySync();
     window.addEventListener('online', onOnline);
     return () => window.removeEventListener('online', onOnline);
+    // selectedDate is a real dependency: without it a reconnect reloads
+    // whichever date was selected when this effect last ran, not the one
+    // on screen now.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dbProfile?.id]);
+  }, [dbProfile?.id, selectedDate]);
 
   useEffect(() => {
     if (activeTab !== 'daily' || !canSeeAll) return;

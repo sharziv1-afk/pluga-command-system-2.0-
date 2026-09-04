@@ -4,7 +4,8 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { Profile } from '../types';
 import { fetchCurrentProfile } from '../supabase/profile';
 import { createSupabaseBrowserClient } from '../supabase/browser';
-import { cacheProfileSnapshot, readCachedProfileSnapshot } from '../offline/cachedProfile';
+import { cacheProfileSnapshot, isSnapshotExpired, readCachedProfileSnapshot } from '../offline/cachedProfile';
+import { clearDeviceSession } from '../offline/session';
 
 export type AppAuthStatus =
   | 'loading'
@@ -46,10 +47,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [authStatus, setAuthStatus] = useState<AppAuthStatus>('loading');
   const [authError, setAuthError] = useState<string | null>(null);
   const [isOfflineSession, setIsOfflineSession] = useState(false);
+  const isOfflineSessionRef = useRef(false);
+
+  useEffect(() => {
+    isOfflineSessionRef.current = isOfflineSession;
+  }, [isOfflineSession]);
 
   const unlockOfflineSession = useCallback(() => {
     const snapshot = readCachedProfileSnapshot();
     if (!snapshot) return false;
+    // An identity cached long ago is not a safe basis for access: a user who
+    // has since been blocked or had their role changed would otherwise keep
+    // working offline under their old permissions indefinitely, because
+    // nothing offline can re-check them against the server.
+    if (isSnapshotExpired(snapshot)) {
+      void clearDeviceSession();
+      return false;
+    }
     setCurrentUser(snapshot.profile);
     setIsOfflineSession(true);
     setAuthStatus('ready');
@@ -133,6 +147,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!isActive || version !== loadVersion || result.status === 'cancelled') return;
 
       if (result.status === 'timeout') {
+        // A retry that times out must not tear down an offline session the
+        // user already unlocked — that would dump them back to the gate
+        // mid-edit and lose whatever they were typing.
+        if (isOfflineSessionRef.current) return;
         loadVersion += 1;
         activeAuthUserId = null;
         setCurrentUser(null);
@@ -148,6 +166,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       activeAuthUserId = result.authUserId;
 
       if (result.status === 'ready') {
+        // A different person signing in on this device must not inherit the
+        // previous user's device unlock credentials: the PIN and biometric
+        // are a single per-device slot, so without this the old user could
+        // later unlock the offline gate and land inside the new user's
+        // cached session. Sign-out already clears these; this covers the
+        // (common) case where the previous user simply closed the app.
+        const previous = readCachedProfileSnapshot();
+        if (previous && previous.profile.id !== result.profile.id) {
+          await clearDeviceSession();
+        }
         setCurrentUser(result.profile);
         setIsOfflineSession(false);
         setAuthStatus('ready');
@@ -177,6 +205,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return;
       }
 
+      if (isOfflineSessionRef.current) return;
       setAuthStatus(!navigator.onLine && readCachedProfileSnapshot() ? 'offline' : 'error');
       setAuthError(PROFILE_LOAD_ERROR_MESSAGE);
     };
@@ -184,6 +213,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     refreshProfileRef.current = () => loadCurrentProfile(true);
     removeLegacySession();
     void loadCurrentProfile();
+
+    // An offline session runs on a cached identity that was never verified
+    // against the server. The moment connectivity is back it has to be
+    // re-checked — otherwise a blocked or demoted user keeps the role they
+    // had when they went offline, and writes go out stamped with it.
+    const onBackOnline = () => {
+      if (isOfflineSessionRef.current) void loadCurrentProfile(true);
+    };
+    window.addEventListener('online', onBackOnline);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isActive || event === 'INITIAL_SESSION') return;
@@ -216,6 +254,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       cancelProfileLoad();
       loadVersion += 1;
       if (reloadTimer !== undefined) window.clearTimeout(reloadTimer);
+      window.removeEventListener('online', onBackOnline);
       subscription.unsubscribe();
       refreshProfileRef.current = async () => undefined;
     };

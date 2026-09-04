@@ -12,6 +12,7 @@ import {
 import { getScheduleDisplayStatus } from '../src/lib/schedule.ts';
 import { resolveFieldConflicts } from '../src/lib/concurrency/hierarchyWrite.ts';
 import { TABLE_SYNC_CONFIG } from '../src/lib/offline/tableSyncConfig.ts';
+import { isSnapshotExpired, SNAPSHOT_MAX_AGE_MS } from '../src/lib/offline/cachedProfile.ts';
 import {
   canMutateDailyDraft,
   canTransitionDraft,
@@ -299,6 +300,54 @@ test('field-level conflict resolution only escalates fields both sides actually 
   );
   assert.deepEqual(sameValue.merged, { commander_closing: 'y' });
   assert.deepEqual(sameValue.overriddenFields, []);
+});
+
+test('an unidentified last editor never loses to the caller by default', () => {
+  // Regression guard for a real bypass: the resolver used to default to
+  // "I win" whenever it could not identify the other editor, and updated_by
+  // was a client-writable column, so a caller could stamp itself as the last
+  // editor and skip the rank check entirely. updated_by is now owned by a DB
+  // trigger (migration 030) AND an unknown editor must fail closed.
+  const unknownEditorFailsClosed = resolveFieldConflicts(
+    { commander_closing: { base: 'x', next: 'my edit' } },
+    { commander_closing: 'someone else already wrote this' },
+    false,
+  );
+  assert.deepEqual(unknownEditorFailsClosed.merged, { commander_closing: 'someone else already wrote this' });
+  assert.deepEqual(unknownEditorFailsClosed.overriddenFields, ['commander_closing']);
+
+  const source = readFileSync('src/lib/concurrency/hierarchyWrite.ts', 'utf8');
+  // The decision must never start from `true`.
+  assert.doesNotMatch(source, /let callerOutranks = true/);
+  assert.match(source, /if \(!otherEditorId\) \{[\s\S]*?callerOutranks = false;/);
+});
+
+test('a cached offline identity expires so stale permissions cannot persist', () => {
+  const fresh = { profile: { id: 'u1' }, cachedAt: new Date().toISOString() };
+  assert.equal(isSnapshotExpired(fresh), false);
+
+  const stale = { profile: { id: 'u1' }, cachedAt: new Date(Date.now() - SNAPSHOT_MAX_AGE_MS - 1000).toISOString() };
+  assert.equal(isSnapshotExpired(stale), true);
+
+  // An unparseable timestamp must not read as "fresh forever".
+  assert.equal(isSnapshotExpired({ profile: { id: 'u1' }, cachedAt: 'not-a-date' }), true);
+});
+
+test('the offline flush never abandons work while there is no connectivity', () => {
+  // Being offline is the normal case this queue exists for. Counting an
+  // offline failure as an attempt deleted unsaved field edits after a
+  // handful of page navigations, with no user-visible signal.
+  const source = readFileSync('src/lib/offline/syncEngine.ts', 'utf8');
+  assert.match(source, /if \(typeof navigator !== 'undefined' && !navigator\.onLine\) \{[\s\S]*?return \{ applied: 0/);
+  assert.match(source, /const lostConnectivity = typeof navigator !== 'undefined' && !navigator\.onLine;/);
+  assert.match(source, /\(item\.attempts \?\? 0\) \+ \(lostConnectivity \? 0 : 1\)/);
+
+  // Abandoning work silently is worse than the wedge it prevents, so both
+  // consumers must surface it.
+  for (const page of ['tasks', 'forum']) {
+    const pageSource = readFileSync(`src/app/(protected)/${page}/page.tsx`, 'utf8');
+    assert.match(pageSource, /result\.abandoned > 0/, page);
+  }
 });
 
 test('offline sync table config shapes each table\'s payload correctly on replay', () => {

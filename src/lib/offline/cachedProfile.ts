@@ -41,6 +41,20 @@ export function readCachedProfileSnapshot(): OfflineProfileSnapshot | null {
   }
 }
 
+/** How long a cached identity may be used for offline access before the user
+ *  must reconnect at least once. Bounds how long a removed or demoted user
+ *  can keep working offline under stale permissions. */
+export const SNAPSHOT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+export function isSnapshotExpired(
+  snapshot: OfflineProfileSnapshot,
+  now: number = Date.now(),
+): boolean {
+  const cachedAt = Date.parse(snapshot.cachedAt);
+  if (Number.isNaN(cachedAt)) return true;
+  return now - cachedAt > SNAPSHOT_MAX_AGE_MS;
+}
+
 export function clearCachedProfileSnapshot(): void {
   try {
     window.localStorage.removeItem(SNAPSHOT_KEY);

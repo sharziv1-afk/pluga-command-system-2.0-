@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import test from 'node:test';
 import { createAuditLog } from '../src/lib/audit.ts';
 import {
@@ -301,6 +301,27 @@ test('field-level conflict resolution only escalates fields both sides actually 
   );
   assert.deepEqual(sameValue.merged, { commander_closing: 'y' });
   assert.deepEqual(sameValue.overriddenFields, []);
+});
+
+test('every (protected) page is actually gated by the proxy', () => {
+  // src/proxy.ts redirects unauthenticated requests before a protected page
+  // ever renders. /mentoring — the page holding the commander's private
+  // notes on his direct reports — was missing from both the route list and
+  // the matcher, so it rendered its own client-side "no access" card instead
+  // of being redirected server-side. Client-side gating is not a substitute:
+  // it means the page's JS still ships to a logged-out request.
+  const pageDirs = readdirSync('src/app/(protected)', { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => `/${entry.name}`);
+
+  const proxySource = readFileSync('src/proxy.ts', 'utf8');
+  const routesBlock = proxySource.slice(proxySource.indexOf('const protectedRoutes'), proxySource.indexOf('];') + 2);
+  const matcherBlock = proxySource.slice(proxySource.indexOf('matcher:'), proxySource.indexOf('};', proxySource.indexOf('matcher:')));
+
+  for (const route of pageDirs) {
+    assert.match(routesBlock, new RegExp(`'${route}'`), `${route} missing from protectedRoutes`);
+    assert.match(matcherBlock, new RegExp(`'${route}/:path\\*'`), `${route} missing from the matcher`);
+  }
 });
 
 test('an RLS-denied update is distinguished from a real success', () => {

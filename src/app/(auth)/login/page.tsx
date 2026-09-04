@@ -17,7 +17,13 @@ type AppUserProfile = {
 };
 
 function getProfileRedirectPath(profile: AppUserProfile): string {
-  if (!profile.has_completed_onboarding) return '/onboarding';
+  // has_completed_onboarding is set true both when a commander creates the
+  // invite (admin/page.tsx) and when the invited user claims it
+  // (claim_own_profile RPC) — there is no code path left that ever leaves it
+  // false, and no row in the database has it false today. This branch is
+  // unreachable in practice; /pending-approval is the safe fallback if that
+  // ever changes, rather than a dedicated onboarding page nobody can reach.
+  if (!profile.has_completed_onboarding) return '/pending-approval';
   if (profile.status === 'active' && profile.role_approval_status === 'approved') return '/dashboard';
   return '/pending-approval';
 }

@@ -44,10 +44,12 @@ export default function ProtectedLayout({ children }: Readonly<{ children: React
     let showReload = false;
 
     if (authStatus === 'onboarding_required') {
+      // Unreachable in the current invite-only model — kept as a defensive
+      // fallback (see the comment on getProfileRedirectPath in login/page.tsx).
       title = 'נדרש להשלים את ההרשמה';
-      message = 'יש להשלים את פרטי המשתמש לפני הכניסה למערכת.';
-      recoveryHref = '/onboarding';
-      recoveryLabel = 'המשך להרשמה';
+      message = 'יש לפנות למפקד הפלוגה להשלמת פתיחת המשתמש.';
+      recoveryHref = '/pending-approval';
+      recoveryLabel = 'צפייה בסטטוס האישור';
     } else if (authStatus === 'pending_approval') {
       title = 'החשבון ממתין לאישור';
       message = 'הגישה למערכת תיפתח לאחר אישור החשבון.';

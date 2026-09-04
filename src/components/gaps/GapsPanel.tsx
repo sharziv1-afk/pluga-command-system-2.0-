@@ -16,6 +16,7 @@ import { useApp } from '@/lib/context/AppContext';
 import { hasCompanyWideUiAccess } from '@/lib/permissions';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
+import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 
 type GapCategory = 'לוגיסטי' | 'הדרכתי' | 'לו"זי';
 type GapUrgency = 'רגיל' | 'חשוב' | 'דחוף' | 'קריטי';
@@ -206,10 +207,18 @@ export function GapsPanel() {
     setError(null);
 
     try {
-      const { error: updateError } = await supabase.from('gaps').update({ status: nextStatus }).eq('id', gap.id);
+      const { data: updatedRows, error: updateError } = await supabase
+        .from('gaps')
+        .update({ status: nextStatus })
+        .eq('id', gap.id)
+        .select('id');
       if (updateError) {
         logSupabaseError('Gap status update failed', updateError);
         setError('לא ניתן לעדכן את סטטוס הפער כרגע.');
+        return;
+      }
+      if (!didRowsUpdate(updatedRows)) {
+        setError('לא ניתן לעדכן את סטטוס הפער — אין לך הרשאה לכך, או שהפער השתנה. רענן ונסה שוב.');
         return;
       }
       void createAuditLog(supabase, {

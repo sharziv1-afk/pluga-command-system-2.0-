@@ -30,6 +30,7 @@ import { getPermissionLevelForRole, hasCompanyWideUiAccess } from '@/lib/permiss
 import { getScheduleDisplayStatus } from '@/lib/schedule';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
+import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 import type { DbTask } from '@/lib/types';
 
 type TaskStatus = 'open' | 'in_progress' | 'blocked' | 'completed' | 'cancelled';
@@ -767,17 +768,22 @@ export default function TasksPage() {
     setSuccess(null);
 
     try {
-    const { error: updateError } = await supabase
+    const { data: updatedRows, error: updateError } = await supabase
       .from('tasks')
       .update({
         status: nextStatus,
         completed_at: nextStatus === 'completed' ? new Date().toISOString() : null,
       })
-      .eq('id', task.id);
+      .eq('id', task.id)
+      .select('id');
 
     if (updateError) {
       logSupabaseError('Task status update failed', updateError);
       setError('לא ניתן לעדכן את סטטוס המשימה כרגע. נסה שוב בעוד רגע.');
+      return;
+    }
+    if (!didRowsUpdate(updatedRows)) {
+      setError('לא ניתן לעדכן את סטטוס המשימה — אין לך הרשאה לכך, או שהמשימה השתנתה. רענן ונסה שוב.');
       return;
     }
 

@@ -34,6 +34,7 @@ import { getPermissionLevelForRole, hasCompanyWideUiAccess, normalizeRole } from
 import { getScheduleDisplayStatus } from '@/lib/schedule';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
+import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 
 type RequestStatus = 'open' | 'in_progress' | 'approved' | 'rejected' | 'completed' | 'cancelled';
 type RequestCategory = 'לוגיסטיקה' | 'רפואה' | 'קשר' | 'רכב' | 'כוח אדם' | 'אחר';
@@ -611,7 +612,7 @@ export default function RequestsPage() {
     setEditError(null);
 
     try {
-    const { error: updateError } = await supabase
+    const { data: updatedRows, error: updateError } = await supabase
       .from('requests')
       .update({
         title: cleanTitle,
@@ -620,11 +621,16 @@ export default function RequestsPage() {
         event_id: nextEventId,
         metadata: mergedMetadata,
       })
-      .eq('id', editingRequest.id);
+      .eq('id', editingRequest.id)
+      .select('id');
 
     if (updateError) {
       logSupabaseError('Request edit failed', updateError);
       setEditError('לא ניתן לעדכן את הדרישה כרגע. נסה שוב בעוד רגע.');
+      return;
+    }
+    if (!didRowsUpdate(updatedRows)) {
+      setEditError('לא ניתן לעדכן את הדרישה — אין לך הרשאה לכך, או שהדרישה השתנתה. רענן ונסה שוב.');
       return;
     }
 
@@ -679,11 +685,19 @@ export default function RequestsPage() {
     setSuccess(null);
 
     try {
-    const { error: updateError } = await supabase.from('requests').update({ status: nextStatus }).eq('id', requestId);
+    const { data: updatedRows, error: updateError } = await supabase
+      .from('requests')
+      .update({ status: nextStatus })
+      .eq('id', requestId)
+      .select('id');
 
     if (updateError) {
       logSupabaseError('Request status update failed', updateError);
       setError('לא ניתן לעדכן את הסטטוס כרגע. נסה שוב בעוד רגע.');
+      return;
+    }
+    if (!didRowsUpdate(updatedRows)) {
+      setError('לא ניתן לעדכן את הסטטוס — אין לך הרשאה לכך, או שהבקשה השתנתה. רענן ונסה שוב.');
       return;
     }
     void createAuditLog(supabase, {
@@ -716,14 +730,19 @@ export default function RequestsPage() {
     setSuccess(null);
 
     try {
-    const { error: updateError } = await supabase
+    const { data: updatedRows, error: updateError } = await supabase
       .from('requests')
       .update({ assigned_to: nextAssigneeId })
-      .eq('id', request.id);
+      .eq('id', request.id)
+      .select('id');
 
     if (updateError) {
       logSupabaseError('Request assignee update failed', updateError);
       setError('לא ניתן לעדכן מטפל לבקשה');
+      return;
+    }
+    if (!didRowsUpdate(updatedRows)) {
+      setError('לא ניתן לעדכן מטפל לבקשה — אין לך הרשאה לכך, או שהבקשה השתנתה. רענן ונסה שוב.');
       return;
     }
 

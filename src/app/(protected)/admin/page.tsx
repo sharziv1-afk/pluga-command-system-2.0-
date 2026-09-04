@@ -10,6 +10,7 @@ import { CommandButton } from '@/components/ui/CommandButton';
 import { CommandInput, CommandSelect } from '@/components/ui/CommandField';
 import { createAuditLog } from '@/lib/audit';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
+import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 import { logSupabaseError } from '@/lib/supabase/error';
 import { useApp } from '@/lib/context/AppContext';
 import { getPermissionLevelForRole } from '@/lib/permissions';
@@ -229,7 +230,7 @@ export default function AdminPage() {
     }
 
     try {
-      const { error } = await supabase
+      const { data: updatedRows, error } = await supabase
         .from('users')
         .update({
           status: 'active',
@@ -237,7 +238,8 @@ export default function AdminPage() {
           permission_level: calculatedLevel,
           updated_at: new Date().toISOString()
         })
-        .eq('id', userId);
+        .eq('id', userId)
+        .select('id');
 
       if (error) {
         console.error('Failed to approve user:', error);
@@ -246,6 +248,10 @@ export default function AdminPage() {
         } else {
           setRlsError('הפעולה נכשלה. נסה שוב בעוד רגע.');
         }
+        return;
+      }
+      if (!didRowsUpdate(updatedRows)) {
+        setRlsError('אין לך הרשאה מתאימה לאשר את המשתמש הזה.');
         return;
       }
 
@@ -266,14 +272,15 @@ export default function AdminPage() {
     setRlsError(null);
 
     try {
-      const { error } = await supabase
+      const { data: updatedRows, error } = await supabase
         .from('users')
         .update({
           status: 'inactive',
           role_approval_status: 'rejected',
           updated_at: new Date().toISOString()
         })
-        .eq('id', userId);
+        .eq('id', userId)
+        .select('id');
 
       if (error) {
         console.error('Failed to reject user:', error);
@@ -284,8 +291,12 @@ export default function AdminPage() {
         }
         return;
       }
+      if (!didRowsUpdate(updatedRows)) {
+        setRlsError('אין לך הרשאה מתאימה לדחות את המשתמש הזה.');
+        return;
+      }
 
-      setProfilesList(prev => 
+      setProfilesList(prev =>
         prev.map(p => p.id === userId ? { ...p, status: 'inactive', role_approval_status: 'rejected' } : p)
       );
     } catch (err) {
@@ -333,7 +344,7 @@ export default function AdminPage() {
     const commandedUnitName = units.find(u => u.id === mappedCommandedUnitId)?.name || null;
 
     try {
-      const { error } = await supabase
+      const { data: updatedRows, error } = await supabase
         .from('users')
         .update({
           role: editRole,
@@ -342,7 +353,8 @@ export default function AdminPage() {
           permission_level: editPermissionLevel,
           updated_at: new Date().toISOString()
         })
-        .eq('id', userId);
+        .eq('id', userId)
+        .select('id');
 
       if (error) {
         console.error('Failed to save profile edits:', error);
@@ -353,8 +365,12 @@ export default function AdminPage() {
         }
         return;
       }
+      if (!didRowsUpdate(updatedRows)) {
+        setRlsError('אין לך הרשאה מתאימה לערוך את המשתמש הזה.');
+        return;
+      }
 
-      setProfilesList(prev => 
+      setProfilesList(prev =>
         prev.map(p => p.id === userId ? { 
           ...p, 
           role: editRole, 

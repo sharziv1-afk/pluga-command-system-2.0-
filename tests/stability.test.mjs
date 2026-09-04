@@ -13,6 +13,7 @@ import { getScheduleDisplayStatus } from '../src/lib/schedule.ts';
 import { resolveFieldConflicts } from '../src/lib/concurrency/hierarchyWrite.ts';
 import { TABLE_SYNC_CONFIG } from '../src/lib/offline/tableSyncConfig.ts';
 import { isSnapshotExpired, SNAPSHOT_MAX_AGE_MS } from '../src/lib/offline/cachedProfile.ts';
+import { didRowsUpdate } from '../src/lib/supabase/assertUpdated.ts';
 import {
   canMutateDailyDraft,
   canTransitionDraft,
@@ -300,6 +301,30 @@ test('field-level conflict resolution only escalates fields both sides actually 
   );
   assert.deepEqual(sameValue.merged, { commander_closing: 'y' });
   assert.deepEqual(sameValue.overriddenFields, []);
+});
+
+test('an RLS-denied update is distinguished from a real success', () => {
+  // PostgREST returns 200 with an empty array — not an error — when an
+  // UPDATE matches zero rows, which is exactly what happens when RLS
+  // silently filters out a write. Without this check, 11 call sites across
+  // requests/schedule/tasks/tracking/admin/gaps told the user "saved" for a
+  // write that never touched the database.
+  assert.equal(didRowsUpdate([{ id: 'row-1' }]), true);
+  assert.equal(didRowsUpdate([]), false);
+  assert.equal(didRowsUpdate(null), false);
+
+  for (const [file, count] of [
+    ['src/app/(protected)/requests/page.tsx', 3],
+    ['src/app/(protected)/schedule/page.tsx', 2],
+    ['src/app/(protected)/tasks/page.tsx', 1],
+    ['src/app/(protected)/tracking/page.tsx', 2],
+    ['src/app/(protected)/admin/page.tsx', 3],
+    ['src/components/gaps/GapsPanel.tsx', 1],
+  ]) {
+    const source = readFileSync(file, 'utf8');
+    const matches = [...source.matchAll(/didRowsUpdate\(/g)].length;
+    assert.equal(matches, count, `${file}: expected ${count} guarded update(s), found ${matches}`);
+  }
 });
 
 test('an unidentified last editor never loses to the caller by default', () => {

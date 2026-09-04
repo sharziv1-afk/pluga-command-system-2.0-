@@ -23,6 +23,7 @@ import { createAuditLog } from '@/lib/audit';
 import { useApp } from '@/lib/context/AppContext';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
+import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 import type { DbSoldier, DbTrackingItem, DbTrackingRecord, DbTrackingWeek, TrackingStatus } from '@/lib/types';
 
 type DbUnit = {
@@ -513,19 +514,24 @@ export default function TrackingPage() {
     setSuccessMessage(null);
     setRemovingSoldierId(soldier.id);
 
-    const { error: updateError } = await supabase
+    const { data: updatedRows, error: updateError } = await supabase
       .from('soldiers')
       .update({
         is_active: false,
         updated_by: currentUserId,
       })
-      .eq('id', soldier.id);
+      .eq('id', soldier.id)
+      .select('id');
 
     setRemovingSoldierId(null);
 
     if (updateError) {
       logSupabaseError('[tracking] soldier soft delete failed', updateError);
       setErrorMessage(getRlsAwareErrorMessage(updateError, 'לא הצלחנו להסיר את החייל מהמעקב. נסה שוב.'));
+      return;
+    }
+    if (!didRowsUpdate(updatedRows)) {
+      setErrorMessage('לא ניתן להסיר את החייל — אין לך הרשאה לכך.');
       return;
     }
 
@@ -558,19 +564,24 @@ export default function TrackingPage() {
     setSuccessMessage(null);
     setRemovingItemId(item.id);
 
-    const { error: updateError } = await supabase
+    const { data: updatedRows, error: updateError } = await supabase
       .from('tracking_items')
       .update({
         is_active: false,
         updated_by: currentUserId,
       })
-      .eq('id', item.id);
+      .eq('id', item.id)
+      .select('id');
 
     setRemovingItemId(null);
 
     if (updateError) {
       logSupabaseError('[tracking] tracking item soft delete failed', updateError);
       setErrorMessage(getRlsAwareErrorMessage(updateError, 'לא הצלחנו להסיר את מופע המעקב. נסה שוב.'));
+      return;
+    }
+    if (!didRowsUpdate(updatedRows)) {
+      setErrorMessage('לא ניתן להסיר את מופע המעקב — אין לך הרשאה לכך.');
       return;
     }
 

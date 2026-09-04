@@ -30,6 +30,7 @@ import { getPermissionLevelForRole, hasCompanyWideUiAccess } from '@/lib/permiss
 import { getScheduleDisplayStatus } from '@/lib/schedule';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
+import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 import type { DbEvent } from '@/lib/types';
 
 type EventType = DbEvent['event_type'];
@@ -707,14 +708,19 @@ export default function SchedulePage() {
     setEditEventError(null);
 
     try {
-    const { error: updateError } = await supabase
+    const { data: updatedRows, error: updateError } = await supabase
       .from('events')
       .update(updatePayload)
-      .eq('id', editingEvent.id);
+      .eq('id', editingEvent.id)
+      .select('id');
 
     if (updateError) {
       logSupabaseError('Event edit failed', updateError);
       setEditEventError('לא ניתן לעדכן את המופע כרגע. נסה שוב בעוד רגע.');
+      return;
+    }
+    if (!didRowsUpdate(updatedRows)) {
+      setEditEventError('לא ניתן לעדכן את המופע — אין לך הרשאה לכך, או שהמופע השתנה. רענן ונסה שוב.');
       return;
     }
 
@@ -785,14 +791,19 @@ export default function SchedulePage() {
     setSuccess(null);
 
     try {
-    const { error: updateError } = await supabase
+    const { data: updatedRows, error: updateError } = await supabase
       .from('events')
       .update({ status: nextStatus })
-      .eq('id', event.id);
+      .eq('id', event.id)
+      .select('id');
 
     if (updateError) {
       logSupabaseError('Event status update failed', updateError);
       setError('לא ניתן לעדכן את סטטוס המופע כרגע. נסה שוב בעוד רגע.');
+      return;
+    }
+    if (!didRowsUpdate(updatedRows)) {
+      setError('לא ניתן לעדכן את סטטוס המופע — אין לך הרשאה לכך, או שהמופע השתנה. רענן ונסה שוב.');
       return;
     }
 

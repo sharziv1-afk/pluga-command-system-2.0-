@@ -3135,20 +3135,25 @@ export default function ForumPage() {
           </aside>
           )}
 
-          {isTreeCollapsed && typeof document !== 'undefined' && createPortal(
+          {typeof document !== 'undefined' && createPortal(
             // Portaled to <body>: the page-transition wrapper (.command-page-transition)
             // sets a CSS transform on every protected page, which makes any descendant's
             // position:fixed relative to THAT element instead of the viewport (a real,
             // silent CSS gotcha — confirmed live, the button rendered ~1000px below the
             // fold). Escaping via a portal is the standard fix, not a workaround.
+            // Always rendered (not just while collapsed): the in-aside collapse
+            // button only exists at the TOP of the role list, which on mobile
+            // (and even on a tall desktop list) scrolls out of reach — a
+            // persistent floating toggle stays reachable regardless of scroll
+            // position, on any screen size.
             <button
               type="button"
               onClick={toggleTreeCollapsed}
-              aria-label="הצג את רשימת בעלי התפקידים"
-              className="fixed bottom-6 left-6 z-40 flex items-center gap-2 rounded-2xl border border-[#FF6B02]/25 bg-white px-4 py-3 text-sm font-black text-[#C75200] shadow-[0_14px_32px_rgba(2,1,8,0.16)] transition hover:bg-[#FF6B02]/10"
+              aria-label={isTreeCollapsed ? 'הצג את רשימת בעלי התפקידים' : 'קפל את רשימת בעלי התפקידים'}
+              className="fixed bottom-24 left-4 z-40 flex items-center gap-2 rounded-2xl border border-[#FF6B02]/25 bg-white px-4 py-3 text-sm font-black text-[#C75200] shadow-[0_14px_32px_rgba(2,1,8,0.16)] transition hover:bg-[#FF6B02]/10 md:bottom-6 md:left-6"
             >
-              <PanelRightOpen className="h-4 w-4" />
-              בעלי תפקידים
+              {isTreeCollapsed ? <PanelRightOpen className="h-4 w-4" /> : <PanelRightClose className="h-4 w-4" />}
+              {isTreeCollapsed ? 'בעלי תפקידים' : 'כווץ תפריט'}
             </button>,
             document.body,
           )}

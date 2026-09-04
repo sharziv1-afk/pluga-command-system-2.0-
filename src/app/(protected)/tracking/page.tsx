@@ -1208,7 +1208,74 @@ export default function TrackingPage() {
               description="נסה לשנות את השבוע, הקטגוריה או מילת החיפוש."
             />
           ) : (
-          <div className="max-w-full overflow-x-auto pb-2">
+          <>
+          {/* Mobile: a table with one column per item forces horizontal
+              scrolling that's unusable on a phone — stack each soldier as a
+              card with their items listed vertically instead.
+              ponytail: no per-item delete here (rare admin action, fine to
+              require desktop for it) — keeps this list focused on entering
+              status, which is what actually needs to work on a phone. */}
+          <div className="space-y-3 md:hidden">
+            {visibleSoldiers.map((soldier) => (
+              <div key={soldier.id} className="rounded-2xl border border-[var(--border-subtle)] bg-white/80 p-4 shadow-[0_8px_18px_rgba(2,1,8,0.04)]">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-black text-[#020108]">{soldier.full_name}</div>
+                    <div className="mt-1 text-[11px] font-bold text-[#667085]">
+                      {unitNameById.get(soldier.unit_id) ?? 'יחידה לא ידועה'}
+                    </div>
+                    <div className="mt-0.5 text-[11px] font-bold text-[#98A2B3]">
+                      {soldier.role_label ?? soldier.squad_label ?? 'ללא שיוך נוסף'}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    title="הסר חייל מהמעקב"
+                    onClick={() => requestRemoveSoldier(soldier)}
+                    disabled={removingSoldierId === soldier.id}
+                    className="touch-target inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-600 transition hover:border-red-300 hover:bg-red-100 disabled:cursor-wait disabled:opacity-60"
+                  >
+                    {removingSoldierId === soldier.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
+                    <span className="sr-only">הסר</span>
+                  </button>
+                </div>
+
+                <div className="mt-3 divide-y divide-[var(--border-subtle)] border-t border-[var(--border-subtle)]">
+                  {visibleItems.map((item) => {
+                    const record = recordByCell.get(`${soldier.id}:${item.id}`);
+                    const status = record?.status ?? 'empty';
+                    const cellKey = `${soldier.id}:${item.id}`;
+                    const isCellUpdating = updatingCellKey === cellKey;
+
+                    return (
+                      <div key={item.id} className="flex items-center justify-between gap-3 py-2.5">
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-xs font-black text-[#020108]">{item.title}</div>
+                          <div className="text-[10px] font-bold text-[#98A2B3]">{item.category}</div>
+                        </div>
+                        <button
+                          type="button"
+                          title="לחיצה מחליפה סטטוס"
+                          onClick={() => void handleCycleCellStatus(soldier, item, record)}
+                          disabled={isCellUpdating}
+                          className={`inline-flex min-h-11 min-w-20 shrink-0 items-center justify-center gap-1.5 rounded-full border px-3 py-1 text-xs font-black transition hover:shadow-sm disabled:cursor-wait disabled:opacity-70 ${statusStyles[status]}`}
+                        >
+                          {isCellUpdating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                          {statusLabels[status]}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden max-w-full overflow-x-auto pb-2 md:block">
             <table
               className="border-separate border-spacing-y-2 text-right text-sm"
               style={{ minWidth: `${Math.max(760, 280 + visibleItems.length * 176)}px` }}
@@ -1301,6 +1368,7 @@ export default function TrackingPage() {
               </tbody>
             </table>
           </div>
+          </>
           )}
         </GlassCard>
       )}

@@ -4,8 +4,9 @@ Authoritative checkpoint for the **Forum Daily Structured Company Flow** round, 
 prioritized work plan (P0–P3), the standing QA checklist, and the risk matrix.
 
 This file is the single source of truth for "where the Forum Daily round closed and what comes
-next." The other docs (`README.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`, `PROJECT_SUMMARY.md`,
-`AGENTS.md`, `CLAUDE.md`) point here instead of duplicating the full detail.
+next." The other docs (`README.md`, `docs/archive/PROJECT_HANDOFF_AI_CONTEXT.md`,
+`docs/archive/PROJECT_SUMMARY.md`, `AGENTS.md`, `CLAUDE.md`) point here instead of duplicating the
+full detail.
 
 ---
 
@@ -37,7 +38,7 @@ lifecycle.
 > **only** by `report_date` (RLS is the current guard). Once multi-company lands, this close path
 > MUST also be scoped by tenant `company_id`, or a מ״פ's publish would close other companies'
 > reports for the same date.
-> Full multi-company plan: `PROJECT_HANDOFF_AI_CONTEXT.md` ("Current Override - Batch 4B"). No second
+> Full multi-company plan: `docs/archive/PROJECT_HANDOFF_AI_CONTEXT.md` ("Current Override - Batch 4B"). No second
 > company may enter the DB before company-scoped RLS hardening passes leak QA. Batch 4C (schema/
 > migration) is **draft only** — no apply, no SQL execution, no migration run, no DB/RLS change.
 

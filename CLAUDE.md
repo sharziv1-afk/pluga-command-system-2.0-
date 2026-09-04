@@ -5,9 +5,9 @@
 - **In real daily use.** The מ״פ signs in from his phone against Supabase Staging `vmfihyritfmjycrfpxjn` daily. Its data is production data.
 - Never deployed to Vercel. A launch-readiness plan is approved and in progress.
 - **Two standing approval gates set by the user:** any *design* change and any *Vercel* action must be presented and approved step by step, one screen / one step at a time. Everything else follows the normal loop (implement → `npm run check` → CRLF scan → browser QA → independent review → commit).
-- `AI_HANDOFF_CHECKPOINT.md` is the most accurate doc here. `README.md`, `PROJECT_SUMMARY.md` and `PROJECT_HANDOFF_AI_CONTEXT.md` still contain stale sections from earlier rounds — believe the checkpoint over them.
-- Last completed work: **Phase 0** (`c05cf51` → `d5304db` → `b871069`) — three security bugs in the offline / write-conflict layer. The invariants it established are in `AGENTS.md` under "Write Conflicts & Offline"; breaking them reopens real bugs.
-- Next: **Phase 1** — 11 sites where an RLS-blocked write reports success to the user, `/mentoring` missing from `src/proxy.ts`, the `/onboarding` dead end, and doc consolidation.
+- `AI_HANDOFF_CHECKPOINT.md` is the most accurate doc here. `docs/archive/README_HISTORY.md`, `docs/archive/PROJECT_SUMMARY.md` and `docs/archive/PROJECT_HANDOFF_AI_CONTEXT.md` are retired checkpoint history — believe the checkpoint over them.
+- Last completed work: **Phase 1** (RLS-false-success fixes on 11 write sites, `/mentoring` route protection, `/onboarding`+`/select-role` dead-code removal, `shouldCreateUser` info-leak close, `mentoring_entries` policy fix, doc consolidation, false "not yet connected" UI text fixed).
+- Next: **Phase 2** — design system unification. **Gated**: every visual change is presented and approved one screen/component at a time before implementation.
 
 ## Agentic Workspace (Claude Code)
 
@@ -22,7 +22,7 @@
 
 Project-specific notes for Claude Code:
 
-- Read `AI_HANDOFF_CHECKPOINT.md` and `AGENTS.md` first. `README.md`, `PROJECT_HANDOFF_AI_CONTEXT.md` and `PROJECT_SUMMARY.md` are long and partly stale — use them for history, not for current state.
+- Read `AI_HANDOFF_CHECKPOINT.md` and `AGENTS.md` first. `docs/archive/` holds retired checkpoint history — use it for history, not for current state.
 - Current branch should be `main`. Do not pin an "expected latest commit" here; it goes stale within a day. Run `git log --oneline -5`.
 - The forum round's detail, invariants, QA checklist and risk matrix live in `FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`. Its six invariants still hold and are restated in `AGENTS.md`.
 

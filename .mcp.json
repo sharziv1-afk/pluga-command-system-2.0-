@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "garmin-connect": {
+      "command": "npx",
+      "args": ["-y", "garmin-connect-mcp@latest"],
+      "env": {
+        "GARMIN_USERNAME": "${GARMIN_USERNAME}",
+        "GARMIN_PASSWORD": "${GARMIN_PASSWORD}"
+      }
+    }
+  }
+}

@@ -55,6 +55,36 @@ export async function cacheGet<T>(key: string): Promise<{ data: T; cachedAt: num
   }
 }
 
+/**
+ * Drops every cached read that doesn't belong to `currentUserId`.
+ *
+ * Cache keys embed the owner's id (`tasks:list:<uuid>`,
+ * `forum:reports:<uuid>:<date>`), so anything without it is either another
+ * user's data or a leftover from before keys were scoped — both of which
+ * should not sit on the device once someone else is signed in. Runs on every
+ * successful profile load, which is also what cleans up a device that was
+ * used before this scoping existed.
+ */
+export async function cachePurgeForeign(currentUserId: string): Promise<void> {
+  try {
+    const db = await openDb();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(CACHE_STORE, 'readwrite');
+      const store = tx.objectStore(CACHE_STORE);
+      const keysRequest = store.getAllKeys();
+      keysRequest.onsuccess = () => {
+        for (const key of keysRequest.result) {
+          if (typeof key === 'string' && !key.includes(currentUserId)) store.delete(key);
+        }
+      };
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch {
+    /* best-effort */
+  }
+}
+
 /** Wipes every cached read. Used on sign-out — the write queue is deliberately
  *  NOT cleared: queued writes are unsaved work, and they carry their author so
  *  they can only ever replay under the account that made them. */

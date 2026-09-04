@@ -6,6 +6,7 @@ import { fetchCurrentProfile } from '../supabase/profile';
 import { createSupabaseBrowserClient } from '../supabase/browser';
 import { cacheProfileSnapshot, isSnapshotExpired, readCachedProfileSnapshot } from '../offline/cachedProfile';
 import { clearDeviceSession } from '../offline/session';
+import { cachePurgeForeign } from '../offline/db';
 
 export type AppAuthStatus =
   | 'loading'
@@ -176,6 +177,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (previous && previous.profile.id !== result.profile.id) {
           await clearDeviceSession();
         }
+        // Also drops caches written before keys were user-scoped, which
+        // otherwise sit on the device forever holding the previous user's rows.
+        void cachePurgeForeign(result.profile.id);
         setCurrentUser(result.profile);
         setIsOfflineSession(false);
         setAuthStatus('ready');

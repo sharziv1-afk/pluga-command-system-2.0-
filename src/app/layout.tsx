@@ -13,6 +13,12 @@ const rubik = Rubik({
 export const metadata: Metadata = {
   title: 'המפקד - מערכת פיקוד פלוגתית טקטית',
   description: 'מערכת פיקוד ובקרה פלוגתית מתקדמת (Pluga Command System) המרכזת משימות, פערים, לוגיסטיקה, לו״ז וסד״כ בזמן אמת.',
+  manifest: '/manifest.json',
+  icons: { icon: '/icon.svg' },
+};
+
+export const viewport = {
+  themeColor: '#FF6B02',
 };
 
 export default function RootLayout({

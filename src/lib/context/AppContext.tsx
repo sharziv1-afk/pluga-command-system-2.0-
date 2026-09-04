@@ -4,6 +4,7 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { Profile } from '../types';
 import { fetchCurrentProfile } from '../supabase/profile';
 import { createSupabaseBrowserClient } from '../supabase/browser';
+import { cacheProfileSnapshot, readCachedProfileSnapshot } from '../offline/cachedProfile';
 
 export type AppAuthStatus =
   | 'loading'
@@ -13,6 +14,7 @@ export type AppAuthStatus =
   | 'pending_approval'
   | 'access_blocked'
   | 'profile_missing'
+  | 'offline'
   | 'error';
 
 interface AppContextProps {
@@ -114,7 +116,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         loadVersion += 1;
         activeAuthUserId = null;
         setCurrentUser(null);
-        setAuthStatus('error');
+        // A hung request with the browser reporting no connectivity, and a
+        // prior successful login on this device to fall back to, is the one
+        // case worth distinguishing from a generic server error — everything
+        // else (a real bug, a slow-but-live network) stays 'error' as before.
+        setAuthStatus(!navigator.onLine && readCachedProfileSnapshot() ? 'offline' : 'error');
         setAuthError(PROFILE_LOAD_ERROR_MESSAGE);
         return;
       }
@@ -124,6 +130,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (result.status === 'ready') {
         setCurrentUser(result.profile);
         setAuthStatus('ready');
+        cacheProfileSnapshot(result.profile);
         return;
       }
 
@@ -149,7 +156,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return;
       }
 
-      setAuthStatus('error');
+      setAuthStatus(!navigator.onLine && readCachedProfileSnapshot() ? 'offline' : 'error');
       setAuthError(PROFILE_LOAD_ERROR_MESSAGE);
     };
 

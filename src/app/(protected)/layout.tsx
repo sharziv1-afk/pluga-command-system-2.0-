@@ -8,6 +8,7 @@ import { MobileHeader } from '@/components/layout/MobileHeader';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { PageTransition } from '@/components/layout/PageTransition';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { OfflineGate } from '@/components/layout/OfflineGate';
 import { useApp } from '@/lib/context/AppContext';
 
 function ContentSkeleton() {
@@ -28,7 +29,11 @@ function ContentSkeleton() {
 }
 
 export default function ProtectedLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const { authStatus, authError } = useApp();
+  const { authStatus, authError, refreshProfile } = useApp();
+
+  if (authStatus === 'offline') {
+    return <OfflineGate onRetry={() => void refreshProfile()} />;
+  }
 
   // Non-authenticated / not-approved states remain standalone (no shell chrome).
   if (authStatus !== 'ready' && authStatus !== 'loading') {

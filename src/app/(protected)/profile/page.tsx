@@ -1,11 +1,140 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useApp } from '@/lib/context/AppContext';
-import { User, Mail, ShieldAlert, Award, Calendar, FileText } from 'lucide-react';
+import { User, Mail, ShieldAlert, Award, Calendar, FileText, Smartphone, Trash2 } from 'lucide-react';
+import { hasDevicePin, setDevicePin, clearDevicePin } from '@/lib/offline/devicePin';
+
+function DeviceAccessCodeCard() {
+  const [hasPin, setHasPin] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [pin, setPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    setHasPin(hasDevicePin());
+  }, []);
+
+  const resetForm = () => {
+    setPin('');
+    setConfirmPin('');
+    setError(null);
+  };
+
+  const handleSave = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    if (pin.length < 4) {
+      setError('קוד הגישה חייב להיות באורך 4 ספרות לפחות.');
+      return;
+    }
+    if (pin !== confirmPin) {
+      setError('הקודים שהוזנו אינם תואמים.');
+      return;
+    }
+    await setDevicePin(pin);
+    setHasPin(true);
+    setIsEditing(false);
+    setSuccess('קוד הגישה נשמר במכשיר זה.');
+    resetForm();
+  };
+
+  const handleRemove = () => {
+    clearDevicePin();
+    setHasPin(false);
+    setSuccess('קוד הגישה הוסר מהמכשיר.');
+  };
+
+  return (
+    <div className="max-w-2xl">
+      <GlassCard className="p-6 md:p-8">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#FF6B02]/20 bg-[#FF6B02]/10 text-[#FF6B02]">
+            <Smartphone className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-base font-black text-[#020108]">קוד גישה מהיר למכשיר (אופליין)</h2>
+            <p className="mt-0.5 text-xs font-semibold leading-relaxed text-[#667085]">
+              מאפשר להיכנס למכשיר הזה כשאין רשת, בלי לחכות לקוד במייל. הקוד נשמר רק על המכשיר הזה, לא בשרת — ולא מחליף את ההתחברות הרגילה.
+            </p>
+          </div>
+        </div>
+
+        {success && (
+          <div className="mb-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2.5 text-xs font-bold text-emerald-700">{success}</div>
+        )}
+
+        {!isEditing ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => { setIsEditing(true); setSuccess(null); }}
+              className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[var(--action)] px-4 text-xs font-black text-white transition hover:bg-[var(--action-hover)]"
+            >
+              {hasPin ? 'שינוי קוד גישה' : 'הגדרת קוד גישה'}
+            </button>
+            {hasPin && (
+              <button
+                type="button"
+                onClick={handleRemove}
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-4 text-xs font-black text-red-600 transition hover:bg-red-100"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                ביטול קוד גישה
+              </button>
+            )}
+          </div>
+        ) : (
+          <form onSubmit={handleSave} className="space-y-3">
+            <label className="block space-y-1.5">
+              <span className="block text-xs font-black text-[#344054]">קוד גישה (4-8 ספרות)</span>
+              <input
+                type="password"
+                inputMode="numeric"
+                autoFocus
+                value={pin}
+                onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 8))}
+                className="command-input text-center text-lg font-black tracking-[0.3em]"
+              />
+            </label>
+            <label className="block space-y-1.5">
+              <span className="block text-xs font-black text-[#344054]">אימות קוד</span>
+              <input
+                type="password"
+                inputMode="numeric"
+                value={confirmPin}
+                onChange={(event) => setConfirmPin(event.target.value.replace(/\D/g, '').slice(0, 8))}
+                className="command-input text-center text-lg font-black tracking-[0.3em]"
+              />
+            </label>
+            {error && <p className="text-xs font-bold text-[var(--color-danger)]">{error}</p>}
+            <div className="flex gap-2 pt-1">
+              <button type="submit" className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[var(--action)] px-4 text-xs font-black text-white transition hover:bg-[var(--action-hover)]">
+                שמירה
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIsEditing(false); resetForm(); }}
+                className="inline-flex min-h-10 items-center justify-center rounded-xl border border-[var(--border-strong)] px-4 text-xs font-black text-[#667085] transition hover:border-[#FF6B02]/30"
+              >
+                ביטול
+              </button>
+            </div>
+          </form>
+        )}
+
+        <p className="mt-4 text-[11px] font-semibold text-[#98A2B3]">
+          בקרוב: אפשרות לפתוח את המכשיר גם עם טביעת אצבע או זיהוי פנים, במקום קוד.
+        </p>
+      </GlassCard>
+    </div>
+  );
+}
 
 export default function ProfilePage() {
   const { currentUser, isLoading } = useApp();
@@ -160,6 +289,8 @@ export default function ProfilePage() {
           </div>
         </GlassCard>
       </div>
+
+      <DeviceAccessCodeCard />
     </div>
   );
 }

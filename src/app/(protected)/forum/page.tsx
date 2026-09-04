@@ -37,6 +37,7 @@ import {
   Undo2,
   User,
   Users,
+  WifiOff,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -47,6 +48,8 @@ import { createAuditLog } from '@/lib/audit';
 import type { AuditActionType } from '@/lib/audit';
 import { writeWithHierarchyResolution } from '@/lib/concurrency/hierarchyWrite';
 import type { HierarchyWriteResult } from '@/lib/concurrency/hierarchyWrite';
+import { cacheGet, cacheSet } from '@/lib/offline/db';
+import { enqueueWrite, flushWriteQueue, pendingWriteCount } from '@/lib/offline/syncEngine';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import { aggregateCompanyStructured, assignPlatoonReports } from '@/lib/forum/companyReport';
 import type { CompanyReportInput, CompanyReportPlatoon } from '@/lib/forum/companyReport';
@@ -483,6 +486,9 @@ export default function ForumPage() {
   const [selectedDate, setSelectedDate] = useState(() => getJerusalemDateString());
   const [dailyDateInputValue, setDailyDateInputValue] = useState(selectedDate);
   const [dailyReports, setDailyReports] = useState<DailyReportRow[]>([]);
+  const [isOfflineDaily, setIsOfflineDaily] = useState(false);
+  const [dailyCachedAt, setDailyCachedAt] = useState<number | null>(null);
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [selectedNodeId, setSelectedNodeId] = useState('own-report');
   // Explicit user expand/collapse overrides per group name; anything not here follows the
   // role default (commanders start collapsed, everyone else starts expanded).
@@ -1142,6 +1148,21 @@ export default function ForumPage() {
     setIsDailyLoading(true);
     setDailyError(null);
 
+    const cacheKey = `forum:reports:${date}`;
+
+    if (!navigator.onLine) {
+      const cached = await cacheGet<DailyReportRow[]>(cacheKey);
+      if (isLatestDailyLoad(loadVersion, dailyLoadVersion.current)) {
+        setIsOfflineDaily(true);
+        setDailyCachedAt(cached?.cachedAt ?? null);
+        loadedDailyScope.current = loadScope;
+        setDailyReports(cached?.data ?? []);
+        setIsDailyLoading(false);
+      }
+      return;
+    }
+    setIsOfflineDaily(false);
+
     try {
       const { data, error: loadError } = await supabase
         .from('forum_daily_reports')
@@ -1155,11 +1176,20 @@ export default function ForumPage() {
       if (isLatestDailyLoad(loadVersion, dailyLoadVersion.current)) {
         loadedDailyScope.current = loadScope;
         setDailyReports(data ?? []);
+        void cacheSet(cacheKey, data ?? []);
       }
     } catch (loadError) {
       logSupabaseError('Forum daily reports load failed', loadError);
+      const cached = await cacheGet<DailyReportRow[]>(cacheKey);
       if (isLatestDailyLoad(loadVersion, dailyLoadVersion.current)) {
-        setDailyError('לא ניתן לטעון את הדיווחים היומיים כרגע. נסה שוב בעוד רגע.');
+        if (cached) {
+          setIsOfflineDaily(true);
+          setDailyCachedAt(cached.cachedAt);
+          loadedDailyScope.current = loadScope;
+          setDailyReports(cached.data);
+        } else {
+          setDailyError('לא ניתן לטעון את הדיווחים היומיים כרגע. נסה שוב בעוד רגע.');
+        }
       }
     } finally {
       if (isLatestDailyLoad(loadVersion, dailyLoadVersion.current)) setIsDailyLoading(false);
@@ -1218,6 +1248,26 @@ export default function ForumPage() {
     if (activeTab !== 'daily' || !dbProfile) return;
     void loadDailyReports(selectedDate);
   }, [activeTab, dbProfile, loadDailyReports, selectedDate]);
+
+  useEffect(() => {
+    void pendingWriteCount().then(setPendingSyncCount);
+  }, [dailyReports]);
+
+  useEffect(() => {
+    if (!dbProfile) return;
+
+    const trySync = async () => {
+      const result = await flushWriteQueue(supabase, dbProfile.id, dbProfile.permission_level);
+      setPendingSyncCount(await pendingWriteCount());
+      if (result.applied > 0) await loadDailyReports(selectedDate);
+    };
+
+    void trySync();
+    const onOnline = () => void trySync();
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dbProfile?.id]);
 
   useEffect(() => {
     if (activeTab !== 'daily' || !canSeeAll) return;
@@ -1632,6 +1682,33 @@ export default function ForumPage() {
           base: (selectedReport.content as Record<string, unknown>)[field],
           next: (draftToSave as Record<string, unknown>)[field],
         };
+      }
+
+      if (!navigator.onLine) {
+        // ponytail: the offline replay only carries `content` (the actual
+        // report text — the part that must never be lost). status/
+        // summary_text/whatsapp_text are derived display fields that get
+        // recomputed on the next successful online save anyway, so a
+        // temporarily-stale status badge until reconnect is an acceptable
+        // trade for not having to thread three extra fields through the
+        // generic per-table sync config.
+        await enqueueWrite({
+          table: 'forum_daily_reports',
+          rowId: selectedReport.id,
+          baseUpdatedAt: selectedReport.updated_at,
+          changes: contentChanges,
+          baseSnapshot: selectedReport.content as unknown as Record<string, unknown>,
+        });
+        setPendingSyncCount(await pendingWriteCount());
+        const optimisticContent = { ...selectedReport.content, ...draftToSave };
+        const optimisticReports = dailyReports.map(report =>
+          report.id === selectedReport.id ? { ...report, content: optimisticContent } : report,
+        );
+        setDailyReports(optimisticReports);
+        void cacheSet(`forum:reports:${selectedDate}`, optimisticReports);
+        recordDailyDraftSave(draftToSave, true);
+        setDailySuccess('אין רשת — הדיווח יישמר אוטומטית כשהחיבור יחזור.');
+        return;
       }
 
       let writeResult: HierarchyWriteResult;
@@ -3025,6 +3102,22 @@ export default function ForumPage() {
           </p>
         </div>
       </div>
+
+      {isOfflineDaily && (
+        <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
+          <WifiOff className="h-4 w-4 shrink-0" />
+          <span>
+            אין רשת — מוצגים דיווחים שנשמרו במכשיר{dailyCachedAt ? ` בשעה ${new Date(dailyCachedAt).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}` : ''}.
+            {pendingSyncCount > 0 && ` יש ${pendingSyncCount} שינויים שממתינים לסנכרון.`}
+          </span>
+        </div>
+      )}
+      {!isOfflineDaily && pendingSyncCount > 0 && (
+        <div className="flex items-center gap-3 rounded-2xl border border-[#FF6B02]/25 bg-[#FF6B02]/10 px-4 py-3 text-sm font-bold text-[#C75200]">
+          <RefreshCw className="h-4 w-4 shrink-0 animate-spin" />
+          <span>מסנכרן {pendingSyncCount} שינויים שנשמרו בזמן שלא הייתה רשת...</span>
+        </div>
+      )}
 
       {dailyError && (
         <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">

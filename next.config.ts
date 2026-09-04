@@ -6,9 +6,11 @@ const nextConfig: NextConfig = {
   },
   distDir: ".next-build",
   // Dev-only: allow the dev server to serve client JS/HMR to a phone on the
-  // local network (http://192.168.1.231:3000 / http://192.168.1.233:3000) so the page hydrates and
-  // onClick/onSubmit work. No effect on production builds.
-  allowedDevOrigins: ["192.168.1.231", "192.168.1.233"],
+  // local network so the page hydrates and onClick/onSubmit work. The LAN IP
+  // changes across sessions (DHCP) — when phone testing breaks again with
+  // buttons doing nothing, check `ipconfig` and add the current IP here.
+  // No effect on production builds.
+  allowedDevOrigins: ["192.168.1.231", "192.168.1.233", "192.168.1.224"],
 };
 
 export default nextConfig;

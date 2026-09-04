@@ -47,9 +47,9 @@ test('schedule loading contains no write or audit side effect', () => {
 test('role normalization and existing UI capability rules share one truth table', () => {
   assert.equal(normalizeRole(' מ״פ '), 'מ"פ');
   assert.equal(normalizeRole('סמ“פ'), 'סמ"פ');
-  assert.equal(getPermissionLevelForRole('ע. מ״פ'), 85);
-  assert.equal(hasAdminAccess('ע. מ״פ'), false);
-  assert.equal(hasCompanyWideUiAccess('ע. מ״פ'), true);
+  assert.equal(getPermissionLevelForRole('מש"ד'), 85);
+  assert.equal(hasAdminAccess('מש"ד'), false);
+  assert.equal(hasCompanyWideUiAccess('מש"ד'), true);
   assert.equal(hasCompanyWideUiAccess('מ״מ 1', 90), true);
   assert.equal(hasCompanyWideUiAccess('מ״מ 1', 70), false);
   assert.equal(isActiveApprovedProfile('active', 'approved'), true);
@@ -157,7 +157,11 @@ test('forum daily draft protection handles hydration, transitions, saves, and st
   }
   assert.match(transitionFlow, /if \(dailySaveInFlight\.current\) return false;/);
   assert.match(hydrationFlow, /draftFromReport\(selectedReport\)/);
-  assert.match(source, /company_report_manually_edited: report\.content\.company_report_manually_edited === true/);
+  // draftFromReport delegates to sanitizeReportContent, which coerces every
+  // boolean-typed ReportDraft field (company_report_manually_edited included)
+  // with a strict `=== true` check rather than trusting jsonb truthiness.
+  assert.match(source, /typeof base\[key\] === 'boolean'/);
+  assert.match(source, /\(next as Record<string, unknown>\)\[key\] = raw === true;/);
 });
 
 test('forum daily mutations require the exact hydrated node scope', () => {

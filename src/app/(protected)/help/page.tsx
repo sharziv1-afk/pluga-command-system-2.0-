@@ -248,7 +248,7 @@ export default function HelpPage() {
             <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex gap-2.5 mt-2">
               <AlertCircle className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
               <p className="text-[9px] text-slate-400 leading-normal">
-                נתקלת בבעיה טכנית במערכת או שגיאת הרשאות? פנה לצוות התמיכה הטכנית של פלוגה ג׳ במייל <strong className="text-cyan-400 font-mono">support.c@idf.il</strong>.
+                נתקלת בבעיה טכנית במערכת או שגיאת הרשאות? פנה לצוות התמיכה הטכנית של פלוגה א׳ במייל <strong className="text-cyan-400 font-mono">support.a@idf.il</strong>.
               </p>
             </div>
           </div>

@@ -12,7 +12,7 @@ interface PageHeaderProps {
 export const PageHeader: React.FC<PageHeaderProps> = ({
   title,
   subtitle,
-  category = "מפקדת פלוגה ג'",
+  category = "מפקדת פלוגה א'",
   brief,
   actions,
 }) => {

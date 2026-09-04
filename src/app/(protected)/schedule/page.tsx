@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Clipboard,
   Clock3,
+  Download,
   Loader2,
   MapPin,
   Pencil,
@@ -309,17 +310,46 @@ export default function SchedulePage() {
         return;
       }
 
-      const { data: eventData, error: eventsError } = await supabase
-        .from('events')
-        .select('id,title,description,event_type,starts_at,ends_at,location,unit_id,created_by,responsible_user_id,status,metadata,created_at,updated_at')
-        .order('starts_at', { ascending: true })
-        .returns<DbEvent[]>();
+      const canAssign = hasCompanyWideUiAccess(profileData.role, profileData.permission_level);
+      const fallbackResponsibility: EventUser[] = [{
+        id: profileData.id,
+        name: profileData.name,
+        email: profileData.email ?? currentUser.email,
+        role: profileData.role,
+        unit_id: profileData.unit_id,
+        units: profileData.units,
+      }];
+
+      // Round 1: events and the responsibility-users list don't depend on each other.
+      const [{ data: eventData, error: eventsError }, responsibleUsersResult] = await Promise.all([
+        supabase
+          .from('events')
+          .select('id,title,description,event_type,starts_at,ends_at,location,unit_id,created_by,responsible_user_id,status,metadata,created_at,updated_at')
+          .order('starts_at', { ascending: true })
+          .returns<DbEvent[]>(),
+        canAssign
+          ? supabase
+              .from('users')
+              .select('id,name,email,role,unit_id')
+              .eq('status', 'active')
+              .eq('role_approval_status', 'approved')
+              .order('name', { ascending: true })
+              .returns<EventUser[]>()
+          : Promise.resolve({ data: null as EventUser[] | null, error: null }),
+      ]);
 
       if (eventsError) {
         logSupabaseError('Events load failed', eventsError);
         setError('לא ניתן לטעון את הלו״ז כרגע. נסה לרענן את הדף בעוד רגע.');
         return;
       }
+
+      if (canAssign && responsibleUsersResult.error) {
+        logSupabaseError('Event responsible users load failed', responsibleUsersResult.error);
+      }
+      const usersForResponsibility = responsibleUsersResult.data ?? fallbackResponsibility;
+      const dedupedUsers = Array.from(new Map(usersForResponsibility.map(user => [user.id, user])).values());
+      setResponsibleUsers(dedupedUsers);
 
       const rawEvents = eventData ?? [];
       const userIds = [
@@ -329,55 +359,21 @@ export default function SchedulePage() {
       ];
       const unitIds = [...new Set(rawEvents.map(event => event.unit_id).filter((id): id is string => Boolean(id)))];
 
-      const userNames: Record<string, string> = {};
-      if (userIds.length > 0) {
-        const { data: usersData } = await supabase
-          .from('users')
-          .select('id,name,email')
-          .in('id', userIds)
-          .returns<Array<Pick<EventUser, 'id' | 'name' | 'email'>>>();
+      // Round 2: keyed off rawEvents' ids, but independent of each other.
+      const [{ data: usersData }, { data: unitsData }] = await Promise.all([
+        userIds.length > 0
+          ? supabase.from('users').select('id,name,email').in('id', userIds).returns<Array<Pick<EventUser, 'id' | 'name' | 'email'>>>()
+          : Promise.resolve({ data: [] as Array<Pick<EventUser, 'id' | 'name' | 'email'>> }),
+        unitIds.length > 0
+          ? supabase.from('units').select('id,name').in('id', unitIds).returns<Array<{ id: string; name: string }>>()
+          : Promise.resolve({ data: [] as Array<{ id: string; name: string }> }),
+      ]);
 
-        for (const user of usersData ?? []) userNames[user.id] = getUserDisplayName(user);
-      }
+      const userNames: Record<string, string> = {};
+      for (const user of usersData ?? []) userNames[user.id] = getUserDisplayName(user);
 
       const unitNames: Record<string, string> = {};
-      if (unitIds.length > 0) {
-        const { data: unitsData } = await supabase
-          .from('units')
-          .select('id,name')
-          .in('id', unitIds)
-          .returns<Array<{ id: string; name: string }>>();
-
-        for (const unit of unitsData ?? []) unitNames[unit.id] = unit.name;
-      }
-
-      let usersForResponsibility: EventUser[] = [{
-        id: profileData.id,
-        name: profileData.name,
-        email: profileData.email ?? currentUser.email,
-        role: profileData.role,
-        unit_id: profileData.unit_id,
-        units: profileData.units,
-      }];
-
-      if (hasCompanyWideUiAccess(profileData.role, profileData.permission_level)) {
-        const { data: activeUsers, error: usersError } = await supabase
-          .from('users')
-          .select('id,name,email,role,unit_id')
-          .eq('status', 'active')
-          .eq('role_approval_status', 'approved')
-          .order('name', { ascending: true })
-          .returns<EventUser[]>();
-
-        if (usersError) {
-          logSupabaseError('Event responsible users load failed', usersError);
-        } else {
-          usersForResponsibility = activeUsers ?? usersForResponsibility;
-        }
-      }
-
-      const dedupedUsers = Array.from(new Map(usersForResponsibility.map(user => [user.id, user])).values());
-      setResponsibleUsers(dedupedUsers);
+      for (const unit of unitsData ?? []) unitNames[unit.id] = unit.name;
 
       setEvents(rawEvents.map(event => ({
         ...event,
@@ -917,6 +913,49 @@ export default function SchedulePage() {
     }
   };
 
+  // Escapes per RFC 5545 §3.3.11 (comma/semicolon/backslash/newline).
+  const icsEscape = (value: string) => value.replace(/\\/g, '\\\\').replace(/,/g, '\\,').replace(/;/g, '\\;').replace(/\n/g, '\\n');
+  const icsDate = (value: string) => `${new Date(value).toISOString().replace(/[-:]/g, '').split('.')[0]}Z`;
+
+  const downloadScheduleAsIcs = () => {
+    const upcoming = events.filter(event => event.status !== 'cancelled');
+    const lines: Array<string | null> = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//המפקד//לו״ז פלוגתי//HE', 'CALSCALE:GREGORIAN'];
+    const stamp = icsDate(new Date().toISOString());
+
+    for (const event of upcoming) {
+      const descriptionParts = [
+        eventTypeLabels[event.event_type],
+        event.responsibleName ? `אחראי: ${event.responsibleName}` : null,
+        event.unitName ? `מסגרת: ${event.unitName}` : null,
+        event.description || null,
+      ].filter(Boolean);
+
+      lines.push(
+        'BEGIN:VEVENT',
+        `UID:${event.id}@hamefaked`,
+        `DTSTAMP:${stamp}`,
+        `DTSTART:${icsDate(event.starts_at)}`,
+        event.ends_at ? `DTEND:${icsDate(event.ends_at)}` : `DTEND:${icsDate(event.starts_at)}`,
+        `SUMMARY:${icsEscape(event.title)}`,
+        event.location ? `LOCATION:${icsEscape(event.location)}` : null,
+        descriptionParts.length ? `DESCRIPTION:${icsEscape(descriptionParts.join(' · '))}` : null,
+        'END:VEVENT',
+      );
+    }
+    lines.push('END:VCALENDAR');
+
+    const blob = new Blob([lines.filter((line): line is string => line !== null).join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'לוז-פלוגתי.ics';
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+    setSuccess('קובץ היומן ירד — פתיחה תוסיף את כל הלו״ז ליומן במכשיר.');
+  };
+
   const activeEventTasksCount = eventTasks.filter(task => ['open', 'in_progress', 'blocked'].includes(task.status)).length;
   const completedEventTasksCount = eventTasks.filter(task => task.status === 'completed').length;
   const activeEventRequestsCount = eventRequests.filter(request => ['open', 'in_progress', 'approved'].includes(request.status)).length;
@@ -974,6 +1013,10 @@ export default function SchedulePage() {
             <GlossyButton variant="slate" size="sm" onClick={() => void copyTomorrowSchedule()} disabled={isLoading}>
               <Clipboard className="h-4 w-4" />
               העתק לו״ז מחר
+            </GlossyButton>
+            <GlossyButton variant="slate" size="sm" onClick={downloadScheduleAsIcs} disabled={isLoading || events.length === 0}>
+              <Download className="h-4 w-4" />
+              ייצוא ליומן (ICS)
             </GlossyButton>
             <GlossyButton variant="slate" size="sm" onClick={() => void refreshProfile()} disabled={isLoading}>
               <RefreshCw className="h-4 w-4" />

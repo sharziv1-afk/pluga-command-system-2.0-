@@ -253,16 +253,48 @@ export default function TasksPage() {
         return;
       }
 
-      const { data: taskData, error: tasksError } = await supabase
-        .from('tasks')
-        .select('id,title,description,status,priority,assigned_to,created_by,unit_id,event_id,due_at,completed_at,metadata,created_at,updated_at')
-        .order('created_at', { ascending: false })
-        .returns<DbTask[]>();
+      const canAssign = hasCompanyWideUiAccess(profileData.role, profileData.permission_level);
+
+      // Round 1: three independent queries in parallel instead of in sequence —
+      // none of these need each other's results.
+      const [
+        { data: taskData, error: tasksError },
+        assignableUsersResult,
+        { data: visibleEvents, error: eventsError },
+      ] = await Promise.all([
+        supabase
+          .from('tasks')
+          .select('id,title,description,status,priority,assigned_to,created_by,unit_id,event_id,due_at,completed_at,metadata,created_at,updated_at')
+          .order('created_at', { ascending: false })
+          .returns<DbTask[]>(),
+        canAssign
+          ? supabase
+              .from('users')
+              .select('id,name,email,role,unit_id')
+              .eq('status', 'active')
+              .eq('role_approval_status', 'approved')
+              .order('name', { ascending: true })
+              .returns<TaskUser[]>()
+          : Promise.resolve({ data: [] as TaskUser[], error: null }),
+        supabase
+          .from('events')
+          .select('id,title,starts_at,ends_at,status')
+          .in('status', ['scheduled', 'in_progress'])
+          .order('starts_at', { ascending: true })
+          .returns<EventOption[]>(),
+      ]);
 
       if (tasksError) {
         logSupabaseError('Tasks load failed', tasksError);
         setError('לא ניתן לטעון את המשימות כרגע. נסה לרענן את הדף בעוד רגע.');
         return;
+      }
+
+      if (assignableUsersResult.error) {
+        logSupabaseError('Task assignable users load failed', assignableUsersResult.error);
+        setAssignableUsers([]);
+      } else {
+        setAssignableUsers(assignableUsersResult.data ?? []);
       }
 
       const rawTasks = taskData ?? [];
@@ -274,70 +306,35 @@ export default function TasksPage() {
       const unitIds = [...new Set(rawTasks.map(task => task.unit_id).filter((id): id is string => Boolean(id)))];
       const eventIds = [...new Set(rawTasks.map(task => task.event_id).filter((id): id is string => Boolean(id)))];
 
-      const userNames: Record<string, { name: string; role: string | null }> = {};
-      if (userIds.length > 0) {
-        const { data: usersData } = await supabase
-          .from('users')
-          .select('id,name,email,role')
-          .in('id', userIds)
-          .returns<Array<Pick<TaskUser, 'id' | 'name' | 'email' | 'role'>>>();
+      // Round 2: these all key off rawTasks' ids, so they can't start earlier —
+      // but they don't depend on each other, so run them in parallel too.
+      const [{ data: usersData }, { data: unitsData }, { data: eventsData }] = await Promise.all([
+        userIds.length > 0
+          ? supabase.from('users').select('id,name,email,role').in('id', userIds).returns<Array<Pick<TaskUser, 'id' | 'name' | 'email' | 'role'>>>()
+          : Promise.resolve({ data: [] as Array<Pick<TaskUser, 'id' | 'name' | 'email' | 'role'>> }),
+        unitIds.length > 0
+          ? supabase.from('units').select('id,name').in('id', unitIds).returns<Array<{ id: string; name: string }>>()
+          : Promise.resolve({ data: [] as Array<{ id: string; name: string }> }),
+        eventIds.length > 0
+          ? supabase.from('events').select('id,title,starts_at,ends_at').in('id', eventIds).returns<Array<Pick<EventOption, 'id' | 'title' | 'starts_at' | 'ends_at'>>>()
+          : Promise.resolve({ data: [] as Array<Pick<EventOption, 'id' | 'title' | 'starts_at' | 'ends_at'>> }),
+      ]);
 
-        for (const user of usersData ?? []) {
-          userNames[user.id] = { name: getUserDisplayName(user), role: user.role };
-        }
+      const userNames: Record<string, { name: string; role: string | null }> = {};
+      for (const user of usersData ?? []) {
+        userNames[user.id] = { name: getUserDisplayName(user), role: user.role };
       }
 
       const unitNames: Record<string, string> = {};
-      if (unitIds.length > 0) {
-        const { data: unitsData } = await supabase
-          .from('units')
-          .select('id,name')
-          .in('id', unitIds)
-          .returns<Array<{ id: string; name: string }>>();
-
-        for (const unit of unitsData ?? []) unitNames[unit.id] = unit.name;
-      }
+      for (const unit of unitsData ?? []) unitNames[unit.id] = unit.name;
 
       const eventDetails: Record<string, { title: string; timeLabel: string | null }> = {};
-      if (eventIds.length > 0) {
-        const { data: eventsData } = await supabase
-          .from('events')
-          .select('id,title,starts_at,ends_at')
-          .in('id', eventIds)
-          .returns<Array<Pick<EventOption, 'id' | 'title' | 'starts_at' | 'ends_at'>>>();
-
-        for (const event of eventsData ?? []) {
-          eventDetails[event.id] = {
-            title: event.title,
-            timeLabel: formatEventTimeLabel(event.starts_at, event.ends_at ?? null),
-          };
-        }
+      for (const event of eventsData ?? []) {
+        eventDetails[event.id] = {
+          title: event.title,
+          timeLabel: formatEventTimeLabel(event.starts_at, event.ends_at ?? null),
+        };
       }
-
-      let usersForAssignment: TaskUser[] = [];
-      if (hasCompanyWideUiAccess(profileData.role, profileData.permission_level)) {
-        const { data: activeUsers, error: usersError } = await supabase
-          .from('users')
-          .select('id,name,email,role,unit_id')
-          .eq('status', 'active')
-          .eq('role_approval_status', 'approved')
-          .order('name', { ascending: true })
-          .returns<TaskUser[]>();
-
-        if (usersError) {
-          logSupabaseError('Task assignable users load failed', usersError);
-        } else {
-          usersForAssignment = activeUsers ?? [];
-        }
-      }
-      setAssignableUsers(usersForAssignment);
-
-      const { data: visibleEvents, error: eventsError } = await supabase
-        .from('events')
-        .select('id,title,starts_at,ends_at,status')
-        .in('status', ['scheduled', 'in_progress'])
-        .order('starts_at', { ascending: true })
-        .returns<EventOption[]>();
 
       if (eventsError) {
         logSupabaseError('Task event options load failed', eventsError);
@@ -422,9 +419,17 @@ export default function TasksPage() {
     ];
   }, [editingTask, eventOptions]);
 
-  const openCount = tasks.filter(task => task.status === 'open').length;
-  const inProgressCount = tasks.filter(task => task.status === 'in_progress' || task.status === 'blocked').length;
-  const completedCount = tasks.filter(task => task.status === 'completed').length;
+  const { openCount, inProgressCount, completedCount } = useMemo(() => {
+    let open = 0;
+    let inProgress = 0;
+    let completed = 0;
+    for (const task of tasks) {
+      if (task.status === 'open') open += 1;
+      else if (task.status === 'in_progress' || task.status === 'blocked') inProgress += 1;
+      else if (task.status === 'completed') completed += 1;
+    }
+    return { openCount: open, inProgressCount: inProgress, completedCount: completed };
+  }, [tasks]);
 
   const resetForm = () => {
     setTitle('');

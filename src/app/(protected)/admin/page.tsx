@@ -124,7 +124,7 @@ export default function AdminPage() {
       ] = await Promise.all([
         supabase.from('roles').select('name').order('permission_level', { ascending: false }),
         supabase.from('units').select('id,name').order('created_at', { ascending: true }),
-        supabase.from('users').select('*').order('created_at', { ascending: false })
+        supabase.from('users').select('id,auth_user_id,email,name,role,unit_id,commanded_unit_id,permission_level,role_approval_status,status,created_at').order('created_at', { ascending: false })
       ]);
 
       if (rolesData) setRoles(rolesData);

@@ -19,6 +19,7 @@ import {
 import { PageHeader } from '@/components/layout/PageHeader';
 import { GapsPanel } from '@/components/gaps/GapsPanel';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FieldPrivacyHint } from '@/components/ui/FieldPrivacyHint';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlossyButton } from '@/components/ui/GlossyButton';
 import { SkeletonCard } from '@/components/ui/Skeleton';
@@ -321,55 +322,31 @@ export default function RequestsPage() {
         return;
       }
 
-      let assignableUsers: AssigneeUser[] = [];
-      if (hasCompanyWideUiAccess(profileData.role, profileData.permission_level)) {
-        const { data: usersData, error: usersError } = await supabase
-          .from('users')
-          .select('id,name,email,role,unit_id')
-          .eq('status', 'active')
-          .eq('role_approval_status', 'approved')
-          .order('name', { ascending: true })
-          .returns<AssigneeUser[]>();
+      const canAssign = hasCompanyWideUiAccess(profileData.role, profileData.permission_level);
 
-        if (usersError) {
-          logSupabaseError('Assignable users load failed', usersError);
-          setAssigneeLoadError('לא ניתן לטעון רשימת מטפלים');
-        } else {
-          const rawAssignable = usersData ?? [];
-          const assignableUnitIds = [
-            ...new Set(rawAssignable.map(user => user.unit_id).filter((id): id is string => Boolean(id))),
-          ];
-
-          let assignableUnitNames: Record<string, string> = {};
-          if (assignableUnitIds.length > 0) {
-            const { data: unitsData, error: unitsError } = await supabase
-              .from('units')
-              .select('id,name')
-              .in('id', assignableUnitIds)
-              .returns<Array<{ id: string; name: string }>>();
-
-            if (unitsError) {
-              logSupabaseError('Assignable users unit lookup failed', unitsError);
-            } else {
-              assignableUnitNames = Object.fromEntries((unitsData ?? []).map(unit => [unit.id, unit.name]));
-            }
-          }
-
-          assignableUsers = rawAssignable.map(user => ({
-            ...user,
-            units: user.unit_id && assignableUnitNames[user.unit_id]
-              ? { name: assignableUnitNames[user.unit_id] }
-              : null,
-          }));
-        }
-      }
-      setAssigneeUsers(assignableUsers);
-
-      const { data: requestData, error: requestsError } = await supabase
-        .from('requests')
-        .select('id,title,description,status,request_type,requested_by,assigned_to,unit_id,event_id,metadata,created_at,updated_at')
-        .order('created_at', { ascending: false })
-        .returns<RawRequest[]>();
+      // Round 1: three independent queries in parallel — none need each other's results.
+      const [assignableUsersResult, { data: requestData, error: requestsError }, { data: visibleEvents, error: eventsError }] = await Promise.all([
+        canAssign
+          ? supabase
+              .from('users')
+              .select('id,name,email,role,unit_id')
+              .eq('status', 'active')
+              .eq('role_approval_status', 'approved')
+              .order('name', { ascending: true })
+              .returns<AssigneeUser[]>()
+          : Promise.resolve({ data: [] as AssigneeUser[], error: null }),
+        supabase
+          .from('requests')
+          .select('id,title,description,status,request_type,requested_by,assigned_to,unit_id,event_id,metadata,created_at,updated_at')
+          .order('created_at', { ascending: false })
+          .returns<RawRequest[]>(),
+        supabase
+          .from('events')
+          .select('id,title,starts_at,ends_at,status')
+          .in('status', ['scheduled', 'in_progress'])
+          .order('starts_at', { ascending: true })
+          .returns<EventOption[]>(),
+      ]);
 
       if (requestsError) {
         logSupabaseError('Requests load failed', requestsError);
@@ -377,50 +354,58 @@ export default function RequestsPage() {
         return;
       }
 
-      const raw = requestData ?? [];
+      let assignableUsers: AssigneeUser[] = [];
+      if (canAssign && assignableUsersResult.error) {
+        logSupabaseError('Assignable users load failed', assignableUsersResult.error);
+        setAssigneeLoadError('לא ניתן לטעון רשימת מטפלים');
+      } else {
+        assignableUsers = assignableUsersResult.data ?? [];
+      }
 
-      // Lookup assignee display names; falls back to null if RLS blocks access
+      const raw = requestData ?? [];
       const assignableById = new Map(assignableUsers.map(user => [user.id, user]));
       const assigneeIds = [...new Set(raw.filter(r => r.assigned_to).map(r => r.assigned_to as string))];
       const eventIds = [...new Set(raw.map(request => request.event_id).filter((id): id is string => Boolean(id)))];
+      const missingAssigneeIds = assigneeIds.filter(id => !assignableById.has(id));
+      const assignableUnitIds = [
+        ...new Set(assignableUsers.map(user => user.unit_id).filter((id): id is string => Boolean(id))),
+      ];
+
+      // Round 2: keyed off round-1 results, but independent of each other — parallelize.
+      const [{ data: assignableUnitsData }, { data: assigneeData }, { data: eventsData }] = await Promise.all([
+        assignableUnitIds.length > 0
+          ? supabase.from('units').select('id,name').in('id', assignableUnitIds).returns<Array<{ id: string; name: string }>>()
+          : Promise.resolve({ data: [] as Array<{ id: string; name: string }> }),
+        missingAssigneeIds.length > 0
+          ? supabase.from('users').select('id,name,email,role').in('id', missingAssigneeIds).returns<Array<Pick<AssigneeUser, 'id' | 'name' | 'email' | 'role'>>>()
+          : Promise.resolve({ data: [] as Array<Pick<AssigneeUser, 'id' | 'name' | 'email' | 'role'>> }),
+        eventIds.length > 0
+          ? supabase.from('events').select('id,title,starts_at,ends_at').in('id', eventIds).returns<Array<Pick<EventOption, 'id' | 'title' | 'starts_at' | 'ends_at'>>>()
+          : Promise.resolve({ data: [] as Array<Pick<EventOption, 'id' | 'title' | 'starts_at' | 'ends_at'>> }),
+      ]);
+
+      const assignableUnitNames = Object.fromEntries((assignableUnitsData ?? []).map(unit => [unit.id, unit.name]));
+      assignableUsers = assignableUsers.map(user => ({
+        ...user,
+        units: user.unit_id && assignableUnitNames[user.unit_id] ? { name: assignableUnitNames[user.unit_id] } : null,
+      }));
+      setAssigneeUsers(assignableUsers);
+
       const assigneeNames: Record<string, { name: string; role: string | null }> = {};
       for (const user of assignableUsers) {
         assigneeNames[user.id] = { name: getAssigneeDisplayName(user), role: user.role };
       }
-      const missingAssigneeIds = assigneeIds.filter(id => !assignableById.has(id));
-      if (missingAssigneeIds.length > 0) {
-        const { data: assigneeData } = await supabase
-          .from('users')
-          .select('id,name,email,role')
-          .in('id', missingAssigneeIds)
-          .returns<Array<Pick<AssigneeUser, 'id' | 'name' | 'email' | 'role'>>>();
-        if (assigneeData) {
-          for (const u of assigneeData) assigneeNames[u.id] = { name: getAssigneeDisplayName(u), role: u.role };
-        }
+      for (const u of assigneeData ?? []) {
+        assigneeNames[u.id] = { name: getAssigneeDisplayName(u), role: u.role };
       }
 
       const eventDetails: Record<string, { title: string; timeLabel: string | null }> = {};
-      if (eventIds.length > 0) {
-        const { data: eventsData } = await supabase
-          .from('events')
-          .select('id,title,starts_at,ends_at')
-          .in('id', eventIds)
-          .returns<Array<Pick<EventOption, 'id' | 'title' | 'starts_at' | 'ends_at'>>>();
-
-        for (const event of eventsData ?? []) {
-          eventDetails[event.id] = {
-            title: event.title,
-            timeLabel: formatEventTimeLabel(event.starts_at, event.ends_at ?? null),
-          };
-        }
+      for (const event of eventsData ?? []) {
+        eventDetails[event.id] = {
+          title: event.title,
+          timeLabel: formatEventTimeLabel(event.starts_at, event.ends_at ?? null),
+        };
       }
-
-      const { data: visibleEvents, error: eventsError } = await supabase
-        .from('events')
-        .select('id,title,starts_at,ends_at,status')
-        .in('status', ['scheduled', 'in_progress'])
-        .order('starts_at', { ascending: true })
-        .returns<EventOption[]>();
 
       if (eventsError) {
         logSupabaseError('Request event options load failed', eventsError);
@@ -489,10 +474,19 @@ export default function RequestsPage() {
     return counts;
   }, [visibleRequests, dbProfile?.id]);
 
-  const openCount = visibleRequests.filter(r => r.status === 'open').length;
-  const inProgressCount = visibleRequests.filter(r => r.status === 'in_progress').length;
-  const urgentCount = visibleRequests.filter(r => getRequestPriority(r) === 'דחופה').length;
-  const completedCount = visibleRequests.filter(r => r.status === 'completed').length;
+  const { openCount, inProgressCount, urgentCount, completedCount } = useMemo(() => {
+    let open = 0;
+    let inProgress = 0;
+    let urgent = 0;
+    let completed = 0;
+    for (const r of visibleRequests) {
+      if (r.status === 'open') open += 1;
+      if (r.status === 'in_progress') inProgress += 1;
+      if (r.status === 'completed') completed += 1;
+      if (getRequestPriority(r) === 'דחופה') urgent += 1;
+    }
+    return { openCount: open, inProgressCount: inProgress, urgentCount: urgent, completedCount: completed };
+  }, [visibleRequests]);
 
   const resetForm = () => {
     setTitle('');
@@ -1375,6 +1369,7 @@ export default function RequestsPage() {
                           placeholder="כתוב עדכון טיפול..."
                           disabled={isRequestWritePending}
                         />
+                        <FieldPrivacyHint />
                         <div className="flex justify-end">
                           <GlossyButton
                             type="button"

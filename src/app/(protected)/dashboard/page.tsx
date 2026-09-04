@@ -686,6 +686,19 @@ export default function DashboardPage() {
     () => buildCommandBrief(dashboardData, attentionItems, todayEvents),
     [dashboardData, attentionItems, todayEvents],
   );
+  const { taskCountByEventId, requestCountByEventId } = useMemo(() => {
+    const taskCounts = new Map<string, number>();
+    for (const task of dashboardData.tasks) {
+      if (!task.event_id) continue;
+      taskCounts.set(task.event_id, (taskCounts.get(task.event_id) ?? 0) + 1);
+    }
+    const requestCounts = new Map<string, number>();
+    for (const request of dashboardData.requests) {
+      if (!request.event_id) continue;
+      requestCounts.set(request.event_id, (requestCounts.get(request.event_id) ?? 0) + 1);
+    }
+    return { taskCountByEventId: taskCounts, requestCountByEventId: requestCounts };
+  }, [dashboardData.tasks, dashboardData.requests]);
 
   const resetQuickForms = () => {
     setRequestForm(defaultRequestForm);
@@ -1031,8 +1044,8 @@ export default function DashboardPage() {
                 <TodayEventCard
                   key={event.id}
                   event={event}
-                  taskCount={dashboardData.tasks.filter(task => task.event_id === event.id).length}
-                  requestCount={dashboardData.requests.filter(request => request.event_id === event.id).length}
+                  taskCount={taskCountByEventId.get(event.id) ?? 0}
+                  requestCount={requestCountByEventId.get(event.id) ?? 0}
                 />
               ))}
             </div>

@@ -78,7 +78,7 @@ export async function fetchCurrentProfile(): Promise<CurrentProfileResult> {
 
     const { data: dbUser, error: dbError } = await supabase
       .from('users')
-      .select('*')
+      .select('id,auth_user_id,email,name,role,unit_id,permission_level,has_completed_onboarding,role_approval_status,status,created_at')
       .eq('auth_user_id', user.id)
       .maybeSingle<DbUserProfile>();
 

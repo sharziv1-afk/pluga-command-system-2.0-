@@ -9,6 +9,7 @@ import {
   Plus,
   Table2,
   Trash2,
+  Search,
   UserPlus,
   UsersRound,
   X,
@@ -22,7 +23,7 @@ import { createAuditLog } from '@/lib/audit';
 import { useApp } from '@/lib/context/AppContext';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
-import type { DbSoldier, DbTrackingItem, DbTrackingRecord, TrackingStatus } from '@/lib/types';
+import type { DbSoldier, DbTrackingItem, DbTrackingRecord, DbTrackingWeek, TrackingStatus } from '@/lib/types';
 
 type DbUnit = {
   id: string;
@@ -45,6 +46,7 @@ type ItemFormState = {
   title: string;
   category: string;
   subject: string;
+  weekId: string;
   description: string;
   sortOrder: string;
 };
@@ -89,6 +91,7 @@ const initialItemForm: ItemFormState = {
   title: '',
   category: 'כשירות',
   subject: '',
+  weekId: '',
   description: '',
   sortOrder: '0',
 };
@@ -167,6 +170,10 @@ export default function TrackingPage() {
   const [items, setItems] = useState<DbTrackingItem[]>([]);
   const [records, setRecords] = useState<DbTrackingRecord[]>([]);
   const [units, setUnits] = useState<DbUnit[]>([]);
+  const [weeks, setWeeks] = useState<DbTrackingWeek[]>([]);
+  const [selectedWeekId, setSelectedWeekId] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [searchText, setSearchText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSoldierFormOpen, setIsSoldierFormOpen] = useState(false);
   const [isItemFormOpen, setIsItemFormOpen] = useState(false);
@@ -194,7 +201,7 @@ export default function TrackingPage() {
     setErrorMessage(null);
 
     try {
-      const [soldiersResult, itemsResult, recordsResult, unitsResult] = await withTimeout(
+      const [soldiersResult, itemsResult, recordsResult, unitsResult, weeksResult] = await withTimeout(
         Promise.all([
           supabase
             .from('soldiers')
@@ -204,7 +211,7 @@ export default function TrackingPage() {
             .returns<DbSoldier[]>(),
           supabase
             .from('tracking_items')
-            .select('id,title,category,subject,description,sort_order,is_active,metadata,created_by,updated_by,created_at,updated_at')
+            .select('id,title,category,subject,week_id,description,sort_order,is_active,metadata,created_by,updated_by,created_at,updated_at')
             .eq('is_active', true)
             .order('sort_order', { ascending: true })
             .order('title', { ascending: true })
@@ -219,18 +226,25 @@ export default function TrackingPage() {
             .select('id,name,code,parent_unit_id,created_at')
             .order('created_at', { ascending: true })
             .returns<DbUnit[]>(),
+          supabase
+            .from('tracking_weeks')
+            .select('id,title,description,start_date,end_date,sort_order,is_active,created_by,created_at,updated_at')
+            .eq('is_active', true)
+            .order('sort_order', { ascending: true })
+            .returns<DbTrackingWeek[]>(),
         ]),
         15000,
         'tracking data',
       );
 
-      const firstError = soldiersResult.error ?? itemsResult.error ?? recordsResult.error ?? unitsResult.error;
+      const firstError = soldiersResult.error ?? itemsResult.error ?? recordsResult.error ?? unitsResult.error ?? weeksResult.error;
       if (firstError) {
         logSupabaseError('[tracking] failed to load tracking data', firstError, {
           soldiers: Boolean(soldiersResult.error),
           items: Boolean(itemsResult.error),
           records: Boolean(recordsResult.error),
           units: Boolean(unitsResult.error),
+          weeks: Boolean(weeksResult.error),
         });
         setErrorMessage('לא ניתן לטעון את נתוני המעקב כרגע.');
       }
@@ -239,6 +253,7 @@ export default function TrackingPage() {
       setItems(itemsResult.data ?? []);
       setRecords(recordsResult.data ?? []);
       setUnits(unitsResult.data ?? []);
+      setWeeks(weeksResult.data ?? []);
     } catch (error) {
       logSupabaseError('[tracking] tracking data load timed out', error);
       setErrorMessage('לא ניתן לטעון את נתוני המעקב כרגע.');
@@ -254,6 +269,35 @@ export default function TrackingPage() {
   const unitNameById = useMemo(() => {
     return new Map(units.map(unit => [unit.id, unit.name]));
   }, [units]);
+
+  // Categories to filter by come from what items actually have, not the fixed
+  // preset list offered when creating one — real data can (and already does)
+  // use a value outside that preset.
+  const availableCategories = useMemo(
+    () => [...new Set(items.map(item => item.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'he')),
+    [items],
+  );
+
+  const visibleItems = useMemo(() => {
+    return items.filter(item => {
+      if (selectedWeekId !== 'all' && item.week_id !== selectedWeekId) return false;
+      if (categoryFilter !== 'all' && item.category !== categoryFilter) return false;
+      return true;
+    });
+  }, [items, selectedWeekId, categoryFilter]);
+
+  const visibleSoldiers = useMemo(() => {
+    const query = searchText.trim().toLowerCase();
+    if (!query) return soldiers;
+    return soldiers.filter(soldier => {
+      const unitName = unitNameById.get(soldier.unit_id) ?? '';
+      const haystack = [soldier.full_name, unitName, soldier.squad_label, soldier.role_label]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [soldiers, searchText, unitNameById]);
 
   const recordByCell = useMemo(() => {
     const soldierIds = new Set(soldiers.map(soldier => soldier.id));
@@ -420,6 +464,7 @@ export default function TrackingPage() {
       title: cleanTitle,
       category: cleanCategory,
       subject: itemForm.subject.trim() || null,
+      week_id: itemForm.weekId || null,
       description: itemForm.description.trim() || null,
       sort_order: Number.isFinite(parsedSortOrder) ? parsedSortOrder : 0,
       created_by: currentUserId,
@@ -987,6 +1032,21 @@ export default function TrackingPage() {
             </label>
 
             <label className="block space-y-2">
+              <span className="block text-xs font-black text-[#344054]">שבוע מעקב</span>
+              <select
+                value={itemForm.weekId}
+                onChange={event => setItemForm(value => ({ ...value, weekId: event.target.value }))}
+                className="command-select"
+                disabled={isItemSubmitting}
+              >
+                <option value="">ללא שיוך לשבוע</option>
+                {weeks.map(week => (
+                  <option key={week.id} value={week.id}>{week.title}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block space-y-2">
               <span className="block text-xs font-black text-[#344054]">סדר תצוגה</span>
               <input
                 type="number"
@@ -1083,15 +1143,80 @@ export default function TrackingPage() {
             </div>
           </div>
 
+          {weeks.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedWeekId('all')}
+                className={`min-h-9 rounded-full border px-3.5 py-1.5 text-xs font-black transition ${selectedWeekId === 'all' ? 'border-[#FF6B02] bg-[#FF6B02] text-white shadow-[0_6px_16px_rgba(255,107,2,0.22)]' : 'border-[rgba(2,1,8,0.08)] bg-white/70 text-[#667085] hover:border-[#FF6B02]/30'}`}
+              >
+                כל השבועות
+              </button>
+              {weeks.map(week => (
+                <button
+                  key={week.id}
+                  type="button"
+                  onClick={() => setSelectedWeekId(week.id)}
+                  title={week.description ?? undefined}
+                  className={`min-h-9 rounded-full border px-3.5 py-1.5 text-xs font-black transition ${selectedWeekId === week.id ? 'border-[#FF6B02] bg-[#FF6B02] text-white shadow-[0_6px_16px_rgba(255,107,2,0.22)]' : 'border-[rgba(2,1,8,0.08)] bg-white/70 text-[#667085] hover:border-[#FF6B02]/30'}`}
+                >
+                  {week.title}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {selectedWeekId !== 'all' && (() => {
+            const week = weeks.find(w => w.id === selectedWeekId);
+            if (!week?.description) return null;
+            return (
+              <p className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--surface-muted)] px-3.5 py-2.5 text-xs font-semibold leading-relaxed text-[#667085]">
+                {week.description}
+              </p>
+            );
+          })()}
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
+              <input
+                type="text"
+                value={searchText}
+                onChange={event => setSearchText(event.target.value)}
+                placeholder="חיפוש חייל, מחלקה או כיתה…"
+                className="command-input pr-10"
+              />
+            </div>
+            {availableCategories.length > 0 && (
+              <select
+                value={categoryFilter}
+                onChange={event => setCategoryFilter(event.target.value)}
+                className="command-select min-h-11 w-full sm:w-52"
+              >
+                <option value="all">כל הקטגוריות</option>
+                {availableCategories.map(category => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {(visibleItems.length === 0 || visibleSoldiers.length === 0) ? (
+            <EmptyState
+              icon={Search}
+              title="אין תוצאות לסינון הנוכחי"
+              description="נסה לשנות את השבוע, הקטגוריה או מילת החיפוש."
+            />
+          ) : (
           <div className="max-w-full overflow-x-auto pb-2">
             <table
               className="border-separate border-spacing-y-2 text-right text-sm"
-              style={{ minWidth: `${Math.max(760, 280 + items.length * 176)}px` }}
+              style={{ minWidth: `${Math.max(760, 280 + visibleItems.length * 176)}px` }}
             >
               <thead className="text-xs font-black text-[#667085]">
                 <tr>
                   <th className="sticky right-0 z-20 w-64 bg-white/95 px-3 py-2 backdrop-blur-xl">חייל</th>
-                  {items.map((item) => (
+                  {visibleItems.map((item) => (
                     <th key={item.id} className="w-44 px-3 py-2 align-bottom">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
@@ -1118,7 +1243,7 @@ export default function TrackingPage() {
                 </tr>
               </thead>
               <tbody>
-                {soldiers.map((soldier) => (
+                {visibleSoldiers.map((soldier) => (
                   <tr key={soldier.id} className="bg-white/64 shadow-[0_8px_18px_rgba(2,1,8,0.04)]">
                     <td className="sticky right-0 z-10 rounded-r-xl bg-white/95 px-3 py-3 font-black text-[#020108] backdrop-blur-xl">
                       <div className="flex items-start justify-between gap-2">
@@ -1147,7 +1272,7 @@ export default function TrackingPage() {
                         </button>
                       </div>
                     </td>
-                    {items.map((item, itemIndex) => {
+                    {visibleItems.map((item, itemIndex) => {
                       const record = recordByCell.get(`${soldier.id}:${item.id}`);
                       const status = record?.status ?? 'empty';
                       const cellKey = `${soldier.id}:${item.id}`;
@@ -1156,7 +1281,7 @@ export default function TrackingPage() {
                       return (
                         <td
                           key={item.id}
-                          className={`px-3 py-3 text-xs font-black ${itemIndex === items.length - 1 ? 'rounded-l-xl' : ''}`}
+                          className={`px-3 py-3 text-xs font-black ${itemIndex === visibleItems.length - 1 ? 'rounded-l-xl' : ''}`}
                         >
                           <button
                             type="button"
@@ -1176,6 +1301,7 @@ export default function TrackingPage() {
               </tbody>
             </table>
           </div>
+          )}
         </GlassCard>
       )}
     </div>

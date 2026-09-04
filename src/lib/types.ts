@@ -94,12 +94,26 @@ export interface DbSoldier {
   updated_at: string;
 }
 
+export interface DbTrackingWeek {
+  id: string;
+  title: string;
+  description: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  sort_order: number;
+  is_active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface DbTrackingItem {
   id: string;
   title: string;
   description: string | null;
   category: string;
   subject: string | null;
+  week_id: string | null;
   sort_order: number;
   is_active: boolean;
   metadata: Record<string, unknown>;

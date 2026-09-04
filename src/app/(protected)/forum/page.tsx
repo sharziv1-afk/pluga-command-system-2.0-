@@ -1626,6 +1626,14 @@ export default function ForumPage() {
         whatsapp_text: selectedNode.level === 'company' ? generateWhatsappText('detailed') : selectedReport.whatsapp_text,
       };
 
+      const contentChanges: Record<string, { base: unknown; next: unknown }> = {};
+      for (const field of reportDraftFields) {
+        contentChanges[field] = {
+          base: (selectedReport.content as Record<string, unknown>)[field],
+          next: (draftToSave as Record<string, unknown>)[field],
+        };
+      }
+
       let writeResult: HierarchyWriteResult;
       try {
         writeResult = await writeWithHierarchyResolution({
@@ -1633,7 +1641,15 @@ export default function ForumPage() {
           table: 'forum_daily_reports',
           id: selectedReport.id,
           baseUpdatedAt: selectedReport.updated_at,
-          payload: updatePayload,
+          changes: contentChanges,
+          selectColumns: 'content,updated_by',
+          extractFields: (row) => (row.content as Record<string, unknown>) ?? {},
+          buildPayload: (fields) => ({
+            content: { ...selectedReport.content, ...fields },
+            status: updatePayload.status,
+            summary_text: updatePayload.summary_text,
+            whatsapp_text: updatePayload.whatsapp_text,
+          }),
           currentUserId: dbProfile.id,
           currentPermissionLevel: dbProfile.permission_level,
         });
@@ -1644,10 +1660,8 @@ export default function ForumPage() {
         return;
       }
 
-      if (writeResult.status === 'blocked') {
-        setDailyError(`הדוח עודכן בינתיים על ידי ${writeResult.editorName} (${writeResult.editorRole}). רענן ונסה שוב.`);
-        recordDailyDraftSave(draftToSave, false);
-        return;
+      if (writeResult.status === 'merged' && writeResult.overriddenFields.length > 0) {
+        setDailyError(`חלק מהשדות (${writeResult.overriddenFields.join(', ')}) עודכנו במקביל על ידי מפקד/ת בכיר/ה יותר ולא נשמרו מהעריכה שלך — שאר השינויים נשמרו.`);
       }
 
       void createAuditLog(supabase, {
@@ -1665,7 +1679,9 @@ export default function ForumPage() {
       });
 
       recordDailyDraftSave(draftToSave, true);
-      setDailySuccess('הדיווח נשמר');
+      if (writeResult.status !== 'merged' || writeResult.overriddenFields.length === 0) {
+        setDailySuccess('הדיווח נשמר');
+      }
       try {
         await loadDailyReports(selectedDate);
       } catch (refreshError) {
@@ -2131,6 +2147,14 @@ export default function ForumPage() {
 
     if (companyReport) {
       const nextContent = { ...companyReport.content, ...patch };
+      const patchChanges: Record<string, { base: unknown; next: unknown }> = {};
+      for (const key of Object.keys(patch)) {
+        patchChanges[key] = {
+          base: (companyReport.content as Record<string, unknown>)[key],
+          next: (patch as Record<string, unknown>)[key],
+        };
+      }
+
       let writeResult: HierarchyWriteResult;
       try {
         writeResult = await writeWithHierarchyResolution({
@@ -2138,7 +2162,10 @@ export default function ForumPage() {
           table: 'forum_daily_reports',
           id: companyReport.id,
           baseUpdatedAt: companyReport.updated_at,
-          payload: { content: nextContent },
+          changes: patchChanges,
+          selectColumns: 'content,updated_by',
+          extractFields: (row) => (row.content as Record<string, unknown>) ?? {},
+          buildPayload: (fields) => ({ content: { ...companyReport.content, ...fields } }),
           currentUserId: dbProfile.id,
           currentPermissionLevel: dbProfile.permission_level,
         });
@@ -2147,9 +2174,8 @@ export default function ForumPage() {
         setDailyError('לא ניתן לשמור את הדוח הפלוגתי כרגע. בדוק הרשאות או נסה שוב.');
         return null;
       }
-      if (writeResult.status === 'blocked') {
-        setDailyError(`הדוח הפלוגתי עודכן בינתיים על ידי ${writeResult.editorName} (${writeResult.editorRole}). רענן ונסה שוב.`);
-        return null;
+      if (writeResult.status === 'merged' && writeResult.overriddenFields.length > 0) {
+        setDailyError(`חלק מהשדות (${writeResult.overriddenFields.join(', ')}) בדוח הפלוגתי עודכנו במקביל על ידי מפקד/ת בכיר/ה יותר ולא נשמרו — שאר השינויים נשמרו.`);
       }
       void createAuditLog(supabase, {
         userId: dbProfile.id,

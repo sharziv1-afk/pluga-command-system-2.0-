@@ -607,19 +607,31 @@ export default function TasksPage() {
     setSuccess(null);
 
     try {
+    const changes: Record<string, { base: unknown; next: unknown }> = {
+      title: { base: editingTask.title, next: nextValues.title },
+      description: { base: editingTask.description, next: nextValues.description },
+      priority: { base: editingTask.priority, next: nextValues.priority },
+      assigned_to: { base: editingTask.assigned_to, next: nextValues.assigned_to },
+      due_at: { base: editingTask.due_at, next: nextValues.due_at },
+      event_id: { base: editingTask.event_id, next: nextValues.event_id },
+      metadata: { base: editingTask.metadata, next: nextValues.metadata },
+    };
+
     const writeResult = await writeWithHierarchyResolution({
       supabase,
       table: 'tasks',
       id: editingTask.id,
       baseUpdatedAt: editingTask.updated_at,
-      payload: nextValues,
+      changes,
+      selectColumns: 'title,description,priority,assigned_to,due_at,event_id,metadata,updated_by',
+      extractFields: (row) => row,
+      buildPayload: (fields) => fields,
       currentUserId: dbProfile.id,
       currentPermissionLevel: dbProfile.permission_level,
     });
 
-    if (writeResult.status === 'blocked') {
-      setError(`המשימה עודכנה בינתיים על ידי ${writeResult.editorName} (${writeResult.editorRole}). רענן ונסה שוב.`);
-      return;
+    if (writeResult.status === 'merged' && writeResult.overriddenFields.length > 0) {
+      setError(`השדות שהשתנו במקביל על ידי מפקד/ת בכיר/ה יותר (${writeResult.overriddenFields.join(', ')}) לא נשמרו מהעריכה שלך — שאר השינויים נשמרו.`);
     }
 
     void createAuditLog(supabase, {
@@ -654,7 +666,9 @@ export default function TasksPage() {
     });
 
     setEditingTask(null);
-    setSuccess('המשימה עודכנה.');
+    if (writeResult.status !== 'merged' || writeResult.overriddenFields.length === 0) {
+      setSuccess('המשימה עודכנה.');
+    }
     await loadTasks();
     } catch (updateError) {
       logSupabaseError('Task edit failed unexpectedly', updateError);

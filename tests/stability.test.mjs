@@ -10,6 +10,7 @@ import {
   normalizeRole,
 } from '../src/lib/permissions.ts';
 import { getScheduleDisplayStatus } from '../src/lib/schedule.ts';
+import { resolveFieldConflicts } from '../src/lib/concurrency/hierarchyWrite.ts';
 import {
   canMutateDailyDraft,
   canTransitionDraft,
@@ -235,6 +236,54 @@ test('forum daily mutations require the exact hydrated node scope', () => {
   assert.equal(selectedNodeId, 'report-2');
 });
 
+test('field-level conflict resolution only escalates fields both sides actually changed', () => {
+  const commander = 100; // מ"פ
+  const squadLeader = 50; // מ"כ
+
+  // Two different fields on the same record — no real collision, both apply.
+  const noOverlap = resolveFieldConflicts(
+    {
+      commander_closing: { base: 'x', next: 'commander wrote this' },
+    },
+    { commander_closing: 'x', personal_note: 'squad leader wrote this already saved by them' },
+    commander,
+    squadLeader,
+  );
+  assert.deepEqual(noOverlap.merged, { commander_closing: 'commander wrote this' });
+  assert.deepEqual(noOverlap.overriddenFields, []);
+
+  // Same field, genuinely different new values from both sides — the higher
+  // rank wins, and the loser is named so the UI can say so.
+  const realConflict = resolveFieldConflicts(
+    { commander_closing: { base: 'x', next: 'squad leader edit' } },
+    { commander_closing: 'commander already changed this' },
+    squadLeader,
+    commander,
+  );
+  assert.deepEqual(realConflict.merged, { commander_closing: 'commander already changed this' });
+  assert.deepEqual(realConflict.overriddenFields, ['commander_closing']);
+
+  // The higher-ranked side always keeps its own value on a real conflict.
+  const higherRankWins = resolveFieldConflicts(
+    { commander_closing: { base: 'x', next: 'commander edit' } },
+    { commander_closing: 'squad leader already changed this' },
+    commander,
+    squadLeader,
+  );
+  assert.deepEqual(higherRankWins.merged, { commander_closing: 'commander edit' });
+  assert.deepEqual(higherRankWins.overriddenFields, []);
+
+  // Someone else already saved the exact value I'm saving — not a conflict.
+  const sameValue = resolveFieldConflicts(
+    { commander_closing: { base: 'x', next: 'y' } },
+    { commander_closing: 'y' },
+    squadLeader,
+    commander,
+  );
+  assert.deepEqual(sameValue.merged, { commander_closing: 'y' });
+  assert.deepEqual(sameValue.overriddenFields, []);
+});
+
 test('forum daily mutations only succeed when the expected row was returned', () => {
   assert.equal(didPersistDailyReport({ id: 'report-1' }, 'report-1'), true);
   assert.equal(didPersistDailyReport(null, 'report-1'), false);
@@ -251,15 +300,16 @@ test('forum daily mutations only succeed when the expected row was returned', ()
   // saveSelectedReport and persistCompanyReportContent are the two highest
   // write-conflict-risk paths (whole-object overwrite / merged patch onto a
   // possibly stale base) — both route through writeWithHierarchyResolution,
-  // which guards on updated_at and falls back to role-hierarchy on conflict
-  // instead of plain last-write-wins.
+  // which diffs field-by-field: only a field BOTH sides actually changed
+  // falls back to role hierarchy, everything else merges automatically.
   for (const [startMarker, endMarker] of [
     ['const saveSelectedReport', 'const submitSelectedReport'],
     ['const persistCompanyReportContent', 'const applyCompanyAggregation'],
   ]) {
     const flow = source.slice(source.indexOf(startMarker), source.indexOf(endMarker));
     assert.match(flow, /writeWithHierarchyResolution\(/);
-    assert.match(flow, /status === 'blocked'/);
+    assert.match(flow, /status === 'merged'/);
+    assert.match(flow, /overriddenFields/);
   }
 
   const createFlow = source.slice(source.indexOf('const createOrOpenOwnReport'), source.indexOf('const saveSelectedReport'));

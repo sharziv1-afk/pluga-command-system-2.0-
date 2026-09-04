@@ -1,13 +1,30 @@
-import React from 'react';
-import { CheckCircle2, Code2, Database } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { WifiOff, Database, Code2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export const SystemStatusPanel: React.FC<{ className?: string }> = ({ className }) => {
-  const items = [
-    { label: 'מצב מערכת: תקין', icon: CheckCircle2 },
-    { label: 'חיבור לנתונים פעיל', icon: Database },
-    { label: 'גרסה פעילה', icon: Code2 },
-  ];
+  // ponytail: navigator.onLine can lie on some networks, but a reactive read
+  // beats the hardcoded-green status this replaced.
+  const [isOnline, setIsOnline] = useState(true);
+
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+    const onOnline = () => setIsOnline(true);
+    const onOffline = () => setIsOnline(false);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, []);
+
+  const items = isOnline
+    ? [
+        { label: 'חיבור לרשת פעיל', icon: Database, color: 'text-[#FF6B02]' },
+        { label: 'גרסה פעילה', icon: Code2, color: 'text-[#FF6B02]' },
+      ]
+    : [{ label: 'אין חיבור לרשת — נתונים שמורים מהמכשיר', icon: WifiOff, color: 'text-[var(--color-warning)]' }];
 
   return (
     <div className={cn('rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/58 p-3 command-soft-panel', className)}>
@@ -17,7 +34,7 @@ export const SystemStatusPanel: React.FC<{ className?: string }> = ({ className 
 
           return (
             <div key={item.label} className="flex items-center gap-2 text-[11px] font-bold text-[#667085]">
-              <Icon className="h-3.5 w-3.5 text-[#FF6B02]" />
+              <Icon className={cn('h-3.5 w-3.5', item.color)} />
               <span>{item.label}</span>
             </div>
           );

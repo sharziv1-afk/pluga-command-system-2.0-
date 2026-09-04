@@ -7,6 +7,13 @@ export function hasAdminAccess(role: string | null | undefined): boolean {
   return normalizedRole === 'מ"פ' || normalizedRole === 'סמ"פ';
 }
 
+/** Stricter than hasAdminAccess — מ"פ only, not סמ"פ. For tools that are the
+ * commander's personal instrument (e.g. the מ"מ/סמ"פ mentoring log), where
+ * even the deputy shouldn't see notes written about him or his peers. */
+export function isCompanyCommander(role: string | null | undefined): boolean {
+  return normalizeRole(role) === 'מ"פ';
+}
+
 export function getPermissionLevelForRole(role: string | null | undefined): number {
   const normalizedRole = normalizeRole(role);
 

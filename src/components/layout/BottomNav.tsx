@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { LogOut, MoreHorizontal } from 'lucide-react';
 import { bottomNavSplit } from '@/data/navigation';
-import { hasAdminAccess } from '@/lib/permissions';
+import { hasAdminAccess, isCompanyCommander } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/lib/context/AppContext';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
@@ -21,7 +21,10 @@ export const BottomNav: React.FC = () => {
   const { currentUser } = useApp();
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const { primary, more } = bottomNavSplit(hasAdminAccess(currentUser?.role as string | undefined));
+  const { primary, more } = bottomNavSplit(
+    hasAdminAccess(currentUser?.role as string | undefined),
+    isCompanyCommander(currentUser?.role as string | undefined),
+  );
   const moreActive = more.some((item) => isActivePath(pathname, item.path));
 
   const handleSignOut = async () => {

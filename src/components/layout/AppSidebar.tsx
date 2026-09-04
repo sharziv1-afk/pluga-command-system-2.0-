@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { LogOut, PanelRightClose, PanelRightOpen, Shield, User } from 'lucide-react';
 import { visibleNavItems } from '@/data/navigation';
-import { hasAdminAccess } from '@/lib/permissions';
+import { hasAdminAccess, isCompanyCommander } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 import { QuickHelp } from '@/components/layout/QuickHelp';
 import { SystemStatusPanel } from '@/components/layout/SystemStatusPanel';
@@ -54,7 +54,10 @@ export const AppSidebar: React.FC<{ className?: string }> = ({ className }) => {
     router.refresh();
   };
 
-  const items = visibleNavItems(hasAdminAccess(currentUser?.role as string | undefined));
+  const items = visibleNavItems(
+    hasAdminAccess(currentUser?.role as string | undefined),
+    isCompanyCommander(currentUser?.role as string | undefined),
+  );
 
   // Label/text visibility: hidden in rail (md, or lg-collapsed); shown in full (lg + !collapsed).
   const labelCls = collapsed ? 'hidden' : 'hidden lg:inline';

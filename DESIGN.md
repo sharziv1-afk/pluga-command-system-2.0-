@@ -289,7 +289,20 @@ Adding a status means adding it there, not adding a branch somewhere.
 The DB codes are deliberately untouched. Labels are presentation; renaming
 stored values is a data migration against live company data.
 
-### 3.5 Status color always carries a second signal
+### 3.5 On phones every dialog is a bottom sheet
+
+Under 640px `.command-dialog` takes the same bottom-anchored geometry as
+`.command-sheet`. A centred box puts a long create/edit form's controls in
+the middle of the screen, which is the hardest place to reach one-handed —
+and one-handed is how this app is actually used. Anchored to the bottom, the
+last fields and the footer buttons sit under the thumb.
+
+The rule is placed after `.command-dialog-wide` on purpose: media queries add
+no specificity, so source order is what lets it override that width.
+
+Above 640px nothing changes — a centred dialog, full corner rounding.
+
+### 3.6 Status color always carries a second signal
 
 `StatusBadge` and any status-colored UI never relies on hue alone (color
 blindness, and required for high-contrast mode per §1.4) — pair color with
@@ -403,6 +416,12 @@ same element wins, which is what a call site expects.
   They sit inside `canTransitionDraft`'s synchronous control flow, which is
   covered by tests; converting them is a behavioural change, not a styling
   one.
+- iOS `apple-touch-startup-image` splash screens. Deliberately skipped:
+  iOS 16.4+ generates a launch screen from the manifest's
+  `background_color`, icon and name, all of which are now set correctly.
+  The alternative is ~14 device-sized PNGs that must be regenerated
+  whenever the icon changes, for the benefit of iOS versions this app does
+  not target.
 - Two `<h1>` per page: the sidebar brand wordmark and the page title both
   use `<h1>`. Fixing it means changing heading semantics, which affects
   screen-reader navigation, so it wants a deliberate decision rather than a

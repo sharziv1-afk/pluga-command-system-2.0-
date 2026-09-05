@@ -372,7 +372,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={backToEmail}
-                className="flex min-h-10 w-full items-center justify-center rounded-2xl text-xs font-semibold text-[var(--text-muted-accessible)] transition-colors hover:text-[var(--brand)]"
+                className="touch-target flex min-h-10 w-full items-center justify-center rounded-2xl text-xs font-semibold text-[var(--text-muted-accessible)] transition-colors hover:text-[var(--brand)]"
               >
                 שנה כתובת מייל / שלח שוב
               </button>

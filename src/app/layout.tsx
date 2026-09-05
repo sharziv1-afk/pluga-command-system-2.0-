@@ -20,11 +20,32 @@ export const metadata: Metadata = {
   title: 'המפקד - מערכת פיקוד פלוגתית טקטית',
   description: 'מערכת פיקוד ובקרה פלוגתית מתקדמת (Pluga Command System) המרכזת משימות, פערים, לוגיסטיקה, לו״ז וסד״כ בזמן אמת.',
   manifest: '/manifest.json',
-  icons: { icon: '/icon.svg' },
+  // iOS ignores SVG icons entirely: without a PNG apple-touch-icon,
+  // "Add to Home Screen" uses a screenshot of the page as the icon.
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+  },
+  appleWebApp: {
+    capable: true,
+    title: 'המפקד',
+    // Paired with viewportFit: 'cover', this is what makes the status bar
+    // area take the app's own background instead of rendering a white band.
+    statusBarStyle: 'black-translucent',
+  },
 };
 
 export const viewport = {
   themeColor: '#FF6B02',
+  // Without viewportFit the safe-area insets resolve to 0 on iPhone, which
+  // made globals.css's .safe-bottom-nav a no-op and left the bottom nav
+  // sitting under the home indicator. Setting it lets the page paint into
+  // the notch/indicator areas, and the env() padding then does its job.
+  viewportFit: 'cover' as const,
 };
 
 export default function RootLayout({

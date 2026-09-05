@@ -95,7 +95,7 @@ export default function PendingApprovalPage() {
 
             <Link
               href="/login"
-              className="flex min-h-10 items-center justify-center gap-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] text-xs font-semibold text-[var(--text-muted-accessible)] transition hover:border-[var(--color-danger)]/25 hover:bg-[var(--color-danger)]/10 hover:text-[var(--color-danger)]"
+              className="touch-target flex min-h-10 items-center justify-center gap-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] text-xs font-semibold text-[var(--text-muted-accessible)] transition hover:border-[var(--color-danger)]/25 hover:bg-[var(--color-danger)]/10 hover:text-[var(--color-danger)]"
             >
               <LogOut className="h-3.5 w-3.5" />
               <span>התנתקות מהמערכת</span>

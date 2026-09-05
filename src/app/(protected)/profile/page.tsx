@@ -106,7 +106,7 @@ function DeviceAccessCodeCard() {
             <button
               type="button"
               onClick={() => { setIsEditing(true); setSuccess(null); }}
-              className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[var(--action)] px-4 text-xs font-semibold text-white transition hover:bg-[var(--action-hover)]"
+              className="touch-target inline-flex min-h-10 items-center justify-center rounded-xl bg-[var(--action)] px-4 text-xs font-semibold text-white transition hover:bg-[var(--action-hover)]"
             >
               {hasPin ? 'שינוי קוד גישה' : 'הגדרת קוד גישה'}
             </button>
@@ -114,7 +114,7 @@ function DeviceAccessCodeCard() {
               <button
                 type="button"
                 onClick={handleRemove}
-                className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 px-4 text-xs font-semibold text-[var(--color-danger)] transition hover:bg-[var(--color-danger)]/10"
+                className="touch-target inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 px-4 text-xs font-semibold text-[var(--color-danger)] transition hover:bg-[var(--color-danger)]/10"
               >
                 <Trash2 className="h-3.5 w-3.5" />
                 ביטול קוד גישה
@@ -146,13 +146,13 @@ function DeviceAccessCodeCard() {
             </label>
             {error && <p className="text-xs font-bold text-[var(--color-danger)]">{error}</p>}
             <div className="flex gap-2 pt-1">
-              <button type="submit" className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[var(--action)] px-4 text-xs font-semibold text-white transition hover:bg-[var(--action-hover)]">
+              <button type="submit" className="touch-target inline-flex min-h-10 items-center justify-center rounded-xl bg-[var(--action)] px-4 text-xs font-semibold text-white transition hover:bg-[var(--action-hover)]">
                 שמירה
               </button>
               <button
                 type="button"
                 onClick={() => { setIsEditing(false); resetForm(); }}
-                className="inline-flex min-h-10 items-center justify-center rounded-xl border border-[var(--border-strong)] px-4 text-xs font-semibold text-[var(--text-muted-accessible)] transition hover:border-[var(--action)]/30"
+                className="touch-target inline-flex min-h-10 items-center justify-center rounded-xl border border-[var(--border-strong)] px-4 text-xs font-semibold text-[var(--text-muted-accessible)] transition hover:border-[var(--action)]/30"
               >
                 ביטול
               </button>
@@ -174,7 +174,7 @@ function DeviceAccessCodeCard() {
                 type="button"
                 onClick={hasBiometric ? handleRemoveBiometric : handleRegisterBiometric}
                 disabled={isRegisteringBiometric}
-                className={`inline-flex min-h-10 items-center gap-1.5 rounded-xl px-4 text-xs font-semibold transition disabled:opacity-50 ${
+                className={`touch-target inline-flex min-h-10 items-center gap-1.5 rounded-xl px-4 text-xs font-semibold transition disabled:opacity-50 ${
                   hasBiometric
                     ? 'border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10'
                     : 'bg-[var(--action)] text-white hover:bg-[var(--action-hover)]'

@@ -588,7 +588,7 @@ export default function AdminPage() {
                           <select
                             value={editRole}
                             onChange={(e) => handleRoleChange(e.target.value)}
-                            className="command-select min-h-10 text-xs"
+                            className="touch-target command-select min-h-10 text-xs"
                           >
                             {roles.map((r) => (
                               <option key={r.name} value={r.name}>
@@ -603,7 +603,7 @@ export default function AdminPage() {
                           <select
                             value={editUnitId}
                             onChange={(e) => setEditUnitId(e.target.value)}
-                            className="command-select min-h-10 text-xs"
+                            className="touch-target command-select min-h-10 text-xs"
                           >
                             <option value="none">ללא</option>
                             {units.map((u) => (
@@ -619,7 +619,7 @@ export default function AdminPage() {
                           <select
                             value={editCommandedUnitId}
                             onChange={(e) => setEditCommandedUnitId(e.target.value)}
-                            className="command-select min-h-10 text-xs"
+                            className="touch-target command-select min-h-10 text-xs"
                           >
                             <option value="none">-- ללא --</option>
                             {units.map((u) => (
@@ -638,7 +638,7 @@ export default function AdminPage() {
                             max="100"
                             value={editPermissionLevel}
                             onChange={(e) => setEditPermissionLevel(Number(e.target.value))}
-                            className="command-input min-h-10 text-center font-mono text-xs"
+                            className="touch-target command-input min-h-10 text-center font-mono text-xs"
                           />
                         </label>
                       </div>

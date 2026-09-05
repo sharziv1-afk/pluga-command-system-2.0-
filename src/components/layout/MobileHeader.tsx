@@ -13,7 +13,7 @@ export const MobileHeader: React.FC = () => {
   const { currentUser } = useApp();
 
   return (
-    <header className="command-glass-accent sticky top-0 z-30 flex w-full select-none items-center justify-between gap-3 border-b border-[var(--border-subtle)] bg-[var(--surface)]/90 px-3 py-2.5 text-right md:hidden">
+    <header className="command-glass-accent safe-top sticky top-0 z-30 flex w-full select-none items-center justify-between gap-3 border-b border-[var(--border-subtle)] bg-[var(--surface)]/90 px-3 pb-2.5 text-right md:hidden">
       <div className="flex min-w-0 items-center gap-2">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[var(--action)]/20 bg-[var(--brand)]/10 text-[var(--color-action-on-surface)]">
           <Shield className="h-4 w-4" />

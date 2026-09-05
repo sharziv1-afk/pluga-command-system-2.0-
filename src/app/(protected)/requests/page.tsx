@@ -1221,7 +1221,7 @@ export default function RequestsPage() {
                     <select
                       value={request.assigned_to ?? 'none'}
                       onChange={event => handleAssigneeChange(request, event.target.value)}
-                      className="command-select min-h-10 flex-1 text-xs"
+                      className="touch-target command-select min-h-10 flex-1 text-xs"
                       disabled={isRequestWritePending || (assigneeUsers.length === 0 && !request.assigned_to)}
                     >
                       <option value="none">{request.assigned_to ? 'הסר שיוך' : 'בחר מטפל'}</option>
@@ -1267,7 +1267,7 @@ export default function RequestsPage() {
                         <select
                           value={request.status}
                           onChange={e => handleStatusChange(request.id, e.target.value as RequestStatus)}
-                          className="command-select min-h-10 max-w-xs text-xs"
+                          className="touch-target command-select min-h-10 max-w-xs text-xs"
                           disabled={isRequestWritePending}
                         >
                           {statusOptions.map(s => <option key={s} value={s}>{statusLabels[s]}</option>)}
@@ -1313,7 +1313,7 @@ export default function RequestsPage() {
                     type="button"
                     onClick={() => toggleComments(request.id)}
                     disabled={Boolean(loadingCommentsId)}
-                    className="inline-flex min-h-10 items-center gap-2 rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)] transition duration-150 hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10"
+                    className="touch-target inline-flex min-h-10 items-center gap-2 rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)] transition duration-150 hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10"
                   >
                     <MessageSquareText className="h-4 w-4 text-[var(--color-action-on-surface)]" />
                     {isCommentsOpen ? 'הסתר היסטוריית טיפול' : 'הצג היסטוריית טיפול'}

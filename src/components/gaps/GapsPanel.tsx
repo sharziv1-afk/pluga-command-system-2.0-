@@ -435,7 +435,7 @@ export function GapsPanel() {
                       <select
                         value={gap.status}
                         onChange={e => handleStatusChange(gap, e.target.value as GapStatus)}
-                        className="command-select min-h-10 max-w-xs text-xs"
+                        className="touch-target command-select min-h-10 max-w-xs text-xs"
                         disabled={isWritePending}
                       >
                         {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}

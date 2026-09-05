@@ -55,7 +55,11 @@ export const MetricCard: React.FC<MetricCardProps> = ({
       )}
       <div className="min-w-0 flex-1">
         <div className="command-kpi text-2xl text-[var(--text-primary)]">{value}</div>
-        <div className="mt-0.5 truncate text-meta font-bold text-[var(--text-secondary)]">{label}</div>
+        {/* Not truncated: the label is what names the metric, and at 375px in
+            a 2-column grid "דרישות דחופות" clipped to "דרישות דחו…". Grid rows
+            equalise height, so wrapping costs nothing in density. The
+            sublabel below is supplementary and may still clip. */}
+        <div className="mt-0.5 text-meta font-bold text-balance text-[var(--text-secondary)]">{label}</div>
         {sublabel && <div className="mt-0.5 truncate text-caption font-medium text-[var(--text-muted-accessible)]">{sublabel}</div>}
       </div>
     </Wrapper>

@@ -442,17 +442,17 @@ function statusLabel(status: ReportStatus | undefined) {
 }
 
 function statusTone(status: ReportStatus | undefined) {
-  if (status === 'closed') return 'border-[#020108]/15 bg-white text-[#020108]';
+  if (status === 'closed') return 'border-[var(--text-primary)]/15 bg-white text-[var(--text-primary)]';
   if (status === 'submitted') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
-  if (status === 'in_progress') return 'border-[#FF6B02]/25 bg-[#FF6B02]/10 text-[#C75200]';
-  return 'border-[rgba(2,1,8,0.08)] bg-white/80 text-[#667085]';
+  if (status === 'in_progress') return 'border-[var(--brand)]/25 bg-[var(--brand)]/10 text-[var(--color-action-on-surface)]';
+  return 'border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)]';
 }
 
 function statusDotTone(status: ReportStatus | undefined) {
-  if (status === 'closed') return 'bg-[#020108]';
-  if (status === 'submitted') return 'bg-emerald-500';
-  if (status === 'in_progress') return 'bg-[#FF6B02]';
-  return 'bg-[#98A2B3]';
+  if (status === 'closed') return 'bg-[var(--text-primary)]';
+  if (status === 'submitted') return 'bg-[var(--color-success)]';
+  if (status === 'in_progress') return 'bg-[var(--color-warning)]';
+  return 'bg-[var(--command-subtle)]';
 }
 
 function isDateInputValue(value: string) {
@@ -2465,12 +2465,12 @@ export default function ForumPage() {
     <div className="grid gap-5 xl:grid-cols-[0.85fr_1.35fr]">
       <form onSubmit={handleCreatePost} className="tactical-glass-card rounded-3xl p-5 shadow-[0_16px_44px_rgba(2,1,8,0.08)]">
         <div className="mb-5 flex items-start gap-3">
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#FF6B02]/10 text-[#FF6B02]">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[var(--brand)]/10 text-[var(--brand)]">
             <Send className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-lg font-black text-[#020108]">פרסום פוסט חדש</h2>
-            <p className="mt-1 text-sm font-bold leading-relaxed text-[#667085]">עדכון קצר וברור למפקדים ולבעלי התפקידים.</p>
+            <h2 className="text-lg font-semibold text-[var(--text-primary)]">פרסום פוסט חדש</h2>
+            <p className="mt-1 text-sm font-bold leading-relaxed text-[var(--text-muted-accessible)]">עדכון קצר וברור למפקדים ולבעלי התפקידים.</p>
           </div>
         </div>
 
@@ -2478,22 +2478,22 @@ export default function ForumPage() {
 
         <div className="space-y-4">
           <label className="block">
-            <span className="mb-2 block text-sm font-black text-[#020108]">כותרת *</span>
+            <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">כותרת *</span>
             <input value={title} onChange={event => setTitle(event.target.value)} className="command-input" placeholder="לדוגמה: עדכון מצב ערב" disabled={isSubmitting} />
           </label>
 
           <label className="block">
-            <span className="mb-2 block text-sm font-black text-[#020108]">תוכן *</span>
+            <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">תוכן *</span>
             <textarea value={body} onChange={event => setBody(event.target.value)} className="command-input min-h-24 resize-none" placeholder="כתוב את העדכון המרכזי, החלטות, פערים או דגשים להמשך." disabled={isSubmitting} />
           </label>
 
           {canSeeAll && (
-            <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/70 px-4 py-3">
+            <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-4 py-3">
               <span>
-                <span className="block text-sm font-black text-[#020108]">נעץ בראש הפורום</span>
-                <span className="text-xs font-bold text-[#667085]">זמין למפקדים בלבד</span>
+                <span className="block text-sm font-semibold text-[var(--text-primary)]">נעץ בראש הפורום</span>
+                <span className="text-xs font-bold text-[var(--text-muted-accessible)]">זמין למפקדים בלבד</span>
               </span>
-              <input type="checkbox" checked={isPinned} onChange={event => setIsPinned(event.target.checked)} className="h-5 w-5 accent-[#FF6B02]" disabled={isSubmitting} />
+              <input type="checkbox" checked={isPinned} onChange={event => setIsPinned(event.target.checked)} className="h-5 w-5 accent-[var(--action)]" disabled={isSubmitting} />
             </label>
           )}
 
@@ -2506,17 +2506,17 @@ export default function ForumPage() {
 
       <section className="space-y-4">
         <div>
-          <h2 className="text-lg font-black text-[#020108]">עדכונים אחרונים</h2>
-          <p className="text-sm font-bold text-[#667085]">{posts.length} פוסטים זמינים לך</p>
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">עדכונים אחרונים</h2>
+          <p className="text-sm font-bold text-[var(--text-muted-accessible)]">{posts.length} פוסטים זמינים לך</p>
         </div>
 
         {posts.length === 0 ? (
           <div className="tactical-glass-card rounded-3xl p-8 text-center">
-            <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-[#FF6B02]/10 text-[#FF6B02]">
+            <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-[var(--brand)]/10 text-[var(--brand)]">
               <MessageSquare className="h-7 w-7" />
             </div>
-            <h3 className="text-lg font-black text-[#020108]">אין עדיין פוסטים בפורום</h3>
-            <p className="mx-auto mt-2 max-w-md text-sm font-bold leading-relaxed text-[#667085]">פרסם את העדכון הראשון כדי לפתוח את ערוץ הסנכרון הפלוגתי.</p>
+            <h3 className="text-lg font-semibold text-[var(--text-primary)]">אין עדיין פוסטים בפורום</h3>
+            <p className="mx-auto mt-2 max-w-md text-sm font-bold leading-relaxed text-[var(--text-muted-accessible)]">פרסם את העדכון הראשון כדי לפתוח את ערוץ הסנכרון הפלוגתי.</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -2526,14 +2526,14 @@ export default function ForumPage() {
                   <div className="min-w-0">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
                       {post.is_pinned && (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-[#FF6B02]/25 bg-[#FF6B02]/10 px-3 py-1 text-xs font-black text-[#C75200]">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-[var(--brand)]/25 bg-[var(--brand)]/10 px-3 py-1 text-xs font-semibold text-[var(--color-action-on-surface)]">
                           <Pin className="h-3.5 w-3.5" />
                           נעוץ
                         </span>
                       )}
-                      <span className="text-xs font-bold text-[#667085]">{formatDate(post.created_at)}</span>
+                      <span className="text-xs font-bold text-[var(--text-muted-accessible)]">{formatDate(post.created_at)}</span>
                     </div>
-                    <h3 className="text-xl font-black leading-tight text-[#020108]">{post.title}</h3>
+                    <h3 className="text-xl font-semibold leading-tight text-[var(--text-primary)]">{post.title}</h3>
                   </div>
                   {canEditPost(post) && editingPostId !== post.id && (
                     <GlossyButton variant="slate" size="sm" onClick={() => startEditPost(post)} disabled={isSubmitting} className="min-w-[96px] shrink-0 whitespace-nowrap px-4">
@@ -2543,20 +2543,20 @@ export default function ForumPage() {
                   )}
                 </div>
                 {editingPostId === post.id ? (
-                  <div className="space-y-4 rounded-3xl border border-[#FF6B02]/20 bg-white/70 p-4">
+                  <div className="space-y-4 rounded-3xl border border-[var(--brand)]/20 bg-[var(--tactical-glass)] p-4">
                     {editPostError && <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{editPostError}</div>}
                     <label className="block">
-                      <span className="mb-2 block text-sm font-black text-[#020108]">כותרת *</span>
+                      <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">כותרת *</span>
                       <input value={editPostTitle} onChange={event => setEditPostTitle(event.target.value)} className="command-input" disabled={isSubmitting} />
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-sm font-black text-[#020108]">תוכן *</span>
+                      <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">תוכן *</span>
                       <textarea value={editPostBody} onChange={event => setEditPostBody(event.target.value)} className="command-input min-h-28 resize-none" disabled={isSubmitting} />
                     </label>
                     {canSeeAll && (
-                      <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/70 px-4 py-3">
-                        <span className="text-sm font-black text-[#020108]">נעוץ בראש הפורום</span>
-                        <input type="checkbox" checked={editPostPinned} onChange={event => setEditPostPinned(event.target.checked)} className="h-5 w-5 accent-[#FF6B02]" disabled={isSubmitting} />
+                      <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-4 py-3">
+                        <span className="text-sm font-semibold text-[var(--text-primary)]">נעוץ בראש הפורום</span>
+                        <input type="checkbox" checked={editPostPinned} onChange={event => setEditPostPinned(event.target.checked)} className="h-5 w-5 accent-[var(--action)]" disabled={isSubmitting} />
                       </label>
                     )}
                     <div className="flex flex-wrap gap-2">
@@ -2570,12 +2570,12 @@ export default function ForumPage() {
                     </div>
                   </div>
                 ) : (
-                  <p className="whitespace-pre-wrap text-sm font-semibold leading-7 text-[#344054]">{post.body}</p>
+                  <p className="whitespace-pre-wrap text-sm font-semibold leading-7 text-[var(--text-secondary)]">{post.body}</p>
                 )}
-                <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-[rgba(2,1,8,0.08)] pt-4 text-xs font-black text-[#667085]">
-                  <span>מאת: <strong className="text-[#020108]">{post.authorName ?? 'משתמש'}</strong></span>
+                <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-[rgba(2,1,8,0.08)] pt-4 text-xs font-semibold text-[var(--text-muted-accessible)]">
+                  <span>מאת: <strong className="text-[var(--text-primary)]">{post.authorName ?? 'משתמש'}</strong></span>
                   <span>·</span>
-                  <span>יחידה: <strong className="text-[#020108]">{post.unitName ?? 'לא שויך'}</strong></span>
+                  <span>יחידה: <strong className="text-[var(--text-primary)]">{post.unitName ?? 'לא שויך'}</strong></span>
                 </div>
               </article>
             ))}
@@ -2591,18 +2591,18 @@ export default function ForumPage() {
     <div className="tactical-glass-card rounded-3xl p-5">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#FF6B02]/10 text-[#FF6B02]">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[var(--brand)]/10 text-[var(--brand)]">
             <FileText className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <h3 className="text-lg font-black text-[#020108]">ריכוז פלוגתי מהמ״מים</h3>
-            <p className="mt-1 text-sm font-bold leading-relaxed text-[#667085]">
+            <h3 className="text-lg font-semibold text-[var(--text-primary)]">ריכוז פלוגתי מהמ״מים</h3>
+            <p className="mt-1 text-sm font-bold leading-relaxed text-[var(--text-muted-accessible)]">
               דוח פלוגתי מובנה באותו פורמט כמו דוח מ״מ. השדות מתמלאים אוטומטית מסיכומי המ״מים — בדוק, ערוך לפי הצורך ושמור. "דגשי מ״פ" נכתבים ידנית.
             </p>
           </div>
         </div>
         {companyGeneratedAt && (
-          <span className="w-fit shrink-0 rounded-full border border-[rgba(2,1,8,0.08)] bg-white/80 px-3 py-1.5 text-xs font-black text-[#667085]">
+          <span className="w-fit shrink-0 rounded-full border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-3 py-1.5 text-xs font-semibold text-[var(--text-muted-accessible)]">
             רוכז לאחרונה: {formatDate(companyGeneratedAt)}
           </span>
         )}
@@ -2619,12 +2619,12 @@ export default function ForumPage() {
       </div>
 
       {reportDraft.company_report_manually_edited && !isCompanyReportLocked && (
-        <p className="mt-3 text-xs font-black text-[#C75200]">הדוח נערך ידנית — רענון מהדוחות יבקש אישור לפני החלפה.</p>
+        <p className="mt-3 text-xs font-semibold text-[var(--color-action-on-surface)]">הדוח נערך ידנית — רענון מהדוחות יבקש אישור לפני החלפה.</p>
       )}
 
       {companyReportWarnings.length > 0 && (
         <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
-          <div className="mb-1 flex items-center gap-2 font-black">
+          <div className="mb-1 flex items-center gap-2 font-semibold">
             <AlertCircle className="h-4 w-4 shrink-0" />
             שים לב — פערים בדיווחים
           </div>
@@ -2635,8 +2635,8 @@ export default function ForumPage() {
       )}
 
       {isCompanyReportLocked && (
-        <div className="mt-3 flex items-center gap-2 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/80 px-4 py-3 text-sm font-black text-[#020108]">
-          <Lock className="h-4 w-4 shrink-0 text-[#FF6B02]" />
+        <div className="mt-3 flex items-center gap-2 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-semibold text-[var(--text-primary)]">
+          <Lock className="h-4 w-4 shrink-0 text-[var(--brand)]" />
           הפורום נסגר. לעריכה נוספת יש לפתוח את נעילת הדוח הפלוגתי.
         </div>
       )}
@@ -2648,8 +2648,8 @@ export default function ForumPage() {
   const renderCompanyScheduleSection = () => (
     <details className="tactical-glass-card group rounded-3xl p-5">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
-        <span className="text-lg font-black text-[#020108]">לו״ז ודגשים להפצה <span className="text-sm font-bold text-[#667085]">(ידני)</span></span>
-        <span className="flex shrink-0 items-center gap-1.5 text-sm font-black text-[#667085]">
+        <span className="text-lg font-semibold text-[var(--text-primary)]">לו״ז ודגשים להפצה <span className="text-sm font-bold text-[var(--text-muted-accessible)]">(ידני)</span></span>
+        <span className="flex shrink-0 items-center gap-1.5 text-sm font-semibold text-[var(--text-muted-accessible)]">
           <span className="group-open:hidden">פתח ▾</span>
           <span className="hidden group-open:inline">סגור ▴</span>
         </span>
@@ -2662,7 +2662,7 @@ export default function ForumPage() {
           ['parallel_schedule', 'לו״ז מקביל'],
         ] as Array<[ReportDraftTextField, string]>).map(([field, label]) => (
           <label key={field} className="block">
-            <span className="mb-2 block text-sm font-black text-[#020108]">{label}</span>
+            <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">{label}</span>
             <textarea value={reportDraft[field]} onChange={event => handleStructuredFieldChange(field, event.target.value)} className="command-input min-h-20 resize-none" disabled={isDailySaving || isSelectedReportReadOnly} />
           </label>
         ))}
@@ -2671,9 +2671,9 @@ export default function ForumPage() {
   );
 
   const renderCompanyPublishBlock = () => (
-    <div className="tactical-glass-card rounded-3xl border border-[#FF6B02]/20 bg-[#FF6B02]/5 p-5">
-      <div className="mb-1 text-sm font-black text-[#020108]">הפצה וסגירת פורום</div>
-      <p className="mb-3 text-xs font-bold leading-relaxed text-[#667085]">
+    <div className="tactical-glass-card rounded-3xl border border-[var(--brand)]/20 bg-[var(--brand)]/5 p-5">
+      <div className="mb-1 text-sm font-semibold text-[var(--text-primary)]">הפצה וסגירת פורום</div>
+      <p className="mb-3 text-xs font-bold leading-relaxed text-[var(--text-muted-accessible)]">
         שמירת הדוח הפלוגתי הסופי וסגירת כל דוחות היום לכלל הפלוגה. הדוחות ננעלים לקריאה בלבד; ניתן עדיין לפתוח דוח בודד מחדש לפי הצורך.
       </p>
       <GlossyButton variant="orange" onClick={() => setShowCompanyPublishConfirm(true)} disabled={isCompanyReportBusy || isDailySaving || isCompanyReportLocked}>
@@ -2690,7 +2690,7 @@ export default function ForumPage() {
           <div className="flex items-start gap-3">
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
             <div>
-              <h3 className="text-lg font-black text-[#020108]">הדוח של הטיוטה אינו זמין</h3>
+              <h3 className="text-lg font-semibold text-[var(--text-primary)]">הדוח של הטיוטה אינו זמין</h3>
               <p className="mt-1 text-sm font-bold leading-relaxed text-amber-900">{unavailableDailyDraftMessage}</p>
             </div>
           </div>
@@ -2713,8 +2713,8 @@ export default function ForumPage() {
         <div className="tactical-glass-card rounded-3xl p-5">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <Clipboard className="h-5 w-5 text-[#FF6B02]" />
-              <h3 className="text-lg font-black text-[#020108]">תוצר WhatsApp / סיכום יומי</h3>
+              <Clipboard className="h-5 w-5 text-[var(--brand)]" />
+              <h3 className="text-lg font-semibold text-[var(--text-primary)]">תוצר WhatsApp / סיכום יומי</h3>
             </div>
             <div className="flex flex-wrap gap-2">
               <GlossyButton variant={whatsappMode === 'short' ? 'orange' : 'slate'} size="sm" onClick={() => setWhatsappMode('short')}>
@@ -2737,17 +2737,17 @@ export default function ForumPage() {
     if (!selectedReport && !canUseDraftFormForSelectedNode) {
       return (
         <div className="tactical-glass-card rounded-3xl p-8 text-center">
-          <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-[#FF6B02]/10 text-[#FF6B02]">
+          <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-[var(--brand)]/10 text-[var(--brand)]">
             <FileText className="h-7 w-7" />
           </div>
-          <h2 className="text-xl font-black text-[#020108]">נדרש שיוך משתמש</h2>
-          <p className="mx-auto mt-2 max-w-xl text-sm font-bold leading-relaxed text-[#667085]">
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">נדרש שיוך משתמש</h2>
+          <p className="mx-auto mt-2 max-w-xl text-sm font-bold leading-relaxed text-[var(--text-muted-accessible)]">
             לא ניתן לפתוח דוח למחלקה בלי מ״מ/משתמש משויך. ניתן ליצור דוח ידנית עבור משתמש דרך "צור דוח עבור משתמש".
           </p>
           {canSeeAll && (
-            <div className="mx-auto mt-5 grid max-w-2xl gap-3 rounded-3xl border border-[rgba(2,1,8,0.08)] bg-white/70 p-4 text-right lg:grid-cols-3">
+            <div className="mx-auto mt-5 grid max-w-2xl gap-3 rounded-3xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-4 text-right lg:grid-cols-3">
               <label className="block">
-                <span className="mb-2 block text-sm font-black text-[#020108]">צור דוח עבור משתמש</span>
+                <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">צור דוח עבור משתמש</span>
                 <select value={selectedOwnerId} onChange={event => handleDailyOwnerChange(event.target.value)} className="command-select">
                   <option value="">עבורי</option>
                   {ownerOptions.map(owner => (
@@ -2758,7 +2758,7 @@ export default function ForumPage() {
                 </select>
               </label>
               <label className="block">
-                <span className="mb-2 block text-sm font-black text-[#020108]">סוג דיווח</span>
+                <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">סוג דיווח</span>
                 <select value={commanderReportLevel} onChange={event => setCommanderReportLevel(event.target.value as ReportLevel)} className="command-select">
                   <option value="squad">squad · מ״כ/כיתה</option>
                   <option value="platoon">platoon · מ״מ/מחלקה</option>
@@ -2768,7 +2768,7 @@ export default function ForumPage() {
               </label>
               {commanderReportLevel === 'staff' && (
                 <label className="block">
-                  <span className="mb-2 block text-sm font-black text-[#020108]">תפקיד מפל״ג</span>
+                  <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">תפקיד מפל״ג</span>
                   <select value={commanderStaffRole} onChange={event => setCommanderStaffRole(event.target.value as StaffRole)} className="command-select">
                     {staffNodes.map(staff => <option key={staff.id} value={staff.id}>{staff.label}</option>)}
                   </select>
@@ -2798,12 +2798,12 @@ export default function ForumPage() {
       : null;
 
     const renderReadSection = (Icon: LucideIcon, label: string, value: string, wide = false) => (
-      <div key={label} className={`rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/70 p-4 ${wide ? 'sm:col-span-2' : ''}`}>
+      <div key={label} className={`rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-4 ${wide ? 'sm:col-span-2' : ''}`}>
         <div className="mb-2 flex items-center gap-2">
-          <Icon className="h-4 w-4 shrink-0 text-[#FF6B02]" />
-          <span className="text-sm font-black text-[#020108]">{label}</span>
+          <Icon className="h-4 w-4 shrink-0 text-[var(--brand)]" />
+          <span className="text-sm font-semibold text-[var(--text-primary)]">{label}</span>
         </div>
-        <p className={`whitespace-pre-wrap text-sm leading-6 ${value.trim() ? 'font-semibold text-[#344054]' : 'font-bold text-[#98A2B3]'}`}>
+        <p className={`whitespace-pre-wrap text-sm leading-6 ${value.trim() ? 'font-semibold text-[var(--text-secondary)]' : 'font-bold text-[var(--command-subtle)]'}`}>
           {value.trim() || '—'}
         </p>
       </div>
@@ -2813,7 +2813,7 @@ export default function ForumPage() {
       if (selectedNode.level === 'staff') {
         return (
           <div className="tactical-glass-card rounded-3xl p-5">
-            <h3 className="mb-4 text-lg font-black text-[#020108]">דיווח מפל״ג מקצועי</h3>
+            <h3 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">דיווח מפל״ג מקצועי</h3>
             <div className="grid gap-3 sm:grid-cols-2">
               {renderReadSection(User, 'שם', readContent.name)}
               {renderReadSection(FileText, 'התייחסות/דיווח', readContent.notes, true)}
@@ -2827,16 +2827,16 @@ export default function ForumPage() {
           <div className="space-y-4">
             <div className="tactical-glass-card rounded-3xl p-5">
               <div className="flex items-center gap-4">
-                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#FF6B02]/10 text-[#FF6B02]">
+                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[var(--brand)]/10 text-[var(--brand)]">
                   <Users className="h-6 w-6" />
                 </div>
                 <div>
-                  <p className="text-sm font-black text-[#667085]">מצבת חיילים פלוגתית</p>
-                  <p className="font-mono text-3xl font-black text-[#FF6B02]" dir="ltr">
+                  <p className="text-sm font-semibold text-[var(--text-muted-accessible)]">מצבת חיילים פלוגתית</p>
+                  <p className="command-kpi font-mono text-3xl text-[var(--color-action-on-surface)]" dir="ltr">
                     {String(readContent.present_count ?? '').trim() || '—'}/{String(readContent.total_count ?? '').trim() || '—'}
                   </p>
                 </div>
-                <span className="mr-auto text-sm font-bold text-[#667085]">נוכחים / סד״כ בבסיס</span>
+                <span className="mr-auto text-sm font-bold text-[var(--text-muted-accessible)]">נוכחים / סד״כ בבסיס</span>
               </div>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -2856,16 +2856,16 @@ export default function ForumPage() {
         <div className="space-y-4">
           <div className="tactical-glass-card rounded-3xl p-5">
             <div className="flex items-center gap-4">
-              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#FF6B02]/10 text-[#FF6B02]">
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[var(--brand)]/10 text-[var(--brand)]">
                 <Users className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm font-black text-[#667085]">מצבת חיילים</p>
-                <p className="font-mono text-3xl font-black text-[#FF6B02]" dir="ltr">
+                <p className="text-sm font-semibold text-[var(--text-muted-accessible)]">מצבת חיילים</p>
+                <p className="command-kpi font-mono text-3xl text-[var(--color-action-on-surface)]" dir="ltr">
                   {String(readContent.present_count ?? '').trim() || '—'}/{String(readContent.total_count ?? '').trim() || '—'}
                 </p>
               </div>
-              <span className="mr-auto text-sm font-bold text-[#667085]">נוכחים / סד״כ בבסיס</span>
+              <span className="mr-auto text-sm font-bold text-[var(--text-muted-accessible)]">נוכחים / סד״כ בבסיס</span>
             </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -2879,17 +2879,17 @@ export default function ForumPage() {
       <div className="space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-xl font-black text-[#020108]">{selectedNode.label}</h2>
-            <p className="text-sm font-bold text-[#667085]">{selectedNode.description} · {formatSelectedDate(selectedDate)}</p>
+            <h2 className="text-xl font-semibold text-[var(--text-primary)]">{selectedNode.label}</h2>
+            <p className="text-sm font-bold text-[var(--text-muted-accessible)]">{selectedNode.description} · {formatSelectedDate(selectedDate)}</p>
           </div>
-          <span className={`rounded-full border px-4 py-2 text-sm font-black ${statusTone(displayedStatus)}`}>{statusLabel(displayedStatus)}</span>
+          <span className={`rounded-full border px-4 py-2 text-sm font-semibold ${statusTone(displayedStatus)}`}>{statusLabel(displayedStatus)}</span>
         </div>
 
         {returnedInfo && (
           <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
             <Undo2 className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
             <div className="text-sm font-bold text-amber-800">
-              <span className="block font-black">הדוח הוחזר לדרג מטה</span>
+              <span className="block font-semibold">הדוח הוחזר לדרג מטה</span>
               <span>
                 {returnedInfo.note}
                 {returnedInfo.byName ? ` · ע״י ${returnedInfo.byName}` : ''}
@@ -2901,13 +2901,13 @@ export default function ForumPage() {
 
         {isReadView ? renderReadView() : selectedNode.level === 'staff' ? (
           <div className="tactical-glass-card rounded-3xl p-5">
-            <h3 className="mb-4 text-lg font-black text-[#020108]">דיווח מפל״ג מקצועי</h3>
+            <h3 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">דיווח מפל״ג מקצועי</h3>
             <label className="mb-4 block">
-              <span className="mb-2 block text-sm font-black text-[#020108]">שם</span>
+              <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">שם</span>
               <input value={reportDraft.name} onChange={event => updateDraft('name', event.target.value)} className="command-input" disabled={isDailySaving || isSelectedReportReadOnly} />
             </label>
             <label className="block">
-              <span className="mb-2 block text-sm font-black text-[#020108]">התייחסות/דיווח</span>
+              <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">התייחסות/דיווח</span>
               <textarea value={reportDraft.notes} onChange={event => updateDraft('notes', event.target.value)} className="command-input min-h-32 resize-none" disabled={isDailySaving || isSelectedReportReadOnly} />
             </label>
           </div>
@@ -2917,29 +2917,29 @@ export default function ForumPage() {
 
             <div className="tactical-glass-card rounded-3xl p-5">
               <div className="flex items-center gap-4">
-                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#FF6B02]/10 text-[#FF6B02]">
+                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[var(--brand)]/10 text-[var(--brand)]">
                   <Users className="h-6 w-6" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-black text-[#020108]">{selectedNode.level === 'company' ? 'מצבת חיילים פלוגתית' : 'מצבת חיילים'}</p>
-                  <p className="font-mono text-3xl font-black text-[#FF6B02]" dir="ltr">
+                  <p className="text-sm font-semibold text-[var(--text-primary)]">{selectedNode.level === 'company' ? 'מצבת חיילים פלוגתית' : 'מצבת חיילים'}</p>
+                  <p className="command-kpi font-mono text-3xl text-[var(--color-action-on-surface)]" dir="ltr">
                     {String(reportDraft.present_count ?? '').trim() || '—'}/{String(reportDraft.total_count ?? '').trim() || '—'}
                   </p>
                 </div>
-                <span className="mr-auto hidden text-sm font-bold text-[#667085] sm:block">
+                <span className="mr-auto hidden text-sm font-bold text-[var(--text-muted-accessible)] sm:block">
                   {selectedNode.level === 'company' ? 'נוכחים / סד״כ — סכום מהמחלקות' : 'נוכחים / סד״כ בבסיס'}
                 </span>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-3 border-t border-[rgba(2,1,8,0.08)] pt-4">
                 {squadManpowerFields.map(field => (
                   <label key={field.key} className="block">
-                    <span className="mb-1 block text-xs font-black text-[#667085]">{field.label}</span>
+                    <span className="mb-1 block text-xs font-semibold text-[var(--text-muted-accessible)]">{field.label}</span>
                     <input
                       value={reportDraft[field.key]}
                       onChange={event => handleStructuredFieldChange(field.key, event.target.value)}
                       inputMode="numeric"
                       placeholder="0"
-                      className="command-input w-full text-center font-mono text-lg font-black text-[#020108]"
+                      className="command-input w-full text-center font-mono text-lg font-semibold text-[var(--text-primary)]"
                       disabled={isDailySaving || isSelectedReportReadOnly}
                     />
                   </label>
@@ -2948,11 +2948,11 @@ export default function ForumPage() {
             </div>
 
             <div className="tactical-glass-card rounded-3xl p-5">
-              <h3 className="mb-4 text-lg font-black text-[#020108]">{selectedNode.level === 'company' ? 'ריכוז פלוגתי מהמ״מים' : selectedNode.level === 'platoon' ? 'סיכום מ״מ / מחלקה' : 'דיווח מ״כ / כיתה'}</h3>
+              <h3 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">{selectedNode.level === 'company' ? 'ריכוז פלוגתי מהמ״מים' : selectedNode.level === 'platoon' ? 'סיכום מ״מ / מחלקה' : 'דיווח מ״כ / כיתה'}</h3>
               <div className="grid gap-4 lg:grid-cols-2">
                 {squadPrimaryFields.map(field => (
                   <label key={field.key} className="block">
-                    <span className="mb-2 block text-sm font-black text-[#020108]">{field.label}</span>
+                    <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">{field.label}</span>
                     <textarea value={reportDraft[field.key]} onChange={event => handleStructuredFieldChange(field.key, event.target.value)} className="command-input min-h-20 resize-none" disabled={isDailySaving || isSelectedReportReadOnly} />
                     {field.sensitive && <FieldPrivacyHint />}
                   </label>
@@ -2962,8 +2962,8 @@ export default function ForumPage() {
 
             <details className="tactical-glass-card group rounded-3xl p-5" open={hasSecondaryContent || selectedNode.level === 'company'}>
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
-                <span className="text-lg font-black text-[#020108]">הרחבות וסיכום</span>
-                <span className="flex shrink-0 items-center gap-1.5 text-sm font-black text-[#667085]">
+                <span className="text-lg font-semibold text-[var(--text-primary)]">הרחבות וסיכום</span>
+                <span className="flex shrink-0 items-center gap-1.5 text-sm font-semibold text-[var(--text-muted-accessible)]">
                   <span className="group-open:hidden">פרטים נוספים ▾</span>
                   <span className="hidden group-open:inline">הסתר פרטים ▴</span>
                 </span>
@@ -2971,13 +2971,13 @@ export default function ForumPage() {
               <div className="mt-4 grid gap-4 lg:grid-cols-2">
                 {squadSecondaryFields.map(field => (
                   <label key={field.key} className={field.wide ? 'block lg:col-span-2' : 'block'}>
-                    <span className="mb-2 block text-sm font-black text-[#020108]">{field.label}</span>
+                    <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">{field.label}</span>
                     <textarea value={reportDraft[field.key]} onChange={event => handleStructuredFieldChange(field.key, event.target.value)} className="command-input min-h-24 resize-none" disabled={isDailySaving || isSelectedReportReadOnly} />
                   </label>
                 ))}
                 {selectedNode.level === 'company' && (
                   <label className="block lg:col-span-2">
-                    <span className="mb-2 block text-sm font-black text-[#020108]">דגשי מ״פ <span className="text-xs font-bold text-[#667085]">(ידני — לא נגזר אוטומטית)</span></span>
+                    <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">דגשי מ״פ <span className="text-xs font-bold text-[var(--text-muted-accessible)]">(ידני — לא נגזר אוטומטית)</span></span>
                     <textarea value={reportDraft.commander_closing} onChange={event => handleStructuredFieldChange('commander_closing', event.target.value)} className="command-input min-h-24 resize-none" disabled={isDailySaving || isSelectedReportReadOnly} />
                   </label>
                 )}
@@ -2991,11 +2991,11 @@ export default function ForumPage() {
         {canSeeAll && selectedNode.level === 'company' && renderCompanyPublishBlock()}
 
         <div className="tactical-glass-card flex flex-col gap-3 rounded-3xl p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-sm font-bold text-[#667085]">היררכיית המחלקות המלאה תוצג כאן לאחר שיוך משתמשים ליחידות.</div>
+          <div className="text-sm font-bold text-[var(--text-muted-accessible)]">היררכיית המחלקות המלאה תוצג כאן לאחר שיוך משתמשים ליחידות.</div>
           <div className="flex flex-wrap gap-2">
             {selectedReport?.status === 'closed' && (
-              <span className="inline-flex items-center gap-2 rounded-full border border-[rgba(2,1,8,0.08)] bg-white/80 px-4 py-2 text-sm font-black text-[#020108]">
-                <Lock className="h-4 w-4 text-[#FF6B02]" />
+              <span className="inline-flex items-center gap-2 rounded-full border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-4 py-2 text-sm font-semibold text-[var(--text-primary)]">
+                <Lock className="h-4 w-4 text-[var(--brand)]" />
                 {canReopenSelectedReport ? 'נסגר' : 'הדוח נעול'}
               </span>
             )}
@@ -3060,12 +3060,12 @@ export default function ForumPage() {
         </div>
         {canDeleteSelectedReport && (
           <div className="rounded-3xl border border-red-100 bg-red-50/55 p-3">
-            <div className="mb-2 text-xs font-black text-red-700">פעולות מתקדמות</div>
+            <div className="mb-2 text-xs font-semibold text-red-700">פעולות מתקדמות</div>
             <button
               type="button"
               onClick={() => void deleteSelectedReport()}
               disabled={isDailySaving}
-              className="flex min-h-9 items-center justify-center gap-2 rounded-xl border border-red-200 bg-white/70 px-3 text-xs font-black text-red-700 transition hover:border-red-300 hover:bg-red-50 disabled:pointer-events-none disabled:opacity-50"
+              className="flex min-h-9 items-center justify-center gap-2 rounded-xl border border-red-200 bg-[var(--tactical-glass)] px-3 text-xs font-semibold text-red-700 transition hover:border-red-300 hover:bg-red-50 disabled:pointer-events-none disabled:opacity-50"
             >
               <Trash2 className="h-3.5 w-3.5" />
               מחק דוח
@@ -3091,8 +3091,8 @@ export default function ForumPage() {
               <ChevronLeft className="h-4 w-4" />
             </GlossyButton>
           </div>
-          <div className="flex items-center gap-3 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/70 px-4 py-3 text-sm font-black text-[#020108]">
-            <CalendarDays className="h-5 w-5 text-[#FF6B02]" />
+          <div className="flex items-center gap-3 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-semibold text-[var(--text-primary)]">
+            <CalendarDays className="h-5 w-5 text-[var(--brand)]" />
             <span>{formatSelectedDate(selectedDate)}</span>
             <input
               type="date"
@@ -3115,11 +3115,11 @@ export default function ForumPage() {
         </div>
       </div>
 
-      <div className="flex items-start gap-3 rounded-3xl border border-[#FF6B02]/20 bg-[#FF6B02]/10 px-4 py-3.5">
-        <Megaphone className="mt-0.5 h-5 w-5 shrink-0 text-[#FF6B02]" />
+      <div className="flex items-start gap-3 rounded-3xl border border-[var(--brand)]/20 bg-[var(--brand)]/10 px-4 py-3.5">
+        <Megaphone className="mt-0.5 h-5 w-5 shrink-0 text-[var(--brand)]" />
         <div className="min-w-0 flex-1">
-          <span className="block text-[11px] font-black text-[#C75200]">דגשי מ״פ לפורום מוביל · {formatSelectedDate(selectedDate)}</span>
-          <p className={`mt-0.5 whitespace-pre-wrap text-sm leading-relaxed ${commanderHighlight ? 'font-semibold text-[#020108]' : 'font-bold text-[#98A2B3]'}`}>
+          <span className="block text-caption font-semibold text-[var(--color-action-on-surface)]">דגשי מ״פ לפורום מוביל · {formatSelectedDate(selectedDate)}</span>
+          <p className={`mt-0.5 whitespace-pre-wrap text-sm leading-relaxed ${commanderHighlight ? 'font-semibold text-[var(--text-primary)]' : 'font-bold text-[var(--command-subtle)]'}`}>
             {commanderHighlight || 'טרם מולאו דגשים ליום זה.'}
           </p>
         </div>
@@ -3135,7 +3135,7 @@ export default function ForumPage() {
         </div>
       )}
       {!isOfflineDaily && pendingSyncCount > 0 && (
-        <div className="flex items-center gap-3 rounded-2xl border border-[#FF6B02]/25 bg-[#FF6B02]/10 px-4 py-3 text-sm font-bold text-[#C75200]">
+        <div className="flex items-center gap-3 rounded-2xl border border-[var(--brand)]/25 bg-[var(--brand)]/10 px-4 py-3 text-sm font-bold text-[var(--color-action-on-surface)]">
           <RefreshCw className="h-4 w-4 shrink-0 animate-spin" />
           <span>מסנכרן {pendingSyncCount} שינויים שנשמרו בזמן שלא הייתה רשת...</span>
         </div>
@@ -3159,17 +3159,17 @@ export default function ForumPage() {
         <div className={`grid gap-5 transition-[grid-template-columns] duration-300 ease-out ${isTreeCollapsed ? '' : 'xl:grid-cols-[0.42fr_1fr] xl:items-start'}`}>
           {!isTreeCollapsed && (
           <aside className="tactical-glass-card rounded-3xl p-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-auto">
-            <div className="mb-4 flex items-center gap-3 rounded-3xl border border-[#FF6B02]/20 bg-[#FF6B02]/10 p-4">
+            <div className="mb-4 flex items-center gap-3 rounded-3xl border border-[var(--brand)]/20 bg-[var(--brand)]/10 p-4">
               <div className="min-w-0 flex-1">
-                <h2 className="text-lg font-black text-[#020108]">סדר פורום מוביל</h2>
-                <p className="mt-1 text-xs font-bold leading-relaxed text-[#667085]">לחיצה על קבוצה פותחת את הגורמים שלה. כל גורם נשמר עם סטטוס עצמאי.</p>
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">סדר פורום מוביל</h2>
+                <p className="mt-1 text-xs font-bold leading-relaxed text-[var(--text-muted-accessible)]">לחיצה על קבוצה פותחת את הגורמים שלה. כל גורם נשמר עם סטטוס עצמאי.</p>
               </div>
               <button
                 type="button"
                 onClick={toggleTreeCollapsed}
                 aria-expanded={!isTreeCollapsed}
                 aria-label="קפל את רשימת בעלי התפקידים"
-                className="inline-flex shrink-0 rounded-xl border border-[#FF6B02]/25 bg-white/70 p-2 text-[#C75200] transition hover:bg-white"
+                className="inline-flex shrink-0 rounded-xl border border-[var(--brand)]/25 bg-[var(--tactical-glass)] p-2 text-[var(--color-action-on-surface)] transition hover:bg-white"
               >
                 <PanelRightClose className="h-4 w-4" />
               </button>
@@ -3183,22 +3183,22 @@ export default function ForumPage() {
                 const groupCountTone = groupDone
                   ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                   : group.inProgress > 0
-                    ? 'border-[#FF6B02]/25 bg-[#FF6B02]/10 text-[#C75200]'
-                    : 'border-[rgba(2,1,8,0.08)] bg-white/80 text-[#667085]';
+                    ? 'border-[var(--brand)]/25 bg-[var(--brand)]/10 text-[var(--color-action-on-surface)]'
+                    : 'border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)]';
                 return (
                   <div key={group.name} className="space-y-2">
                     <button
                       type="button"
                       onClick={() => toggleDailyGroup(group.name, isExpanded)}
                       aria-expanded={isExpanded}
-                      className="flex min-h-11 w-full items-center justify-between gap-3 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/60 px-3 py-2.5 text-right transition hover:border-[#FF6B02]/24 hover:bg-white"
+                      className="flex min-h-11 w-full items-center justify-between gap-3 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-3 py-2.5 text-right transition hover:border-[var(--action)]/24 hover:bg-white"
                     >
                       <span className="flex min-w-0 items-center gap-2">
-                        <ChevronDown className={`h-4 w-4 shrink-0 text-[#98A2B3] transition ${isExpanded ? '' : 'rotate-90'}`} />
-                        <span className="truncate text-sm font-black text-[#020108]">{group.name}</span>
+                        <ChevronDown className={`h-4 w-4 shrink-0 text-[var(--command-subtle)] transition ${isExpanded ? '' : 'rotate-90'}`} />
+                        <span className="truncate text-sm font-semibold text-[var(--text-primary)]">{group.name}</span>
                       </span>
                       {group.total > 0 && (
-                        <span className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-black ${groupCountTone}`}>
+                        <span className={`shrink-0 rounded-full border px-3 py-1 text-caption font-semibold ${groupCountTone}`}>
                           {`הוגשו ${group.submitted}/${group.total}`}
                           {group.inProgress > 0 ? ` · ${group.inProgress} בטיפול` : ''}
                         </span>
@@ -3217,22 +3217,22 @@ export default function ForumPage() {
                               type="button"
                               data-node-id={node.id}
                               onClick={handleSelectDailyNode}
-                              className={`w-full rounded-2xl border px-4 py-3 text-right transition ${isActive ? 'border-[#FF6B02]/35 bg-[#FF6B02]/10 shadow-[0_12px_28px_rgba(255,107,2,0.12)]' : 'border-[rgba(2,1,8,0.08)] bg-white/70 hover:bg-white'}`}
+                              className={`w-full rounded-2xl border px-4 py-3 text-right transition ${isActive ? 'border-[var(--brand)]/35 bg-[var(--brand)]/10 shadow-[0_12px_28px_rgba(255,107,2,0.12)]' : 'border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] hover:bg-white'}`}
                             >
                               <span className="flex items-start justify-between gap-3">
                                 <span className="min-w-0">
-                                  <span className="block text-sm font-black text-[#020108]">{node.label}</span>
-                                  <span className="mt-1 block text-xs font-bold leading-relaxed text-[#667085]">
+                                  <span className="block text-sm font-semibold text-[var(--text-primary)]">{node.label}</span>
+                                  <span className="mt-1 block text-xs font-bold leading-relaxed text-[var(--text-muted-accessible)]">
                                     {needsMapping ? 'נדרש שיוך משתמש — עדיין לא משויך בעל תפקיד לגורם הזה' : node.description}
                                   </span>
                                 </span>
                                 <span className="flex shrink-0 flex-col items-end gap-1">
-                                  <span className={`rounded-full border px-3 py-1.5 text-[11px] font-black ${statusTone(needsMapping ? undefined : report?.status)}`}>
+                                  <span className={`rounded-full border px-3 py-1.5 text-caption font-semibold ${statusTone(needsMapping ? undefined : report?.status)}`}>
                                     <span className={`ml-1 inline-block h-2 w-2 rounded-full ${statusDotTone(needsMapping ? undefined : report?.status)}`} />
                                     {needsMapping ? 'נדרש שיוך' : statusLabel(report?.status)}
                                   </span>
                                   {wasReturned && (
-                                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-700">
+                                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-caption font-semibold text-amber-700">
                                       הוחזר לדרג מטה
                                     </span>
                                   )}
@@ -3265,7 +3265,7 @@ export default function ForumPage() {
               type="button"
               onClick={toggleTreeCollapsed}
               aria-label={isTreeCollapsed ? 'הצג את רשימת בעלי התפקידים' : 'קפל את רשימת בעלי התפקידים'}
-              className="fixed bottom-24 left-4 z-40 flex items-center gap-2 rounded-2xl border border-[#FF6B02]/25 bg-white px-4 py-3 text-sm font-black text-[#C75200] shadow-[0_14px_32px_rgba(2,1,8,0.16)] transition hover:bg-[#FF6B02]/10 md:bottom-6 md:left-6"
+              className="fixed bottom-24 left-4 z-40 flex items-center gap-2 rounded-2xl border border-[var(--brand)]/25 bg-white px-4 py-3 text-sm font-semibold text-[var(--color-action-on-surface)] shadow-[0_14px_32px_rgba(2,1,8,0.16)] transition hover:bg-[var(--action)]/10 md:bottom-6 md:left-6"
             >
               {isTreeCollapsed ? <PanelRightOpen className="h-4 w-4" /> : <PanelRightClose className="h-4 w-4" />}
               {isTreeCollapsed ? 'בעלי תפקידים' : 'כווץ תפריט'}
@@ -3278,11 +3278,11 @@ export default function ForumPage() {
               <div className="tactical-glass-card rounded-3xl p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-xs font-black text-[#667085]">הגורם הנבחר</p>
-                    <h2 className="text-xl font-black text-[#020108]">{selectedNode.label}</h2>
-                    <p className="text-sm font-bold text-[#667085]">{selectedNode.group} · {selectedNode.description}</p>
+                    <p className="text-xs font-semibold text-[var(--text-muted-accessible)]">הגורם הנבחר</p>
+                    <h2 className="text-xl font-semibold text-[var(--text-primary)]">{selectedNode.label}</h2>
+                    <p className="text-sm font-bold text-[var(--text-muted-accessible)]">{selectedNode.group} · {selectedNode.description}</p>
                   </div>
-                  <span className={`w-fit rounded-full border px-4 py-2 text-sm font-black ${statusTone(selectedReport?.status ?? (canUseDraftFormForSelectedNode ? 'draft' : undefined))}`}>
+                  <span className={`w-fit rounded-full border px-4 py-2 text-sm font-semibold ${statusTone(selectedReport?.status ?? (canUseDraftFormForSelectedNode ? 'draft' : undefined))}`}>
                     {statusLabel(selectedReport?.status ?? (canUseDraftFormForSelectedNode ? 'draft' : undefined))}
                   </span>
                 </div>
@@ -3292,7 +3292,7 @@ export default function ForumPage() {
             {canSeeAll && selectedNode?.level !== 'whatsapp' && (
               <div className="tactical-glass-card rounded-3xl p-5">
                 <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <h3 className="text-lg font-black text-[#020108]">Preview תוצר WhatsApp</h3>
+                  <h3 className="text-lg font-semibold text-[var(--text-primary)]">Preview תוצר WhatsApp</h3>
                   <div className="flex flex-wrap gap-2">
                     <GlossyButton variant={whatsappMode === 'short' ? 'orange' : 'slate'} size="sm" onClick={() => setWhatsappMode('short')}>
                       הודעה קצרה

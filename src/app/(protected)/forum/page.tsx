@@ -1258,9 +1258,27 @@ export default function ForumPage() {
     })));
   }, [canSeeAll, supabase]);
 
+  // loadPosts() used to run here on every mount, firing 1-3 queries whose
+  // results only ever feed renderPostsTab() — and 'posts' is unreachable
+  // (activeTab is initialised to 'daily' and handleForumTabChange has no
+  // caller since the tab switcher was removed).
+  //
+  // Simply gating the call was wrong and briefly broke this page: loadPosts'
+  // `finally` block owned the page-wide setIsLoading(false), so the dead
+  // subsystem's loader was load-bearing for the live daily forum. With no
+  // call, isLoading never cleared and the page sat on skeletons forever.
+  // This effect takes over that ownership and nothing else — same guards,
+  // same not-signed-in message, no queries. loadPosts stays defined for the
+  // unreachable tab's own create/delete flows.
   useEffect(() => {
-    void loadPosts();
-  }, [loadPosts]);
+    if (isContextLoading) return;
+    if (!currentUser) {
+      setIsLoading(false);
+      setError('לא נמצא משתמש מחובר. יש להתחבר מחדש.');
+      return;
+    }
+    setIsLoading(false);
+  }, [currentUser, isContextLoading]);
 
   useEffect(() => {
     if (activeTab !== 'daily' || !dbProfile) return;

@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { statusTones, toneClasses } from '@/lib/statusLabels';
 
 export type BadgeStatusType =
   | 'חדש'
@@ -45,6 +46,10 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   );
 };
 
+// Any raw value that reaches this component must map to Hebrew. The default
+// branch renders the value as-is, so an unmapped English status (account
+// status was the case: /profile showed a literal "active"/"blocked") leaks
+// straight to the user.
 function normalizeStatus(status: string) {
   switch (status) {
     case 'approved':
@@ -53,33 +58,17 @@ function normalizeStatus(status: string) {
       return 'ממתין לאישור';
     case 'rejected':
       return 'בוטל';
+    case 'active':
+      return 'פעיל';
+    case 'blocked':
+      return 'חסום';
+    case 'inactive':
+      return 'לא פעיל';
     default:
       return status;
   }
 }
 
 function getStatusStyles(status: string) {
-  switch (status) {
-    case 'הושלם':
-    case 'סופק':
-    case 'נסגר':
-      return 'bg-[var(--color-success)]/10 text-[var(--color-success)] border-[var(--color-success)]/25';
-    case 'בתהליך':
-    case 'בטיפול':
-      return 'bg-[var(--color-info)]/10 text-[var(--color-info)] border-[var(--color-info)]/25';
-    case 'חדש':
-    case 'פתוח':
-    case 'נפתחה':
-      return 'bg-[var(--surface-muted)] text-[var(--text-secondary)] border-[var(--border-strong)]';
-    case 'ממתין לאישור':
-      return 'bg-[var(--color-warning)]/10 text-[var(--color-warning)] border-[var(--color-warning)]/25';
-    case 'דחוף':
-    case 'קריטי':
-    case 'תקוע':
-      return 'bg-[var(--color-danger)]/10 text-[var(--color-danger)] border-[var(--color-danger)]/25';
-    case 'בוטל':
-      return 'bg-[var(--surface-muted)] text-[var(--text-muted-accessible)] border-[var(--border-subtle)]';
-    default:
-      return 'bg-[var(--surface-muted)] text-[var(--text-secondary)] border-[var(--border-strong)]';
-  }
+  return toneClasses[statusTones[status] ?? 'neutral'];
 }

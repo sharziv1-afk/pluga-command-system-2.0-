@@ -21,6 +21,7 @@ import {
 import { PageHeader } from '@/components/layout/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { eventStatusLabels, requestStatusLabels, taskStatusLabels } from '@/lib/statusLabels';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { createAuditLog } from '@/lib/audit';
 import { useApp } from '@/lib/context/AppContext';
@@ -171,36 +172,15 @@ const taskPriorities = ['רגילה', 'חשובה', 'דחופה', 'קריטית'
 const eventTypeOptions: { value: EventType; label: string }[] = [
   { value: 'training', label: 'אימון' },
   { value: 'logistics', label: 'לוגיסטיקה' },
-  { value: 'meeting', label: 'פגישה' },
+  { value: 'meeting', label: 'ישיבה' },
   { value: 'inspection', label: 'ביקורת' },
   { value: 'operation', label: 'מבצע' },
   { value: 'admin', label: 'מנהלה' },
   { value: 'other', label: 'אחר' },
 ];
 
-const requestStatusLabels: Record<RequestStatus, string> = {
-  open: 'פתוחה',
-  in_progress: 'בטיפול',
-  approved: 'אושרה',
-  rejected: 'נדחתה',
-  completed: 'הושלמה',
-  cancelled: 'בוטלה',
-};
 
-const taskStatusLabels: Record<TaskStatus, string> = {
-  open: 'פתוחה',
-  in_progress: 'בתהליך',
-  blocked: 'תקועה',
-  completed: 'הושלמה',
-  cancelled: 'בוטלה',
-};
 
-const eventStatusLabels: Record<DbEvent['status'], string> = {
-  scheduled: 'מתוכנן',
-  in_progress: 'בתהליך',
-  completed: 'הושלם',
-  cancelled: 'בוטל',
-};
 
 const auditActionLabels: Record<string, string> = {
   request_created: 'דרישה חדשה נפתחה',

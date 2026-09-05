@@ -265,7 +265,31 @@ disabled, loading (where applicable), error, success. `CommandButton` and
 pattern exactly for any new interactive primitive; don't invent a second
 focus treatment.
 
-### 3.4 Status color always carries a second signal
+### 3.4 Status and priority labels live in one module
+
+`src/lib/statusLabels.ts` owns every user-facing status string, the
+label→tone table `StatusBadge` reads, and the three priority ramps. Pages
+import from it; they do not declare their own maps. Two bugs came from the
+five copies this replaced:
+
+- **Gender drift with a silent visual failure.** `/dashboard` rendered
+  "הושלמה" while `/requests` rendered "הושלם" for the same DB value.
+  `StatusBadge` matched only the masculine forms, so every feminine label
+  fell through to the neutral-grey default — a completed task and a
+  cancelled one looked identical. Gender follows the domain noun: משימה and
+  דרישה are feminine, אירוע and פער are masculine.
+- **One word, two meanings.** "דחופה" was the top of the request scale
+  (danger) and the second-from-top of the task scale (warning). The ramps
+  are now declared side by side in `priorityTones` so that is visible.
+
+Because `StatusBadge` takes a *label*, not a code, `statusTones` has to be
+exhaustive — a missing key is silent, which is exactly how the above hid.
+Adding a status means adding it there, not adding a branch somewhere.
+
+The DB codes are deliberately untouched. Labels are presentation; renaming
+stored values is a data migration against live company data.
+
+### 3.5 Status color always carries a second signal
 
 `StatusBadge` and any status-colored UI never relies on hue alone (color
 blindness, and required for high-contrast mode per §1.4) — pair color with
@@ -366,8 +390,6 @@ same element wins, which is what a call site expects.
   They sit inside `canTransitionDraft`'s synchronous control flow, which is
   covered by tests; converting them is a behavioural change, not a styling
   one.
-- User-facing terminology consistency (בקשה/דרישה/פערים etc.) — a content
-  problem, not a token one.
 - Two `<h1>` per page: the sidebar brand wordmark and the page title both
   use `<h1>`. Fixing it means changing heading semantics, which affects
   screen-reader navigation, so it wants a deliberate decision rather than a

@@ -21,6 +21,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlossyButton } from '@/components/ui/GlossyButton';
 import { SkeletonCard } from '@/components/ui/Skeleton';
+import { priorityClass, taskStatusLabels as statusLabels } from '@/lib/statusLabels';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { createAuditLog } from '@/lib/audit';
 import { useApp } from '@/lib/context/AppContext';
@@ -98,23 +99,7 @@ const taskTabs: { id: TaskTab; label: string }[] = [
   { id: 'completed', label: 'הושלמו' },
 ];
 
-const statusLabels: Record<TaskStatus, string> = {
-  open: 'פתוחה',
-  in_progress: 'בתהליך',
-  blocked: 'תקועה',
-  completed: 'הושלמה',
-  cancelled: 'בוטלה',
-};
 
-// Same semantic set as StatusBadge and the dashboard tone map: raw Tailwind
-// palette classes here would also lose their dark treatment, since the legacy
-// [class*="text-[var(--color-info)]"] overrides are what used to carry them.
-const priorityStyles: Record<TaskPriority, string> = {
-  רגילה: 'border-[var(--border-strong)] bg-[var(--surface-muted)] text-[var(--text-secondary)]',
-  חשובה: 'border-[var(--color-info)]/25 bg-[var(--color-info)]/10 text-[var(--color-info)]',
-  דחופה: 'border-[var(--color-warning)]/25 bg-[var(--color-warning)]/10 text-[var(--color-warning)]',
-  קריטית: 'border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 text-[var(--color-danger)]',
-};
 
 function formatDate(value: string | null) {
   if (!value) return 'לא נקבע';
@@ -1135,7 +1120,7 @@ export default function TasksPage() {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <StatusBadge status={statusLabels[taskStatus]} />
-                    <span className={`inline-flex min-h-6 items-center rounded-full border px-2.5 py-0.5 text-caption font-bold ${priorityStyles[taskPriority]}`}>
+                    <span className={`inline-flex min-h-6 items-center rounded-full border px-2.5 py-0.5 text-caption font-bold ${priorityClass('task', taskPriority)}`}>
                       {taskPriority}
                     </span>
                   </div>

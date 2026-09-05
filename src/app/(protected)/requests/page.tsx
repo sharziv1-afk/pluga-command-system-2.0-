@@ -23,6 +23,7 @@ import { FieldPrivacyHint } from '@/components/ui/FieldPrivacyHint';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlossyButton } from '@/components/ui/GlossyButton';
 import { SkeletonCard } from '@/components/ui/Skeleton';
+import { priorityClass, requestStatusLabels as statusLabels } from '@/lib/statusLabels';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { MetricCard } from '@/components/ui/MetricCard';
 import { CommandOverlay, CommandConfirmDialog } from '@/components/ui/CommandDialog';
@@ -119,23 +120,7 @@ const categories: RequestCategory[] = ['לוגיסטיקה', 'רפואה', 'קש
 const priorities: RequestPriority[] = ['נמוכה', 'רגילה', 'גבוהה', 'דחופה'];
 const statusOptions: RequestStatus[] = ['open', 'in_progress', 'approved', 'rejected', 'completed', 'cancelled'];
 
-const statusLabels: Record<RequestStatus, string> = {
-  open: 'פתוח',
-  in_progress: 'בתהליך',
-  approved: 'אושר',
-  rejected: 'נדחה',
-  completed: 'הושלם',
-  cancelled: 'בוטל',
-};
 
-// Priority chips: semantic escalation only (neutral → warning → danger).
-// No blue/purple — keeps the palette to the teal + orange identity.
-const priorityStyles: Record<RequestPriority, string> = {
-  נמוכה: 'border-[var(--border-strong)] bg-[var(--surface-muted)] text-[var(--text-muted-accessible)]',
-  רגילה: 'border-[var(--border-strong)] bg-[var(--surface-muted)] text-[var(--text-secondary)]',
-  גבוהה: 'border-[var(--color-warning)]/25 bg-[var(--color-warning)]/10 text-[var(--color-warning)]',
-  דחופה: 'border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 text-[var(--color-danger)]',
-};
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'all', label: 'הכל' },
@@ -239,13 +224,13 @@ function filterByTab(request: DbRequest, tab: TabId, profileId: string | undefin
 
 function getTabEmptyText(tab: TabId): { title: string; description: string } {
   switch (tab) {
-    case 'mine': return { title: 'אין בקשות שלך', description: 'לא פתחת בקשות עדיין. ניתן לפתוח בקשה חדשה.' };
-    case 'open': return { title: 'אין בקשות פתוחות', description: 'כל הבקשות הפתוחות טופלו.' };
-    case 'urgent': return { title: 'אין בקשות דחופות', description: 'לא קיימות בקשות בעדיפות דחופה כרגע.' };
-    case 'in_progress': return { title: 'אין בקשות בטיפול', description: 'לא קיימות בקשות בטיפול פעיל.' };
-    case 'completed': return { title: 'אין בקשות שהושלמו', description: 'עדיין לא הושלמו בקשות.' };
-    case 'closed': return { title: 'אין בקשות סגורות', description: 'אין בקשות שנדחו או בוטלו.' };
-    default: return { title: 'אין עדיין בקשות', description: 'ניתן לפתוח בקשה חדשה.' };
+    case 'mine': return { title: 'אין דרישות שלך', description: 'לא פתחת דרישות עדיין. ניתן לפתוח דרישה חדשה.' };
+    case 'open': return { title: 'אין דרישות פתוחות', description: 'כל הדרישות הפתוחות טופלו.' };
+    case 'urgent': return { title: 'אין דרישות דחופות', description: 'לא קיימות דרישות בעדיפות דחופה כרגע.' };
+    case 'in_progress': return { title: 'אין דרישות בטיפול', description: 'לא קיימות דרישות בטיפול פעיל.' };
+    case 'completed': return { title: 'אין דרישות שהושלמו', description: 'עדיין לא הושלמו דרישות.' };
+    case 'closed': return { title: 'אין דרישות סגורות', description: 'אין דרישות שנדחו או בוטלו.' };
+    default: return { title: 'אין עדיין דרישות', description: 'ניתן לפתוח דרישה חדשה.' };
   }
 }
 
@@ -351,7 +336,7 @@ export default function RequestsPage() {
 
       if (requestsError) {
         logSupabaseError('Requests load failed', requestsError);
-        setError('לא ניתן לטעון את הבקשות כרגע. נסה לרענן את הדף בעוד רגע.');
+        setError('לא ניתן לטעון את הדרישות כרגע. נסה לרענן את הדף בעוד רגע.');
         return;
       }
 
@@ -428,7 +413,7 @@ export default function RequestsPage() {
       })));
     } catch (loadError) {
       logSupabaseError('Requests load failed unexpectedly', loadError);
-      setError('לא ניתן לטעון את הבקשות כרגע. נסה לרענן את הדף בעוד רגע.');
+      setError('לא ניתן לטעון את הדרישות כרגע. נסה לרענן את הדף בעוד רגע.');
     } finally {
       setIsLoading(false);
     }
@@ -534,7 +519,7 @@ export default function RequestsPage() {
       if (insertError) {
         logSupabaseError('Request create failed', insertError);
       }
-      setError('לא הצלחנו לפתוח את הבקשה. בדוק שיש לך הרשאה לפעולה זו ונסה שוב.');
+      setError('לא הצלחנו לפתוח את הדרישה. בדוק שיש לך הרשאה לפעולה זו ונסה שוב.');
       return;
     }
     void createAuditLog(supabase, {
@@ -554,11 +539,11 @@ export default function RequestsPage() {
     });
     resetForm();
     setIsFormOpen(false);
-    setSuccess('הבקשה נפתחה ונשמרה במערכת.');
+    setSuccess('הדרישה נפתחה ונשמרה במערכת.');
     await loadRequests();
     } catch (createError) {
       logSupabaseError('Request create failed unexpectedly', createError);
-      setError('לא הצלחנו לפתוח את הבקשה. נסה שוב בעוד רגע.');
+      setError('לא הצלחנו לפתוח את הדרישה. נסה שוב בעוד רגע.');
     } finally {
       setIsSubmitting(false);
     }
@@ -697,7 +682,7 @@ export default function RequestsPage() {
       return;
     }
     if (!didRowsUpdate(updatedRows)) {
-      setError('לא ניתן לעדכן את הסטטוס — אין לך הרשאה לכך, או שהבקשה השתנתה. רענן ונסה שוב.');
+      setError('לא ניתן לעדכן את הסטטוס — אין לך הרשאה לכך, או שהדרישה השתנתה. רענן ונסה שוב.');
       return;
     }
     void createAuditLog(supabase, {
@@ -711,7 +696,7 @@ export default function RequestsPage() {
       newValue: { status: nextStatus },
     });
     setRequests(current => current.map(r => r.id === requestId ? { ...r, status: nextStatus } : r));
-    setSuccess('סטטוס הבקשה עודכן.');
+    setSuccess('סטטוס הדרישה עודכן.');
     } catch (updateError) {
       logSupabaseError('Request status update failed unexpectedly', updateError);
       setError('לא ניתן לעדכן את הסטטוס כרגע. נסה שוב בעוד רגע.');
@@ -738,11 +723,11 @@ export default function RequestsPage() {
 
     if (updateError) {
       logSupabaseError('Request assignee update failed', updateError);
-      setError('לא ניתן לעדכן מטפל לבקשה');
+      setError('לא ניתן לעדכן מטפל לדרישה');
       return;
     }
     if (!didRowsUpdate(updatedRows)) {
-      setError('לא ניתן לעדכן מטפל לבקשה — אין לך הרשאה לכך, או שהבקשה השתנתה. רענן ונסה שוב.');
+      setError('לא ניתן לעדכן מטפל לדרישה — אין לך הרשאה לכך, או שהדרישה השתנתה. רענן ונסה שוב.');
       return;
     }
 
@@ -771,7 +756,7 @@ export default function RequestsPage() {
     setSuccess('המטפל עודכן');
     } catch (updateError) {
       logSupabaseError('Request assignee update failed unexpectedly', updateError);
-      setError('לא ניתן לעדכן מטפל לבקשה');
+      setError('לא ניתן לעדכן מטפל לדרישה');
     } finally {
       setUpdatingAssigneeId(null);
     }
@@ -800,7 +785,7 @@ export default function RequestsPage() {
 
     if (deleteError) {
       logSupabaseError('Request delete failed', deleteError);
-      setError('לא ניתן למחוק את הדרישה. בדוק שיש לך הרשאה למחוק בקשה זו.');
+      setError('לא ניתן למחוק את הדרישה. בדוק שיש לך הרשאה למחוק דרישה זו.');
       return;
     }
 
@@ -827,7 +812,7 @@ export default function RequestsPage() {
     setSuccess('הדרישה הסגורה נמחקה.');
     } catch (deleteError) {
       logSupabaseError('Request delete failed unexpectedly', deleteError);
-      setError('לא ניתן למחוק את הדרישה. בדוק שיש לך הרשאה למחוק בקשה זו.');
+      setError('לא ניתן למחוק את הדרישה. בדוק שיש לך הרשאה למחוק דרישה זו.');
     } finally {
       setDeletingRequestId(null);
     }
@@ -939,7 +924,7 @@ export default function RequestsPage() {
   if (isContextLoading || isLoading) {
     return (
       <div className="space-y-6">
-        <PageHeader title="פערים ודרישות" subtitle="מוקד פתיחה, תיעדוף וטיפול בבקשות ופערים מהשטח" />
+        <PageHeader title="פערים ודרישות" subtitle="מוקד פתיחה, תיעדוף וטיפול בדרישות ופערים מהשטח" />
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <SkeletonCard />
           <SkeletonCard />
@@ -953,12 +938,12 @@ export default function RequestsPage() {
   if (!currentUser || !dbProfile) {
     return (
       <div className="space-y-6">
-        <PageHeader title="פערים ודרישות" subtitle="מוקד פתיחה, תיעדוף וטיפול בבקשות ופערים מהשטח" />
+        <PageHeader title="פערים ודרישות" subtitle="מוקד פתיחה, תיעדוף וטיפול בדרישות ופערים מהשטח" />
         <GlassCard className="flex flex-col items-center justify-center py-12 text-center">
           <ShieldAlert className="mb-3 h-10 w-10 text-[var(--color-danger)]" />
           <h2 className="text-sm font-semibold text-[var(--text-primary)]">לא נמצא פרופיל משתמש</h2>
           <p className="mt-2 max-w-sm text-sm font-semibold leading-relaxed text-[var(--text-muted-accessible)]">
-            יש להתחבר מחדש כדי לפתוח או לצפות בבקשות.
+            יש להתחבר מחדש כדי לפתוח או לצפות בדרישות.
           </p>
         </GlassCard>
       </div>
@@ -969,12 +954,12 @@ export default function RequestsPage() {
     <div className="space-y-6">
       <PageHeader
         title="פערים ודרישות"
-        subtitle="מוקד פתיחה, תיעדוף וטיפול בבקשות ופערים מהשטח"
+        subtitle="מוקד פתיחה, תיעדוף וטיפול בדרישות ופערים מהשטח"
         actions={
           viewMode === 'requests' ? (
             <GlossyButton variant="orange" size="sm" onClick={() => setIsFormOpen(true)}>
               <Plus className="h-4 w-4" />
-              פתיחת בקשה חדשה
+              פתיחת דרישה חדשה
             </GlossyButton>
           ) : undefined
         }
@@ -1005,8 +990,8 @@ export default function RequestsPage() {
       <>
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MetricCard label="בקשות פתוחות" value={openCount} icon={Clock3} tone="brand" />
-        <MetricCard label="בקשות דחופות" value={urgentCount} icon={AlertTriangle} tone="danger" />
+        <MetricCard label="דרישות פתוחות" value={openCount} icon={Clock3} tone="brand" />
+        <MetricCard label="דרישות דחופות" value={urgentCount} icon={AlertTriangle} tone="danger" />
         <MetricCard label="בטיפול" value={inProgressCount} icon={RefreshCw} tone="info" />
         <MetricCard label="הושלמו" value={completedCount} icon={CheckCircle2} tone="success" />
       </div>
@@ -1015,8 +1000,8 @@ export default function RequestsPage() {
       <CommandOverlay
         open={isFormOpen}
         onClose={() => setIsFormOpen(false)}
-        title="פתיחת בקשה חדשה"
-        description="פרטי הבקשה יישלחו למטפלים הרלוונטיים לפי קטגוריה."
+        title="פתיחת דרישה חדשה"
+        description="פרטי הדרישה יישלחו למטפלים הרלוונטיים לפי קטגוריה."
         variant="sheet"
         footer={
           <>
@@ -1030,7 +1015,7 @@ export default function RequestsPage() {
               loading={isSubmitting}
               icon={<CheckCircle2 className="h-4 w-4" />}
             >
-              שמור בקשה
+              שמור דרישה
             </CommandButton>
           </>
         }
@@ -1150,7 +1135,7 @@ export default function RequestsPage() {
           {hasActiveFilters ? (
             <EmptyState
               icon={Search}
-              title="לא נמצאו בקשות לפי הסינון"
+              title="לא נמצאו דרישות לפי הסינון"
               description="נסה לשנות את הסינון או לנקות את שדה החיפוש."
               actionText="נקה סינון"
               onAction={() => { setSearchText(''); setFilterCategory('הכל'); setFilterPriority('הכל'); }}
@@ -1160,7 +1145,7 @@ export default function RequestsPage() {
               icon={Truck}
               title={emptyText.title}
               description={emptyText.description}
-              actionText="פתח בקשה חדשה"
+              actionText="פתח דרישה חדשה"
               onAction={() => setIsFormOpen(true)}
             />
           )}
@@ -1191,7 +1176,7 @@ export default function RequestsPage() {
                   <div className="min-w-0">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
                       <StatusBadge status={statusLabels[request.status]} />
-                      <span className={`rounded-full border px-2.5 py-0.5 text-caption font-bold ${priorityStyles[requestPriority]}`}>
+                      <span className={`rounded-full border px-2.5 py-0.5 text-caption font-bold ${priorityClass('request', requestPriority)}`}>
                         {requestPriority}
                       </span>
                       <span className="rounded-full border border-[var(--action)]/20 bg-[var(--action)]/10 px-2.5 py-0.5 text-caption font-bold text-[var(--color-action-on-surface)]">
@@ -1200,7 +1185,7 @@ export default function RequestsPage() {
                     </div>
                     <h3 className="text-base font-semibold text-[var(--text-primary)]">{request.title}</h3>
                     <p className="mt-2 text-sm font-semibold leading-relaxed text-[var(--text-muted-accessible)]">
-                      {request.description || 'לא נוסף פירוט לבקשה.'}
+                      {request.description || 'לא נוסף פירוט לדרישה.'}
                     </p>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
@@ -1354,7 +1339,7 @@ export default function RequestsPage() {
 
                       {!isLoadingComments && !commentError && comments.length === 0 && (
                         <p className="rounded-xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-3 py-3 text-xs font-bold text-[var(--text-muted-accessible)]">
-                          אין עדיין עדכוני טיפול לבקשה זו
+                          אין עדיין עדכוני טיפול לדרישה זו
                         </p>
                       )}
 

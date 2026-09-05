@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ArrowLeftRight, Loader2, Plus, Search, ShieldAlert } from 'lucide-react';
+import { priorityClass } from '@/lib/statusLabels';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlossyButton } from '@/components/ui/GlossyButton';
@@ -51,12 +52,6 @@ const ROUTING: Record<GapCategory, string> = {
   'לו"זי': 'סמ״פ / מ״פ',
 };
 
-const urgencyStyles: Record<GapUrgency, string> = {
-  רגיל: 'border-[var(--border-strong)] bg-[var(--surface-muted)] text-[var(--text-secondary)]',
-  חשוב: 'border-sky-400/25 bg-sky-400/10 text-sky-700',
-  דחוף: 'border-[var(--color-warning)]/25 bg-[var(--color-warning)]/10 text-[var(--color-warning)]',
-  קריטי: 'border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 text-[var(--color-danger)]',
-};
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -406,7 +401,7 @@ export function GapsPanel() {
                   <div className="min-w-0">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
                       <StatusBadge status={gap.status} />
-                      <span className={`rounded-full border px-2.5 py-0.5 text-caption font-bold ${urgencyStyles[gap.urgency]}`}>{gap.urgency}</span>
+                      <span className={`rounded-full border px-2.5 py-0.5 text-caption font-bold ${priorityClass('gap', gap.urgency)}`}>{gap.urgency}</span>
                       <span className="rounded-full border border-[var(--action)]/20 bg-[var(--action)]/10 px-2.5 py-0.5 text-caption font-bold text-[var(--color-action-on-surface)]">{gap.category}</span>
                       {gap.requires_commander_decision && (
                         <span className="rounded-full border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 px-2.5 py-0.5 text-caption font-bold text-[var(--color-danger)]">

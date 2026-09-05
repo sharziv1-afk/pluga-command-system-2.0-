@@ -72,6 +72,14 @@ import { logSupabaseError } from '@/lib/supabase/error';
 
 type ForumTab = 'posts' | 'daily';
 type ReportLevel = 'squad' | 'platoon' | 'company' | 'staff';
+
+// Never render a raw ReportLevel: it reached the user as literal 'platoon'.
+const reportLevelLabels: Record<ReportLevel, string> = {
+  squad: 'כיתה',
+  platoon: 'מחלקה',
+  company: 'פלוגה',
+  staff: 'מפל״ג',
+};
 type ReportStatus = 'draft' | 'in_progress' | 'submitted' | 'closed';
 type StaffRole = 'medic' | 'assistant_commander' | 'logistics_nco' | 'deputy_commander';
 
@@ -608,7 +616,7 @@ export default function ForumPage() {
         .map(report => ({
         id: `report-${report.id}`,
         label: ownerLabels.get(report.owner_user_id ?? '') ?? 'דוח קיים',
-        description: `${report.report_level === 'staff' ? staffNodes.find(staff => staff.id === report.staff_role)?.label ?? 'מפל״ג' : report.report_level} · ${report.metadata?.created_for_by_commander ? 'נוצר ע״י מפקד' : 'דוח קיים'}`,
+        description: `${report.report_level === 'staff' ? staffNodes.find(staff => staff.id === report.staff_role)?.label ?? 'מפל״ג' : reportLevelLabels[report.report_level] ?? report.report_level} · ${report.metadata?.created_for_by_commander ? 'נוצר ע״י מפקד' : 'דוח קיים'}`,
         level: report.report_level,
         staffRole: report.staff_role ?? undefined,
         group: report.report_level === 'staff' ? 'מפל״ג · דוחות קיימים' : 'דוחות קיימים',

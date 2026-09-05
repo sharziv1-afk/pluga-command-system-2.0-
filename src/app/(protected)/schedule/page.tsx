@@ -23,6 +23,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlossyButton } from '@/components/ui/GlossyButton';
 import { SkeletonCard } from '@/components/ui/Skeleton';
+import { eventStatusLabels as statusLabels, requestStatusLabels, taskStatusLabels, type RequestStatusCode, type TaskStatusCode } from '@/lib/statusLabels';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { createAuditLog } from '@/lib/audit';
 import { copyTextToClipboard } from '@/lib/clipboard';
@@ -96,29 +97,8 @@ const eventTypeLabels: Record<EventType, string> = {
   other: 'אחר',
 };
 
-const statusLabels: Record<EventStatus, string> = {
-  scheduled: 'מתוכנן',
-  in_progress: 'בתהליך',
-  completed: 'הושלם',
-  cancelled: 'בוטל',
-};
 
-const taskStatusLabels: Record<string, string> = {
-  open: 'פתוחה',
-  in_progress: 'בתהליך',
-  blocked: 'תקועה',
-  completed: 'הושלמה',
-  cancelled: 'בוטלה',
-};
 
-const requestStatusLabels: Record<string, string> = {
-  open: 'פתוח',
-  in_progress: 'בטיפול',
-  approved: 'אושר',
-  rejected: 'נדחה',
-  completed: 'הושלם',
-  cancelled: 'בוטל',
-};
 
 const eventTypeStyles: Record<EventType, string> = {
   training: 'border-[var(--color-success)]/25 bg-[var(--color-success)]/10 text-[var(--color-success)]',
@@ -1384,7 +1364,7 @@ export default function SchedulePage() {
                     {eventTasks.map(task => (
                       <div key={task.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-3 py-2">
                         <p className="truncate text-sm font-bold text-[var(--text-primary)]">{task.title}</p>
-                        <StatusBadge status={taskStatusLabels[task.status] ?? task.status} className="min-h-5 shrink-0 px-2 text-caption" />
+                        <StatusBadge status={taskStatusLabels[task.status as TaskStatusCode] ?? task.status} className="min-h-5 shrink-0 px-2 text-caption" />
                       </div>
                     ))}
                   </div>
@@ -1418,7 +1398,7 @@ export default function SchedulePage() {
                           <p className="truncate text-sm font-bold text-[var(--text-primary)]">{request.title}</p>
                           <p className="mt-0.5 text-caption font-bold text-[var(--command-subtle)]">{request.request_type || 'ללא סוג'}</p>
                         </div>
-                        <StatusBadge status={requestStatusLabels[request.status] ?? request.status} className="min-h-5 shrink-0 px-2 text-caption" />
+                        <StatusBadge status={requestStatusLabels[request.status as RequestStatusCode] ?? request.status} className="min-h-5 shrink-0 px-2 text-caption" />
                       </div>
                     ))}
                   </div>

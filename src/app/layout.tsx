@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Rubik } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import Providers from "./providers";
 
@@ -36,25 +37,31 @@ export default function RootLayout({
       lang="he"
       dir="rtl"
       className={`h-full antialiased ${rubik.variable}`}
-    >
-      <head>
-        {/*
-          Apply the saved theme BEFORE first paint.
+      // The pre-paint script below stamps data-theme/data-contrast/color-scheme
+      // onto this element before React hydrates, so the server HTML and the
+      // client DOM deliberately differ here. Without this, every page logs a
+      // hydration-mismatch error. Scoped to <html>'s own attributes only.
+      suppressHydrationWarning>
+      {/*
+        Apply the saved theme BEFORE first paint.
 
-          ThemeToggle/ContrastToggle set these attributes in a useEffect, i.e.
-          after hydration, so every load painted light and then flipped. That
-          caused two real problems: a light flash on each load, and — inside
-          the bottom nav's backdrop-filter containing block — Chrome not
-          re-resolving custom properties on the flip, leaving those labels on
-          the light-mode ink over a dark bar (~3.1:1). Setting the attributes
-          here means the very first paint is already correct and there is no
-          flip to miss. The toggles still own changes at runtime.
-        */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var d=document.documentElement;var t=localStorage.getItem('pluga_theme')==='dark'?'dark':'light';d.dataset.theme=t;d.style.colorScheme=t;if(localStorage.getItem('pluga_contrast')==='high'){d.dataset.contrast='high';}}catch(e){}})();`,
-          }}
-        />
+        ThemeToggle/ContrastToggle set these attributes in a useEffect, i.e.
+        after hydration, so every load painted light and then flipped. That
+        caused two real problems: a light flash on each load, and — inside the
+        bottom nav's backdrop-filter containing block — Chrome not re-resolving
+        custom properties on the flip, leaving those labels on the light-mode
+        ink over a dark bar (~3.1:1). Setting the attributes here means the
+        first paint is already correct and there is no flip to miss. The
+        toggles still own runtime changes.
+
+        next/script with beforeInteractive rather than a raw <script>: React
+        warns that script tags inside components are not executed on client
+        render, and this is the API Next provides for exactly this case.
+      */}
+      <head>
+        <Script id="theme-preload" strategy="beforeInteractive">
+          {`(function(){try{var d=document.documentElement;var t=localStorage.getItem('pluga_theme')==='dark'?'dark':'light';d.dataset.theme=t;d.style.colorScheme=t;if(localStorage.getItem('pluga_contrast')==='high'){d.dataset.contrast='high';}}catch(e){}})();`}
+        </Script>
       </head>
       <body className="min-h-full flex flex-col bg-tactical-bg text-[var(--text-primary)] selection:bg-cyan-200 selection:text-[var(--text-primary)]">
         <Providers>

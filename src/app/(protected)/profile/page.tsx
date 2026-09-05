@@ -98,7 +98,7 @@ function DeviceAccessCodeCard() {
         </div>
 
         {success && (
-          <div className="mb-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2.5 text-xs font-bold text-emerald-700">{success}</div>
+          <div className="mb-4 rounded-2xl border border-[var(--color-success)]/25 bg-[var(--color-success)]/10 px-4 py-2.5 text-xs font-bold text-[var(--color-success)]">{success}</div>
         )}
 
         {!isEditing ? (
@@ -114,7 +114,7 @@ function DeviceAccessCodeCard() {
               <button
                 type="button"
                 onClick={handleRemove}
-                className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-4 text-xs font-semibold text-red-600 transition hover:bg-red-100"
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 px-4 text-xs font-semibold text-[var(--color-danger)] transition hover:bg-[var(--color-danger)]/10"
               >
                 <Trash2 className="h-3.5 w-3.5" />
                 ביטול קוד גישה
@@ -176,7 +176,7 @@ function DeviceAccessCodeCard() {
                 disabled={isRegisteringBiometric}
                 className={`inline-flex min-h-10 items-center gap-1.5 rounded-xl px-4 text-xs font-semibold transition disabled:opacity-50 ${
                   hasBiometric
-                    ? 'border border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
+                    ? 'border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10'
                     : 'bg-[var(--action)] text-white hover:bg-[var(--action-hover)]'
                 }`}
               >
@@ -222,10 +222,10 @@ export default function ProfilePage() {
     return (
       <div className="space-y-6">
         <PageHeader title="פרופיל אישי" subtitle="ניהול ופרטי משתמש אישיים" />
-        <GlassCard className="py-12 flex flex-col items-center justify-center text-center text-slate-500">
-          <ShieldAlert className="w-12 h-12 mb-3 text-red-500" />
-          <span className="text-sm font-semibold text-slate-350">לא נמצא פרופיל משתמש מחובר</span>
-          <p className="text-xs text-slate-500 mt-1">אנא התחבר מחדש למערכת.</p>
+        <GlassCard className="py-12 flex flex-col items-center justify-center text-center text-[var(--text-muted-accessible)]">
+          <ShieldAlert className="w-12 h-12 mb-3 text-[var(--color-danger)]" />
+          <span className="text-sm font-semibold text-[var(--text-muted-accessible)]">לא נמצא פרופיל משתמש מחובר</span>
+          <p className="text-xs text-[var(--text-muted-accessible)] mt-1">אנא התחבר מחדש למערכת.</p>
         </GlassCard>
       </div>
     );

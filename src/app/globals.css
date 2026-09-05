@@ -875,31 +875,39 @@ option {
 @keyframes command-sheet-in { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
 @keyframes command-sheet-up { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
 
-/* Numeric KPI figure — tabular, prominent */
-.command-kpi {
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1;
-}
-
 /* ============================================================
-   Typography scale — see DESIGN.md §2. Semantic role classes, not raw
-   px/arbitrary Tailwind sizes. Weight is NOT set here — apply the role
-   weight (DESIGN.md §2.2: 400 body, 500 secondary/meta, 600 subheading,
-   700 heading) per-usage with Tailwind's font-* utilities so a given role
-   can still flex weight in context (e.g. an active vs. inactive heading).
-   ============================================================ */
-.text-caption { font-size: var(--fs-caption); line-height: var(--lh-caption); }
-.text-meta { font-size: var(--fs-meta); line-height: var(--lh-meta); }
-.text-body-ui { font-size: var(--fs-body); line-height: var(--lh-body); }
-.text-subheading { font-size: var(--fs-subheading); line-height: var(--lh-subheading); }
-.text-heading { font-size: var(--fs-heading); line-height: var(--lh-heading); }
+   Typography scale + KPI figure — see DESIGN.md §2. Semantic role classes,
+   not raw px/arbitrary Tailwind sizes. Weight is NOT set by the scale —
+   apply the role weight (DESIGN.md §2.2: 400 body, 500 secondary/meta,
+   600 subheading, 700 heading) per-usage with Tailwind's font-* utilities.
 
-/* All-caps / small badge-style labels need open tracking (DESIGN.md §2.4). */
-.text-label-caps {
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+   These MUST live in @layer components, not unlayered. Unlayered normal
+   declarations beat every layered one, so as plain rules they silently won
+   against Tailwind's own utilities — `text-meta sm:text-sm` stayed 13px at
+   every breakpoint because the responsive override could never apply. In
+   the components layer they sit before `utilities`, so a utility on the
+   same element overrides them, which is what a call site expects.
+   ============================================================ */
+@layer components {
+  /* Numeric KPI figure — tabular, prominent */
+  .command-kpi {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1;
+  }
+
+  .text-caption { font-size: var(--fs-caption); line-height: var(--lh-caption); }
+  .text-meta { font-size: var(--fs-meta); line-height: var(--lh-meta); }
+  .text-body-ui { font-size: var(--fs-body); line-height: var(--lh-body); }
+  .text-subheading { font-size: var(--fs-subheading); line-height: var(--lh-subheading); }
+  .text-heading { font-size: var(--fs-heading); line-height: var(--lh-heading); }
+
+  /* All-caps / small badge-style labels need open tracking (DESIGN.md §2.4). */
+  .text-label-caps {
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
 }
 
 /* ============================================================

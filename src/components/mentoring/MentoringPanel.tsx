@@ -295,7 +295,7 @@ export function MentoringPanel() {
       </div>
 
       {success && (
-        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-700">{success}</div>
+        <div className="rounded-2xl border border-[var(--color-success)]/25 bg-[var(--color-success)]/10 px-4 py-3 text-sm font-bold text-[var(--color-success)]">{success}</div>
       )}
       {error && (
         <div className="rounded-2xl border border-[var(--color-danger)]/20 bg-[var(--color-danger)]/10 px-4 py-3 text-sm font-bold text-[var(--color-danger)]">{error}</div>
@@ -383,7 +383,7 @@ export function MentoringPanel() {
                   <p className="mb-1"><strong className="font-semibold">מוקד:</strong> {entry.focus}</p>
                   <p><strong className="font-semibold">פעולה מוסכמת:</strong> {entry.agreed_action}</p>
                   {entry.task_id ? (
-                    <p className="mt-2 text-xs font-bold text-emerald-700">נפתחה משימה למעקב</p>
+                    <p className="mt-2 text-xs font-bold text-[var(--color-success)]">נפתחה משימה למעקב</p>
                   ) : (
                     <button type="button" onClick={() => void convertToTask(entry)} disabled={isWritePending} className="mt-2 text-xs font-semibold text-[var(--color-action-on-surface)] hover:underline">
                       הפוך למשימה

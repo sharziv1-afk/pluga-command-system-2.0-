@@ -37,7 +37,7 @@ export default function RootLayout({
       dir="rtl"
       className={`h-full antialiased ${rubik.variable}`}
     >
-      <body className="min-h-full flex flex-col bg-tactical-bg text-slate-950 selection:bg-cyan-200 selection:text-slate-950">
+      <body className="min-h-full flex flex-col bg-tactical-bg text-[var(--text-primary)] selection:bg-cyan-200 selection:text-[var(--text-primary)]">
         <Providers>
           {children}
         </Providers>

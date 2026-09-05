@@ -279,14 +279,14 @@ export default function LoginPage() {
               </label>
 
               {message && (
-                <div className="flex items-start gap-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm leading-relaxed text-emerald-800">
+                <div className="flex items-start gap-2 rounded-2xl border border-[var(--color-success)]/25 bg-[var(--color-success)]/10 px-4 py-3 text-sm leading-relaxed text-[var(--color-success)]">
                   <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
                   <span>{message}</span>
                 </div>
               )}
 
               {error && (
-                <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm leading-relaxed text-red-800">
+                <div className="rounded-2xl border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 px-4 py-3 text-sm leading-relaxed text-[var(--color-danger)]">
                   {error}
                 </div>
               )}
@@ -334,14 +334,14 @@ export default function LoginPage() {
               </label>
 
               {message && (
-                <div className="flex items-start gap-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm leading-relaxed text-emerald-800">
+                <div className="flex items-start gap-2 rounded-2xl border border-[var(--color-success)]/25 bg-[var(--color-success)]/10 px-4 py-3 text-sm leading-relaxed text-[var(--color-success)]">
                   <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
                   <span>{message}</span>
                 </div>
               )}
 
               {error && (
-                <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm leading-relaxed text-red-800">
+                <div className="rounded-2xl border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 px-4 py-3 text-sm leading-relaxed text-[var(--color-danger)]">
                   {error}
                 </div>
               )}
@@ -403,7 +403,7 @@ export default function LoginPage() {
               </label>
 
               {error && (
-                <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm leading-relaxed text-red-800">
+                <div className="rounded-2xl border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 px-4 py-3 text-sm leading-relaxed text-[var(--color-danger)]">
                   {error}
                 </div>
               )}

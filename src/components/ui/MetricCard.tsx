@@ -55,8 +55,8 @@ export const MetricCard: React.FC<MetricCardProps> = ({
       )}
       <div className="min-w-0 flex-1">
         <div className="command-kpi text-2xl text-[var(--text-primary)]">{value}</div>
-        <div className="mt-0.5 truncate text-[13px] font-bold text-[var(--text-secondary)]">{label}</div>
-        {sublabel && <div className="mt-0.5 truncate text-[11px] font-medium text-[var(--text-muted-accessible)]">{sublabel}</div>}
+        <div className="mt-0.5 truncate text-meta font-bold text-[var(--text-secondary)]">{label}</div>
+        {sublabel && <div className="mt-0.5 truncate text-caption font-medium text-[var(--text-muted-accessible)]">{sublabel}</div>}
       </div>
     </Wrapper>
   );

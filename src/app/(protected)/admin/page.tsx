@@ -192,7 +192,7 @@ export default function AdminPage() {
       <div className="flex h-[50vh] w-full items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-[var(--color-action-on-surface)]" />
-          <span className="text-sm font-semibold text-slate-400">טוען בקרת גישה פלוגתית...</span>
+          <span className="text-sm font-semibold text-[var(--text-muted-accessible)]">טוען בקרת גישה פלוגתית...</span>
         </div>
       </div>
     );
@@ -202,7 +202,7 @@ export default function AdminPage() {
     return (
       <div className="space-y-6 text-right">
         <PageHeader title="אישור מפקדים" subtitle="ניהול הרשאות ואישורי סגל פלוגתי" />
-        <GlassCard className="py-12 flex flex-col items-center justify-center text-center text-slate-500">
+        <GlassCard className="py-12 flex flex-col items-center justify-center text-center text-[var(--text-muted-accessible)]">
           <Lock className="w-12 h-12 mb-3 text-[var(--brand)]" />
           <span className="text-sm font-semibold text-[var(--text-primary)]">אין לך הרשאות גישה למסך זה</span>
           <p className="text-xs text-[var(--text-muted-accessible)] mt-2 max-w-sm leading-relaxed">
@@ -506,7 +506,7 @@ export default function AdminPage() {
       >
         <form id="invite-user-form" onSubmit={handleInviteSubmit} className="space-y-4">
           {inviteError && (
-            <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-3.5 py-2.5 text-sm font-bold text-red-800" role="alert">
+            <div className="rounded-xl border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 px-3.5 py-2.5 text-sm font-bold text-[var(--color-danger)]" role="alert">
               {inviteError}
             </div>
           )}
@@ -539,14 +539,14 @@ export default function AdminPage() {
       </CommandOverlay>
 
       {rlsError && (
-        <div className="flex items-start gap-2.5 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm leading-relaxed text-red-800">
+        <div className="flex items-start gap-2.5 rounded-2xl border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 px-4 py-3 text-sm leading-relaxed text-[var(--color-danger)]">
           <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{rlsError}</span>
         </div>
       )}
 
       {referenceDataError && (
-        <div className="flex items-start gap-2.5 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm leading-relaxed text-amber-800">
+        <div className="flex items-start gap-2.5 rounded-2xl border border-[var(--color-warning)]/25 bg-[var(--color-warning)]/10 px-4 py-3 text-sm leading-relaxed text-[var(--color-warning)]">
           <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{referenceDataError}</span>
         </div>
@@ -556,16 +556,16 @@ export default function AdminPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Pending Requests Column */}
         <div className="lg:col-span-2 space-y-4">
-          <h2 className="text-xs font-semibold text-slate-400 flex items-center gap-2">
+          <h2 className="text-xs font-semibold text-[var(--text-muted-accessible)] flex items-center gap-2">
             <Clock className="w-4 h-4 text-orange-400" />
             בקשות גישה ממתינות לאישור ({activeRequests.length})
           </h2>
 
           {activeRequests.length === 0 ? (
-            <GlassCard className="py-12 flex flex-col items-center justify-center text-center text-slate-500">
-              <UserCheck className="w-8 h-8 mb-3 text-slate-600" />
-              <span className="text-xs font-semibold text-slate-350">אין בקשות גישה ממתינות</span>
-              <p className="text-caption text-slate-500 mt-1">כל בקשות המפקדים והסגל טופלו ואושרו בהצלחה.</p>
+            <GlassCard className="py-12 flex flex-col items-center justify-center text-center text-[var(--text-muted-accessible)]">
+              <UserCheck className="w-8 h-8 mb-3 text-[var(--text-muted-accessible)]" />
+              <span className="text-xs font-semibold text-[var(--text-muted-accessible)]">אין בקשות גישה ממתינות</span>
+              <p className="text-caption text-[var(--text-muted-accessible)] mt-1">כל בקשות המפקדים והסגל טופלו ואושרו בהצלחה.</p>
             </GlassCard>
           ) : (
             <div className="space-y-3">
@@ -674,7 +674,7 @@ export default function AdminPage() {
                             </>
                           )}
                           <span>•</span>
-                          <span>דוא״ל: <strong className="text-slate-600 font-mono">{req.email}</strong></span>
+                          <span>דוא״ל: <strong className="text-[var(--text-muted-accessible)] font-mono">{req.email}</strong></span>
                           <span>•</span>
                           <span>הרשאה: <strong className="text-[var(--text-primary)] font-mono">{req.permission_level}</strong></span>
                         </div>
@@ -686,7 +686,7 @@ export default function AdminPage() {
                           size="sm"
                           onClick={() => startEditing(req)}
                           disabled={isActionSubmitting !== null}
-                          className="border-slate-300 text-slate-600 hover:text-[var(--text-primary)]"
+                          className="border-[var(--border-strong)] text-[var(--text-muted-accessible)] hover:text-[var(--text-primary)]"
                         >
                           <Edit2 className="w-3 h-3" />
                           ערוך
@@ -697,7 +697,7 @@ export default function AdminPage() {
                           size="sm" 
                           disabled={isActionSubmitting !== null}
                           onClick={() => handleReject(req.id)}
-                          className="border-red-300/30 text-red-600 hover:bg-red-500/10 hover:text-red-700 hover:border-red-500/20"
+                          className="border-[var(--color-danger)]/25 text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10 hover:text-[var(--color-danger)] hover:border-[var(--color-danger)]/25"
                         >
                           {isActionSubmitting === req.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserX className="w-3.5 h-3.5" />}
                           דחה
@@ -723,14 +723,14 @@ export default function AdminPage() {
 
         {/* History Column */}
         <div className="space-y-4">
-          <h2 className="text-xs font-semibold text-slate-400 flex items-center gap-2">
+          <h2 className="text-xs font-semibold text-[var(--text-muted-accessible)] flex items-center gap-2">
             <Database className="w-4 h-4 text-cyan-500" />
             מפקדים וסגל שאושרו / נדחו
           </h2>
 
           <div className="space-y-3">
             {pastRequests.length === 0 ? (
-              <p className="text-center text-xs font-bold text-slate-400 py-6">טרם טופלו מפקדים</p>
+              <p className="text-center text-xs font-bold text-[var(--text-muted-accessible)] py-6">טרם טופלו מפקדים</p>
             ) : (
               pastRequests.map((req) => (
                 <GlassCard key={req.id} className="p-4 bg-[var(--tactical-glass)] border-[rgba(2,1,8,0.06)]" glow="none">

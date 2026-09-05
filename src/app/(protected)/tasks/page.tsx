@@ -108,7 +108,7 @@ const statusLabels: Record<TaskStatus, string> = {
 
 // Same semantic set as StatusBadge and the dashboard tone map: raw Tailwind
 // palette classes here would also lose their dark treatment, since the legacy
-// [class*="text-blue-700"] overrides are what used to carry them.
+// [class*="text-[var(--color-info)]"] overrides are what used to carry them.
 const priorityStyles: Record<TaskPriority, string> = {
   רגילה: 'border-[var(--border-strong)] bg-[var(--surface-muted)] text-[var(--text-secondary)]',
   חשובה: 'border-[var(--color-info)]/25 bg-[var(--color-info)]/10 text-[var(--color-info)]',
@@ -881,7 +881,7 @@ export default function TasksPage() {
       />
 
       {isOffline && (
-        <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
+        <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-warning)]/25 bg-[var(--color-warning)]/10 px-4 py-3 text-sm font-bold text-[var(--color-warning)]">
           <WifiOff className="h-4 w-4 shrink-0" />
           <span>
             אין רשת — מוצגות משימות שנשמרו במכשיר{cachedAt ? ` בשעה ${new Date(cachedAt).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}` : ''}.
@@ -916,7 +916,7 @@ export default function TasksPage() {
             <p className="text-xs font-bold text-[var(--text-muted-accessible)]">הושלמו</p>
             <p className="command-kpi mt-1 text-3xl text-[var(--text-primary)]">{completedCount}</p>
           </div>
-          <CheckCircle2 className="h-9 w-9 text-emerald-600" />
+          <CheckCircle2 className="h-9 w-9 text-[var(--color-success)]" />
         </GlassCard>
       </div>
 
@@ -971,12 +971,12 @@ export default function TasksPage() {
         </div>
 
         {error && (
-          <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-3 text-sm font-bold text-red-700">
+          <div className="rounded-2xl border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 p-3 text-sm font-bold text-[var(--color-danger)]">
             {error}
           </div>
         )}
         {success && (
-          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm font-bold text-emerald-700">
+          <div className="rounded-2xl border border-[var(--color-success)]/25 bg-[var(--color-success)]/10 p-3 text-sm font-bold text-[var(--color-success)]">
             {success}
           </div>
         )}
@@ -1214,7 +1214,7 @@ export default function TasksPage() {
                           size="sm"
                           onClick={() => void handleDeleteTask(task)}
                           disabled={isTaskWritePending}
-                          className="text-red-700 hover:border-red-500/30 hover:bg-red-500/10"
+                          className="text-[var(--color-danger)] hover:border-[var(--color-danger)]/25 hover:bg-[var(--color-danger)]/10"
                         >
                           {deletingTaskId === task.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                           מחק

@@ -152,42 +152,42 @@ export default function HelpPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Dictionary Column */}
         <GlassCard className="lg:col-span-2 space-y-4" glow="none">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-900">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-[var(--border-subtle)]">
             <div className="flex items-center gap-2">
               <BookOpen className="w-4 h-4 text-cyan-400" />
-              <h2 className="text-xs font-semibold text-slate-200">מילון מונחי פיקוד וראשי תיבות</h2>
+              <h2 className="text-xs font-semibold text-[var(--text-primary)]">מילון מונחי פיקוד וראשי תיבות</h2>
             </div>
             
             {/* Search Input */}
             <div className="relative w-full sm:w-64">
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-muted-accessible)]" />
               <input
                 type="text"
                 placeholder="חיפוש מונח או ראשי תיבות..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-950/80 border border-slate-900 focus:border-cyan-500/50 rounded-xl py-1.5 pr-9 pl-3 text-caption text-slate-100 placeholder-slate-600 focus:outline-none transition duration-300 text-right"
+                className="w-full bg-[var(--surface-muted)] border border-[var(--border-subtle)] focus:border-cyan-500/50 rounded-xl py-1.5 pr-9 pl-3 text-caption text-[var(--text-primary)] placeholder-slate-600 focus:outline-none transition duration-300 text-right"
               />
             </div>
           </div>
 
           {filteredTerms.length === 0 ? (
-            <div className="text-center py-8 text-slate-500 text-xs">
+            <div className="text-center py-8 text-[var(--text-muted-accessible)] text-xs">
               לא נמצאו מונחים התואמים את החיפוש המבוקש.
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {filteredTerms.map((t, idx) => (
-                <div key={idx} className="p-3.5 rounded-xl bg-slate-950/40 border border-slate-900 flex flex-col justify-between gap-2">
+                <div key={idx} className="p-3.5 rounded-xl bg-[var(--surface-muted)] border border-[var(--border-subtle)] flex flex-col justify-between gap-2">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-semibold text-slate-200">{t.abbreviation}</span>
-                      <span className="text-caption text-slate-500 font-bold">({t.term})</span>
+                      <span className="text-xs font-semibold text-[var(--text-primary)]">{t.abbreviation}</span>
+                      <span className="text-caption text-[var(--text-muted-accessible)] font-bold">({t.term})</span>
                     </div>
-                    <p className="text-caption text-slate-400 leading-relaxed">{t.definition}</p>
+                    <p className="text-caption text-[var(--text-muted-accessible)] leading-relaxed">{t.definition}</p>
                   </div>
                   <div className="self-start mt-2">
-                    <span className="text-caption font-semibold px-2 py-0.5 rounded-md bg-slate-900 text-cyan-400 border border-cyan-500/10">
+                    <span className="text-caption font-semibold px-2 py-0.5 rounded-md bg-[var(--surface-muted)] text-cyan-400 border border-cyan-500/10">
                       {t.category}
                     </span>
                   </div>
@@ -199,9 +199,9 @@ export default function HelpPage() {
 
         {/* General Guidelines & Support */}
         <GlassCard className="space-y-4" glow="none">
-          <div className="flex items-center gap-2 pb-3 border-b border-slate-900">
+          <div className="flex items-center gap-2 pb-3 border-b border-[var(--border-subtle)]">
             <HelpCircle className="w-4 h-4 text-orange-400" />
-            <h2 className="text-xs font-semibold text-slate-200">הנחיות שימוש מהירות</h2>
+            <h2 className="text-xs font-semibold text-[var(--text-primary)]">הנחיות שימוש מהירות</h2>
           </div>
 
           <div className="space-y-4 text-right">
@@ -211,8 +211,8 @@ export default function HelpPage() {
                 1
               </div>
               <div className="space-y-0.5">
-                <span className="block text-caption font-semibold text-slate-200">קבלת אישור גישה</span>
-                <span className="block text-caption text-slate-450 leading-relaxed">
+                <span className="block text-caption font-semibold text-[var(--text-primary)]">קבלת אישור גישה</span>
+                <span className="block text-caption text-[var(--text-muted-accessible)] leading-relaxed">
                   הירשם באונבורדינג והמתן לאישור מפקד. המ"פ או הסמ"פ יקבלו התראה מיידית בלשונית "אישור משתמשים" ויאשרו את כניסתך.
                 </span>
               </div>
@@ -224,8 +224,8 @@ export default function HelpPage() {
                 2
               </div>
               <div className="space-y-0.5">
-                <span className="block text-caption font-semibold text-slate-200">ניהול לוח שליטה (HUD)</span>
-                <span className="block text-caption text-slate-450 leading-relaxed">
+                <span className="block text-caption font-semibold text-[var(--text-primary)]">ניהול לוח שליטה (HUD)</span>
+                <span className="block text-caption text-[var(--text-muted-accessible)] leading-relaxed">
                   עבור על מדדי סד"כ, כשירות ומשימות פעילות. מפקדי מחלקות מנהלים כאן משימות ופערים מחלקתיים ייעודיים.
                 </span>
               </div>
@@ -237,17 +237,17 @@ export default function HelpPage() {
                 3
               </div>
               <div className="space-y-0.5">
-                <span className="block text-caption font-semibold text-slate-200">סנכרון ודיווח יומי</span>
-                <span className="block text-caption text-slate-450 leading-relaxed">
+                <span className="block text-caption font-semibold text-[var(--text-primary)]">סנכרון ודיווח יומי</span>
+                <span className="block text-caption text-[var(--text-muted-accessible)] leading-relaxed">
                   בסוף כל יום עבודה הגישו סיכום לפורום המוביל. המערכת תבצע אינטגרציה מלאה ותייצר נוסח הודעת סגירת יום ל-WhatsApp.
                 </span>
               </div>
             </div>
 
             {/* Technical alert banner */}
-            <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex gap-2.5 mt-2">
+            <div className="p-3 rounded-xl bg-[var(--surface-muted)] border border-[var(--border-subtle)] flex gap-2.5 mt-2">
               <AlertCircle className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
-              <p className="text-caption text-slate-400 leading-normal">
+              <p className="text-caption text-[var(--text-muted-accessible)] leading-normal">
                 נתקלת בבעיה טכנית במערכת או שגיאת הרשאות? פנה לצוות התמיכה הטכנית של פלוגה א׳ במייל <strong className="text-cyan-400 font-mono">support.a@idf.il</strong>.
               </p>
             </div>

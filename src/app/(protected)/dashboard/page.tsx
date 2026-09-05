@@ -955,10 +955,10 @@ export default function DashboardPage() {
     return (
       <div className="space-y-6 text-right">
         <PageHeader title="לוח מפקד" subtitle="אנא התחבר למערכת כדי לראות תמונת מצב עדכנית." />
-        <GlassCard className="flex flex-col items-center justify-center py-12 text-center text-slate-500">
-          <ShieldAlert className="mb-3 h-12 w-12 text-red-500" />
-          <span className="text-sm font-semibold text-slate-500">לא נמצא פרופיל משתמש פעיל</span>
-          <p className="mt-1 text-xs text-slate-500">אנא התחבר מחדש.</p>
+        <GlassCard className="flex flex-col items-center justify-center py-12 text-center text-[var(--text-muted-accessible)]">
+          <ShieldAlert className="mb-3 h-12 w-12 text-[var(--color-danger)]" />
+          <span className="text-sm font-semibold text-[var(--text-muted-accessible)]">לא נמצא פרופיל משתמש פעיל</span>
+          <p className="mt-1 text-xs text-[var(--text-muted-accessible)]">אנא התחבר מחדש.</p>
         </GlassCard>
       </div>
     );
@@ -996,8 +996,8 @@ export default function DashboardPage() {
       />
 
       {successMessage && (
-        <GlassCard className="border-emerald-500/20 bg-emerald-500/5 py-4">
-          <div className="flex items-center gap-3 text-sm font-semibold text-emerald-700">
+        <GlassCard className="border-[var(--color-success)]/25 bg-[var(--color-success)]/10 py-4">
+          <div className="flex items-center gap-3 text-sm font-semibold text-[var(--color-success)]">
             <Sparkles className="h-5 w-5 shrink-0" />
             <span>{successMessage}</span>
           </div>
@@ -1005,12 +1005,12 @@ export default function DashboardPage() {
       )}
 
       {dashboardData.errors.length > 0 && (
-        <GlassCard className="border-red-500/20 bg-red-500/5 py-4">
-          <div className="flex items-start gap-3 text-right text-sm font-semibold text-red-700">
+        <GlassCard className="border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 py-4">
+          <div className="flex items-start gap-3 text-right text-sm font-semibold text-[var(--color-danger)]">
             <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
             <div>
               <p className="font-semibold">חלק מנתוני לוח המפקד לא נטענו.</p>
-              <p className="mt-1 text-xs text-red-600">{dashboardData.errors.join(' ')}</p>
+              <p className="mt-1 text-xs text-[var(--color-danger)]">{dashboardData.errors.join(' ')}</p>
             </div>
           </div>
         </GlassCard>
@@ -1235,7 +1235,7 @@ function QuickCreateModal({
 
         <form onSubmit={handleSubmit} className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
           {error && (
-            <div className="mb-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-700">
+            <div className="mb-4 rounded-2xl border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 px-4 py-3 text-sm font-bold text-[var(--color-danger)]">
               {error}
             </div>
           )}
@@ -1602,7 +1602,7 @@ function AuditLogRow({ log }: { log: DbAuditLog }) {
             {log.user_name || 'משתמש'} · {log.user_role || 'תפקיד לא ידוע'}
           </span>
         </div>
-        <span className="text-caption shrink-0 rounded-full border border-slate-500/15 bg-slate-500/10 px-2.5 py-1 font-semibold text-slate-600">
+        <span className="text-caption shrink-0 rounded-full border border-[var(--border-strong)] bg-[var(--surface-muted)] px-2.5 py-1 font-semibold text-[var(--text-muted-accessible)]">
           {getRelativeTime(log.created_at)}
         </span>
       </div>

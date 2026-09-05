@@ -45,7 +45,7 @@ export const BottomNav: React.FC = () => {
 
   const tabCls = (active: boolean) =>
     cn(
-      'flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[10px] font-bold transition',
+      'flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-caption font-bold transition',
       active ? 'text-[var(--color-action-on-surface)]' : 'text-[var(--text-muted-accessible)]',
     );
 

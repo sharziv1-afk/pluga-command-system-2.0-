@@ -443,7 +443,7 @@ function statusLabel(status: ReportStatus | undefined) {
 
 function statusTone(status: ReportStatus | undefined) {
   if (status === 'closed') return 'border-[var(--text-primary)]/15 bg-white text-[var(--text-primary)]';
-  if (status === 'submitted') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+  if (status === 'submitted') return 'border-[var(--color-success)]/25 bg-[var(--color-success)]/10 text-[var(--color-success)]';
   if (status === 'in_progress') return 'border-[var(--brand)]/25 bg-[var(--brand)]/10 text-[var(--color-action-on-surface)]';
   return 'border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)]';
 }
@@ -2474,7 +2474,7 @@ export default function ForumPage() {
           </div>
         </div>
 
-        {formError && <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{formError}</div>}
+        {formError && <div className="mb-4 rounded-2xl border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 px-4 py-3 text-sm font-bold text-[var(--color-danger)]">{formError}</div>}
 
         <div className="space-y-4">
           <label className="block">
@@ -2544,7 +2544,7 @@ export default function ForumPage() {
                 </div>
                 {editingPostId === post.id ? (
                   <div className="space-y-4 rounded-3xl border border-[var(--brand)]/20 bg-[var(--tactical-glass)] p-4">
-                    {editPostError && <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{editPostError}</div>}
+                    {editPostError && <div className="rounded-2xl border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 px-4 py-3 text-sm font-bold text-[var(--color-danger)]">{editPostError}</div>}
                     <label className="block">
                       <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">כותרת *</span>
                       <input value={editPostTitle} onChange={event => setEditPostTitle(event.target.value)} className="command-input" disabled={isSubmitting} />
@@ -2623,7 +2623,7 @@ export default function ForumPage() {
       )}
 
       {companyReportWarnings.length > 0 && (
-        <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
+        <div className="mt-3 rounded-2xl border border-[var(--color-warning)]/25 bg-[var(--color-warning)]/10 px-4 py-3 text-sm font-bold text-[var(--color-warning)]">
           <div className="mb-1 flex items-center gap-2 font-semibold">
             <AlertCircle className="h-4 w-4 shrink-0" />
             שים לב — פערים בדיווחים
@@ -2686,12 +2686,12 @@ export default function ForumPage() {
   const renderSelectedReportForm = () => {
     if (!selectedNode) {
       return (
-        <div className="tactical-glass-card rounded-3xl border border-amber-200 bg-amber-50/70 p-5">
+        <div className="tactical-glass-card rounded-3xl border border-[var(--color-warning)]/25 bg-[var(--color-warning)]/10 p-5">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-[var(--color-warning)]" />
             <div>
               <h3 className="text-lg font-semibold text-[var(--text-primary)]">הדוח של הטיוטה אינו זמין</h3>
-              <p className="mt-1 text-sm font-bold leading-relaxed text-amber-900">{unavailableDailyDraftMessage}</p>
+              <p className="mt-1 text-sm font-bold leading-relaxed text-[var(--color-warning)]">{unavailableDailyDraftMessage}</p>
             </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
@@ -2886,9 +2886,9 @@ export default function ForumPage() {
         </div>
 
         {returnedInfo && (
-          <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-            <Undo2 className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-            <div className="text-sm font-bold text-amber-800">
+          <div className="flex items-start gap-3 rounded-2xl border border-[var(--color-warning)]/25 bg-[var(--color-warning)]/10 px-4 py-3">
+            <Undo2 className="mt-0.5 h-5 w-5 shrink-0 text-[var(--color-warning)]" />
+            <div className="text-sm font-bold text-[var(--color-warning)]">
               <span className="block font-semibold">הדוח הוחזר לדרג מטה</span>
               <span>
                 {returnedInfo.note}
@@ -3059,13 +3059,13 @@ export default function ForumPage() {
           </div>
         </div>
         {canDeleteSelectedReport && (
-          <div className="rounded-3xl border border-red-100 bg-red-50/55 p-3">
-            <div className="mb-2 text-xs font-semibold text-red-700">פעולות מתקדמות</div>
+          <div className="rounded-3xl border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 p-3">
+            <div className="mb-2 text-xs font-semibold text-[var(--color-danger)]">פעולות מתקדמות</div>
             <button
               type="button"
               onClick={() => void deleteSelectedReport()}
               disabled={isDailySaving}
-              className="flex min-h-9 items-center justify-center gap-2 rounded-xl border border-red-200 bg-[var(--tactical-glass)] px-3 text-xs font-semibold text-red-700 transition hover:border-red-300 hover:bg-red-50 disabled:pointer-events-none disabled:opacity-50"
+              className="flex min-h-9 items-center justify-center gap-2 rounded-xl border border-[var(--color-danger)]/25 bg-[var(--tactical-glass)] px-3 text-xs font-semibold text-[var(--color-danger)] transition hover:border-[var(--color-danger)]/25 hover:bg-[var(--color-danger)]/10 disabled:pointer-events-none disabled:opacity-50"
             >
               <Trash2 className="h-3.5 w-3.5" />
               מחק דוח
@@ -3126,7 +3126,7 @@ export default function ForumPage() {
       </div>
 
       {isOfflineDaily && (
-        <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
+        <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-warning)]/25 bg-[var(--color-warning)]/10 px-4 py-3 text-sm font-bold text-[var(--color-warning)]">
           <WifiOff className="h-4 w-4 shrink-0" />
           <span>
             אין רשת — מוצגים דיווחים שנשמרו במכשיר{dailyCachedAt ? ` בשעה ${new Date(dailyCachedAt).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}` : ''}.
@@ -3142,13 +3142,13 @@ export default function ForumPage() {
       )}
 
       {dailyError && (
-        <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+        <div className="flex items-start gap-3 rounded-2xl border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 px-4 py-3 text-sm font-bold text-[var(--color-danger)]">
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
           <span>{dailyError}</span>
         </div>
       )}
 
-      {dailySuccess && <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{dailySuccess}</div>}
+      {dailySuccess && <div className="rounded-2xl border border-[var(--color-success)]/25 bg-[var(--color-success)]/10 px-4 py-3 text-sm font-bold text-[var(--color-success)]">{dailySuccess}</div>}
 
       {isDailyLoading ? (
         <div className="grid gap-4 lg:grid-cols-2">
@@ -3181,7 +3181,7 @@ export default function ForumPage() {
                 const isExpanded = groupToggles[group.name] ?? (!canSeeAll || group.name === selectedNode?.group);
                 const groupDone = group.total > 0 && group.submitted === group.total;
                 const groupCountTone = groupDone
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  ? 'border-[var(--color-success)]/25 bg-[var(--color-success)]/10 text-[var(--color-success)]'
                   : group.inProgress > 0
                     ? 'border-[var(--brand)]/25 bg-[var(--brand)]/10 text-[var(--color-action-on-surface)]'
                     : 'border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)]';
@@ -3232,7 +3232,7 @@ export default function ForumPage() {
                                     {needsMapping ? 'נדרש שיוך' : statusLabel(report?.status)}
                                   </span>
                                   {wasReturned && (
-                                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-caption font-semibold text-amber-700">
+                                    <span className="rounded-full border border-[var(--color-warning)]/25 bg-[var(--color-warning)]/10 px-2 py-0.5 text-caption font-semibold text-[var(--color-warning)]">
                                       הוחזר לדרג מטה
                                     </span>
                                   )}
@@ -3330,7 +3330,7 @@ export default function ForumPage() {
       />
 
       {error && (
-        <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+        <div className="flex items-start gap-3 rounded-2xl border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 px-4 py-3 text-sm font-bold text-[var(--color-danger)]">
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
           <span>{error}</span>
         </div>

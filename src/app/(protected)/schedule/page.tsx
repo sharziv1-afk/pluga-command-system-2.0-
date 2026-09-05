@@ -121,13 +121,13 @@ const requestStatusLabels: Record<string, string> = {
 };
 
 const eventTypeStyles: Record<EventType, string> = {
-  training: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700',
-  logistics: 'border-blue-500/20 bg-blue-500/10 text-blue-700',
+  training: 'border-[var(--color-success)]/25 bg-[var(--color-success)]/10 text-[var(--color-success)]',
+  logistics: 'border-[var(--color-info)]/25 bg-[var(--color-info)]/10 text-[var(--color-info)]',
   meeting: 'border-purple-500/20 bg-purple-500/10 text-purple-700',
   inspection: 'border-[var(--brand)]/25 bg-[var(--brand)]/10 text-[var(--color-action-on-surface)]',
-  operation: 'border-red-500/20 bg-red-500/10 text-red-700',
-  admin: 'border-slate-500/20 bg-slate-500/10 text-slate-700',
-  other: 'border-zinc-500/20 bg-zinc-500/10 text-zinc-700',
+  operation: 'border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 text-[var(--color-danger)]',
+  admin: 'border-[var(--border-strong)] bg-[var(--surface-muted)] text-[var(--text-primary)]',
+  other: 'border-[var(--border-strong)] bg-[var(--surface-muted)] text-[var(--text-muted-accessible)]',
 };
 
 function getUserDisplayName(user: Pick<EventUser, 'name' | 'email'>) {
@@ -1047,12 +1047,12 @@ export default function SchedulePage() {
         </div>
 
         {error && (
-          <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-3 text-sm font-bold text-red-700">
+          <div className="rounded-2xl border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 p-3 text-sm font-bold text-[var(--color-danger)]">
             {error}
           </div>
         )}
         {success && (
-          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm font-bold text-emerald-700">
+          <div className="rounded-2xl border border-[var(--color-success)]/25 bg-[var(--color-success)]/10 p-3 text-sm font-bold text-[var(--color-success)]">
             {success}
           </div>
         )}
@@ -1467,7 +1467,7 @@ export default function SchedulePage() {
                     size="sm"
                     onClick={() => void handleDeleteEvent(selectedEvent)}
                     disabled={isEventWritePending}
-                    className="text-red-700 hover:border-red-500/30 hover:bg-red-500/10"
+                    className="text-[var(--color-danger)] hover:border-[var(--color-danger)]/25 hover:bg-[var(--color-danger)]/10"
                   >
                     {isDeletingEvent ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                     מחק מופע
@@ -1516,7 +1516,7 @@ export default function SchedulePage() {
 
             <form onSubmit={handleEditEvent} className="grid max-h-[76vh] gap-4 overflow-y-auto px-5 py-5 lg:grid-cols-2">
               {editEventError && (
-                <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-700 lg:col-span-2">
+                <div className="rounded-2xl border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 px-4 py-3 text-sm font-bold text-[var(--color-danger)] lg:col-span-2">
                   {editEventError}
                 </div>
               )}

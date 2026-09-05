@@ -786,13 +786,13 @@ export default function TrackingPage() {
       </div>
 
       {successMessage && (
-        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-700">
+        <div className="rounded-2xl border border-[var(--color-success)]/25 bg-[var(--color-success)]/10 px-4 py-3 text-sm font-bold text-[var(--color-success)]">
           {successMessage}
         </div>
       )}
 
       {errorMessage && (
-        <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-700">
+        <div className="rounded-2xl border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 px-4 py-3 text-sm font-bold text-[var(--color-danger)]">
           {errorMessage}
         </div>
       )}
@@ -1173,7 +1173,7 @@ export default function TrackingPage() {
                     title="הסר חייל מהמעקב"
                     onClick={() => requestRemoveSoldier(soldier)}
                     disabled={removingSoldierId === soldier.id}
-                    className="touch-target inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-600 transition hover:border-red-300 hover:bg-red-100 disabled:cursor-wait disabled:opacity-60"
+                    className="touch-target inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 text-[var(--color-danger)] transition hover:border-[var(--color-danger)]/25 hover:bg-[var(--color-danger)]/10 disabled:cursor-wait disabled:opacity-60"
                   >
                     {removingSoldierId === soldier.id ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1235,7 +1235,7 @@ export default function TrackingPage() {
                           title="הסר מופע מעקב מהטבלה"
                           onClick={() => requestRemoveItem(item)}
                           disabled={removingItemId === item.id}
-                          className="touch-target inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-600 transition hover:border-red-300 hover:bg-red-100 disabled:cursor-wait disabled:opacity-60"
+                          className="touch-target inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 text-[var(--color-danger)] transition hover:border-[var(--color-danger)]/25 hover:bg-[var(--color-danger)]/10 disabled:cursor-wait disabled:opacity-60"
                         >
                           {removingItemId === item.id ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1268,7 +1268,7 @@ export default function TrackingPage() {
                           title="הסר חייל מהמעקב"
                           onClick={() => requestRemoveSoldier(soldier)}
                           disabled={removingSoldierId === soldier.id}
-                          className="touch-target inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-600 transition hover:border-red-300 hover:bg-red-100 disabled:cursor-wait disabled:opacity-60"
+                          className="touch-target inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 text-[var(--color-danger)] transition hover:border-[var(--color-danger)]/25 hover:bg-[var(--color-danger)]/10 disabled:cursor-wait disabled:opacity-60"
                         >
                           {removingSoldierId === soldier.id ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />

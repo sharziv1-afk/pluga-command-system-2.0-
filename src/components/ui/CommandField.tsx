@@ -16,13 +16,13 @@ interface FieldShellProps {
 
 const FieldShell: React.FC<FieldShellProps> = ({ label, htmlFor, required, hint, error, errorId, hintId, children }) => (
   <div className="flex flex-col gap-1.5">
-    <label htmlFor={htmlFor} className="text-[13px] font-bold text-[var(--text-primary)]">
+    <label htmlFor={htmlFor} className="text-meta font-bold text-[var(--text-primary)]">
       {label}
       {required && <span className="text-[var(--color-danger)]" aria-hidden> *</span>}
     </label>
     {children}
-    {hint && !error && <p id={hintId} className="text-[11px] leading-relaxed text-[var(--text-muted-accessible)]">{hint}</p>}
-    {error && <p id={errorId} className="text-[11px] font-semibold text-[var(--color-danger)]" role="alert">{error}</p>}
+    {hint && !error && <p id={hintId} className="text-caption leading-relaxed text-[var(--text-muted-accessible)]">{hint}</p>}
+    {error && <p id={errorId} className="text-caption font-semibold text-[var(--color-danger)]" role="alert">{error}</p>}
   </div>
 );
 

@@ -1,6 +1,12 @@
-name: Pull request validation
+name: Validation
 
+# Also runs on push to main. Until now CI ran only on pull_request, and main
+# is where this project actually commits — so the branch that gets deployed
+# was the one branch nothing ever checked.
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches:
       - main

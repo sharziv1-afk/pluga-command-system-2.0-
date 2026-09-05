@@ -148,7 +148,7 @@ test('dashboard quick-create flows use the tested shared lock lifecycle', () => 
   }
 });
 
-test('tracking removes its redundant auth request and starts exactly five data reads', () => {
+test('tracking skips a redundant auth round-trip and batches its known table reads', () => {
   const trackingSource = readFileSync('src/app/(protected)/tracking/page.tsx', 'utf8');
   const loadStart = trackingSource.indexOf('const loadTrackingData = useCallback');
   const loadEnd = trackingSource.indexOf('useEffect(() =>', loadStart);
@@ -157,8 +157,20 @@ test('tracking removes its redundant auth request and starts exactly five data r
 
   assert.doesNotMatch(loader, /auth\.getUser\(/);
   assert.doesNotMatch(trackingSource, /useRouter/);
-  assert.match(loader, /Promise\.all\(\[/);
-  // 5, not 4: tracking_weeks joined the parallel batch alongside
-  // soldiers/tracking_items/tracking_records/units.
-  assert.equal([...loader.matchAll(/supabase\s*\.from\(/g)].length, 5);
+  assert.match(loader, /Promise\.all\(\[/, 'the reads must be batched, not a waterfall');
+
+  // Assert WHICH tables the screen depends on, not how many .from( calls
+  // there are. The old version asserted `=== 5`, so adding a sixth legitimate
+  // query broke CI while nothing about the behaviour had changed — and it
+  // would have said nothing useful if a query had been swapped for a
+  // different table. Naming them means a failure reads as "tracking now also
+  // depends on X", which is a real change worth a second look.
+  const tables = [...loader.matchAll(/\.from\('([a-z_]+)'\)/g)].map(m => m[1]).sort();
+  assert.deepEqual(tables, [
+    'soldiers',
+    'tracking_items',
+    'tracking_records',
+    'tracking_weeks',
+    'units',
+  ]);
 });

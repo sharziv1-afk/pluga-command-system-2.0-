@@ -1434,7 +1434,7 @@ export default function SchedulePage() {
                     value={selectedEvent.status}
                     onChange={(event) => void handleStatusChange(selectedEvent, event.target.value as EventStatus)}
                     disabled={isEventWritePending}
-                    className="rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                    className="touch-target rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                   >
                     {eventStatuses.map(status => <option key={status} value={status}>{statusLabels[status]}</option>)}
                   </select>

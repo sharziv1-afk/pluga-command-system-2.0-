@@ -35,7 +35,11 @@
   --color-surface-muted: #eef1f5;
   --color-text-primary: #020108;
   --color-text-secondary: #475467;
-  --color-text-muted: #667085;          /* accessible ~4.6:1 on surface */
+  /* #616b7d, not #667085: the old value measured 4.95:1 on --surface but only
+     4.39:1 on --surface-muted, and the app pairs muted text with muted panels
+     in six places (sidebar role line, StatusBadge "בוטל", low-priority pills,
+     relative-time badges). This passes AA on both: 5.37:1 and 4.74:1. */
+  --color-text-muted: #616b7d;
   --color-border-subtle: rgba(2, 1, 8, 0.08);
   --color-border-strong: rgba(2, 1, 8, 0.14);
   --color-brand: #ff6b02;               /* brand accent / decoration */
@@ -96,7 +100,7 @@
   --surface-muted: #eef1f5;
   --text-primary: #020108;
   --text-secondary: #475467;
-  --text-muted-accessible: #667085;
+  --text-muted-accessible: #616b7d;
   --border-subtle: rgba(2, 1, 8, 0.08);
   --border-strong: rgba(2, 1, 8, 0.14);
   --action: #c2410c;

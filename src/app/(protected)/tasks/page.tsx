@@ -1202,7 +1202,7 @@ export default function TasksPage() {
                           value={taskStatus}
                           onChange={(event) => void handleStatusChange(task, event.target.value as TaskStatus)}
                           disabled={isTaskWritePending}
-                          className="rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                          className="touch-target rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                         >
                           {statusOptions.map(status => <option key={status} value={status}>{statusLabels[status]}</option>)}
                         </select>

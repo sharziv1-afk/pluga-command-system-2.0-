@@ -956,8 +956,8 @@ export default function RequestsPage() {
         <PageHeader title="פערים ודרישות" subtitle="מוקד פתיחה, תיעדוף וטיפול בבקשות ופערים מהשטח" />
         <GlassCard className="flex flex-col items-center justify-center py-12 text-center">
           <ShieldAlert className="mb-3 h-10 w-10 text-[var(--color-danger)]" />
-          <h2 className="text-sm font-black text-[#020108]">לא נמצא פרופיל משתמש</h2>
-          <p className="mt-2 max-w-sm text-sm font-semibold leading-relaxed text-[#667085]">
+          <h2 className="text-sm font-semibold text-[var(--text-primary)]">לא נמצא פרופיל משתמש</h2>
+          <p className="mt-2 max-w-sm text-sm font-semibold leading-relaxed text-[var(--text-muted-accessible)]">
             יש להתחבר מחדש כדי לפתוח או לצפות בבקשות.
           </p>
         </GlassCard>
@@ -988,10 +988,10 @@ export default function RequestsPage() {
           <button
             key={mode.id}
             onClick={() => setViewMode(mode.id)}
-            className={`touch-target flex-1 rounded-xl px-3 py-2 text-sm font-black transition duration-150 ${
+            className={`touch-target flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition duration-150 ${
               viewMode === mode.id
                 ? 'bg-[var(--action)] text-white shadow-[0_4px_12px_rgba(255,107,2,0.28)]'
-                : 'text-[#667085] hover:bg-[var(--action)]/10 hover:text-[#020108]'
+                : 'text-[var(--text-muted-accessible)] hover:bg-[var(--action)]/10 hover:text-[var(--text-primary)]'
             }`}
           >
             {mode.label}
@@ -1091,16 +1091,16 @@ export default function RequestsPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`touch-target flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black transition duration-150 ${
+              className={`touch-target flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition duration-150 ${
                 isActive
                   ? 'bg-[var(--action)] text-white shadow-[0_4px_12px_rgba(255,107,2,0.28)]'
-                  : 'text-[#667085] hover:bg-[var(--action)]/10 hover:text-[#020108]'
+                  : 'text-[var(--text-muted-accessible)] hover:bg-[var(--action)]/10 hover:text-[var(--text-primary)]'
               }`}
             >
               {tab.label}
               {count > 0 && (
-                <span className={`rounded-full px-1.5 py-0.5 text-[10px] leading-none font-black ${
-                  isActive ? 'bg-white/25 text-white' : 'bg-[rgba(2,1,8,0.07)] text-[#667085]'
+                <span className={`rounded-full px-1.5 py-0.5 text-caption leading-none font-semibold ${
+                  isActive ? 'bg-[var(--tactical-glass)] text-white' : 'bg-[rgba(2,1,8,0.07)] text-[var(--text-muted-accessible)]'
                 }`}>
                   {count}
                 </span>
@@ -1113,7 +1113,7 @@ export default function RequestsPage() {
       {/* Filter bar */}
       <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(20rem,1fr)_minmax(10rem,12rem)_minmax(10rem,12rem)_auto] xl:items-center">
         <div className="relative min-w-0 sm:col-span-2 xl:col-span-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--command-subtle)]" />
           <input
             type="text"
             value={searchText}
@@ -1191,48 +1191,48 @@ export default function RequestsPage() {
                   <div className="min-w-0">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
                       <StatusBadge status={statusLabels[request.status]} />
-                      <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${priorityStyles[requestPriority]}`}>
+                      <span className={`rounded-full border px-2.5 py-0.5 text-caption font-bold ${priorityStyles[requestPriority]}`}>
                         {requestPriority}
                       </span>
-                      <span className="rounded-full border border-[var(--action)]/20 bg-[var(--action)]/10 px-2.5 py-0.5 text-[11px] font-bold text-[#C54F00]">
+                      <span className="rounded-full border border-[var(--action)]/20 bg-[var(--action)]/10 px-2.5 py-0.5 text-caption font-bold text-[var(--color-action-on-surface)]">
                         {requestCategory}
                       </span>
                     </div>
-                    <h3 className="text-base font-black text-[#020108]">{request.title}</h3>
-                    <p className="mt-2 text-sm font-semibold leading-relaxed text-[#667085]">
+                    <h3 className="text-base font-semibold text-[var(--text-primary)]">{request.title}</h3>
+                    <p className="mt-2 text-sm font-semibold leading-relaxed text-[var(--text-muted-accessible)]">
                       {request.description || 'לא נוסף פירוט לבקשה.'}
                     </p>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
-                    <span className="text-xs font-bold text-[#98A2B3]">{formatDate(request.created_at)}</span>
+                    <span className="text-xs font-bold text-[var(--command-subtle)]">{formatDate(request.created_at)}</span>
                     {request.updated_at !== request.created_at && (
-                      <span className="text-[11px] font-semibold text-[#98A2B3]">עודכן: {formatDate(request.updated_at)}</span>
+                      <span className="text-caption font-semibold text-[var(--command-subtle)]">עודכן: {formatDate(request.updated_at)}</span>
                     )}
                   </div>
                 </div>
 
-                <div className="grid gap-2 border-t border-[rgba(2,1,8,0.08)] pt-3 text-xs font-bold text-[#667085] sm:grid-cols-2 lg:grid-cols-4">
-                  <span>יוצר: <strong className="text-[#020108]">{metadata.creator_name || 'לא ידוע'}</strong></span>
-                  <span>תפקיד: <strong className="text-[#020108]">{metadata.creator_role || 'לא ידוע'}</strong></span>
-                  <span>יחידה: <strong className="text-[#020108]">{metadata.creator_unit || 'לא ידוע'}</strong></span>
+                <div className="grid gap-2 border-t border-[rgba(2,1,8,0.08)] pt-3 text-xs font-bold text-[var(--text-muted-accessible)] sm:grid-cols-2 lg:grid-cols-4">
+                  <span>יוצר: <strong className="text-[var(--text-primary)]">{metadata.creator_name || 'לא ידוע'}</strong></span>
+                  <span>תפקיד: <strong className="text-[var(--text-primary)]">{metadata.creator_role || 'לא ידוע'}</strong></span>
+                  <span>יחידה: <strong className="text-[var(--text-primary)]">{metadata.creator_unit || 'לא ידוע'}</strong></span>
                   <span className="flex items-center gap-1">
                     <UserCheck className="h-3.5 w-3.5 shrink-0" />
-                    מטפל: <strong className="text-[#020108]">
+                    מטפל: <strong className="text-[var(--text-primary)]">
                       {request.assigneeName ? `${request.assigneeName}${request.assigneeRole ? ` · ${request.assigneeRole}` : ''}` : 'טרם הוקצה'}
                     </strong>
                   </span>
                 </div>
 
                 {request.event_id && request.eventTitle && (
-                  <div className="flex items-center gap-2 rounded-2xl border border-[var(--action)]/15 bg-[var(--action)]/8 px-3 py-2 text-xs font-bold text-[#C54F00]">
+                  <div className="flex items-center gap-2 rounded-2xl border border-[var(--action)]/15 bg-[var(--action)]/8 px-3 py-2 text-xs font-bold text-[var(--color-action-on-surface)]">
                     <Clock3 className="h-4 w-4" />
                     <span>מופע: {request.eventTitle}{request.eventTimeLabel ? ` · ${request.eventTimeLabel}` : ''}</span>
                   </div>
                 )}
 
                 {canSeeAll && (
-                  <div className="flex flex-col gap-2 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/58 p-3 sm:flex-row sm:items-center">
-                    <span className="shrink-0 text-[11px] font-black text-[#98A2B3]">שיוך מטפל</span>
+                  <div className="flex flex-col gap-2 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-3 sm:flex-row sm:items-center">
+                    <span className="shrink-0 text-caption font-semibold text-[var(--command-subtle)]">שיוך מטפל</span>
                     <select
                       value={request.assigned_to ?? 'none'}
                       onChange={event => handleAssigneeChange(request, event.target.value)}
@@ -1253,7 +1253,7 @@ export default function RequestsPage() {
                     </select>
                     {isUpdatingAssignee && <Loader2 className="h-4 w-4 animate-spin text-[var(--color-action-on-surface)]" />}
                     {assigneeLoadError && (
-                      <span className="text-[11px] font-bold text-[var(--color-danger)]">{assigneeLoadError}</span>
+                      <span className="text-caption font-bold text-[var(--color-danger)]">{assigneeLoadError}</span>
                     )}
                   </div>
                 )}
@@ -1262,7 +1262,7 @@ export default function RequestsPage() {
                   <div className="flex flex-wrap items-center gap-2 pt-1">
                     {showActionButtons ? (
                       <>
-                        <span className="text-[11px] font-black text-[#98A2B3]">פעולות</span>
+                        <span className="text-caption font-semibold text-[var(--command-subtle)]">פעולות</span>
                         {actions.map(action => (
                           <GlossyButton
                             key={action.nextStatus}
@@ -1278,7 +1278,7 @@ export default function RequestsPage() {
                       </>
                     ) : (
                       <>
-                        <span className="text-[11px] font-black text-[#98A2B3]">עדכון סטטוס</span>
+                        <span className="text-caption font-semibold text-[var(--command-subtle)]">עדכון סטטוס</span>
                         <select
                           value={request.status}
                           onChange={e => handleStatusChange(request.id, e.target.value as RequestStatus)}
@@ -1328,21 +1328,21 @@ export default function RequestsPage() {
                     type="button"
                     onClick={() => toggleComments(request.id)}
                     disabled={Boolean(loadingCommentsId)}
-                    className="inline-flex min-h-10 items-center gap-2 rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/60 px-3 py-2 text-xs font-black text-[#020108] transition duration-150 hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10"
+                    className="inline-flex min-h-10 items-center gap-2 rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)] transition duration-150 hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10"
                   >
                     <MessageSquareText className="h-4 w-4 text-[var(--color-action-on-surface)]" />
                     {isCommentsOpen ? 'הסתר היסטוריית טיפול' : 'הצג היסטוריית טיפול'}
                     {comments.length > 0 && (
-                      <span className="rounded-full bg-[var(--action)]/12 px-2 py-0.5 text-[10px] text-[#C54F00]">
+                      <span className="rounded-full bg-[var(--action)]/12 px-2 py-0.5 text-caption text-[var(--color-action-on-surface)]">
                         {comments.length}
                       </span>
                     )}
                   </button>
 
                   {isCommentsOpen && (
-                    <div className="mt-3 space-y-3 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/52 p-3">
+                    <div className="mt-3 space-y-3 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-3">
                       <div className="flex items-center justify-between gap-3">
-                        <h4 className="text-xs font-black text-[#020108]">היסטוריית טיפול</h4>
+                        <h4 className="text-xs font-semibold text-[var(--text-primary)]">היסטוריית טיפול</h4>
                         {isLoadingComments && <Loader2 className="h-4 w-4 animate-spin text-[var(--color-action-on-surface)]" />}
                       </div>
 
@@ -1353,7 +1353,7 @@ export default function RequestsPage() {
                       )}
 
                       {!isLoadingComments && !commentError && comments.length === 0 && (
-                        <p className="rounded-xl border border-[rgba(2,1,8,0.08)] bg-white/50 px-3 py-3 text-xs font-bold text-[#667085]">
+                        <p className="rounded-xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-3 py-3 text-xs font-bold text-[var(--text-muted-accessible)]">
                           אין עדיין עדכוני טיפול לבקשה זו
                         </p>
                       )}
@@ -1364,14 +1364,14 @@ export default function RequestsPage() {
                             const authorName = comment.metadata?.author_name || comment.users?.name || comment.users?.email || 'משתמש';
                             const authorRole = comment.metadata?.author_role || comment.users?.role;
                             return (
-                              <div key={comment.id} className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/62 p-3">
+                              <div key={comment.id} className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-3">
                                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                                  <span className="text-xs font-black text-[#020108]">
+                                  <span className="text-xs font-semibold text-[var(--text-primary)]">
                                     {authorName}{authorRole ? ` · ${authorRole}` : ''}
                                   </span>
-                                  <span className="text-[11px] font-bold text-[#98A2B3]">{formatDateTime(comment.created_at)}</span>
+                                  <span className="text-caption font-bold text-[var(--command-subtle)]">{formatDateTime(comment.created_at)}</span>
                                 </div>
-                                <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-relaxed text-[#667085]">
+                                <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-relaxed text-[var(--text-muted-accessible)]">
                                   {comment.body}
                                 </p>
                               </div>

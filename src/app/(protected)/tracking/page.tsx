@@ -65,10 +65,10 @@ const statusLabels: Record<TrackingStatus, string> = {
 };
 
 const statusStyles: Record<TrackingStatus, string> = {
-  empty: 'border-slate-200 bg-slate-50 text-slate-600',
-  passed: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  failed: 'border-red-200 bg-red-50 text-red-700',
-  makeup: 'border-amber-200 bg-amber-50 text-amber-700',
+  empty: 'border-[var(--border-strong)] bg-[var(--surface-muted)] text-[var(--text-secondary)]',
+  passed: 'border-[var(--color-success)]/25 bg-[var(--color-success)]/10 text-[var(--color-success)]',
+  failed: 'border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 text-[var(--color-danger)]',
+  makeup: 'border-[var(--color-warning)]/25 bg-[var(--color-warning)]/10 text-[var(--color-warning)]',
 };
 
 const statusCycle: TrackingStatus[] = ['empty', 'passed', 'failed', 'makeup'];
@@ -757,30 +757,30 @@ export default function TrackingPage() {
         <GlassCard className="min-h-24">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-bold text-[#667085]">חיילים פעילים</p>
-              <p className="mt-2 text-2xl font-black text-[#020108]">{soldiers.length}</p>
+              <p className="text-xs font-bold text-[var(--text-muted-accessible)]">חיילים פעילים</p>
+              <p className="command-kpi mt-2 text-2xl text-[var(--text-primary)]">{soldiers.length}</p>
             </div>
-            <UsersRound className="h-7 w-7 text-[#FF6B02]" />
+            <UsersRound className="h-7 w-7 text-[var(--brand)]" />
           </div>
         </GlassCard>
 
         <GlassCard className="min-h-24">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-bold text-[#667085]">מופעי מעקב</p>
-              <p className="mt-2 text-2xl font-black text-[#020108]">{items.length}</p>
+              <p className="text-xs font-bold text-[var(--text-muted-accessible)]">מופעי מעקב</p>
+              <p className="command-kpi mt-2 text-2xl text-[var(--text-primary)]">{items.length}</p>
             </div>
-            <ClipboardCheck className="h-7 w-7 text-[#0F766E]" />
+            <ClipboardCheck className="h-7 w-7 text-[var(--color-teal)]" />
           </div>
         </GlassCard>
 
         <GlassCard className="min-h-24">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-bold text-[#667085]">רשומות תאים</p>
-              <p className="mt-2 text-2xl font-black text-[#020108]">{recordByCell.size}</p>
+              <p className="text-xs font-bold text-[var(--text-muted-accessible)]">רשומות תאים</p>
+              <p className="command-kpi mt-2 text-2xl text-[var(--text-primary)]">{recordByCell.size}</p>
             </div>
-            <Table2 className="h-7 w-7 text-[#344054]" />
+            <Table2 className="h-7 w-7 text-[var(--text-secondary)]" />
           </div>
         </GlassCard>
       </div>
@@ -829,12 +829,12 @@ export default function TrackingPage() {
       {isSoldierFormOpen && (
         <GlassCard glow="orange" className="space-y-4">
           <div className="flex items-center gap-2 border-b border-[rgba(2,1,8,0.08)] pb-3">
-            <UserPlus className="h-4 w-4 text-[#FF6B02]" />
-            <h2 className="text-sm font-black text-[#020108]">הוספת חייל למעקב</h2>
+            <UserPlus className="h-4 w-4 text-[var(--brand)]" />
+            <h2 className="text-sm font-semibold text-[var(--text-primary)]">הוספת חייל למעקב</h2>
           </div>
           <form onSubmit={handleCreateSoldier} className="grid gap-4 lg:grid-cols-2">
             <label className="block space-y-2">
-              <span className="block text-xs font-black text-[#344054]">שם מלא</span>
+              <span className="block text-xs font-semibold text-[var(--text-secondary)]">שם מלא</span>
               <input
                 required
                 value={soldierForm.fullName}
@@ -846,7 +846,7 @@ export default function TrackingPage() {
             </label>
 
             <label className="block space-y-2">
-              <span className="block text-xs font-black text-[#344054]">מספר אישי</span>
+              <span className="block text-xs font-semibold text-[var(--text-secondary)]">מספר אישי</span>
               <input
                 value={soldierForm.personalNumber}
                 onChange={event => setSoldierForm(value => ({ ...value, personalNumber: event.target.value }))}
@@ -857,7 +857,7 @@ export default function TrackingPage() {
             </label>
 
             <label className="block space-y-2">
-              <span className="block text-xs font-black text-[#344054]">יחידה</span>
+              <span className="block text-xs font-semibold text-[var(--text-secondary)]">יחידה</span>
               <select
                 required
                 value={soldierForm.unitId}
@@ -873,7 +873,7 @@ export default function TrackingPage() {
             </label>
 
             <label className="block space-y-2">
-              <span className="block text-xs font-black text-[#344054]">כיתה / צוות</span>
+              <span className="block text-xs font-semibold text-[var(--text-secondary)]">כיתה / צוות</span>
               <input
                 value={soldierForm.squadLabel}
                 onChange={event => setSoldierForm(value => ({ ...value, squadLabel: event.target.value }))}
@@ -884,7 +884,7 @@ export default function TrackingPage() {
             </label>
 
             <label className="block space-y-2">
-              <span className="block text-xs font-black text-[#344054]">תפקיד</span>
+              <span className="block text-xs font-semibold text-[var(--text-secondary)]">תפקיד</span>
               <input
                 value={soldierForm.roleLabel}
                 onChange={event => setSoldierForm(value => ({ ...value, roleLabel: event.target.value }))}
@@ -895,7 +895,7 @@ export default function TrackingPage() {
             </label>
 
             <label className="block space-y-2 lg:col-span-2">
-              <span className="block text-xs font-black text-[#344054]">הערות</span>
+              <span className="block text-xs font-semibold text-[var(--text-secondary)]">הערות</span>
               <textarea
                 value={soldierForm.notes}
                 onChange={event => setSoldierForm(value => ({ ...value, notes: event.target.value }))}
@@ -929,12 +929,12 @@ export default function TrackingPage() {
       {isItemFormOpen && (
         <GlassCard glow="orange" className="space-y-4">
           <div className="flex items-center gap-2 border-b border-[rgba(2,1,8,0.08)] pb-3">
-            <ClipboardCheck className="h-4 w-4 text-[#FF6B02]" />
-            <h2 className="text-sm font-black text-[#020108]">הוספת מופע מעקב</h2>
+            <ClipboardCheck className="h-4 w-4 text-[var(--brand)]" />
+            <h2 className="text-sm font-semibold text-[var(--text-primary)]">הוספת מופע מעקב</h2>
           </div>
           <form onSubmit={handleCreateItem} className="grid gap-4 lg:grid-cols-2">
             <label className="block space-y-2">
-              <span className="block text-xs font-black text-[#344054]">שם מופע</span>
+              <span className="block text-xs font-semibold text-[var(--text-secondary)]">שם מופע</span>
               <input
                 required
                 value={itemForm.title}
@@ -946,7 +946,7 @@ export default function TrackingPage() {
             </label>
 
             <label className="block space-y-2">
-              <span className="block text-xs font-black text-[#344054]">קטגוריה</span>
+              <span className="block text-xs font-semibold text-[var(--text-secondary)]">קטגוריה</span>
               <select
                 required
                 value={itemForm.category}
@@ -961,7 +961,7 @@ export default function TrackingPage() {
             </label>
 
             <label className="block space-y-2">
-              <span className="block text-xs font-black text-[#344054]">נושא</span>
+              <span className="block text-xs font-semibold text-[var(--text-secondary)]">נושא</span>
               <input
                 value={itemForm.subject}
                 onChange={event => setItemForm(value => ({ ...value, subject: event.target.value }))}
@@ -972,7 +972,7 @@ export default function TrackingPage() {
             </label>
 
             <label className="block space-y-2">
-              <span className="block text-xs font-black text-[#344054]">שבוע מעקב</span>
+              <span className="block text-xs font-semibold text-[var(--text-secondary)]">שבוע מעקב</span>
               <select
                 value={itemForm.weekId}
                 onChange={event => setItemForm(value => ({ ...value, weekId: event.target.value }))}
@@ -987,7 +987,7 @@ export default function TrackingPage() {
             </label>
 
             <label className="block space-y-2">
-              <span className="block text-xs font-black text-[#344054]">סדר תצוגה</span>
+              <span className="block text-xs font-semibold text-[var(--text-secondary)]">סדר תצוגה</span>
               <input
                 type="number"
                 value={itemForm.sortOrder}
@@ -999,7 +999,7 @@ export default function TrackingPage() {
             </label>
 
             <label className="block space-y-2 lg:col-span-2">
-              <span className="block text-xs font-black text-[#344054]">תיאור</span>
+              <span className="block text-xs font-semibold text-[var(--text-secondary)]">תיאור</span>
               <textarea
                 value={itemForm.description}
                 onChange={event => setItemForm(value => ({ ...value, description: event.target.value }))}
@@ -1030,9 +1030,9 @@ export default function TrackingPage() {
       )}
 
       {isLoading && (
-        <GlassCard className="flex min-h-64 items-center justify-center text-[#667085]">
+        <GlassCard className="flex min-h-64 items-center justify-center text-[var(--text-muted-accessible)]">
           <div className="flex items-center gap-2 text-sm font-bold">
-            <Loader2 className="h-5 w-5 animate-spin text-[#FF6B02]" />
+            <Loader2 className="h-5 w-5 animate-spin text-[var(--color-action-on-surface)]" />
             טוען נתוני מעקב...
           </div>
         </GlassCard>
@@ -1068,14 +1068,14 @@ export default function TrackingPage() {
         <GlassCard className="space-y-5 overflow-hidden">
           <div className="flex flex-col gap-2 border-b border-[rgba(2,1,8,0.08)] pb-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-base font-black text-[#020108]">טבלת מעקב</h2>
-              <p className="mt-1 text-xs font-bold text-[#667085]">שורות לפי חיילים, עמודות לפי מופעי מעקב.</p>
+              <h2 className="text-base font-semibold text-[var(--text-primary)]">טבלת מעקב</h2>
+              <p className="mt-1 text-xs font-bold text-[var(--text-muted-accessible)]">שורות לפי חיילים, עמודות לפי מופעי מעקב.</p>
             </div>
             <div className="flex flex-wrap gap-2">
               {(Object.keys(statusLabels) as TrackingStatus[]).map((status) => (
                 <span
                   key={status}
-                  className={`rounded-full border px-3 py-1 text-xs font-black ${statusStyles[status]}`}
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusStyles[status]}`}
                 >
                   {statusLabels[status]} - {statusCounts[status]}
                 </span>
@@ -1088,7 +1088,7 @@ export default function TrackingPage() {
               <button
                 type="button"
                 onClick={() => setSelectedWeekId('all')}
-                className={`min-h-9 rounded-full border px-3.5 py-1.5 text-xs font-black transition ${selectedWeekId === 'all' ? 'border-[#FF6B02] bg-[#FF6B02] text-white shadow-[0_6px_16px_rgba(255,107,2,0.22)]' : 'border-[rgba(2,1,8,0.08)] bg-white/70 text-[#667085] hover:border-[#FF6B02]/30'}`}
+                className={`min-h-9 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${selectedWeekId === 'all' ? 'border-[var(--action)] bg-[var(--action)] text-white shadow-[0_6px_16px_rgba(255,107,2,0.22)]' : 'border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)] hover:border-[var(--action)]/30'}`}
               >
                 כל השבועות
               </button>
@@ -1098,7 +1098,7 @@ export default function TrackingPage() {
                   type="button"
                   onClick={() => setSelectedWeekId(week.id)}
                   title={week.description ?? undefined}
-                  className={`min-h-9 rounded-full border px-3.5 py-1.5 text-xs font-black transition ${selectedWeekId === week.id ? 'border-[#FF6B02] bg-[#FF6B02] text-white shadow-[0_6px_16px_rgba(255,107,2,0.22)]' : 'border-[rgba(2,1,8,0.08)] bg-white/70 text-[#667085] hover:border-[#FF6B02]/30'}`}
+                  className={`min-h-9 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${selectedWeekId === week.id ? 'border-[var(--action)] bg-[var(--action)] text-white shadow-[0_6px_16px_rgba(255,107,2,0.22)]' : 'border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)] hover:border-[var(--action)]/30'}`}
                 >
                   {week.title}
                 </button>
@@ -1110,7 +1110,7 @@ export default function TrackingPage() {
             const week = weeks.find(w => w.id === selectedWeekId);
             if (!week?.description) return null;
             return (
-              <p className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--surface-muted)] px-3.5 py-2.5 text-xs font-semibold leading-relaxed text-[#667085]">
+              <p className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--surface-muted)] px-3.5 py-2.5 text-xs font-semibold leading-relaxed text-[var(--text-muted-accessible)]">
                 {week.description}
               </p>
             );
@@ -1118,7 +1118,7 @@ export default function TrackingPage() {
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="relative flex-1">
-              <Search className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
+              <Search className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--command-subtle)]" />
               <input
                 type="text"
                 value={searchText}
@@ -1157,14 +1157,14 @@ export default function TrackingPage() {
               status, which is what actually needs to work on a phone. */}
           <div className="space-y-3 md:hidden">
             {visibleSoldiers.map((soldier) => (
-              <div key={soldier.id} className="rounded-2xl border border-[var(--border-subtle)] bg-white/80 p-4 shadow-[0_8px_18px_rgba(2,1,8,0.04)]">
+              <div key={soldier.id} className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4 shadow-[0_8px_18px_rgba(2,1,8,0.04)]">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="font-black text-[#020108]">{soldier.full_name}</div>
-                    <div className="mt-1 text-[11px] font-bold text-[#667085]">
+                    <div className="font-semibold text-[var(--text-primary)]">{soldier.full_name}</div>
+                    <div className="mt-1 text-caption font-bold text-[var(--text-muted-accessible)]">
                       {unitNameById.get(soldier.unit_id) ?? 'יחידה לא ידועה'}
                     </div>
-                    <div className="mt-0.5 text-[11px] font-bold text-[#98A2B3]">
+                    <div className="mt-0.5 text-caption font-bold text-[var(--command-subtle)]">
                       {soldier.role_label ?? soldier.squad_label ?? 'ללא שיוך נוסף'}
                     </div>
                   </div>
@@ -1194,15 +1194,15 @@ export default function TrackingPage() {
                     return (
                       <div key={item.id} className="flex items-center justify-between gap-3 py-2.5">
                         <div className="min-w-0 flex-1">
-                          <div className="truncate text-xs font-black text-[#020108]">{item.title}</div>
-                          <div className="text-[10px] font-bold text-[#98A2B3]">{item.category}</div>
+                          <div className="truncate text-xs font-semibold text-[var(--text-primary)]">{item.title}</div>
+                          <div className="text-caption font-bold text-[var(--command-subtle)]">{item.category}</div>
                         </div>
                         <button
                           type="button"
                           title="לחיצה מחליפה סטטוס"
                           onClick={() => void handleCycleCellStatus(soldier, item, record)}
                           disabled={isCellUpdating}
-                          className={`inline-flex min-h-11 min-w-20 shrink-0 items-center justify-center gap-1.5 rounded-full border px-3 py-1 text-xs font-black transition hover:shadow-sm disabled:cursor-wait disabled:opacity-70 ${statusStyles[status]}`}
+                          className={`inline-flex min-h-11 min-w-20 shrink-0 items-center justify-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition hover:shadow-sm disabled:cursor-wait disabled:opacity-70 ${statusStyles[status]}`}
                         >
                           {isCellUpdating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                           {statusLabels[status]}
@@ -1220,15 +1220,15 @@ export default function TrackingPage() {
               className="border-separate border-spacing-y-2 text-right text-sm"
               style={{ minWidth: `${Math.max(760, 280 + visibleItems.length * 176)}px` }}
             >
-              <thead className="text-xs font-black text-[#667085]">
+              <thead className="text-xs font-semibold text-[var(--text-muted-accessible)]">
                 <tr>
-                  <th className="sticky right-0 z-20 w-64 bg-white/95 px-3 py-2 backdrop-blur-xl">חייל</th>
+                  <th className="sticky right-0 z-20 w-64 bg-[var(--tactical-strong-glass)] px-3 py-2 backdrop-blur-xl">חייל</th>
                   {visibleItems.map((item) => (
                     <th key={item.id} className="w-44 px-3 py-2 align-bottom">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <div className="font-black text-[#020108]">{item.title}</div>
-                          <div className="mt-1 text-[11px] font-bold text-[#98A2B3]">{item.category}</div>
+                          <div className="font-semibold text-[var(--text-primary)]">{item.title}</div>
+                          <div className="mt-1 text-caption font-bold text-[var(--command-subtle)]">{item.category}</div>
                         </div>
                         <button
                           type="button"
@@ -1251,15 +1251,15 @@ export default function TrackingPage() {
               </thead>
               <tbody>
                 {visibleSoldiers.map((soldier) => (
-                  <tr key={soldier.id} className="bg-white/64 shadow-[0_8px_18px_rgba(2,1,8,0.04)]">
-                    <td className="sticky right-0 z-10 rounded-r-xl bg-white/95 px-3 py-3 font-black text-[#020108] backdrop-blur-xl">
+                  <tr key={soldier.id} className="bg-[var(--tactical-glass)] shadow-[0_8px_18px_rgba(2,1,8,0.04)]">
+                    <td className="sticky right-0 z-10 rounded-r-xl bg-[var(--tactical-strong-glass)] px-3 py-3 font-semibold text-[var(--text-primary)] backdrop-blur-xl">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div>{soldier.full_name}</div>
-                          <div className="mt-1 text-[11px] font-bold text-[#667085]">
+                          <div className="mt-1 text-caption font-bold text-[var(--text-muted-accessible)]">
                             {unitNameById.get(soldier.unit_id) ?? 'יחידה לא ידועה'}
                           </div>
-                          <div className="mt-1 text-[11px] font-bold text-[#98A2B3]">
+                          <div className="mt-1 text-caption font-bold text-[var(--command-subtle)]">
                             {soldier.role_label ?? soldier.squad_label ?? 'ללא שיוך נוסף'}
                           </div>
                         </div>
@@ -1288,7 +1288,7 @@ export default function TrackingPage() {
                       return (
                         <td
                           key={item.id}
-                          className={`px-3 py-3 text-xs font-black ${itemIndex === visibleItems.length - 1 ? 'rounded-l-xl' : ''}`}
+                          className={`px-3 py-3 text-xs font-semibold ${itemIndex === visibleItems.length - 1 ? 'rounded-l-xl' : ''}`}
                         >
                           <button
                             type="button"

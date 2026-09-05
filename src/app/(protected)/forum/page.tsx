@@ -442,7 +442,7 @@ function statusLabel(status: ReportStatus | undefined) {
 }
 
 function statusTone(status: ReportStatus | undefined) {
-  if (status === 'closed') return 'border-[var(--text-primary)]/15 bg-white text-[var(--text-primary)]';
+  if (status === 'closed') return 'border-[var(--text-primary)]/15 bg-[var(--surface)] text-[var(--text-primary)]';
   if (status === 'submitted') return 'border-[var(--color-success)]/25 bg-[var(--color-success)]/10 text-[var(--color-success)]';
   if (status === 'in_progress') return 'border-[var(--brand)]/25 bg-[var(--brand)]/10 text-[var(--color-action-on-surface)]';
   return 'border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)]';
@@ -3169,7 +3169,7 @@ export default function ForumPage() {
                 onClick={toggleTreeCollapsed}
                 aria-expanded={!isTreeCollapsed}
                 aria-label="קפל את רשימת בעלי התפקידים"
-                className="inline-flex shrink-0 rounded-xl border border-[var(--brand)]/25 bg-[var(--tactical-glass)] p-2 text-[var(--color-action-on-surface)] transition hover:bg-white"
+                className="inline-flex shrink-0 rounded-xl border border-[var(--brand)]/25 bg-[var(--tactical-glass)] p-2 text-[var(--color-action-on-surface)] transition hover:bg-[var(--surface)]"
               >
                 <PanelRightClose className="h-4 w-4" />
               </button>
@@ -3191,7 +3191,7 @@ export default function ForumPage() {
                       type="button"
                       onClick={() => toggleDailyGroup(group.name, isExpanded)}
                       aria-expanded={isExpanded}
-                      className="flex min-h-11 w-full items-center justify-between gap-3 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-3 py-2.5 text-right transition hover:border-[var(--action)]/24 hover:bg-white"
+                      className="flex min-h-11 w-full items-center justify-between gap-3 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-3 py-2.5 text-right transition hover:border-[var(--action)]/24 hover:bg-[var(--surface)]"
                     >
                       <span className="flex min-w-0 items-center gap-2">
                         <ChevronDown className={`h-4 w-4 shrink-0 text-[var(--command-subtle)] transition ${isExpanded ? '' : 'rotate-90'}`} />
@@ -3217,7 +3217,7 @@ export default function ForumPage() {
                               type="button"
                               data-node-id={node.id}
                               onClick={handleSelectDailyNode}
-                              className={`w-full rounded-2xl border px-4 py-3 text-right transition ${isActive ? 'border-[var(--brand)]/35 bg-[var(--brand)]/10 shadow-[0_12px_28px_rgba(255,107,2,0.12)]' : 'border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] hover:bg-white'}`}
+                              className={`w-full rounded-2xl border px-4 py-3 text-right transition ${isActive ? 'border-[var(--brand)]/35 bg-[var(--brand)]/10 shadow-[0_12px_28px_rgba(255,107,2,0.12)]' : 'border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] hover:bg-[var(--surface)]'}`}
                             >
                               <span className="flex items-start justify-between gap-3">
                                 <span className="min-w-0">
@@ -3265,7 +3265,7 @@ export default function ForumPage() {
               type="button"
               onClick={toggleTreeCollapsed}
               aria-label={isTreeCollapsed ? 'הצג את רשימת בעלי התפקידים' : 'קפל את רשימת בעלי התפקידים'}
-              className="fixed bottom-24 left-4 z-40 flex items-center gap-2 rounded-2xl border border-[var(--brand)]/25 bg-white px-4 py-3 text-sm font-semibold text-[var(--color-action-on-surface)] shadow-[0_14px_32px_rgba(2,1,8,0.16)] transition hover:bg-[var(--action)]/10 md:bottom-6 md:left-6"
+              className="fixed bottom-24 left-4 z-40 flex items-center gap-2 rounded-2xl border border-[var(--brand)]/25 bg-[var(--surface)] px-4 py-3 text-sm font-semibold text-[var(--color-action-on-surface)] shadow-[0_14px_32px_rgba(2,1,8,0.16)] transition hover:bg-[var(--action)]/10 md:bottom-6 md:left-6"
             >
               {isTreeCollapsed ? <PanelRightOpen className="h-4 w-4" /> : <PanelRightClose className="h-4 w-4" />}
               {isTreeCollapsed ? 'בעלי תפקידים' : 'כווץ תפריט'}

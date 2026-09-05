@@ -1200,7 +1200,7 @@ export default function SchedulePage() {
                             key={event.id}
                             type="button"
                             onClick={() => setSelectedEvent(event)}
-                            className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] p-2.5 text-right shadow-[0_8px_18px_rgba(2,1,8,0.05)] transition hover:border-[var(--action)]/28 hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring)]"
+                            className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] p-2.5 text-right shadow-[0_8px_18px_rgba(2,1,8,0.05)] transition hover:border-[var(--action)]/28 hover:bg-[var(--surface)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring)]"
                           >
                             <div className="flex items-start justify-between gap-2">
                               <span className="shrink-0 font-mono text-caption font-semibold text-[var(--color-action-on-surface)]">

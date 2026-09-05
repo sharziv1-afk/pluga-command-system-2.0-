@@ -222,7 +222,26 @@ Audit actions added by this round (best-effort, in `src/lib/audit.ts`):
 
 ## 4. QA that passed
 
-- **Full Structured Company Forum Flow QA** — date `2026-08-20`.
+> ⚠️ **The `2026-08-20` baseline is no longer reproducible.** As of
+> 2026-09-05, `forum_daily_reports` on Staging (`vmfihyritfmjycrfpxjn`)
+> holds exactly one date — `2026-09-08`, 21 reports. The `2026-08-20` rows
+> that produced `124/138` are gone, so every instruction below and in
+> `AGENTS.md` to "re-verify on 2026-08-20" cannot be followed as written.
+>
+> Use the equivalent invariant check instead, which does not depend on a
+> specific fixture: open the WhatsApp preview for whatever date has data,
+> and confirm (a) the company total equals the sum of the four platoon
+> numerators over the sum of their denominators, and (b) each platoon's
+> content matches its own platoon — cross-checking against a מפל״ג entry
+> that names a platoon is the cheapest way to catch a swap.
+>
+> Verified this way on 2026-09-08 after the Phase 2 token migration:
+> `128/138` = `34/36 + 31/34 + 30/33 + 33/35`, 4/4 platoon reports
+> submitted, no swap (מחלקה 1 reports a sock-cap shortage and the רס״פ
+> entry independently cites "חוסר בכובעי גרב במחלקה 1").
+
+- **Full Structured Company Forum Flow QA** — date `2026-08-20` *(fixture
+  no longer present — see the note above)*.
 - **Focused WhatsApp Preview QA** — after `cdcd99f`.
 
 What was verified:

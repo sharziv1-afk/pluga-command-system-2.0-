@@ -180,21 +180,27 @@ Four roles, four weights, each with exactly one job:
 | 600 (Semibold) | Card titles, form labels, active nav item, badge text |
 | 700 (Bold) | Page headings, KPI numbers, primary CTA text |
 
-`font-black` (900) is retired from new/refactored code. It's still loaded
-(seven weights, see §2.3) because 258 existing call sites use it — those
-migrate page-by-page as part of the §3 token rollout, not in one blind pass.
-Rewriting weight in isolation, without also checking size/color/spacing in
-context, produces flattened hierarchy instead of fixed hierarchy — every
-migrated screen gets a real visual check, not a find-and-replace.
+`font-black` (900) is **gone from `src/`** and must not come back — the
+rollout is complete, and `grep -r font-black src` returning anything is a
+regression. Weight was decided per call site rather than swept, because
+rewriting weight in isolation flattens hierarchy instead of fixing it: the
+figures moved to `.command-kpi`, real page headings kept 700, and the long
+tail of card titles, form labels and chips went to 600.
+
+Distribution across `src/` now: 269 semibold, 219 bold, 1 medium, the rest
+regular — against the 258 `font-black` + 221 `font-bold` vs. 43 semibold
+that opened Phase 2.
 
 ### 2.3 Font loading
 
-Rubik stays (already brand-appropriate for Hebrew, already loaded). Current
-load is 7 weights × 2 subsets (hebrew+latin) ≈ 14 files. Once §2.2's rollout
-retires `font-black`/900 usage app-wide, drop weight `300` and `900` from
-`next/font/google`'s `weight` array in `layout.tsx` — do this only after
-the grep for `font-black` returns zero, not before, or the remaining call
-sites synthetic-bold and look worse than they do today.
+Rubik loads **four weights** (400/500/600/700) × 2 subsets, matching the
+four roles above. It used to load seven (300–900) ≈ 14 files; 300, 800 and
+900 were dropped once `font-black` hit zero, roughly halving the font
+payload.
+
+Do not re-add a weight without adding the call sites that need it, and do
+not remove one while call sites still ask for it — a missing weight gets
+synthesised by the browser and looks worse than the real face.
 
 ### 2.4 Universal rules
 
@@ -298,6 +304,16 @@ automatic P1 in review:
 - Gradient text, glassmorphism as a base surface (glass is an accent per
   the existing `.command-glass-accent` opt-in class, never the default card),
   emoji as section markers, or a generic purple-blue gradient hero.
+- **A literal `bg-white/NN` on any surface.** It stays white on a dark page.
+  The legacy `[class*="bg-white"]` override in `globals.css` looks like it
+  covers this, and it does match — but it loses in the cascade, so it is not
+  a safety net. Use `--surface`, `--tactical-glass` or
+  `--tactical-strong-glass`, all of which flip per theme.
+- **Raw Tailwind palette classes for status** (`text-emerald-700`,
+  `bg-blue-500/10`, `border-red-200`…). Their dark treatment came only from
+  the legacy `[class*="text-blue-700"]` overrides, which stop matching the
+  moment anything about the class changes — this is what caused the
+  StatusBadge dark-mode regression. Use the semantic tokens.
 
 ## 6. Accessibility floor
 
@@ -308,11 +324,50 @@ automatic P1 in review:
   don't build a new interactive element without it.
 - Never disable pinch-zoom (`user-scalable=no`) or cap `maximum-scale`.
 
-## 7. What's still open after this round
+## 7. State of the rollout
 
-- `.21st/design.json` regenerated to match this file (§1, fixed the
-  light/dark mismatch it previously had).
-- Full weight-role migration (§2.2) happens page-by-page as each of the six
-  heavy pages gets its token pass — not finished by this document alone.
-- User-facing terminology consistency (בקשה/דרישה/פערים etc.) is tracked
-  separately; not a visual-token concern.
+**Done.** `src/` is at zero raw hex (the one exception is `themeColor` in
+`app/layout.tsx`, which is browser chrome), zero `font-black`, zero
+`bg-white/NN` and zero arbitrary `text-[Npx]`. All six heavy pages
+(dashboard, tasks, requests, tracking, schedule, forum) plus admin,
+profile, help, the auth screens and the shared panels are migrated. The
+font load is trimmed to four weights. Dark mode and high contrast are
+implemented and measured.
+
+Keep it that way with four greps — any hit is a regression:
+
+```bash
+grep -rE '#[0-9A-Fa-f]{3,8}\b' src --include=*.tsx   # expect only layout.tsx themeColor
+grep -r 'font-black' src --include=*.tsx             # expect none
+grep -rE 'bg-white/[0-9]+' src --include=*.tsx       # expect none
+grep -rE 'text-\[[0-9]+px\]' src --include=*.tsx     # expect none
+```
+
+**Still open.**
+
+- Three hand-rolled modals that are full create/edit forms (tasks,
+  schedule ×2) and the dashboard's anchored quick-create popover. The
+  popover is deliberately not a centred dialog; converting it to
+  `CommandOverlay` as-is would change its position and behaviour, not just
+  its style.
+- Two `window.confirm` calls in the forum's `requestDailyScopeTransition`.
+  They sit inside `canTransitionDraft`'s synchronous control flow, which is
+  covered by tests; converting them is a behavioural change, not a styling
+  one.
+- User-facing terminology consistency (בקשה/דרישה/פערים etc.) — a content
+  problem, not a token one.
+- Two `<h1>` per page: the sidebar brand wordmark and the page title both
+  use `<h1>`. Fixing it means changing heading semantics, which affects
+  screen-reader navigation, so it wants a deliberate decision rather than a
+  drive-by edit.
+
+**Measured contrast** (composited against real ancestor backgrounds, oklab
+tints converted properly): light 5.07–6.79, dark 7.07–11.85, light+high
+10.33–12.98, dark+high 8.45–16.06.
+
+A caution for whoever verifies this next: in this app `getComputedStyle`
+can return stale values for elements inside the `backdrop-filter` nav after
+a runtime theme flip, and for `display:none` subtrees such as the mobile
+bottom nav at desktop widths. Both produced convincing false failures.
+Measure on a fresh load, at a viewport where the element is actually
+rendered, and treat the screenshot as ground truth.

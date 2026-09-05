@@ -1091,7 +1091,7 @@ function CommandBriefCard({ brief }: { brief: CommandBrief }) {
 
   return (
     <GlassCard
-      className={`border-[var(--brand)]/18 bg-white/70 ${isAttention ? 'shadow-[0_16px_40px_rgba(255,107,2,0.12)]' : ''}`}
+      className={`border-[var(--brand)]/18 bg-[var(--tactical-glass)] ${isAttention ? 'shadow-[0_16px_40px_rgba(255,107,2,0.12)]' : ''}`}
       glossHighlight={false}
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -1107,7 +1107,7 @@ function CommandBriefCard({ brief }: { brief: CommandBrief }) {
 
         <div className="flex flex-wrap gap-2 lg:justify-end">
           {brief.items.map(item => (
-            <span key={item} className="text-caption rounded-full border border-[rgba(2,1,8,0.08)] bg-white/76 px-3 py-1.5 font-semibold text-[var(--text-secondary)]">
+            <span key={item} className="text-caption rounded-full border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-3 py-1.5 font-semibold text-[var(--text-secondary)]">
               {item}
             </span>
           ))}
@@ -1130,7 +1130,7 @@ function QuickActionButton({
 }) {
   const classes = variant === 'orange'
     ? 'border-[var(--action)]/45 bg-[var(--action)] text-white shadow-[0_14px_28px_rgba(194,65,12,0.22)] hover:bg-[var(--action-hover)]'
-    : 'border-[rgba(2,1,8,0.10)] bg-white/76 text-[var(--text-primary)] shadow-[0_10px_24px_rgba(2,1,8,0.06)] hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10';
+    : 'border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] text-[var(--text-primary)] shadow-[0_10px_24px_rgba(2,1,8,0.06)] hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10';
 
   return (
     <button
@@ -1213,10 +1213,10 @@ function QuickCreateModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="quick-create-title"
-        className="fixed inset-x-4 top-2 z-50 flex max-h-[calc(100dvh-6rem)] w-auto max-w-none flex-col rounded-3xl border border-white/80 bg-white/95 shadow-[0_18px_50px_rgba(2,1,8,0.16)] sm:top-4 sm:max-h-[calc(100dvh-2rem)] md:inset-x-auto md:left-1/2 md:top-32 md:max-h-[calc(100dvh-10rem)] md:w-[min(92vw,520px)] md:max-w-[calc(100vw-2rem)] md:-translate-x-1/2"
+        className="fixed inset-x-4 top-2 z-50 flex max-h-[calc(100dvh-6rem)] w-auto max-w-none flex-col rounded-3xl border border-white/80 bg-[var(--tactical-strong-glass)] shadow-[0_18px_50px_rgba(2,1,8,0.16)] sm:top-4 sm:max-h-[calc(100dvh-2rem)] md:inset-x-auto md:left-1/2 md:top-32 md:max-h-[calc(100dvh-10rem)] md:w-[min(92vw,520px)] md:max-w-[calc(100vw-2rem)] md:-translate-x-1/2"
         dir="rtl"
       >
-        <span className="absolute -top-2 left-1/2 hidden h-4 w-4 -translate-x-1/2 rotate-45 border-r border-t border-white/80 bg-white/95 md:block" aria-hidden="true" />
+        <span className="absolute -top-2 left-1/2 hidden h-4 w-4 -translate-x-1/2 rotate-45 border-r border-t border-white/80 bg-[var(--tactical-strong-glass)] md:block" aria-hidden="true" />
         <div className="flex items-start justify-between gap-4 border-b border-[rgba(2,1,8,0.08)] px-5 py-4 sm:px-6">
           <div>
             <h2 id="quick-create-title" className="text-lg font-semibold text-[var(--text-primary)]">{titles[type]}</h2>
@@ -1226,7 +1226,7 @@ function QuickCreateModal({
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="touch-target flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 text-[var(--text-primary)] transition hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10 disabled:opacity-50"
+            className="touch-target flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] text-[var(--text-primary)] transition hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10 disabled:opacity-50"
             aria-label="סגירת חלון"
           >
             <X className="h-5 w-5" />
@@ -1402,12 +1402,12 @@ function QuickCreateModal({
             </div>
           )}
 
-          <div className="sticky bottom-0 -mx-5 mt-6 flex flex-col-reverse gap-2 border-t border-[rgba(2,1,8,0.08)] bg-white/95 px-5 pb-5 pt-4 sm:-mx-6 sm:flex-row sm:justify-start sm:px-6">
+          <div className="sticky bottom-0 -mx-5 mt-6 flex flex-col-reverse gap-2 border-t border-[rgba(2,1,8,0.08)] bg-[var(--tactical-strong-glass)] px-5 pb-5 pt-4 sm:-mx-6 sm:flex-row sm:justify-start sm:px-6">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="min-h-11 rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/76 px-5 text-sm font-semibold text-[var(--text-primary)] transition hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10 disabled:opacity-50"
+              className="min-h-11 rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-5 text-sm font-semibold text-[var(--text-primary)] transition hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10 disabled:opacity-50"
             >
               ביטול
             </button>
@@ -1511,7 +1511,7 @@ function SectionHeader({
         <h2 className="text-sm font-semibold text-[var(--text-primary)]">{title}</h2>
       </div>
       {actionHref && actionLabel && (
-        <Link href={actionHref} className="rounded-xl border border-[rgba(2,1,8,0.10)] bg-white/70 px-3 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10">
+        <Link href={actionHref} className="rounded-xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10">
           {actionLabel}
         </Link>
       )}
@@ -1525,7 +1525,7 @@ function AttentionItemCard({ item }: { item: DashboardItem }) {
   return (
     <Link
       href={item.href}
-      className="block rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/64 p-4 transition hover:border-[var(--action)]/30 hover:bg-white/82"
+      className="block rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-4 transition hover:border-[var(--action)]/30 hover:bg-[var(--tactical-glass)]"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-1">
@@ -1558,11 +1558,11 @@ function TodayEventCard({
   return (
     <Link
       href="/schedule"
-      className="block rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/64 p-4 transition hover:border-[var(--action)]/30 hover:bg-white/82"
+      className="block rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-4 transition hover:border-[var(--action)]/30 hover:bg-[var(--tactical-glass)]"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
-          <span className="block text-xs font-semibold text-[var(--brand)]">{formatTime(event.starts_at)}</span>
+          <span className="block text-xs font-semibold text-[var(--color-action-on-surface)]">{formatTime(event.starts_at)}</span>
           <span className="block text-sm font-semibold text-[var(--text-primary)]">{event.title}</span>
           <span className="block text-xs font-semibold text-[var(--text-muted-accessible)]">{event.location || 'ללא מיקום'}</span>
           {(taskCount > 0 || requestCount > 0) && (
@@ -1579,7 +1579,7 @@ function TodayEventCard({
 
 function OpenTaskRow({ task, assigneeName }: { task: DbTask; assigneeName: string }) {
   return (
-    <Link href="/tasks" className="flex flex-col gap-3 py-3 transition hover:bg-white/40 sm:flex-row sm:items-center sm:justify-between">
+    <Link href="/tasks" className="flex flex-col gap-3 py-3 transition hover:bg-[var(--tactical-glass)] sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 space-y-1">
         <span className="block text-sm font-semibold text-[var(--text-primary)]">{task.title}</span>
         <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--text-muted-accessible)]">
@@ -1594,7 +1594,7 @@ function OpenTaskRow({ task, assigneeName }: { task: DbTask; assigneeName: strin
 
 function AuditLogRow({ log }: { log: DbAuditLog }) {
   return (
-    <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/64 p-4">
+    <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <span className="block text-sm font-semibold text-[var(--text-primary)]">{formatAuditAction(log.action_type)}</span>
@@ -1612,7 +1612,7 @@ function AuditLogRow({ log }: { log: DbAuditLog }) {
 
 function CompactEmptyState({ title, text }: { title: string; text: string }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-[rgba(2,1,8,0.12)] bg-white/54 px-5 py-10 text-center">
+    <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-[rgba(2,1,8,0.12)] bg-[var(--tactical-glass)] px-5 py-10 text-center">
       <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--brand)]/20 bg-[var(--brand)]/10 text-[var(--color-action-on-surface)]">
         <Sparkles className="h-5 w-5" />
       </div>

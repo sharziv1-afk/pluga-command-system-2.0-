@@ -41,8 +41,19 @@ and `:root[data-contrast="high"]`.
 | `--brand` | Decorative only (§1.1) |
 | `--action` / `--action-hover` | The one interactive color |
 | `--color-teal` | Secondary actions only (never primary CTAs) |
-| `--color-success` / `--color-warning` / `--color-danger` / `--color-info` | Semantic status — meaning never changes per screen |
+| `--color-success` / `--color-warning` / `--color-danger` / `--color-info` | Semantic status **ink** — text/icon on a 10–12% tint of itself. Flips per theme. |
+| `--color-danger-solid` | Danger as a **filled** background under white text. Constant across themes. |
 | `--focus-ring` | Keyboard focus outline |
+
+**Status colors have two roles and they are not interchangeable.** Nearly
+every use is coloured text or an icon sitting on a 10–12% tint of the same
+colour, so those tokens are tuned as *inks* and must lighten on a dark
+ground — a dark-blue ink on a dark surface measures under 2:1 and is the
+exact regression this split exists to prevent. The one place a status colour
+backs white text (`CommandButton`'s `danger` variant) uses
+`--color-danger-solid`, which deliberately does not follow the ink. If you
+ever add a filled success/warning/info button, add the matching `-solid`
+token rather than reusing the ink.
 
 ### 1.3 Dark mode is not inverted light mode
 
@@ -66,11 +77,27 @@ isn't written down. Rules:
 ### 1.4 High contrast is an accessibility mode, not a "theme"
 
 `:root[data-contrast="high"]` — for outdoor glare and low-vision use, not a
-personalization option sitting next to color schemes. Rules when active:
-borders go from `--border-subtle` (8% alpha) to solid, opaque; text contrast
-targets AAA (7:1) not just AA; status colors gain a border in addition to
-fill (never rely on color alone — same reason icons always accompany
-`StatusBadge` color).
+personalization option sitting next to color schemes.
+
+What it actually changes today, stated precisely rather than aspirationally:
+
+- `--border-subtle` and `--border-strong` become **opaque** colours (not
+  alpha), and cards, dialogs, icon buttons and every form control get a
+  1.5px border in `--border-strong`.
+- Secondary/muted text darkens (light) or lightens (dark).
+- The four status inks move to AAA-range values against their own tint
+  (measured ≥ 7:1 on the surfaces this app renders).
+- The focus ring goes to pure black / pure white.
+
+What it does **not** do: it does not push every colour pair in the app to
+7:1 — `--action` on white stays 5.18:1 (AA), and filled buttons keep their
+white-on-solid treatment. Don't write "AAA everywhere" in this file again
+unless someone has actually measured it everywhere.
+
+The component-level border rules for this mode live at the **end** of
+`globals.css` and must stay there: the legacy dark-mode block hardcodes
+`border-color … !important` at the same specificity, so anything earlier
+loses in dark+high-contrast. There is a comment on the block saying so.
 
 ### 1.5 What this project explicitly rejected (see prior design-direction review)
 
@@ -91,24 +118,45 @@ fill (never rely on color alone — same reason icons always accompany
 
 ### 2.1 Scale (product register — fixed `rem`, not fluid `clamp()`)
 
-Five sizes, ratio ~1.2, mapped to semantic roles, not raw pixel names:
+Five sizes mapped to semantic roles. **Apply them through the utility
+classes**, not the raw variables:
 
-| Token | Size | Line-height | Role |
-|---|---|---|---|
-| `--text-caption` | 0.75rem (12px) | 1.4 | Timestamps, metadata, legal |
-| `--text-secondary` | 0.8125rem (13px) | 1.45 | Secondary UI, table cells, sublabels |
-| `--text-body` | 0.9375rem (15px) | 1.55 | Default body/UI text |
-| `--text-subheading` | 1.0625rem (17px) | 1.35 | Card titles, section headings |
-| `--text-heading` | 1.375rem (22px) | 1.25 | Page titles |
+| Class | Size token | Size | Line-height | Role |
+|---|---|---|---|---|
+| `.text-caption` | `--fs-caption` | 0.75rem (12px) | 1.4 | Timestamps, metadata, badge text |
+| `.text-meta` | `--fs-meta` | 0.8125rem (13px) | 1.45 | Secondary UI, table cells, sublabels |
+| `.text-body-ui` | `--fs-body` | 0.9375rem (15px) | 1.55 | Default body/UI text |
+| `.text-subheading` | `--fs-subheading` | 1.0625rem (17px) | 1.35 | Card titles, section headings |
+| `.text-heading` | `--fs-heading` | 1.375rem (22px) | 1.25 | Page titles |
 
-(A dedicated `--text-kpi` at 1.75rem/1.15 stays for `MetricCard`'s big
-numbers — the one place a 6th size earns its keep.)
+**The size tokens are named `--fs-*` on purpose.** The obvious names
+(`--text-body` etc.) are unavailable: `--text-primary`, `--text-secondary`
+and `--text-muted-accessible` already exist as **color** tokens, and
+Tailwind v4's `--text-*` theme namespace is the font-size namespace, so
+declaring a size under those names would collide with a color and silently
+break one of the two. Never introduce a size token named `--text-*` here.
 
-Hebrew note: line-heights here run slightly looser than the Latin-web
-defaults typeset.md suggests, because Hebrew glyphs have less descender/
-ascender variance and benefit from a touch more breathing room at small
-sizes — verified against the existing `--text-muted` (13px) usage, which
-already reads comfortably at 1.45–1.5.
+There is no `--text-kpi` token. Big KPI figures use the `.command-kpi`
+class, which sets only `tabular-nums`, weight 700, tight tracking and
+`line-height: 1` — the size comes from the call site, deliberately, because
+the two KPI contexts differ: `MetricCard`'s compact tiles use `text-2xl`
+and the dashboard's larger summary tiles use `text-[2rem] sm:text-3xl`.
+Those two are the sanctioned exception to the "no arbitrary sizes" rule
+below; everything else maps to the table.
+
+This is a hand-tuned scale, not a strict modular one — the steps are
+1.08 / 1.15 / 1.13 / 1.29, tightened at the small end where a dense Hebrew
+RTL operational UI needs finer gradations, and opened at the top so page
+titles separate clearly. Don't "correct" it to a uniform ratio without
+re-checking every migrated screen.
+
+Two deliberate departures from `typeset.md`, both product calls rather than
+oversights: body text is 15px rather than its 16px floor (density matters
+in a table-heavy command tool, and the mobile rule in `globals.css` already
+forces 16px on every form field to stop iOS zoom), and line-heights run
+slightly looser than its Latin defaults because Hebrew has less
+ascender/descender variance. If small-screen readability testing says 15px
+is too tight in the field, raising `--fs-body` is a one-line change.
 
 **Kill immediately on sight**: any `text-[Npx]` arbitrary Tailwind value.
 There were 100 of these before this round (including a `text-[8px]`, below
@@ -164,19 +212,42 @@ sites synthetic-bold and look worse than they do today.
 `CommandButton` (`src/components/ui/CommandButton.tsx`) is canonical: it
 already has `forwardRef`, a `loading` state, an `icon` slot, and five
 semantic variants (`primary`/`teal`/`ghost`/`subtle`/`danger`). `GlossyButton`
-is not deleted (13 call sites reference its `cyan`/`orange`/`slate` API) —
-its internals now delegate to `CommandButton` under the hood so there is
-exactly one styling implementation. New code always reaches for
-`CommandButton` directly; `GlossyButton` is legacy-API-only.
+is not deleted (11 consumer files use its `cyan`/`orange`/`slate` API) — its
+internals delegate to `CommandButton` so there is exactly one styling
+implementation. New code always reaches for `CommandButton` directly;
+`GlossyButton` is legacy-API-only.
+
+The legacy API passes an icon and a label together **as children**, so
+`GlossyButton` wraps children in an `inline-flex` row. That wrapper is not
+cosmetic: Lucide renders block-level SVGs, and `CommandButton` wraps
+children in a plain inline `<span>`, so removing it stacks every icon above
+its label. `CommandButton`'s own `icon` prop has no such problem — it is
+rendered as a flex sibling of the label.
 
 ### 3.2 Modals — one implementation
 
 `CommandOverlay`/`CommandConfirmDialog` (`src/components/ui/CommandDialog.tsx`)
 are canonical: native `<dialog>`, real focus trap, Escape-to-close, top-layer
 stacking, RTL-safe, no dependency. Every `window.confirm()` call becomes a
-`CommandConfirmDialog`. Every hand-rolled `fixed inset-0` modal becomes a
-`CommandOverlay` (`variant="dialog"` for centered, `variant="sheet"` for a
-side/bottom sheet — already used for long forms).
+`CommandConfirmDialog` (9 usages across 6 files today). Every hand-rolled
+`fixed inset-0` modal becomes a `CommandOverlay` (`variant="dialog"` for
+centered, `variant="sheet"` for a side/bottom sheet — already used for long
+forms).
+
+Two rules that a hand-rolled modal usually got right and a careless port
+loses:
+
+- **A confirm dialog whose action is in flight must block every dismissal
+  path, not just its buttons.** `loading` on `CommandConfirmDialog` sets
+  `dismissible={false}` (Escape + backdrop) *and* guards `onClose` (the
+  header X). Otherwise Escape hides the dialog while the write is still
+  running — which for the forum's publish-and-close means the day's reports
+  keep closing behind an invisible dialog.
+- **The description must be linked, not merely rendered.** `CommandOverlay`
+  sets `aria-describedby` from its own `description` prop; a caller that
+  renders its own description body passes `describedById` instead. A dialog
+  with a visible warning and no accessible description is an accessibility
+  regression even though it looks identical.
 
 ### 3.3 Interactive states — all eight, every time
 

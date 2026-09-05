@@ -28,8 +28,11 @@ const variants: Record<Variant, string> = {
     'bg-transparent text-[var(--text-secondary)] hover:bg-[var(--surface-muted)] hover:text-[var(--text-primary)]',
   subtle:
     'bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-[var(--shadow-xs)] hover:border-[var(--action)] hover:text-[var(--color-action-on-surface)]',
+  // --color-danger-solid, not --color-danger: the latter is the on-surface ink
+  // that lightens in dark mode for text-on-tint, which would leave this
+  // button's white label at ~2:1. This one backs white text in every theme.
   danger:
-    'bg-[var(--color-danger)] text-white shadow-[var(--shadow-xs)] hover:brightness-95',
+    'bg-[var(--color-danger-solid)] text-white shadow-[var(--shadow-xs)] hover:brightness-95',
 };
 
 const sizes: Record<Size, string> = {

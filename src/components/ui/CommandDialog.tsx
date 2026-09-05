@@ -18,6 +18,12 @@ interface CommandOverlayProps {
   className?: string;
   /** When false, backdrop click / Escape will not close (e.g. unsaved guard handled by caller). */
   dismissible?: boolean;
+  /**
+   * id of an element inside `children` that describes the dialog, for callers
+   * that render their own description body instead of passing `description`.
+   * Without it such a dialog exposes no accessible description at all.
+   */
+  describedById?: string;
 }
 
 /**
@@ -36,6 +42,7 @@ export const CommandOverlay: React.FC<CommandOverlayProps> = ({
   variant = 'dialog',
   className,
   dismissible = true,
+  describedById,
 }) => {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -88,7 +95,7 @@ export const CommandOverlay: React.FC<CommandOverlayProps> = ({
       ref={ref}
       onClick={handleBackdropClick}
       aria-labelledby={titleId}
-      aria-describedby={description ? descId : undefined}
+      aria-describedby={description ? descId : describedById}
       className={cn('command-overlay', variant === 'sheet' ? 'command-sheet' : 'command-dialog', className)}
     >
       <div className={cn('flex max-h-[inherit] flex-col', variant === 'sheet' && 'h-full')} dir="rtl">
@@ -149,10 +156,22 @@ export const CommandConfirmDialog: React.FC<CommandConfirmDialogProps> = ({
   destructive = false,
   loading = false,
 }) => {
+  const descriptionId = useId();
+  // While the confirmed action is in flight, every dismissal path has to be
+  // shut — not just the footer buttons. `dismissible={false}` blocks Escape
+  // and the backdrop; the guarded onClose blocks the header's X button, which
+  // calls onClose directly. Without this, hitting Escape mid-publish hides the
+  // dialog while publishAndCloseForum is still closing the company's reports.
+  const handleClose = () => {
+    if (!loading) onCancel();
+  };
+
   return (
     <CommandOverlay
       open={open}
-      onClose={onCancel}
+      onClose={handleClose}
+      dismissible={!loading}
+      describedById={descriptionId}
       title={title}
       variant="dialog"
       footer={
@@ -176,7 +195,9 @@ export const CommandConfirmDialog: React.FC<CommandConfirmDialogProps> = ({
             <AlertTriangle className="h-5 w-5" />
           </span>
         )}
-        <div className="text-sm leading-relaxed text-[var(--text-secondary)]">{description}</div>
+        <div id={descriptionId} className="text-sm leading-relaxed text-[var(--text-secondary)]">
+          {description}
+        </div>
       </div>
     </CommandOverlay>
   );

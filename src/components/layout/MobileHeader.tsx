@@ -18,7 +18,7 @@ export const MobileHeader: React.FC = () => {
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[var(--action)]/20 bg-[var(--brand)]/10 text-[var(--color-action-on-surface)]">
           <Shield className="h-4 w-4" />
         </div>
-        <span className="truncate text-sm font-black text-[var(--text-primary)]">
+        <span className="truncate text-sm font-bold text-[var(--text-primary)]">
           המפקד {currentUser?.assigned_frame ? `· ${currentUser.assigned_frame}` : ''}
         </span>
       </div>

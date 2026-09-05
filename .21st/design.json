@@ -151,7 +151,7 @@
         "source": "src/app/globals.css"
       },
       "--color-action-on-surface": {
-        "value": "#ffb077",
+        "value": "#c2410c",
         "source": "src/app/globals.css"
       },
       "--color-teal": {
@@ -171,7 +171,7 @@
         "source": "src/app/globals.css"
       },
       "--color-danger": {
-        "value": "#d92d20",
+        "value": "#b42318",
         "source": "src/app/globals.css"
       },
       "--color-info": {
@@ -240,6 +240,10 @@
       },
       "--focus-ring": {
         "value": "rgba(255, 107, 2, 0.45)",
+        "source": "src/app/globals.css"
+      },
+      "--color-danger-solid": {
+        "value": "#d92d20",
         "source": "src/app/globals.css"
       }
     },

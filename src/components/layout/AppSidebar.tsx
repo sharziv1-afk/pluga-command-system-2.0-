@@ -84,7 +84,7 @@ export const AppSidebar: React.FC<{ className?: string }> = ({ className }) => {
           <Shield className="h-5 w-5" />
         </div>
         <div className={cn('min-w-0', labelCls === 'hidden' ? 'hidden' : 'hidden lg:block')}>
-          <h1 className="truncate text-base font-black text-[var(--text-primary)]">המפקד</h1>
+          <h1 className="truncate text-base font-bold text-[var(--text-primary)]">המפקד</h1>
           <p className="mt-0.5 truncate text-[11px] font-bold text-[var(--text-muted-accessible)]">ניהול פיקודי לפלוגה</p>
         </div>
         <button

@@ -44,10 +44,20 @@
   --color-action-on-surface: #c2410c;
   --color-teal: #0f766e;
   --color-teal-hover: #115e59;
+  /* Semantic status colors. These are the ON-SURFACE values: they are used
+     almost everywhere as text/icon on a 10-12% tint of themselves, so they
+     MUST flip per theme (see :root[data-theme="dark"] below) or light-on-dark
+     status text drops to ~2:1. Danger is #b42318 rather than #d92d20 because
+     #d92d20 on its own 10% tint over white measures 4.15:1 — under AA for the
+     small text StatusBadge renders. */
   --color-success: #067647;
   --color-warning: #b54708;
-  --color-danger: #d92d20;
+  --color-danger: #b42318;
   --color-info: #175cd3;
+  /* Filled-surface danger (white text on a solid fill, e.g. CommandButton's
+     danger variant). Stays constant across themes — the button supplies its
+     own background, so it must NOT follow the on-surface value above. */
+  --color-danger-solid: #d92d20;
   --color-focus-ring: #ff6b02;
 
   --radius-sm: 0.625rem;   /* 10px */
@@ -147,6 +157,13 @@
   --action: #c2410c;
   --action-hover: #a63d00;
   --color-action-on-surface: #ffb077;
+  /* Status colors must lighten on a dark ground — the light-mode values are
+     dark inks and measure ~1.9:1 against a dark surface. --color-danger-solid
+     deliberately does not change: it backs white text. */
+  --color-success: #75e0a7;
+  --color-warning: #fdb022;
+  --color-danger: #fda29b;
+  --color-info: #84caff;
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 4px 12px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.4), 0 10px 30px rgba(0, 0, 0, 0.45);
@@ -154,38 +171,39 @@
 }
 
 /* High contrast — accessibility mode (outdoor glare / low vision), not a
-   color "theme". Opaque borders, AAA text contrast, stronger focus rings.
-   Composes with data-theme so both light+high-contrast and
-   dark+high-contrast work. See DESIGN.md §1.4. */
+   color "theme". Opaque borders, AAA-target text contrast on the surfaces and
+   status tints this app actually renders, stronger focus rings. Composes with
+   data-theme so both light+high-contrast and dark+high-contrast work.
+   See DESIGN.md §1.4. */
 :root[data-contrast="high"] {
-  --border-subtle: rgba(2, 1, 8, 0.32);
+  --border-subtle: #667085;
   --border-strong: #020108;
   --text-secondary: #1d2939;
   --text-muted-accessible: #344054;
   --focus-ring: #000000;
+  --color-success: #054f31;
+  --color-warning: #7a2e0e;
+  --color-danger: #7a271a;
+  --color-info: #102f6f;
 }
 
 :root[data-theme="dark"][data-contrast="high"] {
-  --border-subtle: rgba(255, 255, 255, 0.4);
+  --border-subtle: #cbd5e1;
   --border-strong: #ffffff;
   --text-secondary: #f1f5f9;
   --text-muted-accessible: #e2e8f0;
   --focus-ring: #ffffff;
+  --color-success: #a9efc5;
+  --color-warning: #fedf89;
+  --color-danger: #fecdca;
+  --color-info: #b2ddff;
 }
 
-/* .command-input/.command-select/raw form elements hardcode their border
-   color (rgba(2,1,8,0.1)) rather than referencing --border-subtle, so the
-   token override above doesn't reach them on its own — set it explicitly. */
-:root[data-contrast="high"] .tactical-glass-card,
-:root[data-contrast="high"] .command-icon-button,
-:root[data-contrast="high"] .command-input,
-:root[data-contrast="high"] .command-select,
-:root[data-contrast="high"] input:not([aria-invalid="true"]),
-:root[data-contrast="high"] select:not([aria-invalid="true"]),
-:root[data-contrast="high"] textarea:not([aria-invalid="true"]) {
-  border-width: 1.5px;
-  border-color: var(--border-strong) !important;
-}
+/* NOTE: the high-contrast *component* overrides (borders on cards/inputs) are
+   NOT here — they live at the very END of this file. They have to: the legacy
+   dark-mode rules below hardcode `border-color: ... !important` at equal
+   specificity, so a high-contrast rule placed here silently loses to them in
+   dark+high-contrast. Do not move that block back up. */
 
 * {
   box-sizing: border-box;
@@ -882,4 +900,34 @@ option {
 .text-label-caps {
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+/* ============================================================
+   High-contrast component overrides — MUST BE LAST IN THIS FILE.
+   The legacy dark-mode block above hardcodes
+   `border-color: rgba(255,255,255,0.14) !important` on .command-icon-button,
+   .command-soft-panel and [class*="border-[rgba(2,1,8"] at the same
+   specificity as these rules (0,3,0). Equal specificity + both !important
+   means source order decides, so anything placed earlier loses and
+   dark+high-contrast silently renders the normal translucent borders.
+   Inputs/.command-input also hardcode their own border color rather than
+   reading --border-subtle, which is why these set border-color explicitly
+   instead of relying on the token override alone.
+   ============================================================ */
+:root[data-contrast="high"] .tactical-glass-card,
+:root[data-contrast="high"] .command-icon-button,
+:root[data-contrast="high"] .command-soft-panel,
+:root[data-contrast="high"] .command-help-panel,
+:root[data-contrast="high"] .command-dialog,
+:root[data-contrast="high"] .command-sheet,
+:root[data-contrast="high"] .command-input,
+:root[data-contrast="high"] .command-select,
+:root[data-contrast="high"] input:not([aria-invalid="true"]),
+:root[data-contrast="high"] select:not([aria-invalid="true"]),
+:root[data-contrast="high"] textarea:not([aria-invalid="true"]) {
+  /* !important on the width too: the Tailwind `border` utility on these
+     elements sets 1px and was winning, leaving high contrast with an opaque
+     but hairline border. */
+  border-width: 1.5px !important;
+  border-color: var(--border-strong) !important;
 }

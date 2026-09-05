@@ -27,7 +27,12 @@ export const GlossyButton: React.FC<GlossyButtonProps> = ({
 }) => {
   return (
     <CommandButton variant={VARIANT_MAP[variant]} size={size} {...props}>
-      {children}
+      {/* This wrapper is load-bearing, not decoration. Callers of the legacy
+          API pass an icon and a label together as children (<Icon/> + text),
+          and CommandButton wraps children in a plain inline <span>. Lucide
+          renders its SVG as a block element, so without an inline-flex row
+          here the icon and its label stack instead of sitting side by side. */}
+      <span className="inline-flex items-center gap-1.5">{children}</span>
     </CommandButton>
   );
 };

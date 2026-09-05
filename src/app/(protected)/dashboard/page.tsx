@@ -243,11 +243,11 @@ const typeLabels: Record<DashboardItemType, string> = {
 };
 
 const toneClasses: Record<SummaryCard['tone'], string> = {
-  orange: 'border-[#FF6B02]/18 bg-[#FF6B02]/10 text-[#C54F00]',
-  blue: 'border-blue-500/18 bg-blue-500/10 text-blue-700',
-  green: 'border-emerald-500/18 bg-emerald-500/10 text-emerald-700',
-  slate: 'border-slate-500/18 bg-slate-500/10 text-slate-700',
-  red: 'border-red-500/18 bg-red-500/10 text-red-700',
+  orange: 'border-[var(--color-warning)]/25 bg-[var(--color-warning)]/10 text-[var(--color-warning)]',
+  blue: 'border-[var(--color-info)]/25 bg-[var(--color-info)]/10 text-[var(--color-info)]',
+  green: 'border-[var(--color-success)]/25 bg-[var(--color-success)]/10 text-[var(--color-success)]',
+  slate: 'border-[var(--border-strong)] bg-[var(--surface-muted)] text-[var(--text-secondary)]',
+  red: 'border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 text-[var(--color-danger)]',
 };
 
 function isActiveRequest(request: DashboardRequest) {
@@ -957,7 +957,7 @@ export default function DashboardPage() {
         <PageHeader title="לוח מפקד" subtitle="אנא התחבר למערכת כדי לראות תמונת מצב עדכנית." />
         <GlassCard className="flex flex-col items-center justify-center py-12 text-center text-slate-500">
           <ShieldAlert className="mb-3 h-12 w-12 text-red-500" />
-          <span className="text-sm font-black text-slate-500">לא נמצא פרופיל משתמש פעיל</span>
+          <span className="text-sm font-semibold text-slate-500">לא נמצא פרופיל משתמש פעיל</span>
           <p className="mt-1 text-xs text-slate-500">אנא התחבר מחדש.</p>
         </GlassCard>
       </div>
@@ -997,7 +997,7 @@ export default function DashboardPage() {
 
       {successMessage && (
         <GlassCard className="border-emerald-500/20 bg-emerald-500/5 py-4">
-          <div className="flex items-center gap-3 text-sm font-black text-emerald-700">
+          <div className="flex items-center gap-3 text-sm font-semibold text-emerald-700">
             <Sparkles className="h-5 w-5 shrink-0" />
             <span>{successMessage}</span>
           </div>
@@ -1009,7 +1009,7 @@ export default function DashboardPage() {
           <div className="flex items-start gap-3 text-right text-sm font-semibold text-red-700">
             <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
             <div>
-              <p className="font-black">חלק מנתוני לוח המפקד לא נטענו.</p>
+              <p className="font-semibold">חלק מנתוני לוח המפקד לא נטענו.</p>
               <p className="mt-1 text-xs text-red-600">{dashboardData.errors.join(' ')}</p>
             </div>
           </div>
@@ -1091,7 +1091,7 @@ function CommandBriefCard({ brief }: { brief: CommandBrief }) {
 
   return (
     <GlassCard
-      className={`border-[#FF6B02]/18 bg-white/70 ${isAttention ? 'shadow-[0_16px_40px_rgba(255,107,2,0.12)]' : ''}`}
+      className={`border-[var(--brand)]/18 bg-white/70 ${isAttention ? 'shadow-[0_16px_40px_rgba(255,107,2,0.12)]' : ''}`}
       glossHighlight={false}
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -1100,14 +1100,14 @@ function CommandBriefCard({ brief }: { brief: CommandBrief }) {
             {isAttention ? <AlertTriangle className="h-5 w-5" /> : <RadioTower className="h-5 w-5" />}
           </span>
           <div className="min-w-0">
-            <h2 className="text-sm font-black text-[#020108]">{brief.title}</h2>
-            <p className="mt-1 max-w-3xl text-xs font-semibold leading-relaxed text-[#667085] sm:text-[13px]">{brief.text}</p>
+            <h2 className="text-sm font-semibold text-[var(--text-primary)]">{brief.title}</h2>
+            <p className="text-meta mt-1 max-w-3xl font-semibold leading-relaxed text-[var(--text-muted-accessible)]">{brief.text}</p>
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2 lg:justify-end">
           {brief.items.map(item => (
-            <span key={item} className="rounded-full border border-[rgba(2,1,8,0.08)] bg-white/76 px-3 py-1.5 text-[11px] font-black text-[#344054]">
+            <span key={item} className="text-caption rounded-full border border-[rgba(2,1,8,0.08)] bg-white/76 px-3 py-1.5 font-semibold text-[var(--text-secondary)]">
               {item}
             </span>
           ))}
@@ -1129,14 +1129,14 @@ function QuickActionButton({
   variant?: 'orange' | 'slate';
 }) {
   const classes = variant === 'orange'
-    ? 'border-[#FF6B02]/45 bg-[#FF6B02] text-white shadow-[0_14px_28px_rgba(255,107,2,0.22)] hover:bg-[#E65F00]'
-    : 'border-[rgba(2,1,8,0.10)] bg-white/76 text-[#020108] shadow-[0_10px_24px_rgba(2,1,8,0.06)] hover:border-[#FF6B02]/30 hover:bg-[#FF6B02]/10';
+    ? 'border-[var(--action)]/45 bg-[var(--action)] text-white shadow-[0_14px_28px_rgba(194,65,12,0.22)] hover:bg-[var(--action-hover)]'
+    : 'border-[rgba(2,1,8,0.10)] bg-white/76 text-[var(--text-primary)] shadow-[0_10px_24px_rgba(2,1,8,0.06)] hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10';
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`relative inline-flex min-h-11 items-center justify-center gap-2 overflow-hidden rounded-xl border px-3 text-xs font-black transition active:scale-[0.98] ${classes}`}
+      className={`relative inline-flex min-h-11 items-center justify-center gap-2 overflow-hidden rounded-xl border px-3 text-xs font-semibold transition active:scale-[0.98] ${classes}`}
     >
       <span className="pointer-events-none absolute inset-x-0 top-0 h-[42%] bg-gradient-to-b from-white/30 to-transparent" />
       <Icon className="relative z-10 h-4 w-4" />
@@ -1219,14 +1219,14 @@ function QuickCreateModal({
         <span className="absolute -top-2 left-1/2 hidden h-4 w-4 -translate-x-1/2 rotate-45 border-r border-t border-white/80 bg-white/95 md:block" aria-hidden="true" />
         <div className="flex items-start justify-between gap-4 border-b border-[rgba(2,1,8,0.08)] px-5 py-4 sm:px-6">
           <div>
-            <h2 id="quick-create-title" className="text-lg font-black text-[#020108]">{titles[type]}</h2>
-            <p className="mt-1 text-xs font-semibold text-[#667085]">{subtitles[type]}</p>
+            <h2 id="quick-create-title" className="text-lg font-semibold text-[var(--text-primary)]">{titles[type]}</h2>
+            <p className="mt-1 text-xs font-semibold text-[var(--text-muted-accessible)]">{subtitles[type]}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="touch-target flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 text-[#020108] transition hover:border-[#FF6B02]/30 hover:bg-[#FF6B02]/10 disabled:opacity-50"
+            className="touch-target flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 text-[var(--text-primary)] transition hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10 disabled:opacity-50"
             aria-label="סגירת חלון"
           >
             <X className="h-5 w-5" />
@@ -1407,14 +1407,14 @@ function QuickCreateModal({
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="min-h-11 rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/76 px-5 text-sm font-black text-[#020108] transition hover:border-[#FF6B02]/30 hover:bg-[#FF6B02]/10 disabled:opacity-50"
+              className="min-h-11 rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/76 px-5 text-sm font-semibold text-[var(--text-primary)] transition hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10 disabled:opacity-50"
             >
               ביטול
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="relative inline-flex min-h-11 items-center justify-center gap-2 overflow-hidden rounded-2xl border border-[#FF6B02]/45 bg-[#FF6B02] px-5 text-sm font-black text-white shadow-[0_14px_28px_rgba(255,107,2,0.24)] transition hover:bg-[#E65F00] disabled:opacity-60"
+              className="relative inline-flex min-h-11 items-center justify-center gap-2 overflow-hidden rounded-2xl border border-[var(--action)]/45 bg-[var(--action)] px-5 text-sm font-bold text-white shadow-[0_14px_28px_rgba(194,65,12,0.24)] transition hover:bg-[var(--action-hover)] disabled:opacity-60"
             >
               <span className="pointer-events-none absolute inset-x-0 top-0 h-[42%] bg-gradient-to-b from-white/30 to-transparent" />
               {isSubmitting && <Loader2 className="relative z-10 h-4 w-4 animate-spin" />}
@@ -1440,7 +1440,7 @@ function QuickField({
 }) {
   return (
     <label className={`space-y-2 text-right ${className ?? ''}`}>
-      <span className="block text-xs font-black text-[#667085]">
+      <span className="block text-xs font-semibold text-[var(--text-muted-accessible)]">
         {label}{required ? ' *' : ''}
       </span>
       {children}
@@ -1475,18 +1475,18 @@ function SummaryMetricCard({ card }: { card: SummaryCard }) {
   const Icon = card.icon;
 
   return (
-    <Link href={card.href} className="group block h-full rounded-3xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#FF6B02]/20">
+    <Link href={card.href} className="group block h-full rounded-3xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring)]">
       <GlassCard className="flex min-h-[108px] h-full flex-col justify-between gap-1.5 !p-2.5 transition group-active:scale-[0.99] sm:min-h-32 sm:gap-2 sm:!p-5">
         <div className="flex items-start justify-between gap-2">
           <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border transition group-hover:scale-105 sm:h-10 sm:w-10 ${toneClasses[card.tone]}`}>
             <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
           </span>
-          <span className="min-w-0 text-right text-[13px] font-black leading-tight text-[#020108] sm:text-xs sm:text-[#667085]">{card.title}</span>
+          <span className="text-meta min-w-0 text-right font-semibold leading-tight text-[var(--text-primary)] sm:text-xs sm:text-[var(--text-muted-accessible)]">{card.title}</span>
         </div>
         <div className="min-w-0">
-          <span className="block text-[2rem] font-black leading-none text-[#020108] sm:text-3xl">{card.value}</span>
-          <span className="mt-1 block text-[11px] font-semibold leading-snug text-[#667085] sm:hidden">{card.compactSubtitle}</span>
-          <span className="mt-1 hidden text-xs font-semibold leading-relaxed text-[#667085] sm:block">{card.subtitle}</span>
+          <span className="command-kpi block text-[2rem] text-[var(--text-primary)] sm:text-3xl">{card.value}</span>
+          <span className="text-caption mt-1 block font-semibold leading-snug text-[var(--text-muted-accessible)] sm:hidden">{card.compactSubtitle}</span>
+          <span className="mt-1 hidden text-xs font-semibold leading-relaxed text-[var(--text-muted-accessible)] sm:block">{card.subtitle}</span>
         </div>
       </GlassCard>
     </Link>
@@ -1507,11 +1507,11 @@ function SectionHeader({
   return (
     <div className="flex items-center justify-between gap-3 border-b border-[rgba(2,1,8,0.08)] pb-3">
       <div className="flex items-center gap-2">
-        <Icon className="h-4 w-4 text-[#FF6B02]" />
-        <h2 className="text-sm font-black text-[#020108]">{title}</h2>
+        <Icon className="h-4 w-4 text-[var(--brand)]" />
+        <h2 className="text-sm font-semibold text-[var(--text-primary)]">{title}</h2>
       </div>
       {actionHref && actionLabel && (
-        <Link href={actionHref} className="rounded-xl border border-[rgba(2,1,8,0.10)] bg-white/70 px-3 py-2 text-xs font-black text-[#020108] transition hover:border-[#FF6B02]/30 hover:bg-[#FF6B02]/10">
+        <Link href={actionHref} className="rounded-xl border border-[rgba(2,1,8,0.10)] bg-white/70 px-3 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10">
           {actionLabel}
         </Link>
       )}
@@ -1525,17 +1525,17 @@ function AttentionItemCard({ item }: { item: DashboardItem }) {
   return (
     <Link
       href={item.href}
-      className="block rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/64 p-4 transition hover:border-[#FF6B02]/30 hover:bg-white/82"
+      className="block rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/64 p-4 transition hover:border-[var(--action)]/30 hover:bg-white/82"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-black ${isCritical ? toneClasses.red : toneClasses.orange}`}>
+            <span className={`text-caption rounded-full border px-2.5 py-0.5 font-semibold ${isCritical ? toneClasses.red : toneClasses.orange}`}>
               {typeLabels[item.type]}
             </span>
-            <span className="text-sm font-black text-[#020108]">{item.title}</span>
+            <span className="text-sm font-semibold text-[var(--text-primary)]">{item.title}</span>
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[#667085]">
+          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--text-muted-accessible)]">
             <span>{item.meta}</span>
             {item.time && <span>{item.time}</span>}
           </div>
@@ -1558,15 +1558,15 @@ function TodayEventCard({
   return (
     <Link
       href="/schedule"
-      className="block rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/64 p-4 transition hover:border-[#FF6B02]/30 hover:bg-white/82"
+      className="block rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/64 p-4 transition hover:border-[var(--action)]/30 hover:bg-white/82"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
-          <span className="block text-xs font-black text-[#FF6B02]">{formatTime(event.starts_at)}</span>
-          <span className="block text-sm font-black text-[#020108]">{event.title}</span>
-          <span className="block text-xs font-semibold text-[#667085]">{event.location || 'ללא מיקום'}</span>
+          <span className="block text-xs font-semibold text-[var(--brand)]">{formatTime(event.starts_at)}</span>
+          <span className="block text-sm font-semibold text-[var(--text-primary)]">{event.title}</span>
+          <span className="block text-xs font-semibold text-[var(--text-muted-accessible)]">{event.location || 'ללא מיקום'}</span>
           {(taskCount > 0 || requestCount > 0) && (
-            <span className="mt-2 block text-[11px] font-bold text-[#667085]">
+            <span className="text-caption mt-2 block font-semibold text-[var(--text-muted-accessible)]">
               {taskCount} משימות · {requestCount} דרישות קשורות
             </span>
           )}
@@ -1581,8 +1581,8 @@ function OpenTaskRow({ task, assigneeName }: { task: DbTask; assigneeName: strin
   return (
     <Link href="/tasks" className="flex flex-col gap-3 py-3 transition hover:bg-white/40 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 space-y-1">
-        <span className="block text-sm font-black text-[#020108]">{task.title}</span>
-        <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[#667085]">
+        <span className="block text-sm font-semibold text-[var(--text-primary)]">{task.title}</span>
+        <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--text-muted-accessible)]">
           <span>אחראי: {assigneeName}</span>
           <span>יעד: {formatShortDateTime(task.due_at)}</span>
         </div>
@@ -1597,12 +1597,12 @@ function AuditLogRow({ log }: { log: DbAuditLog }) {
     <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/64 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
-          <span className="block text-sm font-black text-[#020108]">{formatAuditAction(log.action_type)}</span>
-          <span className="block text-xs font-semibold text-[#667085]">
+          <span className="block text-sm font-semibold text-[var(--text-primary)]">{formatAuditAction(log.action_type)}</span>
+          <span className="block text-xs font-semibold text-[var(--text-muted-accessible)]">
             {log.user_name || 'משתמש'} · {log.user_role || 'תפקיד לא ידוע'}
           </span>
         </div>
-        <span className="shrink-0 rounded-full border border-slate-500/15 bg-slate-500/10 px-2.5 py-1 text-[11px] font-bold text-slate-600">
+        <span className="text-caption shrink-0 rounded-full border border-slate-500/15 bg-slate-500/10 px-2.5 py-1 font-semibold text-slate-600">
           {getRelativeTime(log.created_at)}
         </span>
       </div>
@@ -1613,11 +1613,11 @@ function AuditLogRow({ log }: { log: DbAuditLog }) {
 function CompactEmptyState({ title, text }: { title: string; text: string }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-[rgba(2,1,8,0.12)] bg-white/54 px-5 py-10 text-center">
-      <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl border border-[#FF6B02]/20 bg-[#FF6B02]/10 text-[#FF6B02]">
+      <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--brand)]/20 bg-[var(--brand)]/10 text-[var(--color-action-on-surface)]">
         <Sparkles className="h-5 w-5" />
       </div>
-      <span className="text-sm font-black text-[#020108]">{title}</span>
-      <p className="mt-2 max-w-sm text-xs font-semibold leading-relaxed text-[#667085]">{text}</p>
+      <span className="text-sm font-semibold text-[var(--text-primary)]">{title}</span>
+      <p className="mt-2 max-w-sm text-xs font-semibold leading-relaxed text-[var(--text-muted-accessible)]">{text}</p>
     </div>
   );
 }

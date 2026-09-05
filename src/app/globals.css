@@ -930,12 +930,19 @@ option {
 :root[data-contrast="high"] .command-sheet,
 :root[data-contrast="high"] .command-input,
 :root[data-contrast="high"] .command-select,
+/* ~120 elements across the app still carry a hardcoded
+   border-[rgba(2,1,8,0.08|0.10)] rather than a token. The legacy dark block
+   recolours those to rgba(255,255,255,0.14), which is correct for dark but
+   leaves high contrast translucent — so they need to be named here too. */
+:root[data-contrast="high"] [class*="border-[rgba(2,1,8"],
 :root[data-contrast="high"] input:not([aria-invalid="true"]),
 :root[data-contrast="high"] select:not([aria-invalid="true"]),
 :root[data-contrast="high"] textarea:not([aria-invalid="true"]) {
-  /* !important on the width too: the Tailwind `border` utility on these
-     elements sets 1px and was winning, leaving high contrast with an opaque
-     but hairline border. */
-  border-width: 1.5px !important;
   border-color: var(--border-strong) !important;
+  /* border-style too: an element whose only border declaration came from a
+     token can compute to `none`, and a width with no style paints nothing. */
+  border-style: solid !important;
+  /* 2px, not 1.5px: Chrome snaps border widths to device pixels, so 1.5px
+     computed back as 1px and the mode delivered no extra weight at all. */
+  border-width: 2px !important;
 }

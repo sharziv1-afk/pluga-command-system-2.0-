@@ -1124,6 +1124,7 @@ export default function TrackingPage() {
                 value={searchText}
                 onChange={event => setSearchText(event.target.value)}
                 placeholder="חיפוש חייל, מחלקה או כיתה…"
+                aria-label="חיפוש חייל, מחלקה או כיתה"
                 className="command-input pr-10"
               />
             </div>
@@ -1131,6 +1132,7 @@ export default function TrackingPage() {
               <select
                 value={categoryFilter}
                 onChange={event => setCategoryFilter(event.target.value)}
+                aria-label="סינון לפי קטגוריה"
                 className="command-select min-h-11 w-full sm:w-52"
               >
                 <option value="all">כל הקטגוריות</option>

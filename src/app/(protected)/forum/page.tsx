@@ -525,8 +525,8 @@ export default function ForumPage() {
   const dailySaveInFlight = useRef(false);
   const [isDailyLoading, setIsDailyLoading] = useState(false);
   const [isDailySaving, setIsDailySaving] = useState(false);
-  const [resetReportConfirmOpen, setResetReportConfirmOpen] = useState(false);
-  const [deleteReportConfirmOpen, setDeleteReportConfirmOpen] = useState(false);
+  const [reportPendingReset, setReportPendingReset] = useState<DailyReportRow | null>(null);
+  const [reportPendingDelete, setReportPendingDelete] = useState<DailyReportRow | null>(null);
   const [dailyError, setDailyError] = useState<string | null>(null);
   const [dailySuccess, setDailySuccess] = useState<string | null>(null);
   const [ownerOptions, setOwnerOptions] = useState<ReportOwnerOption[]>([]);
@@ -916,11 +916,16 @@ export default function ForumPage() {
       && dbProfile
       && (selectedReport.created_by === dbProfile.id || selectedReport.owner_user_id === dbProfile.id || canSeeAll),
   );
-  const canDeleteSelectedReport = Boolean(
-    selectedReport
+  // Derived per-report rather than only for the current selection, so the
+  // confirm handlers can re-check the snapshot they captured instead of
+  // trusting `selectedReport`, which a background loadDailyReports can change
+  // while the dialog is open.
+  const canMutateReport = (report: DailyReportRow | null | undefined) => Boolean(
+    report
       && dbProfile
-      && (canSeeAll || selectedReport.created_by === dbProfile.id || selectedReport.owner_user_id === dbProfile.id),
+      && (canSeeAll || report.created_by === dbProfile.id || report.owner_user_id === dbProfile.id),
   );
+  const canDeleteSelectedReport = canMutateReport(selectedReport);
   const canResetSelectedReport = canDeleteSelectedReport;
   const canUseDraftFormForSelectedNode = Boolean(
     !selectedReport
@@ -2049,36 +2054,40 @@ export default function ForumPage() {
 
   const resetSelectedReport = async () => {
     if (!selectedReport || !dbProfile || !canResetSelectedReport) return;
-    setResetReportConfirmOpen(true);
+    setReportPendingReset(selectedReport);
   };
 
   const confirmResetSelectedReport = async () => {
-    if (!selectedReport || !dbProfile) return;
-    setResetReportConfirmOpen(false);
+    // Act on the report captured when the dialog opened, not on whatever is
+    // selected now — a background loadDailyReports can swap it underneath —
+    // and re-check permission on that same snapshot.
+    const target = reportPendingReset;
+    if (!target || !dbProfile || !canMutateReport(target)) { setReportPendingReset(null); return; }
+    setReportPendingReset(null);
 
     setIsDailySaving(true);
     setDailyError(null);
     setDailySuccess(null);
 
     const previousSnapshot = {
-      id: selectedReport.id,
-      report_level: selectedReport.report_level,
-      owner_user_id: selectedReport.owner_user_id,
-      created_by: selectedReport.created_by,
-      status: selectedReport.status,
-      report_date: selectedReport.report_date,
-      staff_role: selectedReport.staff_role,
-      content: selectedReport.content,
-      summary_text: selectedReport.summary_text,
-      whatsapp_text: selectedReport.whatsapp_text,
-      metadata: selectedReport.metadata,
+      id: target.id,
+      report_level: target.report_level,
+      owner_user_id: target.owner_user_id,
+      created_by: target.created_by,
+      status: target.status,
+      report_date: target.report_date,
+      staff_role: target.staff_role,
+      content: target.content,
+      summary_text: target.summary_text,
+      whatsapp_text: target.whatsapp_text,
+      metadata: target.metadata,
     };
     const resetMetadata = {
-      ...(selectedReport.metadata ?? {}),
+      ...(target.metadata ?? {}),
       reset_at: new Date().toISOString(),
       reset_by: dbProfile.id,
       reset_by_name: dbProfile.name,
-      previous_status: selectedReport.status,
+      previous_status: target.status,
       reset_reason: 'איפוס ידני דרך פורום מוביל',
     };
     const updatePayload = {
@@ -2092,7 +2101,7 @@ export default function ForumPage() {
     const { error: resetError } = await supabase
       .from('forum_daily_reports')
       .update(updatePayload)
-      .eq('id', selectedReport.id);
+      .eq('id', target.id);
 
     if (resetError) {
       logSupabaseError('Forum daily report reset failed', resetError);
@@ -2107,12 +2116,12 @@ export default function ForumPage() {
       userRole: dbProfile.role,
       actionType: 'forum_daily_report_reset',
       entityType: 'forum_daily_report',
-      entityId: selectedReport.id,
+      entityId: target.id,
       previousValue: previousSnapshot,
       newValue: {
         status: 'draft',
         reset_by: dbProfile.id,
-        previous_status: selectedReport.status,
+        previous_status: target.status,
       },
     });
 
@@ -2124,32 +2133,33 @@ export default function ForumPage() {
 
   const deleteSelectedReport = async () => {
     if (!selectedReport || !dbProfile || !canDeleteSelectedReport) return;
-    setDeleteReportConfirmOpen(true);
+    setReportPendingDelete(selectedReport);
   };
 
   const confirmDeleteSelectedReport = async () => {
-    if (!selectedReport || !dbProfile) return;
-    setDeleteReportConfirmOpen(false);
+    const target = reportPendingDelete;
+    if (!target || !dbProfile || !canMutateReport(target)) { setReportPendingDelete(null); return; }
+    setReportPendingDelete(null);
 
     setIsDailySaving(true);
     setDailyError(null);
     setDailySuccess(null);
 
     const deletedReportSnapshot = {
-      id: selectedReport.id,
-      report_level: selectedReport.report_level,
-      owner_user_id: selectedReport.owner_user_id,
-      created_by: selectedReport.created_by,
-      status: selectedReport.status,
-      report_date: selectedReport.report_date,
-      staff_role: selectedReport.staff_role,
-      metadata: selectedReport.metadata,
+      id: target.id,
+      report_level: target.report_level,
+      owner_user_id: target.owner_user_id,
+      created_by: target.created_by,
+      status: target.status,
+      report_date: target.report_date,
+      staff_role: target.staff_role,
+      metadata: target.metadata,
     };
 
     const { error: deleteError } = await supabase
       .from('forum_daily_reports')
       .delete()
-      .eq('id', selectedReport.id);
+      .eq('id', target.id);
 
     if (deleteError) {
       logSupabaseError('Forum daily report delete failed', deleteError);
@@ -2164,12 +2174,12 @@ export default function ForumPage() {
       userRole: dbProfile.role,
       actionType: 'forum_daily_report_deleted',
       entityType: 'forum_daily_report',
-      entityId: selectedReport.id,
+      entityId: target.id,
       previousValue: deletedReportSnapshot,
       newValue: null,
     });
 
-    setDailyReports(current => current.filter(report => report.id !== selectedReport.id));
+    setDailyReports(current => current.filter(report => report.id !== target.id));
     setSelectedNodeId(canSeeAll ? 'whatsapp' : 'own-report');
     replaceWithCleanDailyDraft(emptyReportDraft());
     setDailySuccess('הדוח נמחק.');
@@ -2729,7 +2739,7 @@ export default function ForumPage() {
               </GlossyButton>
             </div>
           </div>
-          <textarea readOnly value={generateWhatsappText()} className="command-input min-h-80 resize-none" dir="rtl" />
+          <textarea readOnly aria-label="תצוגת פלט WhatsApp" value={generateWhatsappText()} className="command-input min-h-80 resize-none" dir="rtl" />
         </div>
       );
     }
@@ -3096,6 +3106,7 @@ export default function ForumPage() {
             <span>{formatSelectedDate(selectedDate)}</span>
             <input
               type="date"
+              aria-label="בחירת תאריך הפורום"
               value={dailyDateInputValue}
               onChange={event => {
                 const nextDate = event.target.value;
@@ -3306,7 +3317,7 @@ export default function ForumPage() {
                     </GlossyButton>
                   </div>
                 </div>
-                <textarea readOnly value={generateWhatsappText()} className="command-input min-h-40 resize-none text-sm" dir="rtl" />
+                <textarea readOnly aria-label="תצוגת פלט WhatsApp" value={generateWhatsappText()} className="command-input min-h-40 resize-none text-sm" dir="rtl" />
               </div>
             )}
           </main>
@@ -3359,8 +3370,8 @@ export default function ForumPage() {
       />
 
       <CommandConfirmDialog
-        open={resetReportConfirmOpen}
-        onCancel={() => setResetReportConfirmOpen(false)}
+        open={!!reportPendingReset}
+        onCancel={() => setReportPendingReset(null)}
         onConfirm={() => void confirmResetSelectedReport()}
         title="איפוס דוח"
         description="האם לאפס את הדוח? התוכן יימחק והדוח יחזור לטיוטה."
@@ -3370,8 +3381,8 @@ export default function ForumPage() {
       />
 
       <CommandConfirmDialog
-        open={deleteReportConfirmOpen}
-        onCancel={() => setDeleteReportConfirmOpen(false)}
+        open={!!reportPendingDelete}
+        onCancel={() => setReportPendingDelete(null)}
         onConfirm={() => void confirmDeleteSelectedReport()}
         title="מחיקת דוח"
         description="האם למחוק את הדוח? פעולה זו לא ניתנת לשחזור."

@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
@@ -17,7 +18,6 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { GapsPanel } from '@/components/gaps/GapsPanel';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FieldPrivacyHint } from '@/components/ui/FieldPrivacyHint';
 import { GlassCard } from '@/components/ui/GlassCard';
@@ -35,7 +35,18 @@ import { getPermissionLevelForRole, hasCompanyWideUiAccess, normalizeRole } from
 import { getScheduleDisplayStatus } from '@/lib/schedule';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
+import { LIST_FETCH_LIMIT, TRUNCATION_NOTICE, isTruncated } from '@/lib/queryLimits';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
+
+// Loaded on demand: GapsPanel is ~500 lines behind the פערים toggle, and
+// viewMode defaults to 'requests', so most visits never render it. ssr:false
+// because it is client-only anyway and this keeps it out of the server bundle
+// too. The skeleton matches what the panel shows while it loads its own data,
+// so the swap is not a visible jump.
+const GapsPanel = dynamic(
+  () => import('@/components/gaps/GapsPanel').then(m => ({ default: m.GapsPanel })),
+  { ssr: false, loading: () => <SkeletonCard /> },
+);
 
 type RequestStatus = 'open' | 'in_progress' | 'approved' | 'rejected' | 'completed' | 'cancelled';
 type RequestCategory = 'לוגיסטיקה' | 'רפואה' | 'קשר' | 'רכב' | 'כוח אדם' | 'אחר';
@@ -239,6 +250,7 @@ type ViewMode = 'requests' | 'gaps';
 export default function RequestsPage() {
   const { currentUser, isLoading: isContextLoading, refreshProfile } = useApp();
   const [viewMode, setViewMode] = useState<ViewMode>('requests');
+  const [requestsTruncated, setRequestsTruncated] = useState(false);
   const [requests, setRequests] = useState<DbRequest[]>([]);
   const [assigneeUsers, setAssigneeUsers] = useState<AssigneeUser[]>([]);
   const [eventOptions, setEventOptions] = useState<EventOption[]>([]);
@@ -325,6 +337,7 @@ export default function RequestsPage() {
           .from('requests')
           .select('id,title,description,status,request_type,requested_by,assigned_to,unit_id,event_id,metadata,created_at,updated_at')
           .order('created_at', { ascending: false })
+          .limit(LIST_FETCH_LIMIT)
           .returns<RawRequest[]>(),
         supabase
           .from('events')
@@ -404,6 +417,7 @@ export default function RequestsPage() {
         }) !== 'completed'));
       }
 
+      setRequestsTruncated(isTruncated(raw));
       setRequests(raw.map(r => ({
         ...r,
         assigneeName: r.assigned_to ? (assigneeNames[r.assigned_to]?.name ?? null) : null,
@@ -1130,6 +1144,12 @@ export default function RequestsPage() {
       </div>
 
       {/* Request list */}
+      {requestsTruncated && (
+        <p role="status" className="rounded-[var(--radius-card)] border border-[var(--color-warning)]/25 bg-[var(--color-warning)]/10 px-4 py-3 text-meta font-bold text-[var(--color-warning)]">
+          {TRUNCATION_NOTICE}
+        </p>
+      )}
+
       {filteredRequests.length === 0 ? (
         <div className="py-8">
           {hasActiveFilters ? (

@@ -218,9 +218,20 @@ export default function TrackingPage() {
             .order('sort_order', { ascending: true })
             .order('title', { ascending: true })
             .returns<DbTrackingItem[]>(),
+          // Scoped server-side to records whose item is still active, via an
+          // inner-join embed rather than a second round-trip. This grid is the
+          // one query in the app that grows as a product (soldiers x items),
+          // so an unfiltered fetch is the one most likely to hurt later; today
+          // it changes nothing, because zero records point at inactive items.
+          // The embedded column is discarded — it exists only to drive !inner.
+          //
+          // No .limit() here on purpose: a truncated tracking grid would show
+          // a real record as an empty cell, which reads as "not done" rather
+          // than "not loaded". That is worse than slow.
           supabase
             .from('tracking_records')
-            .select('id,soldier_id,tracking_item_id,status,note,metadata,created_by,updated_by,created_at,updated_at')
+            .select('id,soldier_id,tracking_item_id,status,note,metadata,created_by,updated_by,created_at,updated_at,tracking_items!inner(is_active)')
+            .eq('tracking_items.is_active', true)
             .order('updated_at', { ascending: false })
             .returns<DbTrackingRecord[]>(),
           supabase

@@ -32,6 +32,7 @@ import { getPermissionLevelForRole, hasCompanyWideUiAccess } from '@/lib/permiss
 import { getScheduleDisplayStatus } from '@/lib/schedule';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
+import { LIST_FETCH_LIMIT, TRUNCATION_NOTICE, isTruncated } from '@/lib/queryLimits';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 import type { DbEvent } from '@/lib/types';
 
@@ -231,6 +232,7 @@ function filterEventByTab(event: EventView, tab: ScheduleTab) {
 export default function SchedulePage() {
   const { currentUser, isLoading: isContextLoading, refreshProfile } = useApp();
   const [events, setEvents] = useState<EventView[]>([]);
+  const [eventsTruncated, setEventsTruncated] = useState(false);
   const [responsibleUsers, setResponsibleUsers] = useState<EventUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -311,6 +313,7 @@ export default function SchedulePage() {
           .from('events')
           .select('id,title,description,event_type,starts_at,ends_at,location,unit_id,created_by,responsible_user_id,status,metadata,created_at,updated_at')
           .order('starts_at', { ascending: true })
+          .limit(LIST_FETCH_LIMIT)
           .returns<DbEvent[]>(),
         canAssign
           ? supabase
@@ -360,6 +363,7 @@ export default function SchedulePage() {
       const unitNames: Record<string, string> = {};
       for (const unit of unitsData ?? []) unitNames[unit.id] = unit.name;
 
+      setEventsTruncated(isTruncated(rawEvents));
       setEvents(rawEvents.map(event => ({
         ...event,
         creatorName: event.created_by ? (userNames[event.created_by] ?? null) : null,
@@ -1132,6 +1136,12 @@ export default function SchedulePage() {
           </form>
         )}
       </GlassCard>
+
+      {eventsTruncated && (
+        <p role="status" className="rounded-[var(--radius-card)] border border-[var(--color-warning)]/25 bg-[var(--color-warning)]/10 px-4 py-3 text-meta font-bold text-[var(--color-warning)]">
+          {TRUNCATION_NOTICE}
+        </p>
+      )}
 
       {isLoading ? (
         <div className="space-y-4">

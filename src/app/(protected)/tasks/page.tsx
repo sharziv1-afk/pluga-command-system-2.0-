@@ -32,6 +32,7 @@ import { getPermissionLevelForRole, hasCompanyWideUiAccess } from '@/lib/permiss
 import { getScheduleDisplayStatus } from '@/lib/schedule';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
+import { LIST_FETCH_LIMIT, TRUNCATION_NOTICE, isTruncated } from '@/lib/queryLimits';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 import type { DbTask } from '@/lib/types';
 
@@ -186,6 +187,7 @@ const taskQuickFilters: { id: Exclude<TaskQuickFilter, 'none'>; label: string }[
 export default function TasksPage() {
   const { currentUser, isLoading: isContextLoading, refreshProfile } = useApp();
   const [tasks, setTasks] = useState<TaskView[]>([]);
+  const [tasksTruncated, setTasksTruncated] = useState(false);
   const [assignableUsers, setAssignableUsers] = useState<TaskUser[]>([]);
   const [eventOptions, setEventOptions] = useState<EventOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -280,6 +282,7 @@ export default function TasksPage() {
           .from('tasks')
           .select('id,title,description,status,priority,assigned_to,created_by,unit_id,event_id,due_at,completed_at,metadata,created_at,updated_at')
           .order('created_at', { ascending: false })
+          .limit(LIST_FETCH_LIMIT)
           .returns<DbTask[]>(),
         canAssign
           ? supabase
@@ -372,6 +375,7 @@ export default function TasksPage() {
           eventTimeLabel: task.event_id ? (eventDetails[task.event_id]?.timeLabel ?? null) : null,
         };
       });
+      setTasksTruncated(isTruncated(rawTasks));
       setTasks(mappedTasks);
       void cacheSet(TASKS_CACHE_KEY, mappedTasks);
     } catch (loadError) {
@@ -943,6 +947,11 @@ export default function TasksPage() {
             <span className="self-center text-xs font-bold text-[var(--text-muted-accessible)]">
               מציג {visibleTasks.length} מתוך {tasks.length} משימות
             </span>
+            {tasksTruncated && (
+              <span role="status" className="self-center text-xs font-bold text-[var(--color-warning)]">
+                {TRUNCATION_NOTICE}
+              </span>
+            )}
           </div>
 
           <div className="flex gap-2">

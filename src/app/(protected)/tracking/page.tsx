@@ -17,6 +17,7 @@ import {
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FieldPrivacyHint } from '@/components/ui/FieldPrivacyHint';
+import { CommandConfirmDialog } from '@/components/ui/CommandDialog';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlossyButton } from '@/components/ui/GlossyButton';
 import { createAuditLog } from '@/lib/audit';
@@ -363,18 +364,6 @@ export default function TrackingPage() {
     await handleRemoveItem(pendingDelete.item);
   };
 
-  useEffect(() => {
-    if (!pendingDelete) return undefined;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        closeDeleteModal();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [closeDeleteModal, pendingDelete]);
 
   const handleCreateSoldier = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -808,94 +797,34 @@ export default function TrackingPage() {
         </div>
       )}
 
-      {pendingDelete && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[#020108]/30 px-4 py-6 backdrop-blur-sm"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) closeDeleteModal();
-          }}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="tracking-delete-title"
-            aria-describedby="tracking-delete-description"
-            className="w-full max-w-md rounded-3xl border border-white/70 bg-white/92 p-5 text-right shadow-[0_24px_80px_rgba(2,1,8,0.22)] backdrop-blur-2xl"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-600">
-                  <Trash2 className="h-5 w-5" />
-                </span>
-                <div>
-                  <h2 id="tracking-delete-title" className="text-base font-black text-[#020108]">
-                    אישור הסרה
-                  </h2>
-                  <p className="mt-1 text-xs font-bold text-[#667085]">פעולת soft delete במעקב הפעיל</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                title="סגור"
-                onClick={closeDeleteModal}
-                disabled={isDeleteSubmitting}
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[rgba(2,1,8,0.10)] bg-white/80 text-[#344054] transition hover:bg-[#FF6B02]/10 disabled:cursor-wait disabled:opacity-50"
-              >
-                <X className="h-4 w-4" />
-                <span className="sr-only">סגור</span>
-              </button>
-            </div>
-
-            <div id="tracking-delete-description" className="mt-5 space-y-3 text-sm font-bold text-[#344054]">
-              <p>
-                {pendingDelete.type === 'soldier' ? (
-                  <>
-                    להסיר את החייל <span className="font-black text-[#020108]">{pendingDelete.label}</span> מהמעקב?
-                  </>
-                ) : (
-                  <>
-                    להסיר את מופע המעקב <span className="font-black text-[#020108]">{pendingDelete.label}</span> מהטבלה?
-                  </>
-                )}
-              </p>
-              <p className="text-xs leading-6 text-[#667085]">
-                ההסרה לא מוחקת את הנתונים לצמיתות, אלא מסתירה אותם מהמעקב הפעיל.
-              </p>
-            </div>
-
+      <CommandConfirmDialog
+        open={!!pendingDelete}
+        onCancel={closeDeleteModal}
+        onConfirm={() => void handleConfirmDelete()}
+        title="אישור הסרה"
+        description={
+          <>
+            <p>
+              {pendingDelete?.type === 'soldier' ? (
+                <>להסיר את החייל <span className="font-semibold text-[var(--text-primary)]">{pendingDelete.label}</span> מהמעקב?</>
+              ) : pendingDelete ? (
+                <>להסיר את מופע המעקב <span className="font-semibold text-[var(--text-primary)]">{pendingDelete.label}</span> מהטבלה?</>
+              ) : null}
+            </p>
+            <p className="text-caption mt-2 text-[var(--text-muted-accessible)]">
+              ההסרה לא מוחקת את הנתונים לצמיתות, אלא מסתירה אותם מהמעקב הפעיל.
+            </p>
             {errorMessage && (
-              <div className="mt-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-700">
+              <div className="text-caption mt-3 rounded-2xl border border-[var(--color-danger)]/20 bg-[var(--color-danger)]/10 px-3 py-2 font-semibold text-[var(--color-danger)]">
                 {errorMessage}
               </div>
             )}
-
-            <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-              <GlossyButton
-                type="button"
-                variant="slate"
-                size="lg"
-                onClick={closeDeleteModal}
-                disabled={isDeleteSubmitting}
-                className="flex-1"
-              >
-                ביטול
-              </GlossyButton>
-              <button
-                type="button"
-                onClick={() => void handleConfirmDelete()}
-                disabled={isDeleteSubmitting}
-                className="relative flex min-h-11 flex-1 items-center justify-center gap-2 overflow-hidden rounded-2xl border border-red-300 bg-red-600 px-5 text-sm font-bold text-white shadow-[0_14px_28px_rgba(220,38,38,0.20)] transition hover:bg-red-700 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
-              >
-                <span className="pointer-events-none absolute inset-x-0 top-0 h-[42%] bg-gradient-to-b from-white/25 to-transparent" />
-                <span className="relative z-10 flex items-center gap-1.5">
-                  {isDeleteSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                  הסר
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </>
+        }
+        confirmLabel="הסר"
+        destructive
+        loading={isDeleteSubmitting}
+      />
 
       {isSoldierFormOpen && (
         <GlassCard glow="orange" className="space-y-4">

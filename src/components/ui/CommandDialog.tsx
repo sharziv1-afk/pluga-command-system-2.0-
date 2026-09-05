@@ -130,7 +130,7 @@ interface CommandConfirmDialogProps {
   onCancel: () => void;
   onConfirm: () => void;
   title: string;
-  description: string;
+  description: React.ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   destructive?: boolean;
@@ -176,7 +176,7 @@ export const CommandConfirmDialog: React.FC<CommandConfirmDialogProps> = ({
             <AlertTriangle className="h-5 w-5" />
           </span>
         )}
-        <p className="text-sm leading-relaxed text-[var(--text-secondary)]">{description}</p>
+        <div className="text-sm leading-relaxed text-[var(--text-secondary)]">{description}</div>
       </div>
     </CommandOverlay>
   );

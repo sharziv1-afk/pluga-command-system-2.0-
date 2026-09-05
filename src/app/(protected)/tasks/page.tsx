@@ -106,11 +106,14 @@ const statusLabels: Record<TaskStatus, string> = {
   cancelled: 'בוטלה',
 };
 
+// Same semantic set as StatusBadge and the dashboard tone map: raw Tailwind
+// palette classes here would also lose their dark treatment, since the legacy
+// [class*="text-blue-700"] overrides are what used to carry them.
 const priorityStyles: Record<TaskPriority, string> = {
-  רגילה: 'border-slate-500/20 bg-slate-500/10 text-slate-700',
-  חשובה: 'border-blue-500/20 bg-blue-500/10 text-blue-700',
-  דחופה: 'border-[#FF6B02]/25 bg-[#FF6B02]/10 text-[#C54F00]',
-  קריטית: 'border-red-500/20 bg-red-500/10 text-red-700',
+  רגילה: 'border-[var(--border-strong)] bg-[var(--surface-muted)] text-[var(--text-secondary)]',
+  חשובה: 'border-[var(--color-info)]/25 bg-[var(--color-info)]/10 text-[var(--color-info)]',
+  דחופה: 'border-[var(--color-warning)]/25 bg-[var(--color-warning)]/10 text-[var(--color-warning)]',
+  קריטית: 'border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 text-[var(--color-danger)]',
 };
 
 function formatDate(value: string | null) {
@@ -887,7 +890,7 @@ export default function TasksPage() {
         </div>
       )}
       {!isOffline && pendingSyncCount > 0 && (
-        <div className="flex items-center gap-3 rounded-2xl border border-[#FF6B02]/25 bg-[#FF6B02]/10 px-4 py-3 text-sm font-bold text-[#C75200]">
+        <div className="flex items-center gap-3 rounded-2xl border border-[var(--brand)]/25 bg-[var(--brand)]/10 px-4 py-3 text-sm font-bold text-[var(--color-action-on-surface)]">
           <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
           <span>מסנכרן {pendingSyncCount} שינויים שנשמרו בזמן שלא הייתה רשת...</span>
         </div>
@@ -896,22 +899,22 @@ export default function TasksPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <GlassCard className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-[#667085]">פתוחות</p>
-            <p className="mt-1 text-3xl font-black text-[#020108]">{openCount}</p>
+            <p className="text-xs font-bold text-[var(--text-muted-accessible)]">פתוחות</p>
+            <p className="command-kpi mt-1 text-3xl text-[var(--text-primary)]">{openCount}</p>
           </div>
-          <ClipboardList className="h-9 w-9 text-[#FF6B02]" />
+          <ClipboardList className="h-9 w-9 text-[var(--brand)]" />
         </GlassCard>
         <GlassCard className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-[#667085]">בתהליך / תקועות</p>
-            <p className="mt-1 text-3xl font-black text-[#020108]">{inProgressCount}</p>
+            <p className="text-xs font-bold text-[var(--text-muted-accessible)]">בתהליך / תקועות</p>
+            <p className="command-kpi mt-1 text-3xl text-[var(--text-primary)]">{inProgressCount}</p>
           </div>
-          <AlertTriangle className="h-9 w-9 text-[#C54F00]" />
+          <AlertTriangle className="h-9 w-9 text-[var(--color-action-on-surface)]" />
         </GlassCard>
         <GlassCard className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-[#667085]">הושלמו</p>
-            <p className="mt-1 text-3xl font-black text-[#020108]">{completedCount}</p>
+            <p className="text-xs font-bold text-[var(--text-muted-accessible)]">הושלמו</p>
+            <p className="command-kpi mt-1 text-3xl text-[var(--text-primary)]">{completedCount}</p>
           </div>
           <CheckCircle2 className="h-9 w-9 text-emerald-600" />
         </GlassCard>
@@ -927,12 +930,12 @@ export default function TasksPage() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`touch-target rounded-2xl border px-3 py-2 text-xs font-bold transition ${
                   activeTab === tab.id
-                    ? 'border-[#FF6B02]/40 bg-[#FF6B02]/12 text-[#C54F00]'
-                    : 'border-[rgba(2,1,8,0.10)] bg-white/60 text-[#667085] hover:border-[#FF6B02]/30'
+                    ? 'border-[var(--action)]/40 bg-[var(--action)]/12 text-[var(--color-action-on-surface)]'
+                    : 'border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)] hover:border-[var(--action)]/30'
                 }`}
               >
                 {tab.label}
-                <span className="mr-2 rounded-full bg-white/70 px-2 py-0.5 text-[10px] text-[#020108]">{tabCounts[tab.id] ?? 0}</span>
+                <span className="mr-2 rounded-full bg-[var(--tactical-glass)] px-2 py-0.5 text-caption text-[var(--text-primary)]">{tabCounts[tab.id] ?? 0}</span>
               </button>
             ))}
             <span className="mx-1 hidden w-px self-stretch bg-[rgba(2,1,8,0.10)] sm:block" />
@@ -943,14 +946,14 @@ export default function TasksPage() {
                 onClick={() => setQuickFilter(current => (current === filter.id ? 'none' : filter.id))}
                 className={`touch-target rounded-full border px-3 py-2 text-xs font-bold transition ${
                   quickFilter === filter.id
-                    ? 'border-[#FF6B02]/40 bg-[#FF6B02]/12 text-[#C54F00]'
-                    : 'border-[rgba(2,1,8,0.10)] bg-white/60 text-[#667085] hover:border-[#FF6B02]/30'
+                    ? 'border-[var(--action)]/40 bg-[var(--action)]/12 text-[var(--color-action-on-surface)]'
+                    : 'border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)] hover:border-[var(--action)]/30'
                 }`}
               >
                 {filter.label}
               </button>
             ))}
-            <span className="self-center text-xs font-bold text-[#667085]">
+            <span className="self-center text-xs font-bold text-[var(--text-muted-accessible)]">
               מציג {visibleTasks.length} מתוך {tasks.length} משימות
             </span>
           </div>
@@ -979,46 +982,46 @@ export default function TasksPage() {
         )}
 
         {isFormOpen && (
-          <form onSubmit={handleCreateTask} className="grid gap-4 rounded-3xl border border-[#FF6B02]/15 bg-white/70 p-4 lg:grid-cols-2">
+          <form onSubmit={handleCreateTask} className="grid gap-4 rounded-3xl border border-[var(--brand)]/15 bg-[var(--tactical-glass)] p-4 lg:grid-cols-2">
             <label className="space-y-1 lg:col-span-2">
-              <span className="text-xs font-bold text-[#667085]">כותרת</span>
+              <span className="text-xs font-bold text-[var(--text-muted-accessible)]">כותרת</span>
               <input
                 type="text"
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
-                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                 placeholder="לדוגמה: השלמת בדיקת ציוד מחלקתית"
                 required
               />
             </label>
 
             <label className="space-y-1 lg:col-span-2">
-              <span className="text-xs font-bold text-[#667085]">תיאור</span>
+              <span className="text-xs font-bold text-[var(--text-muted-accessible)]">תיאור</span>
               <textarea
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
-                className="min-h-24 w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                className="min-h-24 w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                 placeholder="פירוט קצר של המשימה, תוצאה נדרשת ודגשים לביצוע"
               />
             </label>
 
             <label className="space-y-1">
-              <span className="text-xs font-bold text-[#667085]">עדיפות</span>
+              <span className="text-xs font-bold text-[var(--text-muted-accessible)]">עדיפות</span>
               <select
                 value={priority}
                 onChange={(event) => setPriority(event.target.value as TaskPriority)}
-                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
               >
                 {priorityOptions.map(item => <option key={item} value={item}>{item}</option>)}
               </select>
             </label>
 
             <label className="space-y-1">
-              <span className="text-xs font-bold text-[#667085]">אחראי</span>
+              <span className="text-xs font-bold text-[var(--text-muted-accessible)]">אחראי</span>
               <select
                 value={assignedTo}
                 onChange={(event) => setAssignedTo(event.target.value)}
-                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
               >
                 <option value="none">טרם הוקצה</option>
                 {assignableUsers.map(user => (
@@ -1028,21 +1031,21 @@ export default function TasksPage() {
             </label>
 
             <label className="space-y-1">
-              <span className="text-xs font-bold text-[#667085]">תאריך יעד</span>
+              <span className="text-xs font-bold text-[var(--text-muted-accessible)]">תאריך יעד</span>
               <input
                 type="datetime-local"
                 value={dueAt}
                 onChange={(event) => setDueAt(event.target.value)}
-                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
               />
             </label>
 
             <label className="space-y-1">
-              <span className="text-xs font-bold text-[#667085]">שייך למופע</span>
+              <span className="text-xs font-bold text-[var(--text-muted-accessible)]">שייך למופע</span>
               <select
                 value={selectedEventId}
                 onChange={(event) => setSelectedEventId(event.target.value)}
-                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
               >
                 <option value="none">ללא שיוך</option>
                 {eventOptions.map(event => (
@@ -1054,34 +1057,34 @@ export default function TasksPage() {
             </label>
 
             <label className="space-y-1">
-              <span className="text-xs font-bold text-[#667085]">קטגוריה</span>
+              <span className="text-xs font-bold text-[var(--text-muted-accessible)]">קטגוריה</span>
               <input
                 type="text"
                 value={category}
                 onChange={(event) => setCategory(event.target.value)}
-                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                 placeholder="לוגיסטיקה / כשירות / מנהלה"
               />
             </label>
 
             <label className="space-y-1">
-              <span className="text-xs font-bold text-[#667085]">מיקום</span>
+              <span className="text-xs font-bold text-[var(--text-muted-accessible)]">מיקום</span>
               <input
                 type="text"
                 value={location}
                 onChange={(event) => setLocation(event.target.value)}
-                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                 placeholder="אופציונלי"
               />
             </label>
 
             <label className="space-y-1">
-              <span className="text-xs font-bold text-[#667085]">תוצר נדרש</span>
+              <span className="text-xs font-bold text-[var(--text-muted-accessible)]">תוצר נדרש</span>
               <input
                 type="text"
                 value={outputRequired}
                 onChange={(event) => setOutputRequired(event.target.value)}
-                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                 placeholder="איך יודעים שהמשימה נסגרה"
               />
             </label>
@@ -1127,55 +1130,55 @@ export default function TasksPage() {
               <GlassCard key={task.id} className="space-y-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <h2 className="text-lg font-black text-[#020108]">{task.title}</h2>
-                    <p className="mt-1 text-sm leading-6 text-[#667085]">{task.description || 'אין תיאור למשימה.'}</p>
+                    <h2 className="text-lg font-semibold text-[var(--text-primary)]">{task.title}</h2>
+                    <p className="mt-1 text-sm leading-6 text-[var(--text-muted-accessible)]">{task.description || 'אין תיאור למשימה.'}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <StatusBadge status={statusLabels[taskStatus]} />
-                    <span className={`inline-flex min-h-6 items-center rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${priorityStyles[taskPriority]}`}>
+                    <span className={`inline-flex min-h-6 items-center rounded-full border px-2.5 py-0.5 text-caption font-bold ${priorityStyles[taskPriority]}`}>
                       {taskPriority}
                     </span>
                   </div>
                 </div>
 
                 <div className="grid gap-3 text-sm sm:grid-cols-2">
-                  <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/58 p-3">
-                    <p className="text-xs font-bold text-[#98A2B3]">אחראי</p>
-                    <p className="mt-1 font-bold text-[#020108]">{task.assigneeName || 'טרם הוקצה'}</p>
+                  <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-3">
+                    <p className="text-xs font-bold text-[var(--command-subtle)]">אחראי</p>
+                    <p className="mt-1 font-bold text-[var(--text-primary)]">{task.assigneeName || 'טרם הוקצה'}</p>
                   </div>
-                  <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/58 p-3">
-                    <p className="text-xs font-bold text-[#98A2B3]">נוצר על ידי / יחידה</p>
-                    <p className="mt-1 font-bold text-[#020108]">{task.creatorName || 'לא ידוע'} · {task.unitName || 'ללא יחידה'}</p>
+                  <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-3">
+                    <p className="text-xs font-bold text-[var(--command-subtle)]">נוצר על ידי / יחידה</p>
+                    <p className="mt-1 font-bold text-[var(--text-primary)]">{task.creatorName || 'לא ידוע'} · {task.unitName || 'ללא יחידה'}</p>
                   </div>
-                  <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/58 p-3">
-                    <p className="flex items-center gap-1 text-xs font-bold text-[#98A2B3]">
+                  <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-3">
+                    <p className="flex items-center gap-1 text-xs font-bold text-[var(--command-subtle)]">
                       <CalendarClock className="h-3.5 w-3.5" />
                       יעד
                     </p>
-                    <p className="mt-1 font-bold text-[#020108]">{formatDateTime(task.due_at)}</p>
+                    <p className="mt-1 font-bold text-[var(--text-primary)]">{formatDateTime(task.due_at)}</p>
                   </div>
-                  <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/58 p-3">
-                    <p className="text-xs font-bold text-[#98A2B3]">קטגוריה / מיקום</p>
-                    <p className="mt-1 font-bold text-[#020108]">{metadata.category || 'ללא קטגוריה'} · {metadata.location || 'ללא מיקום'}</p>
+                  <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-3">
+                    <p className="text-xs font-bold text-[var(--command-subtle)]">קטגוריה / מיקום</p>
+                    <p className="mt-1 font-bold text-[var(--text-primary)]">{metadata.category || 'ללא קטגוריה'} · {metadata.location || 'ללא מיקום'}</p>
                   </div>
                 </div>
 
                 {metadata.output_required && (
-                  <div className="rounded-2xl border border-[#FF6B02]/15 bg-[#FF6B02]/8 p-3 text-sm text-[#020108]">
-                    <span className="font-black">תוצר נדרש: </span>
+                  <div className="rounded-2xl border border-[var(--brand)]/15 bg-[var(--brand)]/8 p-3 text-sm text-[var(--text-primary)]">
+                    <span className="font-semibold">תוצר נדרש: </span>
                     {metadata.output_required}
                   </div>
                 )}
 
                 {task.event_id && task.eventTitle && (
-                  <div className="flex items-center gap-2 rounded-2xl border border-[#FF6B02]/15 bg-[#FF6B02]/8 px-3 py-2 text-xs font-bold text-[#C54F00]">
+                  <div className="flex items-center gap-2 rounded-2xl border border-[var(--brand)]/15 bg-[var(--brand)]/8 px-3 py-2 text-xs font-bold text-[var(--color-action-on-surface)]">
                     <CalendarClock className="h-4 w-4" />
                     <span>מופע: {task.eventTitle}{task.eventTimeLabel ? ` · ${task.eventTimeLabel}` : ''}</span>
                   </div>
                 )}
 
                 <div className="flex flex-col gap-3 border-t border-[rgba(2,1,8,0.08)] pt-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-[#667085]">
+                  <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-muted-accessible)]">
                     <UserCheck className="h-4 w-4" />
                     נוצרה: {formatDate(task.created_at)}
                   </div>
@@ -1194,16 +1197,16 @@ export default function TasksPage() {
                         </GlossyButton>
                       )}
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-[#667085]">עדכון סטטוס</span>
+                        <span className="text-xs font-bold text-[var(--text-muted-accessible)]">עדכון סטטוס</span>
                         <select
                           value={taskStatus}
                           onChange={(event) => void handleStatusChange(task, event.target.value as TaskStatus)}
                           disabled={isTaskWritePending}
-                          className="rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-3 py-2 text-xs font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                          className="rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                         >
                           {statusOptions.map(status => <option key={status} value={status}>{statusLabels[status]}</option>)}
                         </select>
-                        {updatingTaskId === task.id && <Loader2 className="h-4 w-4 animate-spin text-[#FF6B02]" />}
+                        {updatingTaskId === task.id && <Loader2 className="h-4 w-4 animate-spin text-[var(--color-action-on-surface)]" />}
                       </div>
                       {canDeleteTask(task) && (
                         <GlossyButton
@@ -1219,7 +1222,7 @@ export default function TasksPage() {
                       )}
                     </div>
                   ) : (
-                    <p className="text-xs font-bold text-[#98A2B3]">אין הרשאת עדכון למשימה זו</p>
+                    <p className="text-xs font-bold text-[var(--command-subtle)]">אין הרשאת עדכון למשימה זו</p>
                   )}
                 </div>
               </GlassCard>
@@ -1238,20 +1241,20 @@ export default function TasksPage() {
         >
           <form
             onSubmit={handleEditTask}
-            className="flex max-h-[85svh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-[rgba(2,1,8,0.10)] bg-white/95 shadow-[0_24px_70px_rgba(2,1,8,0.18)]"
+            className="flex max-h-[85svh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-strong-glass)] shadow-[0_24px_70px_rgba(2,1,8,0.18)]"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[rgba(2,1,8,0.08)] px-5 py-4">
               <div>
-                <p className="text-xs font-black text-[#FF6B02]">עריכת משימה</p>
-                <h2 id="task-edit-title" className="mt-1 text-xl font-black text-[#020108]">
+                <p className="text-xs font-semibold text-[var(--color-action-on-surface)]">עריכת משימה</p>
+                <h2 id="task-edit-title" className="mt-1 text-xl font-semibold text-[var(--text-primary)]">
                   {editingTask.title}
                 </h2>
               </div>
               <button
                 type="button"
                 onClick={closeEditTask}
-                className="rounded-full border border-[rgba(2,1,8,0.10)] bg-white/80 p-2 text-[#667085] transition hover:border-[#FF6B02]/30 hover:text-[#020108] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#FF6B02]/18"
+                className="rounded-full border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] p-2 text-[var(--text-muted-accessible)] transition hover:border-[var(--action)]/30 hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring)]"
                 aria-label="סגור עריכת משימה"
                 disabled={isEditSubmitting}
               >
@@ -1262,42 +1265,42 @@ export default function TasksPage() {
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 custom-scrollbar">
               <div className="grid gap-4 lg:grid-cols-2">
                 <label className="space-y-1 lg:col-span-2">
-                  <span className="text-xs font-bold text-[#667085]">כותרת</span>
+                  <span className="text-xs font-bold text-[var(--text-muted-accessible)]">כותרת</span>
                   <input
                     type="text"
                     value={editTitle}
                     onChange={(event) => setEditTitle(event.target.value)}
-                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                     required
                   />
                 </label>
 
                 <label className="space-y-1 lg:col-span-2">
-                  <span className="text-xs font-bold text-[#667085]">תיאור</span>
+                  <span className="text-xs font-bold text-[var(--text-muted-accessible)]">תיאור</span>
                   <textarea
                     value={editDescription}
                     onChange={(event) => setEditDescription(event.target.value)}
-                    className="min-h-24 w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                    className="min-h-24 w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                   />
                 </label>
 
                 <label className="space-y-1">
-                  <span className="text-xs font-bold text-[#667085]">עדיפות</span>
+                  <span className="text-xs font-bold text-[var(--text-muted-accessible)]">עדיפות</span>
                   <select
                     value={editPriority}
                     onChange={(event) => setEditPriority(event.target.value as TaskPriority)}
-                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                   >
                     {priorityOptions.map(item => <option key={item} value={item}>{item}</option>)}
                   </select>
                 </label>
 
                 <label className="space-y-1">
-                  <span className="text-xs font-bold text-[#667085]">אחראי</span>
+                  <span className="text-xs font-bold text-[var(--text-muted-accessible)]">אחראי</span>
                   <select
                     value={editAssignedTo}
                     onChange={(event) => setEditAssignedTo(event.target.value)}
-                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                   >
                     <option value="none">טרם הוקצה</option>
                     {editAssigneeOptions.map(user => (
@@ -1309,21 +1312,21 @@ export default function TasksPage() {
                 </label>
 
                 <label className="space-y-1">
-                  <span className="text-xs font-bold text-[#667085]">תאריך יעד</span>
+                  <span className="text-xs font-bold text-[var(--text-muted-accessible)]">תאריך יעד</span>
                   <input
                     type="datetime-local"
                     value={editDueAt}
                     onChange={(event) => setEditDueAt(event.target.value)}
-                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                   />
                 </label>
 
                 <label className="space-y-1">
-                  <span className="text-xs font-bold text-[#667085]">שייך למופע</span>
+                  <span className="text-xs font-bold text-[var(--text-muted-accessible)]">שייך למופע</span>
                   <select
                     value={editEventId}
                     onChange={(event) => setEditEventId(event.target.value)}
-                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                   >
                     <option value="none">ללא שיוך</option>
                     {editEventOptions.map(event => (
@@ -1335,39 +1338,39 @@ export default function TasksPage() {
                 </label>
 
                 <label className="space-y-1">
-                  <span className="text-xs font-bold text-[#667085]">קטגוריה</span>
+                  <span className="text-xs font-bold text-[var(--text-muted-accessible)]">קטגוריה</span>
                   <input
                     type="text"
                     value={editCategory}
                     onChange={(event) => setEditCategory(event.target.value)}
-                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                   />
                 </label>
 
                 <label className="space-y-1">
-                  <span className="text-xs font-bold text-[#667085]">מיקום</span>
+                  <span className="text-xs font-bold text-[var(--text-muted-accessible)]">מיקום</span>
                   <input
                     type="text"
                     value={editLocation}
                     onChange={(event) => setEditLocation(event.target.value)}
-                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                   />
                 </label>
 
                 <label className="space-y-1 lg:col-span-2">
-                  <span className="text-xs font-bold text-[#667085]">תוצר נדרש</span>
+                  <span className="text-xs font-bold text-[var(--text-muted-accessible)]">תוצר נדרש</span>
                   <input
                     type="text"
                     value={editOutputRequired}
                     onChange={(event) => setEditOutputRequired(event.target.value)}
-                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-white/80 px-4 py-3 text-sm font-bold text-[#020108] outline-none focus:border-[#FF6B02]/50"
+                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                   />
                 </label>
               </div>
             </div>
 
-            <div className="flex shrink-0 flex-col gap-2 border-t border-[rgba(2,1,8,0.08)] bg-white/76 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs font-bold text-[#98A2B3]">סטטוס המשימה מתעדכן מהכרטיס עצמו.</p>
+            <div className="flex shrink-0 flex-col gap-2 border-t border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs font-bold text-[var(--command-subtle)]">סטטוס המשימה מתעדכן מהכרטיס עצמו.</p>
               <div className="flex gap-2">
                 <GlossyButton variant="slate" type="button" onClick={closeEditTask} disabled={isEditSubmitting}>
                   ביטול

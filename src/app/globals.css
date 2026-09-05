@@ -107,6 +107,22 @@
   --motion-slow: 240ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-emphasized: cubic-bezier(0.2, 0, 0, 1.15);
+
+  /* Typography scale — see DESIGN.md §2. Five sizes, ~1.2 ratio, mapped to
+     roles (not raw px). Applied via the .text-* utility classes below, not
+     Tailwind's own text-* namespace (which already carries the default
+     scale used across unmigrated pages — redefining it here would silently
+     resize every existing text-sm/text-xs in the app). */
+  --fs-caption: 0.75rem;      /* 12px */
+  --lh-caption: 1.4;
+  --fs-meta: 0.8125rem;       /* 13px */
+  --lh-meta: 1.45;
+  --fs-body: 0.9375rem;       /* 15px */
+  --lh-body: 1.55;
+  --fs-subheading: 1.0625rem; /* 17px */
+  --lh-subheading: 1.35;
+  --fs-heading: 1.375rem;     /* 22px */
+  --lh-heading: 1.25;
 }
 
 :root[data-theme="dark"] {
@@ -135,6 +151,40 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 4px 12px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.4), 0 10px 30px rgba(0, 0, 0, 0.45);
   --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.55);
+}
+
+/* High contrast — accessibility mode (outdoor glare / low vision), not a
+   color "theme". Opaque borders, AAA text contrast, stronger focus rings.
+   Composes with data-theme so both light+high-contrast and
+   dark+high-contrast work. See DESIGN.md §1.4. */
+:root[data-contrast="high"] {
+  --border-subtle: rgba(2, 1, 8, 0.32);
+  --border-strong: #020108;
+  --text-secondary: #1d2939;
+  --text-muted-accessible: #344054;
+  --focus-ring: #000000;
+}
+
+:root[data-theme="dark"][data-contrast="high"] {
+  --border-subtle: rgba(255, 255, 255, 0.4);
+  --border-strong: #ffffff;
+  --text-secondary: #f1f5f9;
+  --text-muted-accessible: #e2e8f0;
+  --focus-ring: #ffffff;
+}
+
+/* .command-input/.command-select/raw form elements hardcode their border
+   color (rgba(2,1,8,0.1)) rather than referencing --border-subtle, so the
+   token override above doesn't reach them on its own — set it explicitly. */
+:root[data-contrast="high"] .tactical-glass-card,
+:root[data-contrast="high"] .command-icon-button,
+:root[data-contrast="high"] .command-input,
+:root[data-contrast="high"] .command-select,
+:root[data-contrast="high"] input:not([aria-invalid="true"]),
+:root[data-contrast="high"] select:not([aria-invalid="true"]),
+:root[data-contrast="high"] textarea:not([aria-invalid="true"]) {
+  border-width: 1.5px;
+  border-color: var(--border-strong) !important;
 }
 
 * {
@@ -810,7 +860,26 @@ option {
 /* Numeric KPI figure — tabular, prominent */
 .command-kpi {
   font-variant-numeric: tabular-nums;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.01em;
   line-height: 1;
+}
+
+/* ============================================================
+   Typography scale — see DESIGN.md §2. Semantic role classes, not raw
+   px/arbitrary Tailwind sizes. Weight is NOT set here — apply the role
+   weight (DESIGN.md §2.2: 400 body, 500 secondary/meta, 600 subheading,
+   700 heading) per-usage with Tailwind's font-* utilities so a given role
+   can still flex weight in context (e.g. an active vs. inactive heading).
+   ============================================================ */
+.text-caption { font-size: var(--fs-caption); line-height: var(--lh-caption); }
+.text-meta { font-size: var(--fs-meta); line-height: var(--lh-meta); }
+.text-body-ui { font-size: var(--fs-body); line-height: var(--lh-body); }
+.text-subheading { font-size: var(--fs-subheading); line-height: var(--lh-subheading); }
+.text-heading { font-size: var(--fs-heading); line-height: var(--lh-heading); }
+
+/* All-caps / small badge-style labels need open tracking (DESIGN.md §2.4). */
+.text-label-caps {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }

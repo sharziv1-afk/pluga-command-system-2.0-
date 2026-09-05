@@ -16,6 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { CommandConfirmDialog } from '@/components/ui/CommandDialog';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlossyButton } from '@/components/ui/GlossyButton';
@@ -203,6 +204,7 @@ export default function TasksPage() {
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
+  const [taskPendingDelete, setTaskPendingDelete] = useState<TaskView | null>(null);
   const [editingTask, setEditingTask] = useState<TaskView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -814,9 +816,13 @@ export default function TasksPage() {
 
   const handleDeleteTask = async (task: TaskView) => {
     if (!dbProfile || isTaskWritePending || !canDeleteTask(task)) return;
+    setTaskPendingDelete(task);
+  };
 
-    const confirmed = window.confirm('האם למחוק משימה סגורה זו?');
-    if (!confirmed) return;
+  const confirmDeleteTask = async () => {
+    const task = taskPendingDelete;
+    if (!task || !dbProfile) return;
+    setTaskPendingDelete(null);
 
     setDeletingTaskId(task.id);
     setError(null);
@@ -1375,6 +1381,17 @@ export default function TasksPage() {
           </form>
         </div>
       )}
+
+      <CommandConfirmDialog
+        open={!!taskPendingDelete}
+        onCancel={() => setTaskPendingDelete(null)}
+        onConfirm={() => void confirmDeleteTask()}
+        title="מחיקת משימה"
+        description="האם למחוק משימה סגורה זו? הפעולה לא ניתנת לביטול."
+        confirmLabel="מחק"
+        destructive
+        loading={!!deletingTaskId}
+      />
     </div>
   );
 }

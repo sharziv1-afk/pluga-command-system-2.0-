@@ -1,5 +1,5 @@
 import React from 'react';
-import { cn } from '@/lib/utils';
+import { CommandButton } from './CommandButton';
 
 interface GlossyButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
@@ -7,38 +7,27 @@ interface GlossyButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement
   size?: 'sm' | 'md' | 'lg';
 }
 
+const VARIANT_MAP = {
+  cyan: 'teal',
+  orange: 'primary',
+  slate: 'subtle',
+} as const;
+
 /**
- * Legacy button API (cyan/orange/slate) kept for compatibility across screens,
- * restyled to the Light Gloss Operational tokens: accessible action colour,
- * restrained elevation, no plastic gloss overlay.
+ * Legacy button API (cyan/orange/slate) kept for the 13 call sites that use
+ * it — DESIGN.md §3.1 makes CommandButton the one styling implementation;
+ * this is a thin prop-mapping wrapper, not a second button system. New code
+ * should use CommandButton directly.
  */
 export const GlossyButton: React.FC<GlossyButtonProps> = ({
   children,
-  className,
   variant = 'cyan',
   size = 'md',
-  type = 'button',
   ...props
 }) => {
   return (
-    <button
-      type={type}
-      className={cn(
-        'touch-target relative font-bold transition duration-[var(--motion-fast)] rounded-xl cursor-pointer select-none active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none inline-flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring)]',
-
-        variant === 'cyan' && 'bg-[var(--color-teal)] hover:bg-[var(--color-teal-hover)] text-white shadow-[var(--shadow-xs)] border border-transparent',
-        variant === 'orange' && 'bg-[var(--action)] hover:bg-[var(--action-hover)] text-white shadow-[var(--shadow-xs)] border border-transparent',
-        variant === 'slate' && 'bg-[var(--surface)] hover:border-[var(--action)]/30 hover:text-[var(--color-action-on-surface)] text-[var(--text-primary)] border border-[var(--border-strong)] shadow-[var(--shadow-xs)]',
-
-        size === 'sm' && 'text-xs min-h-9 px-3',
-        size === 'md' && 'text-sm min-h-10 px-4',
-        size === 'lg' && 'text-sm min-h-11 px-5',
-
-        className,
-      )}
-      {...props}
-    >
-      <span className="relative z-10 flex items-center gap-1.5">{children}</span>
-    </button>
+    <CommandButton variant={VARIANT_MAP[variant]} size={size} {...props}>
+      {children}
+    </CommandButton>
   );
 };

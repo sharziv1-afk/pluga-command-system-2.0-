@@ -4,6 +4,7 @@ import React from 'react';
 import { Shield } from 'lucide-react';
 import { QuickHelp } from '@/components/layout/QuickHelp';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { ContrastToggle } from '@/components/layout/ContrastToggle';
 import { useApp } from '@/lib/context/AppContext';
 
 /** Slim mobile top bar. Navigation lives in the bottom nav; this only carries
@@ -22,8 +23,9 @@ export const MobileHeader: React.FC = () => {
         </span>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 items-center gap-1.5">
         <ThemeToggle />
+        <ContrastToggle />
         <QuickHelp />
       </div>
     </header>

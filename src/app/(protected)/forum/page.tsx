@@ -42,6 +42,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FieldPrivacyHint } from '@/components/ui/FieldPrivacyHint';
+import { CommandConfirmDialog } from '@/components/ui/CommandDialog';
 import { GlossyButton } from '@/components/ui/GlossyButton';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { createAuditLog } from '@/lib/audit';
@@ -524,6 +525,8 @@ export default function ForumPage() {
   const dailySaveInFlight = useRef(false);
   const [isDailyLoading, setIsDailyLoading] = useState(false);
   const [isDailySaving, setIsDailySaving] = useState(false);
+  const [resetReportConfirmOpen, setResetReportConfirmOpen] = useState(false);
+  const [deleteReportConfirmOpen, setDeleteReportConfirmOpen] = useState(false);
   const [dailyError, setDailyError] = useState<string | null>(null);
   const [dailySuccess, setDailySuccess] = useState<string | null>(null);
   const [ownerOptions, setOwnerOptions] = useState<ReportOwnerOption[]>([]);
@@ -2046,7 +2049,12 @@ export default function ForumPage() {
 
   const resetSelectedReport = async () => {
     if (!selectedReport || !dbProfile || !canResetSelectedReport) return;
-    if (!window.confirm('האם לאפס את הדוח? התוכן יימחק והדוח יחזור לטיוטה.')) return;
+    setResetReportConfirmOpen(true);
+  };
+
+  const confirmResetSelectedReport = async () => {
+    if (!selectedReport || !dbProfile) return;
+    setResetReportConfirmOpen(false);
 
     setIsDailySaving(true);
     setDailyError(null);
@@ -2116,7 +2124,12 @@ export default function ForumPage() {
 
   const deleteSelectedReport = async () => {
     if (!selectedReport || !dbProfile || !canDeleteSelectedReport) return;
-    if (!window.confirm('האם למחוק את הדוח? פעולה זו לא ניתנת לשחזור.')) return;
+    setDeleteReportConfirmOpen(true);
+  };
+
+  const confirmDeleteSelectedReport = async () => {
+    if (!selectedReport || !dbProfile) return;
+    setDeleteReportConfirmOpen(false);
 
     setIsDailySaving(true);
     setDailyError(null);
@@ -3398,6 +3411,28 @@ export default function ForumPage() {
           </div>
         </div>
       )}
+
+      <CommandConfirmDialog
+        open={resetReportConfirmOpen}
+        onCancel={() => setResetReportConfirmOpen(false)}
+        onConfirm={() => void confirmResetSelectedReport()}
+        title="איפוס דוח"
+        description="האם לאפס את הדוח? התוכן יימחק והדוח יחזור לטיוטה."
+        confirmLabel="אפס דוח"
+        destructive
+        loading={isDailySaving}
+      />
+
+      <CommandConfirmDialog
+        open={deleteReportConfirmOpen}
+        onCancel={() => setDeleteReportConfirmOpen(false)}
+        onConfirm={() => void confirmDeleteSelectedReport()}
+        title="מחיקת דוח"
+        description="האם למחוק את הדוח? פעולה זו לא ניתנת לשחזור."
+        confirmLabel="מחק"
+        destructive
+        loading={isDailySaving}
+      />
     </div>
   );
 }

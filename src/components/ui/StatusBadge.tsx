@@ -34,7 +34,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   return (
     <span
       className={cn(
-        'inline-flex min-h-6 items-center rounded-full border px-2.5 py-0.5 text-[11px] font-bold',
+        'text-caption inline-flex min-h-6 items-center rounded-full border px-2.5 py-0.5 font-semibold',
         getStatusStyles(normalizedStatus),
         className
       )}
@@ -63,23 +63,23 @@ function getStatusStyles(status: string) {
     case 'הושלם':
     case 'סופק':
     case 'נסגר':
-      return 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20';
+      return 'bg-[var(--color-success)]/10 text-[var(--color-success)] border-[var(--color-success)]/25';
     case 'בתהליך':
     case 'בטיפול':
-      return 'bg-blue-500/10 text-blue-700 border-blue-500/20';
+      return 'bg-[var(--color-info)]/10 text-[var(--color-info)] border-[var(--color-info)]/25';
     case 'חדש':
     case 'פתוח':
     case 'נפתחה':
-      return 'bg-slate-500/10 text-slate-700 border-slate-500/20';
+      return 'bg-[var(--surface-muted)] text-[var(--text-secondary)] border-[var(--border-strong)]';
     case 'ממתין לאישור':
-      return 'bg-[#FF6B02]/10 text-[#C54F00] border-[#FF6B02]/25';
+      return 'bg-[var(--color-warning)]/10 text-[var(--color-warning)] border-[var(--color-warning)]/25';
     case 'דחוף':
     case 'קריטי':
     case 'תקוע':
-      return 'bg-red-500/10 text-red-700 border-red-500/20';
+      return 'bg-[var(--color-danger)]/10 text-[var(--color-danger)] border-[var(--color-danger)]/25';
     case 'בוטל':
-      return 'bg-zinc-500/10 text-zinc-700 border-zinc-500/20';
+      return 'bg-[var(--surface-muted)] text-[var(--text-muted-accessible)] border-[var(--border-subtle)]';
     default:
-      return 'bg-slate-500/10 text-slate-700 border-slate-500/20';
+      return 'bg-[var(--surface-muted)] text-[var(--text-secondary)] border-[var(--border-strong)]';
   }
 }

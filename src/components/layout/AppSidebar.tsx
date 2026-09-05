@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { QuickHelp } from '@/components/layout/QuickHelp';
 import { SystemStatusPanel } from '@/components/layout/SystemStatusPanel';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { ContrastToggle } from '@/components/layout/ContrastToggle';
 import { useApp } from '@/lib/context/AppContext';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
@@ -132,6 +133,7 @@ export const AppSidebar: React.FC<{ className?: string }> = ({ className }) => {
 
         <div className="mb-2 flex flex-wrap justify-center gap-2 lg:justify-start">
           <ThemeToggle />
+          <ContrastToggle />
           <QuickHelp />
         </div>
 

@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { CommandConfirmDialog } from '@/components/ui/CommandDialog';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlossyButton } from '@/components/ui/GlossyButton';
@@ -253,6 +254,7 @@ export default function SchedulePage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeletingEvent, setIsDeletingEvent] = useState(false);
+  const [eventPendingDelete, setEventPendingDelete] = useState<EventView | null>(null);
   const [updatingEventId, setUpdatingEventId] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<EventView | null>(null);
   const [editingEvent, setEditingEvent] = useState<EventView | null>(null);
@@ -831,9 +833,13 @@ export default function SchedulePage() {
 
   const handleDeleteEvent = async (event: EventView) => {
     if (!dbProfile || isEventWritePending || !canDeleteEvent(event)) return;
+    setEventPendingDelete(event);
+  };
 
-    const confirmed = window.confirm('האם למחוק מופע זה? משימות ודרישות הקשורות אליו יתנתקו מהמופע אך לא יימחקו.');
-    if (!confirmed) return;
+  const confirmDeleteEvent = async () => {
+    const event = eventPendingDelete;
+    if (!event || !dbProfile) return;
+    setEventPendingDelete(null);
 
     setIsDeletingEvent(true);
     setError(null);
@@ -1616,6 +1622,17 @@ export default function SchedulePage() {
           </div>
         </div>
       )}
+
+      <CommandConfirmDialog
+        open={!!eventPendingDelete}
+        onCancel={() => setEventPendingDelete(null)}
+        onConfirm={() => void confirmDeleteEvent()}
+        title="מחיקת מופע"
+        description="האם למחוק מופע זה? משימות ודרישות הקשורות אליו יתנתקו מהמופע אך לא יימחקו."
+        confirmLabel="מחק"
+        destructive
+        loading={isDeletingEvent}
+      />
     </div>
   );
 }

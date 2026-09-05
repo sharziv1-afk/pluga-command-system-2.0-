@@ -18,6 +18,7 @@
     ],
     "assets": [],
     "instructions": [
+      "DESIGN.md",
       "AGENTS.md",
       "CLAUDE.md"
     ]
@@ -102,7 +103,7 @@
         "source": "src/app/globals.css"
       },
       "--color-app-bg": {
-        "value": "#101114",
+        "value": "#f6f7f9",
         "source": "src/app/globals.css"
       },
       "--color-surface": {
@@ -182,19 +183,19 @@
         "source": "src/app/globals.css"
       },
       "--background": {
-        "value": "#101114",
+        "value": "#f6f7f9",
         "source": "src/app/globals.css"
       },
       "--foreground": {
-        "value": "#f8fafc",
+        "value": "#020108",
         "source": "src/app/globals.css"
       },
       "--tactical-border": {
-        "value": "rgba(255, 255, 255, 0.14)",
+        "value": "rgba(2, 1, 8, 0.1)",
         "source": "src/app/globals.css"
       },
       "--tactical-border-hover": {
-        "value": "rgba(255, 107, 2, 0.38)",
+        "value": "rgba(255, 107, 2, 0.28)",
         "source": "src/app/globals.css"
       },
       "--accent-orange": {
@@ -206,7 +207,7 @@
         "source": "src/app/globals.css"
       },
       "--command-muted": {
-        "value": "#cbd5e1",
+        "value": "#667085",
         "source": "src/app/globals.css"
       },
       "--orange-border": {
@@ -214,27 +215,27 @@
         "source": "src/app/globals.css"
       },
       "--surface-muted": {
-        "value": "#17191d",
+        "value": "#eef1f5",
         "source": "src/app/globals.css"
       },
       "--text-primary": {
-        "value": "#f8fafc",
+        "value": "#020108",
         "source": "src/app/globals.css"
       },
       "--text-secondary": {
-        "value": "#cbd5e1",
+        "value": "#475467",
         "source": "src/app/globals.css"
       },
       "--text-muted-accessible": {
-        "value": "#cbd5e1",
+        "value": "#667085",
         "source": "src/app/globals.css"
       },
       "--border-subtle": {
-        "value": "rgba(255, 255, 255, 0.10)",
+        "value": "rgba(2, 1, 8, 0.08)",
         "source": "src/app/globals.css"
       },
       "--border-strong": {
-        "value": "rgba(255, 255, 255, 0.16)",
+        "value": "rgba(2, 1, 8, 0.14)",
         "source": "src/app/globals.css"
       },
       "--focus-ring": {
@@ -325,8 +326,22 @@
     "patterns": []
   },
   "constraints": {
-    "must": [],
-    "avoid": []
+    "must": [
+      "--action (#c2410c) is the ONLY interactive color (buttons, links, focus). Never --brand.",
+      "--brand (#ff6b02) is decorative only (logo, glow accents) — fails WCAG AA on white.",
+      "Every color-bearing status/badge pairs color with text/icon, never color alone.",
+      "Touch targets >= 44x44px (.touch-target / .command-icon-button already enforce this under 640px).",
+      "Dark mode via :root[data-theme=\"dark\"] gets depth from surface lightness steps, not heavier shadows.",
+      "High contrast via :root[data-contrast=\"high\"] is an accessibility mode, not a color theme choice."
+    ],
+    "avoid": [
+      "Decorative gradient blobs/mesh backgrounds on operational screens (dashboard, tasks, requests, forum).",
+      "border-left/border-right wider than 1px as a colored accent stripe.",
+      "Arbitrary text-[Npx] Tailwind values — map to the .text-caption/meta/body-ui/subheading/heading scale.",
+      "font-black (900) in new/refactored code — see DESIGN.md §2.2 weight roles.",
+      "A second button or modal implementation — CommandButton and CommandOverlay/CommandConfirmDialog are canonical.",
+      "outline: none without a :focus-visible replacement."
+    ]
   },
   "decisions": [],
   "evidence": [
@@ -351,6 +366,10 @@
       "source": "CLAUDE.md"
     },
     {
+      "fact": "project.instructions",
+      "source": "DESIGN.md"
+    },
+    {
       "fact": "project.stack:nextjs",
       "source": "package.json"
     },
@@ -363,5 +382,5 @@
       "source": "package.json"
     }
   ],
-  "generatedAt": "2026-09-04T06:48:55.724Z"
+  "generatedAt": "2026-09-05T08:25:41.595Z"
 }

@@ -21,19 +21,19 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   badgeLabel
 }) => {
   return (
-    <GlassCard className="flex flex-col items-center justify-center text-center py-14 px-6 max-w-lg mx-auto border-dashed border-[rgba(2,1,8,0.12)] bg-white/70">
-      <div className="p-4 rounded-2xl bg-[#FF6B02]/10 border border-[#FF6B02]/20 text-[#FF6B02] mb-4">
+    <GlassCard className="flex flex-col items-center justify-center text-center py-14 px-6 max-w-lg mx-auto border-dashed border-[var(--border-strong)] bg-[var(--surface)]/70">
+      <div className="p-4 rounded-2xl bg-[var(--brand)]/10 border border-[var(--brand)]/20 text-[var(--color-action-on-surface)] mb-4">
         <Icon className="w-10 h-10" />
       </div>
 
       {badgeLabel && (
-        <span className="mb-3 rounded-full border border-[#FF6B02]/20 bg-[#FF6B02]/10 px-3 py-1 text-[11px] font-black text-[#9A4600]">
+        <span className="text-caption text-label-caps mb-3 rounded-full border border-[var(--color-warning)]/25 bg-[var(--color-warning)]/10 px-3 py-1 font-semibold text-[var(--color-warning)]">
           {badgeLabel}
         </span>
       )}
 
-      <h3 className="text-base font-black text-[#020108] mb-2">{title}</h3>
-      <p className="text-sm text-[#667085] leading-relaxed mb-6 max-w-sm">
+      <h3 className="text-subheading mb-2 font-semibold text-[var(--text-primary)]">{title}</h3>
+      <p className="text-body-ui mb-6 max-w-sm text-[var(--text-muted-accessible)]">
         {description}
       </p>
 

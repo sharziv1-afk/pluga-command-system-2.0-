@@ -1,6 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { statusTones, toneClasses } from '@/lib/statusLabels';
+import { accountStatusLabels, statusTones, toneClasses } from '@/lib/statusLabels';
 
 export type BadgeStatusType =
   | 'חדש'
@@ -51,22 +51,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
 // status was the case: /profile showed a literal "active"/"blocked") leaks
 // straight to the user.
 function normalizeStatus(status: string) {
-  switch (status) {
-    case 'approved':
-      return 'הושלם';
-    case 'pending':
-      return 'ממתין לאישור';
-    case 'rejected':
-      return 'בוטל';
-    case 'active':
-      return 'פעיל';
-    case 'blocked':
-      return 'חסום';
-    case 'inactive':
-      return 'לא פעיל';
-    default:
-      return status;
-  }
+  return accountStatusLabels[status] ?? status;
 }
 
 function getStatusStyles(status: string) {

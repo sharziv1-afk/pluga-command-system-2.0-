@@ -47,6 +47,21 @@ export const eventStatusLabels: Record<EventStatusCode, string> = {
   cancelled: 'בוטל',
 };
 
+/**
+ * Raw DB codes that reach StatusBadge without a page-level map: the account
+ * and access-request statuses on /admin and /profile. "approved" here means an
+ * access request was granted — "אושר", not "הושלם", which is what the old
+ * inline table said and what /admin worked around with a local ternary.
+ */
+export const accountStatusLabels: Record<string, string> = {
+  pending: 'ממתין לאישור',
+  approved: 'אושר',
+  rejected: 'נדחה',
+  active: 'פעיל',
+  blocked: 'חסום',
+  inactive: 'לא פעיל',
+};
+
 export type Tone = 'neutral' | 'muted' | 'info' | 'success' | 'warning' | 'danger';
 
 export const toneClasses: Record<Tone, string> = {

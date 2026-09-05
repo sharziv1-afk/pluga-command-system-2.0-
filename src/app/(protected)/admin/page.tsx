@@ -557,7 +557,7 @@ export default function AdminPage() {
         {/* Pending Requests Column */}
         <div className="lg:col-span-2 space-y-4">
           <h2 className="text-xs font-semibold text-[var(--text-muted-accessible)] flex items-center gap-2">
-            <Clock className="w-4 h-4 text-orange-400" />
+            <Clock className="w-4 h-4 text-[var(--color-action-on-surface)]" />
             בקשות גישה ממתינות לאישור ({activeRequests.length})
           </h2>
 
@@ -661,7 +661,7 @@ export default function AdminPage() {
                       <div className="space-y-2">
                         <div className="flex items-center gap-2.5">
                           <span className="text-sm font-semibold text-[var(--text-primary)]">{req.name}</span>
-                          <StatusBadge status={req.role_approval_status === 'pending' ? 'ממתין לאישור' : req.role_approval_status} />
+                          <StatusBadge status={req.role_approval_status} />
                         </div>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-[var(--text-muted-accessible)] font-bold">
                           <span>תפקיד: <strong className="text-[var(--brand)]">{req.role}</strong></span>
@@ -743,7 +743,7 @@ export default function AdminPage() {
                         {' '}• הרשאה {req.permission_level}
                       </span>
                     </div>
-                    <StatusBadge status={req.role_approval_status === 'approved' ? 'אושר' : 'נדחה'} />
+                    <StatusBadge status={req.role_approval_status} />
                   </div>
                 </GlassCard>
               ))

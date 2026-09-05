@@ -394,11 +394,11 @@ same element wins, which is what a call site expects.
 
 **Still open.**
 
-- Three hand-rolled modals that are full create/edit forms (tasks,
-  schedule ×2) and the dashboard's anchored quick-create popover. The
-  popover is deliberately not a centred dialog; converting it to
-  `CommandOverlay` as-is would change its position and behaviour, not just
-  its style.
+- The dashboard's anchored quick-create popover. It is deliberately not a
+  centred dialog; converting it to `CommandOverlay` as-is would change its
+  position and behaviour, not just its style. (The three hand-rolled
+  create/edit modals it used to be listed with — tasks, schedule ×2 — are
+  now `CommandOverlay`.)
 - Two `window.confirm` calls in the forum's `requestDailyScopeTransition`.
   They sit inside `canTransitionDraft`'s synchronous control flow, which is
   covered by tests; converting them is a behavioural change, not a styling

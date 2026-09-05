@@ -18,7 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { CommandConfirmDialog } from '@/components/ui/CommandDialog';
+import { CommandConfirmDialog, CommandOverlay } from '@/components/ui/CommandDialog';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlossyButton } from '@/components/ui/GlossyButton';
@@ -86,6 +86,8 @@ const tabs: { id: ScheduleTab; label: string }[] = [
   { id: 'week', label: 'השבוע' },
   { id: 'all', label: 'הכל' },
 ];
+
+const EVENT_EDIT_FORM_ID = 'schedule-event-edit-form';
 
 const eventTypeLabels: Record<EventType, string> = {
   training: 'אימון',
@@ -1264,237 +1266,202 @@ export default function SchedulePage() {
       )}
 
       {selectedEvent && (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/20 p-3 sm:p-6"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="schedule-event-details-title"
-          onClick={() => setSelectedEvent(null)}
-        >
-          <div
-            className="flex max-h-[85svh] w-full max-w-xl flex-col overflow-hidden rounded-3xl border border-[var(--border-strong)] bg-[var(--tactical-strong-glass)] shadow-[0_24px_70px_rgba(2,1,8,0.18)]"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--border-subtle)] px-5 py-4">
-              <div>
-                <p className="text-xs font-semibold text-[var(--color-action-on-surface)]">{formatDateTime(selectedEvent.starts_at)}</p>
-                <h2 id="schedule-event-details-title" className="mt-1 text-xl font-semibold text-[var(--text-primary)]">
-                  {selectedEvent.title}
-                </h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedEvent(null)}
-                className="rounded-full border border-[var(--border-strong)] bg-[var(--tactical-glass)] p-2 text-[var(--text-muted-accessible)] transition hover:border-[var(--action)]/30 hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring)]"
-                aria-label="סגור פירוט מופע"
+        <CommandOverlay
+          open
+          onClose={() => setSelectedEvent(null)}
+          title={selectedEvent.title}
+          description={formatDateTime(selectedEvent.starts_at)}
+          dismissible={!isEventWritePending}
+          footer={
+            <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {canUpdateEventStatus(selectedEvent) ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-[var(--text-muted-accessible)]">סטטוס שמור</span>
+              <select
+                value={selectedEvent.status}
+                onChange={(event) => void handleStatusChange(selectedEvent, event.target.value as EventStatus)}
+                disabled={isEventWritePending}
+                className="touch-target rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
               >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 custom-scrollbar">
-              <div className="flex flex-wrap gap-2">
-                <span className={`inline-flex min-h-6 items-center rounded-full border px-2.5 py-0.5 text-caption font-bold ${eventTypeStyles[selectedEvent.event_type]}`}>
-                  {eventTypeLabels[selectedEvent.event_type]}
+                {eventStatuses.map(status => <option key={status} value={status}>{statusLabels[status]}</option>)}
+              </select>
+              {updatingEventId === selectedEvent.id && <Loader2 className="h-4 w-4 animate-spin text-[var(--color-action-on-surface)]" />}
+              {getScheduleDisplayStatus(selectedEvent) !== selectedEvent.status && (
+                <span className="text-caption font-bold text-[var(--text-muted-accessible)]">
+                  התג למעלה מחושב לפי זמן; שינוי כאן נשמר ידנית.
                 </span>
-                <StatusBadge status={statusLabels[getScheduleDisplayStatus(selectedEvent)]} />
-              </div>
-
-              {selectedEvent.description && (
-                <div className="mt-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4">
-                  <p className="text-xs font-semibold text-[var(--command-subtle)]">תיאור</p>
-                  <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[var(--text-primary)]">{selectedEvent.description}</p>
-                </div>
               )}
-
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3">
-                  <p className="text-xs font-semibold text-[var(--command-subtle)]">התחלה</p>
-                  <p className="mt-1 text-sm font-bold text-[var(--text-primary)]">{formatDateTime(selectedEvent.starts_at)}</p>
-                </div>
-                {selectedEvent.ends_at && (
-                  <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3">
-                    <p className="text-xs font-semibold text-[var(--command-subtle)]">סיום</p>
-                    <p className="mt-1 text-sm font-bold text-[var(--text-primary)]">{formatDateTime(selectedEvent.ends_at)}</p>
-                  </div>
-                )}
-                <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3">
-                  <p className="text-xs font-semibold text-[var(--command-subtle)]">מיקום</p>
-                  <p className="mt-1 text-sm font-bold text-[var(--text-primary)]">{selectedEvent.location || 'לא נקבע'}</p>
-                </div>
-                <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3">
-                  <p className="text-xs font-semibold text-[var(--command-subtle)]">יחידה</p>
-                  <p className="mt-1 text-sm font-bold text-[var(--text-primary)]">{selectedEvent.unitName || 'ללא יחידה'}</p>
-                </div>
-                <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3">
-                  <p className="text-xs font-semibold text-[var(--command-subtle)]">אחראי</p>
-                  <p className="mt-1 text-sm font-bold text-[var(--text-primary)]">{selectedEvent.responsibleName || 'טרם הוקצה'}</p>
-                </div>
-                <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3">
-                  <p className="text-xs font-semibold text-[var(--command-subtle)]">נוצר על ידי</p>
-                  <p className="mt-1 text-sm font-bold text-[var(--text-primary)]">{selectedEvent.creatorName || 'לא ידוע'}</p>
-                </div>
-                <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3 sm:col-span-2">
-                  <p className="text-xs font-semibold text-[var(--command-subtle)]">נוצר בתאריך</p>
-                  <p className="mt-1 text-sm font-bold text-[var(--text-primary)]">{formatDateTime(selectedEvent.created_at)}</p>
-                </div>
-              </div>
-
-              <div className="mt-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h3 className="text-sm font-semibold text-[var(--text-primary)]">משימות קשורות</h3>
-                    <p className="mt-1 text-xs font-bold text-[var(--command-subtle)]">
-                      {isEventTasksLoading
-                        ? 'טוען משימות...'
-                        : `${activeEventTasksCount} פתוחות/בתהליך/חסומות · ${completedEventTasksCount} הושלמו`}
-                    </p>
-                  </div>
-                  <span className="rounded-full border border-[var(--brand)]/20 bg-[var(--brand)]/10 px-2.5 py-1 text-xs font-semibold text-[var(--color-action-on-surface)]">
-                    {eventTasks.length}
-                  </span>
-                </div>
-
-                {!isEventTasksLoading && eventTasks.length === 0 ? (
-                  <p className="mt-3 rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--tactical-glass)] p-3 text-xs font-bold text-[var(--text-muted-accessible)]">
-                    אין משימות קשורות למופע זה
-                  </p>
-                ) : (
-                  <div className="mt-3 space-y-2">
-                    {eventTasks.map(task => (
-                      <div key={task.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-3 py-2">
-                        <p className="truncate text-sm font-bold text-[var(--text-primary)]">{task.title}</p>
-                        <StatusBadge status={taskStatusLabels[task.status as TaskStatusCode] ?? task.status} className="min-h-5 shrink-0 px-2 text-caption" />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h3 className="text-sm font-semibold text-[var(--text-primary)]">דרישות קשורות</h3>
-                    <p className="mt-1 text-xs font-bold text-[var(--command-subtle)]">
-                      {isEventRequestsLoading
-                        ? 'טוען דרישות...'
-                        : `${activeEventRequestsCount} פתוחות/בטיפול · ${completedEventRequestsCount} הושלמו`}
-                    </p>
-                  </div>
-                  <span className="rounded-full border border-[var(--brand)]/20 bg-[var(--brand)]/10 px-2.5 py-1 text-xs font-semibold text-[var(--color-action-on-surface)]">
-                    {eventRequests.length}
-                  </span>
-                </div>
-
-                {!isEventRequestsLoading && eventRequests.length === 0 ? (
-                  <p className="mt-3 rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--tactical-glass)] p-3 text-xs font-bold text-[var(--text-muted-accessible)]">
-                    אין דרישות קשורות למופע זה
-                  </p>
-                ) : (
-                  <div className="mt-3 space-y-2">
-                    {eventRequests.map(request => (
-                      <div key={request.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-3 py-2">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-bold text-[var(--text-primary)]">{request.title}</p>
-                          <p className="mt-0.5 text-caption font-bold text-[var(--command-subtle)]">{request.request_type || 'ללא סוג'}</p>
-                        </div>
-                        <StatusBadge status={requestStatusLabels[request.status as RequestStatusCode] ?? request.status} className="min-h-5 shrink-0 px-2 text-caption" />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
             </div>
+          ) : (
+            <p className="text-xs font-bold text-[var(--command-subtle)]">אין הרשאת עדכון למופע זה</p>
+          )}
 
-            <div className="flex shrink-0 flex-col gap-3 border-t border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-              {canUpdateEventStatus(selectedEvent) ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-[var(--text-muted-accessible)]">סטטוס שמור</span>
-                  <select
-                    value={selectedEvent.status}
-                    onChange={(event) => void handleStatusChange(selectedEvent, event.target.value as EventStatus)}
-                    disabled={isEventWritePending}
-                    className="touch-target rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
-                  >
-                    {eventStatuses.map(status => <option key={status} value={status}>{statusLabels[status]}</option>)}
-                  </select>
-                  {updatingEventId === selectedEvent.id && <Loader2 className="h-4 w-4 animate-spin text-[var(--color-action-on-surface)]" />}
-                  {getScheduleDisplayStatus(selectedEvent) !== selectedEvent.status && (
-                    <span className="text-caption font-bold text-[var(--text-muted-accessible)]">
-                      התג למעלה מחושב לפי זמן; שינוי כאן נשמר ידנית.
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <p className="text-xs font-bold text-[var(--command-subtle)]">אין הרשאת עדכון למופע זה</p>
-              )}
-
-              <div className="flex flex-wrap gap-2">
-                {canEditEvent(selectedEvent) && (
-                  <GlossyButton
-                    variant="slate"
-                    size="sm"
-                    onClick={() => openEditEvent(selectedEvent)}
-                    disabled={isEventWritePending}
-                  >
-                    <Pencil className="h-4 w-4" />
-                    ערוך מופע
-                  </GlossyButton>
-                )}
-                {canDeleteEvent(selectedEvent) && (
-                  <GlossyButton
-                    variant="slate"
-                    size="sm"
-                    onClick={() => void handleDeleteEvent(selectedEvent)}
-                    disabled={isEventWritePending}
-                    className="text-[var(--color-danger)] hover:border-[var(--color-danger)]/25 hover:bg-[var(--color-danger)]/10"
-                  >
-                    {isDeletingEvent ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                    מחק מופע
-                  </GlossyButton>
-                )}
-                <GlossyButton variant="slate" size="sm" onClick={() => setSelectedEvent(null)}>
-                  סגור
-                </GlossyButton>
-              </div>
-            </div>
+          <div className="flex flex-wrap gap-2">
+            {canEditEvent(selectedEvent) && (
+              <GlossyButton
+                variant="slate"
+                size="sm"
+                onClick={() => openEditEvent(selectedEvent)}
+                disabled={isEventWritePending}
+              >
+                <Pencil className="h-4 w-4" />
+                ערוך מופע
+              </GlossyButton>
+            )}
+            {canDeleteEvent(selectedEvent) && (
+              <GlossyButton
+                variant="slate"
+                size="sm"
+                onClick={() => void handleDeleteEvent(selectedEvent)}
+                disabled={isEventWritePending}
+                className="text-[var(--color-danger)] hover:border-[var(--color-danger)]/25 hover:bg-[var(--color-danger)]/10"
+              >
+                {isDeletingEvent ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                מחק מופע
+              </GlossyButton>
+            )}
+            <GlossyButton variant="slate" size="sm" onClick={() => setSelectedEvent(null)}>
+              סגור
+            </GlossyButton>
           </div>
-        </div>
+            </div>
+          }
+        >
+            <div className="flex flex-wrap gap-2">
+              <span className={`inline-flex min-h-6 items-center rounded-full border px-2.5 py-0.5 text-caption font-bold ${eventTypeStyles[selectedEvent.event_type]}`}>
+                {eventTypeLabels[selectedEvent.event_type]}
+              </span>
+              <StatusBadge status={statusLabels[getScheduleDisplayStatus(selectedEvent)]} />
+            </div>
+
+            {selectedEvent.description && (
+              <div className="mt-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4">
+                <p className="text-xs font-semibold text-[var(--command-subtle)]">תיאור</p>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[var(--text-primary)]">{selectedEvent.description}</p>
+              </div>
+            )}
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3">
+                <p className="text-xs font-semibold text-[var(--command-subtle)]">התחלה</p>
+                <p className="mt-1 text-sm font-bold text-[var(--text-primary)]">{formatDateTime(selectedEvent.starts_at)}</p>
+              </div>
+              {selectedEvent.ends_at && (
+                <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3">
+                  <p className="text-xs font-semibold text-[var(--command-subtle)]">סיום</p>
+                  <p className="mt-1 text-sm font-bold text-[var(--text-primary)]">{formatDateTime(selectedEvent.ends_at)}</p>
+                </div>
+              )}
+              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3">
+                <p className="text-xs font-semibold text-[var(--command-subtle)]">מיקום</p>
+                <p className="mt-1 text-sm font-bold text-[var(--text-primary)]">{selectedEvent.location || 'לא נקבע'}</p>
+              </div>
+              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3">
+                <p className="text-xs font-semibold text-[var(--command-subtle)]">יחידה</p>
+                <p className="mt-1 text-sm font-bold text-[var(--text-primary)]">{selectedEvent.unitName || 'ללא יחידה'}</p>
+              </div>
+              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3">
+                <p className="text-xs font-semibold text-[var(--command-subtle)]">אחראי</p>
+                <p className="mt-1 text-sm font-bold text-[var(--text-primary)]">{selectedEvent.responsibleName || 'טרם הוקצה'}</p>
+              </div>
+              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3">
+                <p className="text-xs font-semibold text-[var(--command-subtle)]">נוצר על ידי</p>
+                <p className="mt-1 text-sm font-bold text-[var(--text-primary)]">{selectedEvent.creatorName || 'לא ידוע'}</p>
+              </div>
+              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3 sm:col-span-2">
+                <p className="text-xs font-semibold text-[var(--command-subtle)]">נוצר בתאריך</p>
+                <p className="mt-1 text-sm font-bold text-[var(--text-primary)]">{formatDateTime(selectedEvent.created_at)}</p>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-[var(--text-primary)]">משימות קשורות</h3>
+                  <p className="mt-1 text-xs font-bold text-[var(--command-subtle)]">
+                    {isEventTasksLoading
+                      ? 'טוען משימות...'
+                      : `${activeEventTasksCount} פתוחות/בתהליך/חסומות · ${completedEventTasksCount} הושלמו`}
+                  </p>
+                </div>
+                <span className="rounded-full border border-[var(--brand)]/20 bg-[var(--brand)]/10 px-2.5 py-1 text-xs font-semibold text-[var(--color-action-on-surface)]">
+                  {eventTasks.length}
+                </span>
+              </div>
+
+              {!isEventTasksLoading && eventTasks.length === 0 ? (
+                <p className="mt-3 rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--tactical-glass)] p-3 text-xs font-bold text-[var(--text-muted-accessible)]">
+                  אין משימות קשורות למופע זה
+                </p>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {eventTasks.map(task => (
+                    <div key={task.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-3 py-2">
+                      <p className="truncate text-sm font-bold text-[var(--text-primary)]">{task.title}</p>
+                      <StatusBadge status={taskStatusLabels[task.status as TaskStatusCode] ?? task.status} className="min-h-5 shrink-0 px-2 text-caption" />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-[var(--text-primary)]">דרישות קשורות</h3>
+                  <p className="mt-1 text-xs font-bold text-[var(--command-subtle)]">
+                    {isEventRequestsLoading
+                      ? 'טוען דרישות...'
+                      : `${activeEventRequestsCount} פתוחות/בטיפול · ${completedEventRequestsCount} הושלמו`}
+                  </p>
+                </div>
+                <span className="rounded-full border border-[var(--brand)]/20 bg-[var(--brand)]/10 px-2.5 py-1 text-xs font-semibold text-[var(--color-action-on-surface)]">
+                  {eventRequests.length}
+                </span>
+              </div>
+
+              {!isEventRequestsLoading && eventRequests.length === 0 ? (
+                <p className="mt-3 rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--tactical-glass)] p-3 text-xs font-bold text-[var(--text-muted-accessible)]">
+                  אין דרישות קשורות למופע זה
+                </p>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {eventRequests.map(request => (
+                    <div key={request.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-[var(--text-primary)]">{request.title}</p>
+                        <p className="mt-0.5 text-caption font-bold text-[var(--command-subtle)]">{request.request_type || 'ללא סוג'}</p>
+                      </div>
+                      <StatusBadge status={requestStatusLabels[request.status as RequestStatusCode] ?? request.status} className="min-h-5 shrink-0 px-2 text-caption" />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+        </CommandOverlay>
       )}
 
       {editingEvent && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-black/20 p-3 sm:p-6"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="schedule-event-edit-title"
-          onClick={closeEditEvent}
-        >
-          <div
-            className="w-full max-w-2xl rounded-3xl border border-[var(--border-strong)] bg-[var(--tactical-strong-glass)] shadow-[0_28px_80px_rgba(2,1,8,0.22)]"
-            onClick={(event) => event.stopPropagation()}
-            dir="rtl"
-          >
-            <div className="flex items-start justify-between gap-3 border-b border-[var(--border-subtle)] px-5 py-4">
-              <div>
-                <p className="text-xs font-semibold text-[var(--color-action-on-surface)]">עריכת לו״ז</p>
-                <h2 id="schedule-event-edit-title" className="mt-1 text-xl font-semibold text-[var(--text-primary)]">
-                  ערוך מופע
-                </h2>
-                <p className="mt-1 text-xs font-semibold text-[var(--text-muted-accessible)]">עדכון פרטי המופע בלי לשנות סטטוס או קשרי משימות ודרישות.</p>
-              </div>
-              <button
-                type="button"
-                onClick={closeEditEvent}
-                disabled={isEditEventSubmitting}
-                className="rounded-full border border-[var(--border-strong)] bg-[var(--tactical-glass)] p-2 text-[var(--text-muted-accessible)] transition hover:border-[var(--action)]/30 hover:text-[var(--text-primary)] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring)]"
-                aria-label="סגור עריכת מופע"
-              >
-                <X className="h-4 w-4" />
-              </button>
+        <CommandOverlay
+          open
+          onClose={closeEditEvent}
+          title="ערוך מופע"
+          description="עדכון פרטי המופע בלי לשנות סטטוס או קשרי משימות ודרישות."
+          dismissible={!isEditEventSubmitting}
+          className="command-dialog-wide"
+          footer={
+            <div className="flex w-full flex-col gap-2 sm:flex-row">
+              <GlossyButton type="submit" form={EVENT_EDIT_FORM_ID} variant="orange" size="lg" disabled={isEditEventSubmitting} className="flex-1">
+                {isEditEventSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                שמור שינויים
+              </GlossyButton>
+              <GlossyButton type="button" variant="slate" size="lg" onClick={closeEditEvent} disabled={isEditEventSubmitting} className="flex-1">
+                ביטול
+              </GlossyButton>
             </div>
-
-            <form onSubmit={handleEditEvent} className="grid max-h-[76vh] gap-4 overflow-y-auto px-5 py-5 lg:grid-cols-2">
+          }
+        >
+          <form id={EVENT_EDIT_FORM_ID} onSubmit={handleEditEvent} className="grid gap-4 lg:grid-cols-2">
               {editEventError && (
                 <div className="rounded-2xl border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 px-4 py-3 text-sm font-bold text-[var(--color-danger)] lg:col-span-2">
                   {editEventError}
@@ -1589,18 +1556,8 @@ export default function SchedulePage() {
                 />
               </label>
 
-              <div className="flex flex-col gap-2 border-t border-[var(--border-subtle)] pt-4 lg:col-span-2 sm:flex-row">
-                <GlossyButton type="submit" variant="orange" size="lg" disabled={isEditEventSubmitting} className="flex-1">
-                  {isEditEventSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                  שמור שינויים
-                </GlossyButton>
-                <GlossyButton type="button" variant="slate" size="lg" onClick={closeEditEvent} disabled={isEditEventSubmitting} className="flex-1">
-                  ביטול
-                </GlossyButton>
-              </div>
-            </form>
-          </div>
-        </div>
+          </form>
+        </CommandOverlay>
       )}
 
       <CommandConfirmDialog

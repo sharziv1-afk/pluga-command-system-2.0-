@@ -916,14 +916,14 @@ export default function TasksPage() {
                 className={`touch-target rounded-2xl border px-3 py-2 text-xs font-bold transition ${
                   activeTab === tab.id
                     ? 'border-[var(--action)]/40 bg-[var(--action)]/12 text-[var(--color-action-on-surface)]'
-                    : 'border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)] hover:border-[var(--action)]/30'
+                    : 'border-[var(--border-strong)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)] hover:border-[var(--action)]/30'
                 }`}
               >
                 {tab.label}
                 <span className="mr-2 rounded-full bg-[var(--tactical-glass)] px-2 py-0.5 text-caption text-[var(--text-primary)]">{tabCounts[tab.id] ?? 0}</span>
               </button>
             ))}
-            <span className="mx-1 hidden w-px self-stretch bg-[rgba(2,1,8,0.10)] sm:block" />
+            <span className="mx-1 hidden w-px self-stretch bg-[var(--border-strong)] sm:block" />
             {taskQuickFilters.map(filter => (
               <button
                 key={filter.id}
@@ -932,7 +932,7 @@ export default function TasksPage() {
                 className={`touch-target rounded-full border px-3 py-2 text-xs font-bold transition ${
                   quickFilter === filter.id
                     ? 'border-[var(--action)]/40 bg-[var(--action)]/12 text-[var(--color-action-on-surface)]'
-                    : 'border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)] hover:border-[var(--action)]/30'
+                    : 'border-[var(--border-strong)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)] hover:border-[var(--action)]/30'
                 }`}
               >
                 {filter.label}
@@ -974,7 +974,7 @@ export default function TasksPage() {
                 type="text"
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
-                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                 placeholder="לדוגמה: השלמת בדיקת ציוד מחלקתית"
                 required
               />
@@ -985,7 +985,7 @@ export default function TasksPage() {
               <textarea
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
-                className="min-h-24 w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                className="min-h-24 w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                 placeholder="פירוט קצר של המשימה, תוצאה נדרשת ודגשים לביצוע"
               />
             </label>
@@ -995,7 +995,7 @@ export default function TasksPage() {
               <select
                 value={priority}
                 onChange={(event) => setPriority(event.target.value as TaskPriority)}
-                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
               >
                 {priorityOptions.map(item => <option key={item} value={item}>{item}</option>)}
               </select>
@@ -1006,7 +1006,7 @@ export default function TasksPage() {
               <select
                 value={assignedTo}
                 onChange={(event) => setAssignedTo(event.target.value)}
-                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
               >
                 <option value="none">טרם הוקצה</option>
                 {assignableUsers.map(user => (
@@ -1021,7 +1021,7 @@ export default function TasksPage() {
                 type="datetime-local"
                 value={dueAt}
                 onChange={(event) => setDueAt(event.target.value)}
-                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
               />
             </label>
 
@@ -1030,7 +1030,7 @@ export default function TasksPage() {
               <select
                 value={selectedEventId}
                 onChange={(event) => setSelectedEventId(event.target.value)}
-                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
               >
                 <option value="none">ללא שיוך</option>
                 {eventOptions.map(event => (
@@ -1047,7 +1047,7 @@ export default function TasksPage() {
                 type="text"
                 value={category}
                 onChange={(event) => setCategory(event.target.value)}
-                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                 placeholder="לוגיסטיקה / כשירות / מנהלה"
               />
             </label>
@@ -1058,7 +1058,7 @@ export default function TasksPage() {
                 type="text"
                 value={location}
                 onChange={(event) => setLocation(event.target.value)}
-                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                 placeholder="אופציונלי"
               />
             </label>
@@ -1069,7 +1069,7 @@ export default function TasksPage() {
                 type="text"
                 value={outputRequired}
                 onChange={(event) => setOutputRequired(event.target.value)}
-                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                 placeholder="איך יודעים שהמשימה נסגרה"
               />
             </label>
@@ -1127,22 +1127,22 @@ export default function TasksPage() {
                 </div>
 
                 <div className="grid gap-3 text-sm sm:grid-cols-2">
-                  <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-3">
+                  <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3">
                     <p className="text-xs font-bold text-[var(--command-subtle)]">אחראי</p>
                     <p className="mt-1 font-bold text-[var(--text-primary)]">{task.assigneeName || 'טרם הוקצה'}</p>
                   </div>
-                  <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-3">
+                  <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3">
                     <p className="text-xs font-bold text-[var(--command-subtle)]">נוצר על ידי / יחידה</p>
                     <p className="mt-1 font-bold text-[var(--text-primary)]">{task.creatorName || 'לא ידוע'} · {task.unitName || 'ללא יחידה'}</p>
                   </div>
-                  <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-3">
+                  <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3">
                     <p className="flex items-center gap-1 text-xs font-bold text-[var(--command-subtle)]">
                       <CalendarClock className="h-3.5 w-3.5" />
                       יעד
                     </p>
                     <p className="mt-1 font-bold text-[var(--text-primary)]">{formatDateTime(task.due_at)}</p>
                   </div>
-                  <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-3">
+                  <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3">
                     <p className="text-xs font-bold text-[var(--command-subtle)]">קטגוריה / מיקום</p>
                     <p className="mt-1 font-bold text-[var(--text-primary)]">{metadata.category || 'ללא קטגוריה'} · {metadata.location || 'ללא מיקום'}</p>
                   </div>
@@ -1162,7 +1162,7 @@ export default function TasksPage() {
                   </div>
                 )}
 
-                <div className="flex flex-col gap-3 border-t border-[rgba(2,1,8,0.08)] pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3 border-t border-[var(--border-subtle)] pt-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-muted-accessible)]">
                     <UserCheck className="h-4 w-4" />
                     נוצרה: {formatDate(task.created_at)}
@@ -1187,7 +1187,7 @@ export default function TasksPage() {
                           value={taskStatus}
                           onChange={(event) => void handleStatusChange(task, event.target.value as TaskStatus)}
                           disabled={isTaskWritePending}
-                          className="touch-target rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                          className="touch-target rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                         >
                           {statusOptions.map(status => <option key={status} value={status}>{statusLabels[status]}</option>)}
                         </select>
@@ -1226,10 +1226,10 @@ export default function TasksPage() {
         >
           <form
             onSubmit={handleEditTask}
-            className="flex max-h-[85svh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-strong-glass)] shadow-[0_24px_70px_rgba(2,1,8,0.18)]"
+            className="flex max-h-[85svh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-[var(--border-strong)] bg-[var(--tactical-strong-glass)] shadow-[0_24px_70px_rgba(2,1,8,0.18)]"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[rgba(2,1,8,0.08)] px-5 py-4">
+            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--border-subtle)] px-5 py-4">
               <div>
                 <p className="text-xs font-semibold text-[var(--color-action-on-surface)]">עריכת משימה</p>
                 <h2 id="task-edit-title" className="mt-1 text-xl font-semibold text-[var(--text-primary)]">
@@ -1239,7 +1239,7 @@ export default function TasksPage() {
               <button
                 type="button"
                 onClick={closeEditTask}
-                className="rounded-full border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] p-2 text-[var(--text-muted-accessible)] transition hover:border-[var(--action)]/30 hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring)]"
+                className="rounded-full border border-[var(--border-strong)] bg-[var(--tactical-glass)] p-2 text-[var(--text-muted-accessible)] transition hover:border-[var(--action)]/30 hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring)]"
                 aria-label="סגור עריכת משימה"
                 disabled={isEditSubmitting}
               >
@@ -1255,7 +1255,7 @@ export default function TasksPage() {
                     type="text"
                     value={editTitle}
                     onChange={(event) => setEditTitle(event.target.value)}
-                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                    className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                     required
                   />
                 </label>
@@ -1265,7 +1265,7 @@ export default function TasksPage() {
                   <textarea
                     value={editDescription}
                     onChange={(event) => setEditDescription(event.target.value)}
-                    className="min-h-24 w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                    className="min-h-24 w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                   />
                 </label>
 
@@ -1274,7 +1274,7 @@ export default function TasksPage() {
                   <select
                     value={editPriority}
                     onChange={(event) => setEditPriority(event.target.value as TaskPriority)}
-                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                    className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                   >
                     {priorityOptions.map(item => <option key={item} value={item}>{item}</option>)}
                   </select>
@@ -1285,7 +1285,7 @@ export default function TasksPage() {
                   <select
                     value={editAssignedTo}
                     onChange={(event) => setEditAssignedTo(event.target.value)}
-                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                    className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                   >
                     <option value="none">טרם הוקצה</option>
                     {editAssigneeOptions.map(user => (
@@ -1302,7 +1302,7 @@ export default function TasksPage() {
                     type="datetime-local"
                     value={editDueAt}
                     onChange={(event) => setEditDueAt(event.target.value)}
-                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                    className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                   />
                 </label>
 
@@ -1311,7 +1311,7 @@ export default function TasksPage() {
                   <select
                     value={editEventId}
                     onChange={(event) => setEditEventId(event.target.value)}
-                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                    className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                   >
                     <option value="none">ללא שיוך</option>
                     {editEventOptions.map(event => (
@@ -1328,7 +1328,7 @@ export default function TasksPage() {
                     type="text"
                     value={editCategory}
                     onChange={(event) => setEditCategory(event.target.value)}
-                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                    className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                   />
                 </label>
 
@@ -1338,7 +1338,7 @@ export default function TasksPage() {
                     type="text"
                     value={editLocation}
                     onChange={(event) => setEditLocation(event.target.value)}
-                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                    className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                   />
                 </label>
 
@@ -1348,13 +1348,13 @@ export default function TasksPage() {
                     type="text"
                     value={editOutputRequired}
                     onChange={(event) => setEditOutputRequired(event.target.value)}
-                    className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                    className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                   />
                 </label>
               </div>
             </div>
 
-            <div className="flex shrink-0 flex-col gap-2 border-t border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex shrink-0 flex-col gap-2 border-t border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs font-bold text-[var(--command-subtle)]">סטטוס המשימה מתעדכן מהכרטיס עצמו.</p>
               <div className="flex gap-2">
                 <GlossyButton variant="slate" type="button" onClick={closeEditTask} disabled={isEditSubmitting}>

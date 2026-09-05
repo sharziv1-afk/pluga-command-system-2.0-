@@ -828,7 +828,7 @@ export default function TrackingPage() {
 
       {isSoldierFormOpen && (
         <GlassCard glow="orange" className="space-y-4">
-          <div className="flex items-center gap-2 border-b border-[rgba(2,1,8,0.08)] pb-3">
+          <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] pb-3">
             <UserPlus className="h-4 w-4 text-[var(--brand)]" />
             <h2 className="text-sm font-semibold text-[var(--text-primary)]">הוספת חייל למעקב</h2>
           </div>
@@ -928,7 +928,7 @@ export default function TrackingPage() {
 
       {isItemFormOpen && (
         <GlassCard glow="orange" className="space-y-4">
-          <div className="flex items-center gap-2 border-b border-[rgba(2,1,8,0.08)] pb-3">
+          <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] pb-3">
             <ClipboardCheck className="h-4 w-4 text-[var(--brand)]" />
             <h2 className="text-sm font-semibold text-[var(--text-primary)]">הוספת מופע מעקב</h2>
           </div>
@@ -1066,7 +1066,7 @@ export default function TrackingPage() {
 
       {!isLoading && !showEmptyState && (
         <GlassCard className="space-y-5 overflow-hidden">
-          <div className="flex flex-col gap-2 border-b border-[rgba(2,1,8,0.08)] pb-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-2 border-b border-[var(--border-subtle)] pb-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-base font-semibold text-[var(--text-primary)]">טבלת מעקב</h2>
               <p className="mt-1 text-xs font-bold text-[var(--text-muted-accessible)]">שורות לפי חיילים, עמודות לפי מופעי מעקב.</p>
@@ -1088,7 +1088,7 @@ export default function TrackingPage() {
               <button
                 type="button"
                 onClick={() => setSelectedWeekId('all')}
-                className={`min-h-9 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${selectedWeekId === 'all' ? 'border-[var(--action)] bg-[var(--action)] text-white shadow-[0_6px_16px_rgba(255,107,2,0.22)]' : 'border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)] hover:border-[var(--action)]/30'}`}
+                className={`min-h-9 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${selectedWeekId === 'all' ? 'border-[var(--action)] bg-[var(--action)] text-white shadow-[0_6px_16px_rgba(255,107,2,0.22)]' : 'border-[var(--border-subtle)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)] hover:border-[var(--action)]/30'}`}
               >
                 כל השבועות
               </button>
@@ -1098,7 +1098,7 @@ export default function TrackingPage() {
                   type="button"
                   onClick={() => setSelectedWeekId(week.id)}
                   title={week.description ?? undefined}
-                  className={`min-h-9 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${selectedWeekId === week.id ? 'border-[var(--action)] bg-[var(--action)] text-white shadow-[0_6px_16px_rgba(255,107,2,0.22)]' : 'border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)] hover:border-[var(--action)]/30'}`}
+                  className={`min-h-9 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${selectedWeekId === week.id ? 'border-[var(--action)] bg-[var(--action)] text-white shadow-[0_6px_16px_rgba(255,107,2,0.22)]' : 'border-[var(--border-subtle)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)] hover:border-[var(--action)]/30'}`}
                 >
                   {week.title}
                 </button>
@@ -1110,7 +1110,7 @@ export default function TrackingPage() {
             const week = weeks.find(w => w.id === selectedWeekId);
             if (!week?.description) return null;
             return (
-              <p className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--surface-muted)] px-3.5 py-2.5 text-xs font-semibold leading-relaxed text-[var(--text-muted-accessible)]">
+              <p className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3.5 py-2.5 text-xs font-semibold leading-relaxed text-[var(--text-muted-accessible)]">
                 {week.description}
               </p>
             );

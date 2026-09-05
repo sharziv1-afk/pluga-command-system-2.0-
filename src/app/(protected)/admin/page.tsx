@@ -574,7 +574,7 @@ export default function AdminPage() {
                   {editingUserId === req.id ? (
                     /* Inline Editing Mode */
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between border-b border-[rgba(2,1,8,0.06)] pb-2">
+                      <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
                         <span className="text-xs font-semibold text-[var(--text-primary)]">עריכת פרטי סגל: {req.name}</span>
                         <GlossyButton variant="slate" size="sm" onClick={() => setEditingUserId(null)}>
                           <X className="w-3 h-3" />
@@ -733,7 +733,7 @@ export default function AdminPage() {
               <p className="text-center text-xs font-bold text-[var(--text-muted-accessible)] py-6">טרם טופלו מפקדים</p>
             ) : (
               pastRequests.map((req) => (
-                <GlassCard key={req.id} className="p-4 bg-[var(--tactical-glass)] border-[rgba(2,1,8,0.06)]" glow="none">
+                <GlassCard key={req.id} className="p-4 bg-[var(--tactical-glass)] border-[var(--border-subtle)]" glow="none">
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
                       <span className="block text-xs font-semibold text-[var(--text-primary)]">{req.name}</span>

@@ -1087,7 +1087,7 @@ function CommandBriefCard({ brief }: { brief: CommandBrief }) {
 
         <div className="flex flex-wrap gap-2 lg:justify-end">
           {brief.items.map(item => (
-            <span key={item} className="text-caption rounded-full border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-3 py-1.5 font-semibold text-[var(--text-secondary)]">
+            <span key={item} className="text-caption rounded-full border border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-3 py-1.5 font-semibold text-[var(--text-secondary)]">
               {item}
             </span>
           ))}
@@ -1110,7 +1110,7 @@ function QuickActionButton({
 }) {
   const classes = variant === 'orange'
     ? 'border-[var(--action)]/45 bg-[var(--action)] text-white shadow-[0_14px_28px_rgba(194,65,12,0.22)] hover:bg-[var(--action-hover)]'
-    : 'border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] text-[var(--text-primary)] shadow-[0_10px_24px_rgba(2,1,8,0.06)] hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10';
+    : 'border-[var(--border-strong)] bg-[var(--tactical-glass)] text-[var(--text-primary)] shadow-[0_10px_24px_rgba(2,1,8,0.06)] hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10';
 
   return (
     <button
@@ -1197,7 +1197,7 @@ function QuickCreateModal({
         dir="rtl"
       >
         <span className="absolute -top-2 left-1/2 hidden h-4 w-4 -translate-x-1/2 rotate-45 border-r border-t border-white/80 bg-[var(--tactical-strong-glass)] md:block" aria-hidden="true" />
-        <div className="flex items-start justify-between gap-4 border-b border-[rgba(2,1,8,0.08)] px-5 py-4 sm:px-6">
+        <div className="flex items-start justify-between gap-4 border-b border-[var(--border-subtle)] px-5 py-4 sm:px-6">
           <div>
             <h2 id="quick-create-title" className="text-lg font-semibold text-[var(--text-primary)]">{titles[type]}</h2>
             <p className="mt-1 text-xs font-semibold text-[var(--text-muted-accessible)]">{subtitles[type]}</p>
@@ -1206,7 +1206,7 @@ function QuickCreateModal({
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="touch-target flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] text-[var(--text-primary)] transition hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10 disabled:opacity-50"
+            className="touch-target flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] text-[var(--text-primary)] transition hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10 disabled:opacity-50"
             aria-label="סגירת חלון"
           >
             <X className="h-5 w-5" />
@@ -1382,12 +1382,12 @@ function QuickCreateModal({
             </div>
           )}
 
-          <div className="sticky bottom-0 -mx-5 mt-6 flex flex-col-reverse gap-2 border-t border-[rgba(2,1,8,0.08)] bg-[var(--tactical-strong-glass)] px-5 pb-5 pt-4 sm:-mx-6 sm:flex-row sm:justify-start sm:px-6">
+          <div className="sticky bottom-0 -mx-5 mt-6 flex flex-col-reverse gap-2 border-t border-[var(--border-subtle)] bg-[var(--tactical-strong-glass)] px-5 pb-5 pt-4 sm:-mx-6 sm:flex-row sm:justify-start sm:px-6">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="min-h-11 rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-5 text-sm font-semibold text-[var(--text-primary)] transition hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10 disabled:opacity-50"
+              className="min-h-11 rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-5 text-sm font-semibold text-[var(--text-primary)] transition hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10 disabled:opacity-50"
             >
               ביטול
             </button>
@@ -1485,13 +1485,13 @@ function SectionHeader({
   actionLabel?: string;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-[rgba(2,1,8,0.08)] pb-3">
+    <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-3">
       <div className="flex items-center gap-2">
         <Icon className="h-4 w-4 text-[var(--brand)]" />
         <h2 className="text-sm font-semibold text-[var(--text-primary)]">{title}</h2>
       </div>
       {actionHref && actionLabel && (
-        <Link href={actionHref} className="rounded-xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10">
+        <Link href={actionHref} className="rounded-xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10">
           {actionLabel}
         </Link>
       )}
@@ -1505,7 +1505,7 @@ function AttentionItemCard({ item }: { item: DashboardItem }) {
   return (
     <Link
       href={item.href}
-      className="block rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-4 transition hover:border-[var(--action)]/30 hover:bg-[var(--tactical-glass)]"
+      className="block rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4 transition hover:border-[var(--action)]/30 hover:bg-[var(--tactical-glass)]"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-1">
@@ -1538,7 +1538,7 @@ function TodayEventCard({
   return (
     <Link
       href="/schedule"
-      className="block rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-4 transition hover:border-[var(--action)]/30 hover:bg-[var(--tactical-glass)]"
+      className="block rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4 transition hover:border-[var(--action)]/30 hover:bg-[var(--tactical-glass)]"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
@@ -1574,7 +1574,7 @@ function OpenTaskRow({ task, assigneeName }: { task: DbTask; assigneeName: strin
 
 function AuditLogRow({ log }: { log: DbAuditLog }) {
   return (
-    <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-4">
+    <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <span className="block text-sm font-semibold text-[var(--text-primary)]">{formatAuditAction(log.action_type)}</span>
@@ -1592,7 +1592,7 @@ function AuditLogRow({ log }: { log: DbAuditLog }) {
 
 function CompactEmptyState({ title, text }: { title: string; text: string }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-[rgba(2,1,8,0.12)] bg-[var(--tactical-glass)] px-5 py-10 text-center">
+    <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-[var(--border-strong)] bg-[var(--tactical-glass)] px-5 py-10 text-center">
       <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--brand)]/20 bg-[var(--brand)]/10 text-[var(--color-action-on-surface)]">
         <Sparkles className="h-5 w-5" />
       </div>

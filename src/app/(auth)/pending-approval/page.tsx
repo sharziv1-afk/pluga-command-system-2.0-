@@ -53,7 +53,7 @@ export default function PendingApprovalPage() {
             </p>
           </div>
 
-          <div className="mb-6 space-y-3 rounded-[22px] border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-4">
+          <div className="mb-6 space-y-3 rounded-[22px] border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4">
             <div>
               <span className="block text-caption font-semibold text-[var(--command-subtle)]">שם מלא</span>
               <p className="mt-0.5 text-sm font-semibold text-[var(--text-secondary)]">
@@ -95,7 +95,7 @@ export default function PendingApprovalPage() {
 
             <Link
               href="/login"
-              className="flex min-h-10 items-center justify-center gap-2 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] text-xs font-semibold text-[var(--text-muted-accessible)] transition hover:border-[var(--color-danger)]/25 hover:bg-[var(--color-danger)]/10 hover:text-[var(--color-danger)]"
+              className="flex min-h-10 items-center justify-center gap-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] text-xs font-semibold text-[var(--text-muted-accessible)] transition hover:border-[var(--color-danger)]/25 hover:bg-[var(--color-danger)]/10 hover:text-[var(--color-danger)]"
             >
               <LogOut className="h-3.5 w-3.5" />
               <span>התנתקות מהמערכת</span>

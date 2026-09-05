@@ -27,7 +27,7 @@ export const QuickHelp: React.FC = () => {
             className="absolute inset-0 bg-[var(--text-primary)]/10 backdrop-blur-[2px]"
           />
 
-          <div className="command-help-panel relative mx-auto w-full max-w-md rounded-[22px] border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-strong-glass)] p-4 text-right shadow-[0_18px_50px_rgba(2,1,8,0.16)] backdrop-blur-2xl">
+          <div className="command-help-panel relative mx-auto w-full max-w-md rounded-[22px] border border-[var(--border-strong)] bg-[var(--tactical-strong-glass)] p-4 text-right shadow-[0_18px_50px_rgba(2,1,8,0.16)] backdrop-blur-2xl">
             <div className="flex items-start justify-between gap-3">
               <h2 className="text-sm font-semibold text-[var(--text-primary)]">עזרה מהירה</h2>
               <button

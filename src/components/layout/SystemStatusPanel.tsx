@@ -27,7 +27,7 @@ export const SystemStatusPanel: React.FC<{ className?: string }> = ({ className 
     : [{ label: 'אין חיבור לרשת — נתונים שמורים מהמכשיר', icon: WifiOff, color: 'text-[var(--color-warning)]' }];
 
   return (
-    <div className={cn('rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-3 command-soft-panel', className)}>
+    <div className={cn('rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3 command-soft-panel', className)}>
       <div className="space-y-2">
         {items.map((item) => {
           const Icon = item.icon;

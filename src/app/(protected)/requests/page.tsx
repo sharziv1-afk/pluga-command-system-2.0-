@@ -1085,7 +1085,7 @@ export default function RequestsPage() {
               {tab.label}
               {count > 0 && (
                 <span className={`rounded-full px-1.5 py-0.5 text-caption leading-none font-semibold ${
-                  isActive ? 'bg-[var(--tactical-glass)] text-white' : 'bg-[rgba(2,1,8,0.07)] text-[var(--text-muted-accessible)]'
+                  isActive ? 'bg-[var(--tactical-glass)] text-white' : 'bg-[var(--surface-muted)] text-[var(--text-muted-accessible)]'
                 }`}>
                   {count}
                 </span>
@@ -1196,7 +1196,7 @@ export default function RequestsPage() {
                   </div>
                 </div>
 
-                <div className="grid gap-2 border-t border-[rgba(2,1,8,0.08)] pt-3 text-xs font-bold text-[var(--text-muted-accessible)] sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-2 border-t border-[var(--border-subtle)] pt-3 text-xs font-bold text-[var(--text-muted-accessible)] sm:grid-cols-2 lg:grid-cols-4">
                   <span>יוצר: <strong className="text-[var(--text-primary)]">{metadata.creator_name || 'לא ידוע'}</strong></span>
                   <span>תפקיד: <strong className="text-[var(--text-primary)]">{metadata.creator_role || 'לא ידוע'}</strong></span>
                   <span>יחידה: <strong className="text-[var(--text-primary)]">{metadata.creator_unit || 'לא ידוע'}</strong></span>
@@ -1216,7 +1216,7 @@ export default function RequestsPage() {
                 )}
 
                 {canSeeAll && (
-                  <div className="flex flex-col gap-2 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-3 sm:flex-row sm:items-center">
+                  <div className="flex flex-col gap-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3 sm:flex-row sm:items-center">
                     <span className="shrink-0 text-caption font-semibold text-[var(--command-subtle)]">שיוך מטפל</span>
                     <select
                       value={request.assigned_to ?? 'none'}
@@ -1279,7 +1279,7 @@ export default function RequestsPage() {
                 )}
 
                 {(canEdit || canDeleteClosed) && (
-                  <div className="flex flex-wrap justify-start gap-2 border-t border-[rgba(2,1,8,0.08)] pt-3">
+                  <div className="flex flex-wrap justify-start gap-2 border-t border-[var(--border-subtle)] pt-3">
                     {canEdit && (
                       <GlossyButton
                         type="button"
@@ -1308,12 +1308,12 @@ export default function RequestsPage() {
                   </div>
                 )}
 
-                <div className="border-t border-[rgba(2,1,8,0.08)] pt-3">
+                <div className="border-t border-[var(--border-subtle)] pt-3">
                   <button
                     type="button"
                     onClick={() => toggleComments(request.id)}
                     disabled={Boolean(loadingCommentsId)}
-                    className="inline-flex min-h-10 items-center gap-2 rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)] transition duration-150 hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10"
+                    className="inline-flex min-h-10 items-center gap-2 rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)] transition duration-150 hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10"
                   >
                     <MessageSquareText className="h-4 w-4 text-[var(--color-action-on-surface)]" />
                     {isCommentsOpen ? 'הסתר היסטוריית טיפול' : 'הצג היסטוריית טיפול'}
@@ -1325,7 +1325,7 @@ export default function RequestsPage() {
                   </button>
 
                   {isCommentsOpen && (
-                    <div className="mt-3 space-y-3 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-3">
+                    <div className="mt-3 space-y-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3">
                       <div className="flex items-center justify-between gap-3">
                         <h4 className="text-xs font-semibold text-[var(--text-primary)]">היסטוריית טיפול</h4>
                         {isLoadingComments && <Loader2 className="h-4 w-4 animate-spin text-[var(--color-action-on-surface)]" />}
@@ -1338,7 +1338,7 @@ export default function RequestsPage() {
                       )}
 
                       {!isLoadingComments && !commentError && comments.length === 0 && (
-                        <p className="rounded-xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-3 py-3 text-xs font-bold text-[var(--text-muted-accessible)]">
+                        <p className="rounded-xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-3 py-3 text-xs font-bold text-[var(--text-muted-accessible)]">
                           אין עדיין עדכוני טיפול לדרישה זו
                         </p>
                       )}
@@ -1349,7 +1349,7 @@ export default function RequestsPage() {
                             const authorName = comment.metadata?.author_name || comment.users?.name || comment.users?.email || 'משתמש';
                             const authorRole = comment.metadata?.author_role || comment.users?.role;
                             return (
-                              <div key={comment.id} className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-3">
+                              <div key={comment.id} className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3">
                                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                                   <span className="text-xs font-semibold text-[var(--text-primary)]">
                                     {authorName}{authorRole ? ` · ${authorRole}` : ''}

@@ -453,7 +453,7 @@ function statusTone(status: ReportStatus | undefined) {
   if (status === 'closed') return 'border-[var(--text-primary)]/15 bg-[var(--surface)] text-[var(--text-primary)]';
   if (status === 'submitted') return 'border-[var(--color-success)]/25 bg-[var(--color-success)]/10 text-[var(--color-success)]';
   if (status === 'in_progress') return 'border-[var(--brand)]/25 bg-[var(--brand)]/10 text-[var(--color-action-on-surface)]';
-  return 'border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)]';
+  return 'border-[var(--border-subtle)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)]';
 }
 
 function statusDotTone(status: ReportStatus | undefined) {
@@ -2506,7 +2506,7 @@ export default function ForumPage() {
           </label>
 
           {canSeeAll && (
-            <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-4 py-3">
+            <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-4 py-3">
               <span>
                 <span className="block text-sm font-semibold text-[var(--text-primary)]">נעץ בראש הפורום</span>
                 <span className="text-xs font-bold text-[var(--text-muted-accessible)]">זמין למפקדים בלבד</span>
@@ -2572,7 +2572,7 @@ export default function ForumPage() {
                       <textarea value={editPostBody} onChange={event => setEditPostBody(event.target.value)} className="command-input min-h-28 resize-none" disabled={isSubmitting} />
                     </label>
                     {canSeeAll && (
-                      <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-4 py-3">
+                      <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-4 py-3">
                         <span className="text-sm font-semibold text-[var(--text-primary)]">נעוץ בראש הפורום</span>
                         <input type="checkbox" checked={editPostPinned} onChange={event => setEditPostPinned(event.target.checked)} className="h-5 w-5 accent-[var(--action)]" disabled={isSubmitting} />
                       </label>
@@ -2590,7 +2590,7 @@ export default function ForumPage() {
                 ) : (
                   <p className="whitespace-pre-wrap text-sm font-semibold leading-7 text-[var(--text-secondary)]">{post.body}</p>
                 )}
-                <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-[rgba(2,1,8,0.08)] pt-4 text-xs font-semibold text-[var(--text-muted-accessible)]">
+                <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-[var(--border-subtle)] pt-4 text-xs font-semibold text-[var(--text-muted-accessible)]">
                   <span>מאת: <strong className="text-[var(--text-primary)]">{post.authorName ?? 'משתמש'}</strong></span>
                   <span>·</span>
                   <span>יחידה: <strong className="text-[var(--text-primary)]">{post.unitName ?? 'לא שויך'}</strong></span>
@@ -2620,7 +2620,7 @@ export default function ForumPage() {
           </div>
         </div>
         {companyGeneratedAt && (
-          <span className="w-fit shrink-0 rounded-full border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-3 py-1.5 text-xs font-semibold text-[var(--text-muted-accessible)]">
+          <span className="w-fit shrink-0 rounded-full border border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-3 py-1.5 text-xs font-semibold text-[var(--text-muted-accessible)]">
             רוכז לאחרונה: {formatDate(companyGeneratedAt)}
           </span>
         )}
@@ -2653,7 +2653,7 @@ export default function ForumPage() {
       )}
 
       {isCompanyReportLocked && (
-        <div className="mt-3 flex items-center gap-2 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-semibold text-[var(--text-primary)]">
+        <div className="mt-3 flex items-center gap-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-semibold text-[var(--text-primary)]">
           <Lock className="h-4 w-4 shrink-0 text-[var(--brand)]" />
           הפורום נסגר. לעריכה נוספת יש לפתוח את נעילת הדוח הפלוגתי.
         </div>
@@ -2763,7 +2763,7 @@ export default function ForumPage() {
             לא ניתן לפתוח דוח למחלקה בלי מ״מ/משתמש משויך. ניתן ליצור דוח ידנית עבור משתמש דרך "צור דוח עבור משתמש".
           </p>
           {canSeeAll && (
-            <div className="mx-auto mt-5 grid max-w-2xl gap-3 rounded-3xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-4 text-right lg:grid-cols-3">
+            <div className="mx-auto mt-5 grid max-w-2xl gap-3 rounded-3xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4 text-right lg:grid-cols-3">
               <label className="block">
                 <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">צור דוח עבור משתמש</span>
                 <select value={selectedOwnerId} onChange={event => handleDailyOwnerChange(event.target.value)} className="command-select">
@@ -2816,7 +2816,7 @@ export default function ForumPage() {
       : null;
 
     const renderReadSection = (Icon: LucideIcon, label: string, value: string, wide = false) => (
-      <div key={label} className={`rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-4 ${wide ? 'sm:col-span-2' : ''}`}>
+      <div key={label} className={`rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4 ${wide ? 'sm:col-span-2' : ''}`}>
         <div className="mb-2 flex items-center gap-2">
           <Icon className="h-4 w-4 shrink-0 text-[var(--brand)]" />
           <span className="text-sm font-semibold text-[var(--text-primary)]">{label}</span>
@@ -2948,7 +2948,7 @@ export default function ForumPage() {
                   {selectedNode.level === 'company' ? 'נוכחים / סד״כ — סכום מהמחלקות' : 'נוכחים / סד״כ בבסיס'}
                 </span>
               </div>
-              <div className="mt-4 grid grid-cols-2 gap-3 border-t border-[rgba(2,1,8,0.08)] pt-4">
+              <div className="mt-4 grid grid-cols-2 gap-3 border-t border-[var(--border-subtle)] pt-4">
                 {squadManpowerFields.map(field => (
                   <label key={field.key} className="block">
                     <span className="mb-1 block text-xs font-semibold text-[var(--text-muted-accessible)]">{field.label}</span>
@@ -3012,7 +3012,7 @@ export default function ForumPage() {
           <div className="text-sm font-bold text-[var(--text-muted-accessible)]">היררכיית המחלקות המלאה תוצג כאן לאחר שיוך משתמשים ליחידות.</div>
           <div className="flex flex-wrap gap-2">
             {selectedReport?.status === 'closed' && (
-              <span className="inline-flex items-center gap-2 rounded-full border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-4 py-2 text-sm font-semibold text-[var(--text-primary)]">
+              <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-4 py-2 text-sm font-semibold text-[var(--text-primary)]">
                 <Lock className="h-4 w-4 text-[var(--brand)]" />
                 {canReopenSelectedReport ? 'נסגר' : 'הדוח נעול'}
               </span>
@@ -3109,7 +3109,7 @@ export default function ForumPage() {
               <ChevronLeft className="h-4 w-4" />
             </GlossyButton>
           </div>
-          <div className="flex items-center gap-3 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-semibold text-[var(--text-primary)]">
+          <div className="flex items-center gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-semibold text-[var(--text-primary)]">
             <CalendarDays className="h-5 w-5 text-[var(--brand)]" />
             <span>{formatSelectedDate(selectedDate)}</span>
             <input
@@ -3203,14 +3203,14 @@ export default function ForumPage() {
                   ? 'border-[var(--color-success)]/25 bg-[var(--color-success)]/10 text-[var(--color-success)]'
                   : group.inProgress > 0
                     ? 'border-[var(--brand)]/25 bg-[var(--brand)]/10 text-[var(--color-action-on-surface)]'
-                    : 'border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)]';
+                    : 'border-[var(--border-subtle)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)]';
                 return (
                   <div key={group.name} className="space-y-2">
                     <button
                       type="button"
                       onClick={() => toggleDailyGroup(group.name, isExpanded)}
                       aria-expanded={isExpanded}
-                      className="flex min-h-11 w-full items-center justify-between gap-3 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-3 py-2.5 text-right transition hover:border-[var(--action)]/24 hover:bg-[var(--surface)]"
+                      className="flex min-h-11 w-full items-center justify-between gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-3 py-2.5 text-right transition hover:border-[var(--action)]/24 hover:bg-[var(--surface)]"
                     >
                       <span className="flex min-w-0 items-center gap-2">
                         <ChevronDown className={`h-4 w-4 shrink-0 text-[var(--command-subtle)] transition ${isExpanded ? '' : 'rotate-90'}`} />
@@ -3236,7 +3236,7 @@ export default function ForumPage() {
                               type="button"
                               data-node-id={node.id}
                               onClick={handleSelectDailyNode}
-                              className={`w-full rounded-2xl border px-4 py-3 text-right transition ${isActive ? 'border-[var(--brand)]/35 bg-[var(--brand)]/10 shadow-[0_12px_28px_rgba(255,107,2,0.12)]' : 'border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] hover:bg-[var(--surface)]'}`}
+                              className={`w-full rounded-2xl border px-4 py-3 text-right transition ${isActive ? 'border-[var(--brand)]/35 bg-[var(--brand)]/10 shadow-[0_12px_28px_rgba(255,107,2,0.12)]' : 'border-[var(--border-subtle)] bg-[var(--tactical-glass)] hover:bg-[var(--surface)]'}`}
                             >
                               <span className="flex items-start justify-between gap-3">
                                 <span className="min-w-0">

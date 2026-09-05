@@ -997,7 +997,7 @@ export default function SchedulePage() {
                 className={`touch-target rounded-2xl border px-3 py-2 text-xs font-bold transition ${
                   activeTab === tab.id
                     ? 'border-[var(--action)]/40 bg-[var(--action)]/12 text-[var(--color-action-on-surface)]'
-                    : 'border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)] hover:border-[var(--action)]/30'
+                    : 'border-[var(--border-strong)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)] hover:border-[var(--action)]/30'
                 }`}
               >
                 {tab.label}
@@ -1045,7 +1045,7 @@ export default function SchedulePage() {
                 type="text"
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
-                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                 placeholder="לדוגמה: אימון כשירות מחלקתי"
                 required
               />
@@ -1056,7 +1056,7 @@ export default function SchedulePage() {
               <textarea
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
-                className="min-h-24 w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                className="min-h-24 w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                 placeholder="פירוט קצר, דגשים, ציוד או הכנות נדרשות"
               />
             </label>
@@ -1066,7 +1066,7 @@ export default function SchedulePage() {
               <select
                 value={eventType}
                 onChange={(event) => setEventType(event.target.value as EventType)}
-                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
               >
                 {eventTypes.map(type => <option key={type} value={type}>{eventTypeLabels[type]}</option>)}
               </select>
@@ -1077,7 +1077,7 @@ export default function SchedulePage() {
               <select
                 value={responsibleUserId}
                 onChange={(event) => setResponsibleUserId(event.target.value)}
-                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
               >
                 <option value="none">טרם הוקצה</option>
                 {responsibleUsers.map(user => (
@@ -1092,7 +1092,7 @@ export default function SchedulePage() {
                 type="datetime-local"
                 value={startsAt}
                 onChange={(event) => setStartsAt(event.target.value)}
-                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                 required
               />
             </label>
@@ -1103,7 +1103,7 @@ export default function SchedulePage() {
                 type="datetime-local"
                 value={endsAt}
                 onChange={(event) => setEndsAt(event.target.value)}
-                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
               />
             </label>
 
@@ -1113,7 +1113,7 @@ export default function SchedulePage() {
                 type="text"
                 value={location}
                 onChange={(event) => setLocation(event.target.value)}
-                className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                 placeholder="אופציונלי"
               />
             </label>
@@ -1148,7 +1148,7 @@ export default function SchedulePage() {
         </div>
       ) : (
         <GlassCard className="space-y-5 p-4 sm:p-5">
-          <div className="flex items-center justify-between border-b border-[rgba(2,1,8,0.08)] pb-3">
+          <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
             <div>
               <h2 className="text-base font-semibold text-[var(--text-primary)]">ציר לו״ז</h2>
               <p className="mt-1 text-xs font-bold text-[var(--text-muted-accessible)]">מופעים מסודרים לפי יום ושעת התחלה</p>
@@ -1162,7 +1162,7 @@ export default function SchedulePage() {
                 {weekColumns.map(column => (
                   <section
                     key={column.dateKey}
-                    className="min-h-80 rounded-3xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-3"
+                    className="min-h-80 rounded-3xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3"
                   >
                     <div className="sticky top-0 z-10 -mx-1 rounded-2xl border border-[var(--brand)]/14 bg-[var(--tactical-strong-glass)] px-3 py-2 shadow-[0_10px_22px_rgba(2,1,8,0.05)]">
                       <p className="text-sm font-semibold text-[var(--text-primary)]">{column.dayLabel}</p>
@@ -1170,7 +1170,7 @@ export default function SchedulePage() {
                     </div>
 
                     {column.events.length === 0 ? (
-                      <p className="mt-4 rounded-2xl border border-dashed border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] p-3 text-center text-xs font-bold text-[var(--command-subtle)]">
+                      <p className="mt-4 rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--tactical-glass)] p-3 text-center text-xs font-bold text-[var(--command-subtle)]">
                         אין מופעים
                       </p>
                     ) : (
@@ -1180,7 +1180,7 @@ export default function SchedulePage() {
                             key={event.id}
                             type="button"
                             onClick={() => setSelectedEvent(event)}
-                            className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] p-2.5 text-right shadow-[0_8px_18px_rgba(2,1,8,0.05)] transition hover:border-[var(--action)]/28 hover:bg-[var(--surface)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring)]"
+                            className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] p-2.5 text-right shadow-[0_8px_18px_rgba(2,1,8,0.05)] transition hover:border-[var(--action)]/28 hover:bg-[var(--surface)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring)]"
                           >
                             <div className="flex items-start justify-between gap-2">
                               <span className="shrink-0 font-mono text-caption font-semibold text-[var(--color-action-on-surface)]">
@@ -1226,7 +1226,7 @@ export default function SchedulePage() {
                               key={event.id}
                               type="button"
                               onClick={() => setSelectedEvent(event)}
-                              className="w-full rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] p-3 text-right shadow-[0_10px_26px_rgba(2,1,8,0.06)] backdrop-blur-xl transition hover:border-[var(--action)]/28 hover:bg-[var(--tactical-strong-glass)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring)]"
+                              className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] p-3 text-right shadow-[0_10px_26px_rgba(2,1,8,0.06)] backdrop-blur-xl transition hover:border-[var(--action)]/28 hover:bg-[var(--tactical-strong-glass)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring)]"
                             >
                               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                 <div className="min-w-0">
@@ -1272,10 +1272,10 @@ export default function SchedulePage() {
           onClick={() => setSelectedEvent(null)}
         >
           <div
-            className="flex max-h-[85svh] w-full max-w-xl flex-col overflow-hidden rounded-3xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-strong-glass)] shadow-[0_24px_70px_rgba(2,1,8,0.18)]"
+            className="flex max-h-[85svh] w-full max-w-xl flex-col overflow-hidden rounded-3xl border border-[var(--border-strong)] bg-[var(--tactical-strong-glass)] shadow-[0_24px_70px_rgba(2,1,8,0.18)]"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[rgba(2,1,8,0.08)] px-5 py-4">
+            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--border-subtle)] px-5 py-4">
               <div>
                 <p className="text-xs font-semibold text-[var(--color-action-on-surface)]">{formatDateTime(selectedEvent.starts_at)}</p>
                 <h2 id="schedule-event-details-title" className="mt-1 text-xl font-semibold text-[var(--text-primary)]">
@@ -1285,7 +1285,7 @@ export default function SchedulePage() {
               <button
                 type="button"
                 onClick={() => setSelectedEvent(null)}
-                className="rounded-full border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] p-2 text-[var(--text-muted-accessible)] transition hover:border-[var(--action)]/30 hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring)]"
+                className="rounded-full border border-[var(--border-strong)] bg-[var(--tactical-glass)] p-2 text-[var(--text-muted-accessible)] transition hover:border-[var(--action)]/30 hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring)]"
                 aria-label="סגור פירוט מופע"
               >
                 <X className="h-4 w-4" />
@@ -1301,46 +1301,46 @@ export default function SchedulePage() {
               </div>
 
               {selectedEvent.description && (
-                <div className="mt-4 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-4">
+                <div className="mt-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4">
                   <p className="text-xs font-semibold text-[var(--command-subtle)]">תיאור</p>
                   <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[var(--text-primary)]">{selectedEvent.description}</p>
                 </div>
               )}
 
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-3">
+                <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3">
                   <p className="text-xs font-semibold text-[var(--command-subtle)]">התחלה</p>
                   <p className="mt-1 text-sm font-bold text-[var(--text-primary)]">{formatDateTime(selectedEvent.starts_at)}</p>
                 </div>
                 {selectedEvent.ends_at && (
-                  <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-3">
+                  <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3">
                     <p className="text-xs font-semibold text-[var(--command-subtle)]">סיום</p>
                     <p className="mt-1 text-sm font-bold text-[var(--text-primary)]">{formatDateTime(selectedEvent.ends_at)}</p>
                   </div>
                 )}
-                <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-3">
+                <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3">
                   <p className="text-xs font-semibold text-[var(--command-subtle)]">מיקום</p>
                   <p className="mt-1 text-sm font-bold text-[var(--text-primary)]">{selectedEvent.location || 'לא נקבע'}</p>
                 </div>
-                <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-3">
+                <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3">
                   <p className="text-xs font-semibold text-[var(--command-subtle)]">יחידה</p>
                   <p className="mt-1 text-sm font-bold text-[var(--text-primary)]">{selectedEvent.unitName || 'ללא יחידה'}</p>
                 </div>
-                <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-3">
+                <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3">
                   <p className="text-xs font-semibold text-[var(--command-subtle)]">אחראי</p>
                   <p className="mt-1 text-sm font-bold text-[var(--text-primary)]">{selectedEvent.responsibleName || 'טרם הוקצה'}</p>
                 </div>
-                <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-3">
+                <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3">
                   <p className="text-xs font-semibold text-[var(--command-subtle)]">נוצר על ידי</p>
                   <p className="mt-1 text-sm font-bold text-[var(--text-primary)]">{selectedEvent.creatorName || 'לא ידוע'}</p>
                 </div>
-                <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-3 sm:col-span-2">
+                <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3 sm:col-span-2">
                   <p className="text-xs font-semibold text-[var(--command-subtle)]">נוצר בתאריך</p>
                   <p className="mt-1 text-sm font-bold text-[var(--text-primary)]">{formatDateTime(selectedEvent.created_at)}</p>
                 </div>
               </div>
 
-              <div className="mt-4 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-4">
+              <div className="mt-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <h3 className="text-sm font-semibold text-[var(--text-primary)]">משימות קשורות</h3>
@@ -1356,13 +1356,13 @@ export default function SchedulePage() {
                 </div>
 
                 {!isEventTasksLoading && eventTasks.length === 0 ? (
-                  <p className="mt-3 rounded-2xl border border-dashed border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] p-3 text-xs font-bold text-[var(--text-muted-accessible)]">
+                  <p className="mt-3 rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--tactical-glass)] p-3 text-xs font-bold text-[var(--text-muted-accessible)]">
                     אין משימות קשורות למופע זה
                   </p>
                 ) : (
                   <div className="mt-3 space-y-2">
                     {eventTasks.map(task => (
-                      <div key={task.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-3 py-2">
+                      <div key={task.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-3 py-2">
                         <p className="truncate text-sm font-bold text-[var(--text-primary)]">{task.title}</p>
                         <StatusBadge status={taskStatusLabels[task.status as TaskStatusCode] ?? task.status} className="min-h-5 shrink-0 px-2 text-caption" />
                       </div>
@@ -1371,7 +1371,7 @@ export default function SchedulePage() {
                 )}
               </div>
 
-              <div className="mt-4 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-4">
+              <div className="mt-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <h3 className="text-sm font-semibold text-[var(--text-primary)]">דרישות קשורות</h3>
@@ -1387,13 +1387,13 @@ export default function SchedulePage() {
                 </div>
 
                 {!isEventRequestsLoading && eventRequests.length === 0 ? (
-                  <p className="mt-3 rounded-2xl border border-dashed border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] p-3 text-xs font-bold text-[var(--text-muted-accessible)]">
+                  <p className="mt-3 rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--tactical-glass)] p-3 text-xs font-bold text-[var(--text-muted-accessible)]">
                     אין דרישות קשורות למופע זה
                   </p>
                 ) : (
                   <div className="mt-3 space-y-2">
                     {eventRequests.map(request => (
-                      <div key={request.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-3 py-2">
+                      <div key={request.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-3 py-2">
                         <div className="min-w-0">
                           <p className="truncate text-sm font-bold text-[var(--text-primary)]">{request.title}</p>
                           <p className="mt-0.5 text-caption font-bold text-[var(--command-subtle)]">{request.request_type || 'ללא סוג'}</p>
@@ -1406,7 +1406,7 @@ export default function SchedulePage() {
               </div>
             </div>
 
-            <div className="flex shrink-0 flex-col gap-3 border-t border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex shrink-0 flex-col gap-3 border-t border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
               {canUpdateEventStatus(selectedEvent) ? (
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-[var(--text-muted-accessible)]">סטטוס שמור</span>
@@ -1414,7 +1414,7 @@ export default function SchedulePage() {
                     value={selectedEvent.status}
                     onChange={(event) => void handleStatusChange(selectedEvent, event.target.value as EventStatus)}
                     disabled={isEventWritePending}
-                    className="touch-target rounded-2xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                    className="touch-target rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                   >
                     {eventStatuses.map(status => <option key={status} value={status}>{statusLabels[status]}</option>)}
                   </select>
@@ -1471,11 +1471,11 @@ export default function SchedulePage() {
           onClick={closeEditEvent}
         >
           <div
-            className="w-full max-w-2xl rounded-3xl border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-strong-glass)] shadow-[0_28px_80px_rgba(2,1,8,0.22)]"
+            className="w-full max-w-2xl rounded-3xl border border-[var(--border-strong)] bg-[var(--tactical-strong-glass)] shadow-[0_28px_80px_rgba(2,1,8,0.22)]"
             onClick={(event) => event.stopPropagation()}
             dir="rtl"
           >
-            <div className="flex items-start justify-between gap-3 border-b border-[rgba(2,1,8,0.08)] px-5 py-4">
+            <div className="flex items-start justify-between gap-3 border-b border-[var(--border-subtle)] px-5 py-4">
               <div>
                 <p className="text-xs font-semibold text-[var(--color-action-on-surface)]">עריכת לו״ז</p>
                 <h2 id="schedule-event-edit-title" className="mt-1 text-xl font-semibold text-[var(--text-primary)]">
@@ -1487,7 +1487,7 @@ export default function SchedulePage() {
                 type="button"
                 onClick={closeEditEvent}
                 disabled={isEditEventSubmitting}
-                className="rounded-full border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-glass)] p-2 text-[var(--text-muted-accessible)] transition hover:border-[var(--action)]/30 hover:text-[var(--text-primary)] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring)]"
+                className="rounded-full border border-[var(--border-strong)] bg-[var(--tactical-glass)] p-2 text-[var(--text-muted-accessible)] transition hover:border-[var(--action)]/30 hover:text-[var(--text-primary)] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring)]"
                 aria-label="סגור עריכת מופע"
               >
                 <X className="h-4 w-4" />
@@ -1589,7 +1589,7 @@ export default function SchedulePage() {
                 />
               </label>
 
-              <div className="flex flex-col gap-2 border-t border-[rgba(2,1,8,0.08)] pt-4 lg:col-span-2 sm:flex-row">
+              <div className="flex flex-col gap-2 border-t border-[var(--border-subtle)] pt-4 lg:col-span-2 sm:flex-row">
                 <GlossyButton type="submit" variant="orange" size="lg" disabled={isEditEventSubmitting} className="flex-1">
                   {isEditEventSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                   שמור שינויים

@@ -366,12 +366,25 @@ grep -r 'font-black' src --include=*.tsx             # expect none (a comment me
 grep -rE 'bg-white(/[0-9]+)?\b' src --include=*.tsx  # expect none
 grep -rE 'text-\[[0-9]+px\]' src --include=*.tsx     # expect none
 grep -rE '(text|bg|border)-(emerald|red|blue|amber|slate|zinc)-[0-9]' src --include=*.tsx  # expect none
+grep -rE 'border-\[rgba\(' src --include=*.tsx      # expect none — see below
 ```
 
 Run them over **all** of `src`, not just the pages. Three files (BottomNav,
 CommandField, MetricCard) were missed on the first pass precisely because
 they were swept by "files containing hex or font-black" rather than by the
 greps themselves.
+
+The `rgba(` grep was added late, and it caught 125 real defects the hex grep
+structurally could not see: `border-[rgba(2,1,8,0.08)]` is the *light* value
+of `--border-subtle` frozen into a class. It never flips, so in dark mode
+those borders measured **1.028:1** against the surface — invisible — while
+the token borders beside them measured 1.34–1.54:1. A grep for `#` finds
+none of them. If you add a token whose value is an `rgba()`, add a grep for
+it at the same time.
+
+Shadows using the same literals were deliberately left: a near-black shadow
+on a dark ground is less visible, not wrong, and the twelve geometries in
+use do not map onto the three shadow tokens without changing the design.
 
 **The scale classes live in `@layer components` and must stay there.** As
 plain unlayered rules they beat every Tailwind utility — unlayered normal

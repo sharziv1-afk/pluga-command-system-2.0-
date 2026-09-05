@@ -260,7 +260,7 @@ export default function ProfilePage() {
       <div className="max-w-2xl">
         <GlassCard glow="orange" className="p-6 md:p-8">
           {/* Header Profile Info */}
-          <div className="mb-8 flex flex-col sm:flex-row items-center gap-4 border-b border-[rgba(2,1,8,0.08)] pb-6">
+          <div className="mb-8 flex flex-col sm:flex-row items-center gap-4 border-b border-[var(--border-subtle)] pb-6">
             <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-[var(--brand)]/20 bg-[var(--brand)]/10 text-[var(--brand)] shadow-[0_14px_30px_rgba(255,107,2,0.14)]">
               <User className="h-8 w-8" />
             </div>
@@ -277,7 +277,7 @@ export default function ProfilePage() {
 
           {/* Details Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="rounded-2xl border border-[rgba(2,1,8,0.06)] bg-[var(--tactical-glass)] p-4">
+            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4">
               <span className="flex items-center gap-1.5 text-caption font-semibold text-[var(--command-subtle)] mb-1">
                 <Mail className="h-3.5 w-3.5" />
                 דואר אלקטרוני
@@ -287,7 +287,7 @@ export default function ProfilePage() {
               </span>
             </div>
 
-            <div className="rounded-2xl border border-[rgba(2,1,8,0.06)] bg-[var(--tactical-glass)] p-4">
+            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4">
               <span className="flex items-center gap-1.5 text-caption font-semibold text-[var(--command-subtle)] mb-1">
                 <Award className="h-3.5 w-3.5" />
                 תפקיד צבאי במערכת
@@ -297,7 +297,7 @@ export default function ProfilePage() {
               </span>
             </div>
 
-            <div className="rounded-2xl border border-[rgba(2,1,8,0.06)] bg-[var(--tactical-glass)] p-4">
+            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4">
               <span className="flex items-center gap-1.5 text-caption font-semibold text-[var(--command-subtle)] mb-1">
                 <FileText className="h-3.5 w-3.5" />
                 יחידה / מסגרת פעילות
@@ -307,7 +307,7 @@ export default function ProfilePage() {
               </span>
             </div>
 
-            <div className="rounded-2xl border border-[rgba(2,1,8,0.06)] bg-[var(--tactical-glass)] p-4">
+            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4">
               <span className="flex items-center gap-1.5 text-caption font-semibold text-[var(--command-subtle)] mb-1">
                 <ShieldAlert className="h-3.5 w-3.5" />
                 רמת הרשאה צבאית
@@ -317,7 +317,7 @@ export default function ProfilePage() {
               </span>
             </div>
 
-            <div className="rounded-2xl border border-[rgba(2,1,8,0.06)] bg-[var(--tactical-glass)] p-4">
+            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4">
               <span className="flex items-center gap-1.5 text-caption font-semibold text-[var(--command-subtle)] mb-1">
                 <Calendar className="h-3.5 w-3.5" />
                 תאריך הצטרפות למערכת
@@ -327,7 +327,7 @@ export default function ProfilePage() {
               </span>
             </div>
 
-            <div className="rounded-2xl border border-[rgba(2,1,8,0.06)] bg-[var(--tactical-glass)] p-4">
+            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4">
               <span className="flex items-center gap-1.5 text-caption font-semibold text-[var(--command-subtle)] mb-1">
                 <ShieldAlert className="h-3.5 w-3.5" />
                 סטטוס פרופיל פיקודי

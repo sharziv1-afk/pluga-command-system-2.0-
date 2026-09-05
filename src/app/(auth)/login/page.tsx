@@ -312,7 +312,7 @@ export default function LoginPage() {
 
           {step === 'code' && (
             <form onSubmit={verifyCode} className="space-y-4">
-              <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-muted-accessible)]">
+              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-muted-accessible)]">
                 קוד האימות נשלח אל <span dir="ltr">{email}</span>
               </div>
 
@@ -381,7 +381,7 @@ export default function LoginPage() {
 
           {step === 'claim' && (
             <form onSubmit={claimProfile} className="space-y-4">
-              <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-muted-accessible)]">
+              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-muted-accessible)]">
                 כניסה ראשונה עבור <span dir="ltr">{email}</span> — אשר את שמך המלא כדי לשייך את המשתמש.
               </div>
 
@@ -427,7 +427,7 @@ export default function LoginPage() {
             </form>
           )}
 
-          <div className="mt-5 flex items-center justify-center border-t border-[rgba(2,1,8,0.08)] pt-5 text-xs font-bold text-[var(--text-muted-accessible)]">
+          <div className="mt-5 flex items-center justify-center border-t border-[var(--border-subtle)] pt-5 text-xs font-bold text-[var(--text-muted-accessible)]">
             <span className="text-[var(--command-subtle)]">גישה למערכת נפתחת על ידי מפקד הפלוגה בלבד</span>
           </div>
         </GlassCard>

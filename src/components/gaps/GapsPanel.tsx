@@ -417,7 +417,7 @@ export function GapsPanel() {
                   <span className="shrink-0 text-xs font-bold text-[var(--command-subtle)]">{formatDate(gap.created_at)}</span>
                 </div>
 
-                <div className="grid gap-2 border-t border-[rgba(2,1,8,0.08)] pt-3 text-xs font-bold text-[var(--text-muted-accessible)] sm:grid-cols-2">
+                <div className="grid gap-2 border-t border-[var(--border-subtle)] pt-3 text-xs font-bold text-[var(--text-muted-accessible)] sm:grid-cols-2">
                   <span>דווח על ידי: <strong className="text-[var(--text-primary)]">{gap.reporterName || 'לא ידוע'}</strong></span>
                   <span>מסגרת: <strong className="text-[var(--text-primary)]">{gap.unitName || 'לא ידוע'}</strong></span>
                 </div>

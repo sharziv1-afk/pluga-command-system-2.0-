@@ -326,7 +326,7 @@ export function MentoringPanel() {
                 </div>
 
                 {latest ? (
-                  <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--surface-muted)] px-3 py-2.5 text-xs font-semibold leading-relaxed text-[var(--text-secondary)]">
+                  <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3 py-2.5 text-xs font-semibold leading-relaxed text-[var(--text-secondary)]">
                     <span className="block text-caption font-semibold text-[var(--command-subtle)]">שיחה אחרונה · {formatDate(latest.occurred_on)}</span>
                     <span className="mt-1 block truncate">{latest.focus}</span>
                   </div>
@@ -370,7 +370,7 @@ export function MentoringPanel() {
               <p className="text-sm font-bold text-[var(--command-subtle)]">עדיין לא נרשמה שיחת חניכה עם {selectedMentee.name}.</p>
             ) : (
               entriesFor(selectedMentee.id).map(entry => (
-                <div key={entry.id} className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--surface)] p-4 text-sm">
+                <div key={entry.id} className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-4 text-sm">
                   <div className="mb-2 flex items-center justify-between">
                     <span className="font-mono text-xs font-semibold text-[var(--command-subtle)]">{formatDate(entry.occurred_on)}</span>
                     {entry.next_check_at && (

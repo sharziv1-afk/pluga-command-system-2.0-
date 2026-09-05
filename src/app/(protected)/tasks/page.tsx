@@ -16,7 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { CommandConfirmDialog } from '@/components/ui/CommandDialog';
+import { CommandConfirmDialog, CommandOverlay } from '@/components/ui/CommandDialog';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlossyButton } from '@/components/ui/GlossyButton';
@@ -37,6 +37,8 @@ import type { DbTask } from '@/lib/types';
 
 type TaskStatus = 'open' | 'in_progress' | 'blocked' | 'completed' | 'cancelled';
 type TaskPriority = 'רגילה' | 'חשובה' | 'דחופה' | 'קריטית';
+
+const TASK_EDIT_FORM_ID = 'task-edit-form';
 type TaskTab = 'all' | 'mine' | 'assigned' | 'open' | 'in_progress' | 'completed';
 type TaskQuickFilter = 'none' | 'mine' | 'urgent' | 'stuck';
 
@@ -1216,159 +1218,140 @@ export default function TasksPage() {
         </div>
       )}
 
-      {editingTask && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/20 p-3 sm:p-6"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="task-edit-title"
-          onClick={closeEditTask}
-        >
-          <form
-            onSubmit={handleEditTask}
-            className="flex max-h-[85svh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-[var(--border-strong)] bg-[var(--tactical-strong-glass)] shadow-[0_24px_70px_rgba(2,1,8,0.18)]"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--border-subtle)] px-5 py-4">
-              <div>
-                <p className="text-xs font-semibold text-[var(--color-action-on-surface)]">עריכת משימה</p>
-                <h2 id="task-edit-title" className="mt-1 text-xl font-semibold text-[var(--text-primary)]">
-                  {editingTask.title}
-                </h2>
-              </div>
-              <button
-                type="button"
-                onClick={closeEditTask}
-                className="rounded-full border border-[var(--border-strong)] bg-[var(--tactical-glass)] p-2 text-[var(--text-muted-accessible)] transition hover:border-[var(--action)]/30 hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring)]"
-                aria-label="סגור עריכת משימה"
-                disabled={isEditSubmitting}
+      <CommandOverlay
+        open={!!editingTask}
+        onClose={closeEditTask}
+        title="עריכת משימה"
+        description={editingTask?.title}
+        // The hand-rolled version disabled the close button while submitting
+        // but left the backdrop click live, so a mid-save click discarded the
+        // form. dismissible covers backdrop and Escape together.
+        dismissible={!isEditSubmitting}
+        className="command-dialog-wide"
+        footer={
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-caption font-bold text-[var(--text-muted-accessible)]">
+              סטטוס המשימה מתעדכן מהכרטיס עצמו.
+            </p>
+            <div className="flex gap-2">
+              <GlossyButton variant="slate" type="button" onClick={closeEditTask} disabled={isEditSubmitting}>
+                ביטול
+              </GlossyButton>
+              {/* The form lives in the dialog body, the submit button in the
+                  footer; the `form` attribute is what links them. */}
+              <GlossyButton variant="orange" type="submit" form={TASK_EDIT_FORM_ID} disabled={isEditSubmitting}>
+                {isEditSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                שמור
+              </GlossyButton>
+            </div>
+          </div>
+        }
+      >
+        <form id={TASK_EDIT_FORM_ID} onSubmit={handleEditTask} className="grid gap-4 lg:grid-cols-2">
+            <label className="space-y-1 lg:col-span-2">
+              <span className="text-xs font-bold text-[var(--text-muted-accessible)]">כותרת</span>
+              <input
+                type="text"
+                value={editTitle}
+                onChange={(event) => setEditTitle(event.target.value)}
+                className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                required
+              />
+            </label>
+
+            <label className="space-y-1 lg:col-span-2">
+              <span className="text-xs font-bold text-[var(--text-muted-accessible)]">תיאור</span>
+              <textarea
+                value={editDescription}
+                onChange={(event) => setEditDescription(event.target.value)}
+                className="min-h-24 w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+              />
+            </label>
+
+            <label className="space-y-1">
+              <span className="text-xs font-bold text-[var(--text-muted-accessible)]">עדיפות</span>
+              <select
+                value={editPriority}
+                onChange={(event) => setEditPriority(event.target.value as TaskPriority)}
+                className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
               >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+                {priorityOptions.map(item => <option key={item} value={item}>{item}</option>)}
+              </select>
+            </label>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 custom-scrollbar">
-              <div className="grid gap-4 lg:grid-cols-2">
-                <label className="space-y-1 lg:col-span-2">
-                  <span className="text-xs font-bold text-[var(--text-muted-accessible)]">כותרת</span>
-                  <input
-                    type="text"
-                    value={editTitle}
-                    onChange={(event) => setEditTitle(event.target.value)}
-                    className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
-                    required
-                  />
-                </label>
+            <label className="space-y-1">
+              <span className="text-xs font-bold text-[var(--text-muted-accessible)]">אחראי</span>
+              <select
+                value={editAssignedTo}
+                onChange={(event) => setEditAssignedTo(event.target.value)}
+                className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+              >
+                <option value="none">טרם הוקצה</option>
+                {editAssigneeOptions.map(user => (
+                  <option key={user.id} value={user.id}>
+                    {getUserDisplayName(user)}{user.role ? ` · ${user.role}` : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-                <label className="space-y-1 lg:col-span-2">
-                  <span className="text-xs font-bold text-[var(--text-muted-accessible)]">תיאור</span>
-                  <textarea
-                    value={editDescription}
-                    onChange={(event) => setEditDescription(event.target.value)}
-                    className="min-h-24 w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
-                  />
-                </label>
+            <label className="space-y-1">
+              <span className="text-xs font-bold text-[var(--text-muted-accessible)]">תאריך יעד</span>
+              <input
+                type="datetime-local"
+                value={editDueAt}
+                onChange={(event) => setEditDueAt(event.target.value)}
+                className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+              />
+            </label>
 
-                <label className="space-y-1">
-                  <span className="text-xs font-bold text-[var(--text-muted-accessible)]">עדיפות</span>
-                  <select
-                    value={editPriority}
-                    onChange={(event) => setEditPriority(event.target.value as TaskPriority)}
-                    className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
-                  >
-                    {priorityOptions.map(item => <option key={item} value={item}>{item}</option>)}
-                  </select>
-                </label>
+            <label className="space-y-1">
+              <span className="text-xs font-bold text-[var(--text-muted-accessible)]">שייך למופע</span>
+              <select
+                value={editEventId}
+                onChange={(event) => setEditEventId(event.target.value)}
+                className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+              >
+                <option value="none">ללא שיוך</option>
+                {editEventOptions.map(event => (
+                  <option key={event.id} value={event.id}>
+                    {event.title}{event.starts_at ? ` — ${formatDateTime(event.starts_at)}` : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-                <label className="space-y-1">
-                  <span className="text-xs font-bold text-[var(--text-muted-accessible)]">אחראי</span>
-                  <select
-                    value={editAssignedTo}
-                    onChange={(event) => setEditAssignedTo(event.target.value)}
-                    className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
-                  >
-                    <option value="none">טרם הוקצה</option>
-                    {editAssigneeOptions.map(user => (
-                      <option key={user.id} value={user.id}>
-                        {getUserDisplayName(user)}{user.role ? ` · ${user.role}` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+            <label className="space-y-1">
+              <span className="text-xs font-bold text-[var(--text-muted-accessible)]">קטגוריה</span>
+              <input
+                type="text"
+                value={editCategory}
+                onChange={(event) => setEditCategory(event.target.value)}
+                className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+              />
+            </label>
 
-                <label className="space-y-1">
-                  <span className="text-xs font-bold text-[var(--text-muted-accessible)]">תאריך יעד</span>
-                  <input
-                    type="datetime-local"
-                    value={editDueAt}
-                    onChange={(event) => setEditDueAt(event.target.value)}
-                    className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
-                  />
-                </label>
+            <label className="space-y-1">
+              <span className="text-xs font-bold text-[var(--text-muted-accessible)]">מיקום</span>
+              <input
+                type="text"
+                value={editLocation}
+                onChange={(event) => setEditLocation(event.target.value)}
+                className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+              />
+            </label>
 
-                <label className="space-y-1">
-                  <span className="text-xs font-bold text-[var(--text-muted-accessible)]">שייך למופע</span>
-                  <select
-                    value={editEventId}
-                    onChange={(event) => setEditEventId(event.target.value)}
-                    className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
-                  >
-                    <option value="none">ללא שיוך</option>
-                    {editEventOptions.map(event => (
-                      <option key={event.id} value={event.id}>
-                        {event.title}{event.starts_at ? ` — ${formatDateTime(event.starts_at)}` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="space-y-1">
-                  <span className="text-xs font-bold text-[var(--text-muted-accessible)]">קטגוריה</span>
-                  <input
-                    type="text"
-                    value={editCategory}
-                    onChange={(event) => setEditCategory(event.target.value)}
-                    className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
-                  />
-                </label>
-
-                <label className="space-y-1">
-                  <span className="text-xs font-bold text-[var(--text-muted-accessible)]">מיקום</span>
-                  <input
-                    type="text"
-                    value={editLocation}
-                    onChange={(event) => setEditLocation(event.target.value)}
-                    className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
-                  />
-                </label>
-
-                <label className="space-y-1 lg:col-span-2">
-                  <span className="text-xs font-bold text-[var(--text-muted-accessible)]">תוצר נדרש</span>
-                  <input
-                    type="text"
-                    value={editOutputRequired}
-                    onChange={(event) => setEditOutputRequired(event.target.value)}
-                    className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
-                  />
-                </label>
-              </div>
-            </div>
-
-            <div className="flex shrink-0 flex-col gap-2 border-t border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs font-bold text-[var(--command-subtle)]">סטטוס המשימה מתעדכן מהכרטיס עצמו.</p>
-              <div className="flex gap-2">
-                <GlossyButton variant="slate" type="button" onClick={closeEditTask} disabled={isEditSubmitting}>
-                  ביטול
-                </GlossyButton>
-                <GlossyButton variant="orange" type="submit" disabled={isEditSubmitting}>
-                  {isEditSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                  שמור
-                </GlossyButton>
-              </div>
-            </div>
-          </form>
-        </div>
-      )}
+            <label className="space-y-1 lg:col-span-2">
+              <span className="text-xs font-bold text-[var(--text-muted-accessible)]">תוצר נדרש</span>
+              <input
+                type="text"
+                value={editOutputRequired}
+                onChange={(event) => setEditOutputRequired(event.target.value)}
+                className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+              />
+            </label>
+        </form>
+      </CommandOverlay>
 
       <CommandConfirmDialog
         open={!!taskPendingDelete}

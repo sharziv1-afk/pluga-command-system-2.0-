@@ -680,8 +680,7 @@ option {
 
 :root[data-theme="dark"] .command-icon-button,
 :root[data-theme="dark"] .command-help-panel,
-:root[data-theme="dark"] .command-soft-panel,
-:root[data-theme="dark"] [class*="border-[rgba(2,1,8"] {
+:root[data-theme="dark"] .command-soft-panel {
   border-color: rgba(255, 255, 255, 0.14) !important;
 }
 
@@ -841,6 +840,16 @@ option {
 }
 .command-dialog[open] { animation: command-dialog-in var(--motion-base) var(--ease-emphasized); }
 
+/* Wide variant for the create/edit forms, whose fields sit in a 2-column
+   grid and are cramped at the 560px default. Declared here rather than as a
+   Tailwind `w-[...]` on the element: .command-dialog is unlayered, and an
+   unlayered normal declaration beats a layered utility, so the utility would
+   silently lose. */
+.command-dialog-wide {
+  width: min(48rem, calc(100vw - 2rem));
+  max-height: min(85svh, 100dvh);
+}
+
 /* Side sheet (tablet/desktop): full-height panel on the inline-end edge.
    NOTE: never set `display` here — the native dialog's UA rule
    `dialog:not([open]) { display: none }` must keep the closed sheet hidden. */
@@ -917,9 +926,8 @@ option {
 /* ============================================================
    High-contrast component overrides — MUST BE LAST IN THIS FILE.
    The legacy dark-mode block above hardcodes
-   `border-color: rgba(255,255,255,0.14) !important` on .command-icon-button,
-   .command-soft-panel and [class*="border-[rgba(2,1,8"] at the same
-   specificity as these rules (0,3,0). Equal specificity + both !important
+   `border-color: rgba(255,255,255,0.14) !important` on .command-icon-button
+   and .command-soft-panel at the same specificity as these rules (0,3,0). Equal specificity + both !important
    means source order decides, so anything placed earlier loses and
    dark+high-contrast silently renders the normal translucent borders.
    Inputs/.command-input also hardcode their own border color rather than
@@ -935,10 +943,14 @@ option {
 :root[data-contrast="high"] .command-input,
 :root[data-contrast="high"] .command-select,
 /* ~120 elements across the app still carry a hardcoded
-   border-[rgba(2,1,8,0.08|0.10)] rather than a token. The legacy dark block
-   recolours those to rgba(255,255,255,0.14), which is correct for dark but
-   leaves high contrast translucent — so they need to be named here too. */
-:root[data-contrast="high"] [class*="border-[rgba(2,1,8"],
+   --border-subtle/--border-strong as an arbitrary Tailwind class. The token
+   already carries the right colour in high contrast; what it cannot carry is
+   the 2px width and an explicit border-style, so those elements are named
+   here. (This previously matched border-[rgba(2,1,8,...)]; those literals
+   were removed when the borders were tokenised, which would have silently
+   dropped high contrast on ~125 elements.) */
+:root[data-contrast="high"] [class*="border-[var(--border-subtle)"],
+:root[data-contrast="high"] [class*="border-[var(--border-strong)"],
 :root[data-contrast="high"] input:not([aria-invalid="true"]),
 :root[data-contrast="high"] select:not([aria-invalid="true"]),
 :root[data-contrast="high"] textarea:not([aria-invalid="true"]) {

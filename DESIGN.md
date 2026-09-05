@@ -338,10 +338,22 @@ Keep it that way with four greps — any hit is a regression:
 
 ```bash
 grep -rE '#[0-9A-Fa-f]{3,8}\b' src --include=*.tsx   # expect only layout.tsx themeColor
-grep -r 'font-black' src --include=*.tsx             # expect none
-grep -rE 'bg-white/[0-9]+' src --include=*.tsx       # expect none
+grep -r 'font-black' src --include=*.tsx             # expect none (a comment mentioning it is fine)
+grep -rE 'bg-white(/[0-9]+)?\b' src --include=*.tsx  # expect none
 grep -rE 'text-\[[0-9]+px\]' src --include=*.tsx     # expect none
+grep -rE '(text|bg|border)-(emerald|red|blue|amber|slate|zinc)-[0-9]' src --include=*.tsx  # expect none
 ```
+
+Run them over **all** of `src`, not just the pages. Three files (BottomNav,
+CommandField, MetricCard) were missed on the first pass precisely because
+they were swept by "files containing hex or font-black" rather than by the
+greps themselves.
+
+**The scale classes live in `@layer components` and must stay there.** As
+plain unlayered rules they beat every Tailwind utility — unlayered normal
+declarations outrank layered ones — so `text-meta sm:text-sm` silently
+stayed 13px at every breakpoint. In the components layer a utility on the
+same element wins, which is what a call site expects.
 
 **Still open.**
 

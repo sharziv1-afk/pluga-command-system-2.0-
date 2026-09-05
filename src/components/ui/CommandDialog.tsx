@@ -101,9 +101,9 @@ export const CommandOverlay: React.FC<CommandOverlayProps> = ({
       <div className={cn('flex max-h-[inherit] flex-col', variant === 'sheet' && 'h-full')} dir="rtl">
         <header className="flex items-start justify-between gap-3 border-b border-[var(--border-subtle)] px-5 py-4">
           <div className="min-w-0">
-            <h2 id={titleId} className="text-base font-black text-[var(--text-primary)]">{title}</h2>
+            <h2 id={titleId} className="text-base font-semibold text-[var(--text-primary)]">{title}</h2>
             {description && (
-              <p id={descId} className="mt-1 text-[13px] leading-relaxed text-[var(--text-muted-accessible)]">
+              <p id={descId} className="mt-1 text-meta leading-relaxed text-[var(--text-muted-accessible)]">
                 {description}
               </p>
             )}

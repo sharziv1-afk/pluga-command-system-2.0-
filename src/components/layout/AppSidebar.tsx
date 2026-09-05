@@ -85,7 +85,7 @@ export const AppSidebar: React.FC<{ className?: string }> = ({ className }) => {
         </div>
         <div className={cn('min-w-0', labelCls === 'hidden' ? 'hidden' : 'hidden lg:block')}>
           <h1 className="truncate text-base font-bold text-[var(--text-primary)]">המפקד</h1>
-          <p className="mt-0.5 truncate text-[11px] font-bold text-[var(--text-muted-accessible)]">ניהול פיקודי לפלוגה</p>
+          <p className="mt-0.5 truncate text-caption font-bold text-[var(--text-muted-accessible)]">ניהול פיקודי לפלוגה</p>
         </div>
         <button
           type="button"
@@ -110,7 +110,7 @@ export const AppSidebar: React.FC<{ className?: string }> = ({ className }) => {
               title={item.name}
               aria-current={isActive ? 'page' : undefined}
               className={cn(
-                'group flex min-h-11 items-center gap-3 rounded-xl border px-2.5 text-[13px] font-bold transition duration-[var(--motion-fast)]',
+                'group flex min-h-11 items-center gap-3 rounded-xl border px-2.5 text-meta font-bold transition duration-[var(--motion-fast)]',
                 collapsed ? 'lg:justify-center' : 'lg:justify-start',
                 'justify-center lg:justify-start',
                 isActive
@@ -152,10 +152,10 @@ export const AppSidebar: React.FC<{ className?: string }> = ({ className }) => {
                 <User className="h-4 w-4" />
               </div>
               <div className={cn('min-w-0 flex-1', blockCls)}>
-                <span className="block truncate text-xs font-black text-[var(--text-primary)]">
+                <span className="block truncate text-xs font-semibold text-[var(--text-primary)]">
                   {currentUser?.full_name || 'משתמש'}
                 </span>
-                <span className="block truncate text-[10px] font-bold text-[var(--text-muted-accessible)]">
+                <span className="block truncate text-caption font-bold text-[var(--text-muted-accessible)]">
                   {currentUser ? `${currentUser.role} • ${currentUser.assigned_frame}` : 'תפקיד לא הוגדר'}
                 </span>
               </div>
@@ -173,7 +173,7 @@ export const AppSidebar: React.FC<{ className?: string }> = ({ className }) => {
           )}
         </div>
         {signOutError && !collapsed && (
-          <p role="alert" className="mt-2 text-[11px] font-bold text-[var(--color-danger)]">{signOutError}</p>
+          <p role="alert" className="mt-2 text-caption font-bold text-[var(--color-danger)]">{signOutError}</p>
         )}
       </div>
     </aside>

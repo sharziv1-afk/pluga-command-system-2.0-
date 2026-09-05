@@ -321,7 +321,7 @@ export function GapsPanel() {
     return (
       <GlassCard className="flex flex-col items-center justify-center py-12 text-center">
         <ShieldAlert className="mb-3 h-10 w-10 text-[var(--color-danger)]" />
-        <h2 className="text-sm font-black text-[#020108]">לא נמצא פרופיל משתמש</h2>
+        <h2 className="text-sm font-semibold text-[var(--text-primary)]">לא נמצא פרופיל משתמש</h2>
       </GlassCard>
     );
   }
@@ -329,7 +329,7 @@ export function GapsPanel() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm font-semibold text-[#667085]">
+        <p className="text-sm font-semibold text-[var(--text-muted-accessible)]">
           פערים אינם בהכרח משימות — פער לוגיסטי ניתן להמיר לדרישה בלחיצה אחת.
         </p>
         <GlossyButton variant="orange" size="sm" onClick={() => setIsFormOpen(true)}>
@@ -358,10 +358,10 @@ export function GapsPanel() {
               } bg-[var(--surface)]`}
             >
               <div className="flex items-center justify-between">
-                <span className="rounded-full border border-[var(--action)]/20 bg-[var(--action)]/10 px-2.5 py-0.5 text-[11px] font-bold text-[#C54F00]">{c}</span>
-                <span className="font-mono text-xl font-black text-[#020108]">{count}</span>
+                <span className="rounded-full border border-[var(--action)]/20 bg-[var(--action)]/10 px-2.5 py-0.5 text-caption font-bold text-[var(--color-action-on-surface)]">{c}</span>
+                <span className="font-mono text-xl font-semibold text-[var(--text-primary)]">{count}</span>
               </div>
-              <div className="mt-2 flex items-center gap-1 text-[11px] font-bold text-[#667085]">
+              <div className="mt-2 flex items-center gap-1 text-caption font-bold text-[var(--text-muted-accessible)]">
                 <ArrowLeftRight className="h-3 w-3" />
                 ניתוב: {ROUTING[c]}
               </div>
@@ -371,7 +371,7 @@ export function GapsPanel() {
       </div>
 
       <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--command-subtle)]" />
         <input
           type="text"
           value={searchText}
@@ -406,25 +406,25 @@ export function GapsPanel() {
                   <div className="min-w-0">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
                       <StatusBadge status={gap.status} />
-                      <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${urgencyStyles[gap.urgency]}`}>{gap.urgency}</span>
-                      <span className="rounded-full border border-[var(--action)]/20 bg-[var(--action)]/10 px-2.5 py-0.5 text-[11px] font-bold text-[#C54F00]">{gap.category}</span>
+                      <span className={`rounded-full border px-2.5 py-0.5 text-caption font-bold ${urgencyStyles[gap.urgency]}`}>{gap.urgency}</span>
+                      <span className="rounded-full border border-[var(--action)]/20 bg-[var(--action)]/10 px-2.5 py-0.5 text-caption font-bold text-[var(--color-action-on-surface)]">{gap.category}</span>
                       {gap.requires_commander_decision && (
-                        <span className="rounded-full border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 px-2.5 py-0.5 text-[11px] font-bold text-[var(--color-danger)]">
+                        <span className="rounded-full border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 px-2.5 py-0.5 text-caption font-bold text-[var(--color-danger)]">
                           דורש החלטת מ״פ
                         </span>
                       )}
                     </div>
-                    <h3 className="text-base font-black text-[#020108]">{gap.title}</h3>
+                    <h3 className="text-base font-semibold text-[var(--text-primary)]">{gap.title}</h3>
                     {gap.description && (
-                      <p className="mt-1 text-sm font-semibold leading-relaxed text-[#667085]">{gap.description}</p>
+                      <p className="mt-1 text-sm font-semibold leading-relaxed text-[var(--text-muted-accessible)]">{gap.description}</p>
                     )}
                   </div>
-                  <span className="shrink-0 text-xs font-bold text-[#98A2B3]">{formatDate(gap.created_at)}</span>
+                  <span className="shrink-0 text-xs font-bold text-[var(--command-subtle)]">{formatDate(gap.created_at)}</span>
                 </div>
 
-                <div className="grid gap-2 border-t border-[rgba(2,1,8,0.08)] pt-3 text-xs font-bold text-[#667085] sm:grid-cols-2">
-                  <span>דווח על ידי: <strong className="text-[#020108]">{gap.reporterName || 'לא ידוע'}</strong></span>
-                  <span>מסגרת: <strong className="text-[#020108]">{gap.unitName || 'לא ידוע'}</strong></span>
+                <div className="grid gap-2 border-t border-[rgba(2,1,8,0.08)] pt-3 text-xs font-bold text-[var(--text-muted-accessible)] sm:grid-cols-2">
+                  <span>דווח על ידי: <strong className="text-[var(--text-primary)]">{gap.reporterName || 'לא ידוע'}</strong></span>
+                  <span>מסגרת: <strong className="text-[var(--text-primary)]">{gap.unitName || 'לא ידוע'}</strong></span>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -436,7 +436,7 @@ export function GapsPanel() {
                   )}
                   {canEdit && (
                     <>
-                      <span className="text-[11px] font-black text-[#98A2B3]">עדכון סטטוס</span>
+                      <span className="text-caption font-semibold text-[var(--command-subtle)]">עדכון סטטוס</span>
                       <select
                         value={gap.status}
                         onChange={e => handleStatusChange(gap, e.target.value as GapStatus)}
@@ -478,7 +478,7 @@ export function GapsPanel() {
               {URGENCIES.map(u => <option key={u} value={u}>{u}</option>)}
             </CommandSelect>
           </div>
-          <label className="flex items-center gap-2 text-sm font-bold text-[#344054]">
+          <label className="flex items-center gap-2 text-sm font-bold text-[var(--text-secondary)]">
             <input type="checkbox" checked={requiresDecision} onChange={e => setRequiresDecision(e.target.checked)} className="h-4 w-4" disabled={isSubmitting} />
             דורש החלטת מ״פ
           </label>

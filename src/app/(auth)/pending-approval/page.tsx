@@ -27,8 +27,8 @@ export default function PendingApprovalPage() {
     return (
       <main className="command-page-shell relative flex items-center justify-center p-4 sm:p-6">
         <GlassCard className="w-full max-w-md p-8 flex flex-col items-center justify-center text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-[#FF6B02] mb-3" />
-          <span className="text-sm font-black text-slate-400">בודק נתוני פרופיל צבאי...</span>
+          <Loader2 className="h-8 w-8 animate-spin text-[var(--color-action-on-surface)] mb-3" />
+          <span className="text-sm font-semibold text-slate-400">בודק נתוני פרופיל צבאי...</span>
         </GlassCard>
       </main>
     );
@@ -43,38 +43,38 @@ export default function PendingApprovalPage() {
       <div className="w-full max-w-md">
         <GlassCard glow="orange" className="w-full">
           <div className="mb-6 flex flex-col items-center text-center">
-            <div className="relative mb-4 flex h-16 w-16 items-center justify-center rounded-3xl border border-[#FF6B02]/20 bg-[#FF6B02]/10 text-[#FF6B02]">
+            <div className="relative mb-4 flex h-16 w-16 items-center justify-center rounded-3xl border border-[var(--brand)]/20 bg-[var(--brand)]/10 text-[var(--brand)]">
               <Clock3 className="h-8 w-8" />
             </div>
             <StatusBadge status="ממתין לאישור" />
-            <h1 className="mt-4 text-xl font-black text-[#020108]">הפרופיל שלך ממתין לאישור מפקד</h1>
-            <p className="mt-2 text-sm leading-relaxed text-[#667085]">
+            <h1 className="mt-4 text-xl font-bold text-[var(--text-primary)]">הפרופיל שלך ממתין לאישור מפקד</h1>
+            <p className="mt-2 text-sm leading-relaxed text-[var(--text-muted-accessible)]">
               ההרשמה נקלטה. לאחר אישור מ״פ, תיפתח לך גישה למסכים הרלוונטיים.
             </p>
           </div>
 
-          <div className="mb-6 space-y-3 rounded-[22px] border border-[rgba(2,1,8,0.08)] bg-white/62 p-4">
+          <div className="mb-6 space-y-3 rounded-[22px] border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] p-4">
             <div>
-              <span className="block text-[11px] font-black text-[#98A2B3]">שם מלא</span>
-              <p className="mt-0.5 text-sm font-semibold text-[#344054]">
+              <span className="block text-caption font-semibold text-[var(--command-subtle)]">שם מלא</span>
+              <p className="mt-0.5 text-sm font-semibold text-[var(--text-secondary)]">
                 {currentUser?.full_name || 'לא הוגדר'}
               </p>
             </div>
             <div>
-              <span className="block text-[11px] font-black text-[#98A2B3]">תפקיד שביקש</span>
-              <p className="mt-0.5 text-sm font-semibold text-[#344054]">
+              <span className="block text-caption font-semibold text-[var(--command-subtle)]">תפקיד שביקש</span>
+              <p className="mt-0.5 text-sm font-semibold text-[var(--text-secondary)]">
                 {currentUser?.role || 'לא הוגדר'}
               </p>
             </div>
             <div>
-              <span className="block text-[11px] font-black text-[#98A2B3]">מסגרת שביקש</span>
-              <p className="mt-0.5 text-sm font-semibold text-[#344054]">
+              <span className="block text-caption font-semibold text-[var(--command-subtle)]">מסגרת שביקש</span>
+              <p className="mt-0.5 text-sm font-semibold text-[var(--text-secondary)]">
                 {currentUser?.assigned_frame || 'לא הוגדר'}
               </p>
             </div>
             <div>
-              <span className="block text-[11px] font-black text-[#98A2B3]">סטטוס אישור</span>
-              <p className="mt-0.5 text-xs font-semibold text-[#667085]">
+              <span className="block text-caption font-semibold text-[var(--command-subtle)]">סטטוס אישור</span>
+              <p className="mt-0.5 text-xs font-semibold text-[var(--text-muted-accessible)]">
                 ממתין לאישור של מ״פ או סמ״פ הפלוגה.
               </p>
             </div>
@@ -95,7 +95,7 @@ export default function PendingApprovalPage() {
 
             <Link
               href="/login"
-              className="flex min-h-10 items-center justify-center gap-2 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/58 text-xs font-black text-[#667085] transition hover:border-red-500/20 hover:bg-red-500/10 hover:text-red-700"
+              className="flex min-h-10 items-center justify-center gap-2 rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] text-xs font-semibold text-[var(--text-muted-accessible)] transition hover:border-red-500/20 hover:bg-red-500/10 hover:text-red-700"
             >
               <LogOut className="h-3.5 w-3.5" />
               <span>התנתקות מהמערכת</span>

@@ -72,20 +72,20 @@ export default function ProtectedLayout({ children }: Readonly<{ children: React
       <div className="command-page-shell flex h-svh items-center justify-center p-4" dir="rtl">
         <GlassCard className="w-full max-w-md text-center">
           <ShieldAlert className="mx-auto mb-3 h-10 w-10 text-[var(--color-danger)]" />
-          <h1 className="text-lg font-black text-[var(--text-primary)]">{title}</h1>
+          <h1 className="text-lg font-bold text-[var(--text-primary)]">{title}</h1>
           <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">{authError ?? message}</p>
           {showReload ? (
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--action)] px-4 text-sm font-black text-white transition hover:bg-[var(--action-hover)]"
+              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--action)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--action-hover)]"
             >
               {recoveryLabel}
             </button>
           ) : (
             <Link
               href={recoveryHref}
-              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--action)] px-4 text-sm font-black text-white transition hover:bg-[var(--action-hover)]"
+              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--action)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--action-hover)]"
             >
               {recoveryLabel}
             </Link>
@@ -107,7 +107,7 @@ export default function ProtectedLayout({ children }: Readonly<{ children: React
         {isOfflineSession && (
           <div
             role="status"
-            className="flex shrink-0 items-center justify-center gap-2 bg-[var(--color-warning)]/12 px-4 py-2 text-[11px] font-black text-[var(--color-warning)]"
+            className="flex shrink-0 items-center justify-center gap-2 bg-[var(--color-warning)]/12 px-4 py-2 text-caption font-semibold text-[var(--color-warning)]"
           >
             <WifiOff className="h-3.5 w-3.5 shrink-0" />
             מצב אופליין — מוצגים נתונים שנשמרו במכשיר. שינויים יסונכרנו כשהחיבור יחזור.

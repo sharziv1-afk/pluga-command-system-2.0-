@@ -86,12 +86,12 @@ function DeviceAccessCodeCard() {
     <div className="max-w-2xl">
       <GlassCard className="p-6 md:p-8">
         <div className="mb-4 flex items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#FF6B02]/20 bg-[#FF6B02]/10 text-[#FF6B02]">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[var(--brand)]/20 bg-[var(--brand)]/10 text-[var(--brand)]">
             <Smartphone className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-base font-black text-[#020108]">קוד גישה מהיר למכשיר (אופליין)</h2>
-            <p className="mt-0.5 text-xs font-semibold leading-relaxed text-[#667085]">
+            <h2 className="text-base font-semibold text-[var(--text-primary)]">קוד גישה מהיר למכשיר (אופליין)</h2>
+            <p className="mt-0.5 text-xs font-semibold leading-relaxed text-[var(--text-muted-accessible)]">
               מאפשר להיכנס למכשיר הזה כשאין רשת, בלי לחכות לקוד במייל. הקוד נשמר רק על המכשיר הזה, לא בשרת — ולא מחליף את ההתחברות הרגילה.
             </p>
           </div>
@@ -106,7 +106,7 @@ function DeviceAccessCodeCard() {
             <button
               type="button"
               onClick={() => { setIsEditing(true); setSuccess(null); }}
-              className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[var(--action)] px-4 text-xs font-black text-white transition hover:bg-[var(--action-hover)]"
+              className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[var(--action)] px-4 text-xs font-semibold text-white transition hover:bg-[var(--action-hover)]"
             >
               {hasPin ? 'שינוי קוד גישה' : 'הגדרת קוד גישה'}
             </button>
@@ -114,7 +114,7 @@ function DeviceAccessCodeCard() {
               <button
                 type="button"
                 onClick={handleRemove}
-                className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-4 text-xs font-black text-red-600 transition hover:bg-red-100"
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-4 text-xs font-semibold text-red-600 transition hover:bg-red-100"
               >
                 <Trash2 className="h-3.5 w-3.5" />
                 ביטול קוד גישה
@@ -124,35 +124,35 @@ function DeviceAccessCodeCard() {
         ) : (
           <form onSubmit={handleSave} className="space-y-3">
             <label className="block space-y-1.5">
-              <span className="block text-xs font-black text-[#344054]">קוד גישה (4-8 ספרות)</span>
+              <span className="block text-xs font-semibold text-[var(--text-secondary)]">קוד גישה (4-8 ספרות)</span>
               <input
                 type="password"
                 inputMode="numeric"
                 autoFocus
                 value={pin}
                 onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 8))}
-                className="command-input text-center text-lg font-black tracking-[0.3em]"
+                className="command-input text-center text-lg font-semibold tracking-[0.3em]"
               />
             </label>
             <label className="block space-y-1.5">
-              <span className="block text-xs font-black text-[#344054]">אימות קוד</span>
+              <span className="block text-xs font-semibold text-[var(--text-secondary)]">אימות קוד</span>
               <input
                 type="password"
                 inputMode="numeric"
                 value={confirmPin}
                 onChange={(event) => setConfirmPin(event.target.value.replace(/\D/g, '').slice(0, 8))}
-                className="command-input text-center text-lg font-black tracking-[0.3em]"
+                className="command-input text-center text-lg font-semibold tracking-[0.3em]"
               />
             </label>
             {error && <p className="text-xs font-bold text-[var(--color-danger)]">{error}</p>}
             <div className="flex gap-2 pt-1">
-              <button type="submit" className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[var(--action)] px-4 text-xs font-black text-white transition hover:bg-[var(--action-hover)]">
+              <button type="submit" className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[var(--action)] px-4 text-xs font-semibold text-white transition hover:bg-[var(--action-hover)]">
                 שמירה
               </button>
               <button
                 type="button"
                 onClick={() => { setIsEditing(false); resetForm(); }}
-                className="inline-flex min-h-10 items-center justify-center rounded-xl border border-[var(--border-strong)] px-4 text-xs font-black text-[#667085] transition hover:border-[#FF6B02]/30"
+                className="inline-flex min-h-10 items-center justify-center rounded-xl border border-[var(--border-strong)] px-4 text-xs font-semibold text-[var(--text-muted-accessible)] transition hover:border-[var(--action)]/30"
               >
                 ביטול
               </button>
@@ -163,10 +163,10 @@ function DeviceAccessCodeCard() {
         {biometricSupported && (
           <div className="mt-5 border-t border-[var(--border-subtle)] pt-4">
             <div className="mb-2.5 flex items-center gap-2">
-              <Fingerprint className="h-4 w-4 text-[#FF6B02]" />
-              <span className="text-xs font-black text-[#344054]">זיהוי ביומטרי (טביעת אצבע / זיהוי פנים)</span>
+              <Fingerprint className="h-4 w-4 text-[var(--brand)]" />
+              <span className="text-xs font-semibold text-[var(--text-secondary)]">זיהוי ביומטרי (טביעת אצבע / זיהוי פנים)</span>
             </div>
-            <p className="mb-3 text-[11px] font-semibold leading-relaxed text-[#98A2B3]">
+            <p className="mb-3 text-caption font-semibold leading-relaxed text-[var(--command-subtle)]">
               משתמש בחיישן הביומטרי של המכשיר במקום קוד גישה. גם זה נשאר על המכשיר בלבד.
             </p>
             <div className="flex flex-wrap items-center gap-2">
@@ -174,7 +174,7 @@ function DeviceAccessCodeCard() {
                 type="button"
                 onClick={hasBiometric ? handleRemoveBiometric : handleRegisterBiometric}
                 disabled={isRegisteringBiometric}
-                className={`inline-flex min-h-10 items-center gap-1.5 rounded-xl px-4 text-xs font-black transition disabled:opacity-50 ${
+                className={`inline-flex min-h-10 items-center gap-1.5 rounded-xl px-4 text-xs font-semibold transition disabled:opacity-50 ${
                   hasBiometric
                     ? 'border border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
                     : 'bg-[var(--action)] text-white hover:bg-[var(--action-hover)]'
@@ -201,15 +201,15 @@ export default function ProfilePage() {
         <div className="max-w-2xl">
           <GlassCard className="p-8 animate-pulse space-y-6">
             <div className="flex items-center gap-4">
-              <div className="h-16 w-16 rounded-3xl bg-[#EEF1F5]" />
+              <div className="h-16 w-16 rounded-3xl bg-[var(--surface-muted)]" />
               <div className="space-y-2 flex-1">
-                <div className="h-4 w-32 rounded bg-[#EEF1F5]" />
-                <div className="h-3 w-48 rounded bg-[#EEF1F5]" />
+                <div className="h-4 w-32 rounded bg-[var(--surface-muted)]" />
+                <div className="h-3 w-48 rounded bg-[var(--surface-muted)]" />
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-6">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="h-14 rounded-2xl bg-[#EEF1F5]/60" />
+                <div key={i} className="h-14 rounded-2xl bg-[var(--surface-muted)]/60" />
               ))}
             </div>
           </GlassCard>
@@ -224,7 +224,7 @@ export default function ProfilePage() {
         <PageHeader title="פרופיל אישי" subtitle="ניהול ופרטי משתמש אישיים" />
         <GlassCard className="py-12 flex flex-col items-center justify-center text-center text-slate-500">
           <ShieldAlert className="w-12 h-12 mb-3 text-red-500" />
-          <span className="text-sm font-black text-slate-350">לא נמצא פרופיל משתמש מחובר</span>
+          <span className="text-sm font-semibold text-slate-350">לא נמצא פרופיל משתמש מחובר</span>
           <p className="text-xs text-slate-500 mt-1">אנא התחבר מחדש למערכת.</p>
         </GlassCard>
       </div>
@@ -261,12 +261,12 @@ export default function ProfilePage() {
         <GlassCard glow="orange" className="p-6 md:p-8">
           {/* Header Profile Info */}
           <div className="mb-8 flex flex-col sm:flex-row items-center gap-4 border-b border-[rgba(2,1,8,0.08)] pb-6">
-            <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-[#FF6B02]/20 bg-[#FF6B02]/10 text-[#FF6B02] shadow-[0_14px_30px_rgba(255,107,2,0.14)]">
+            <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-[var(--brand)]/20 bg-[var(--brand)]/10 text-[var(--brand)] shadow-[0_14px_30px_rgba(255,107,2,0.14)]">
               <User className="h-8 w-8" />
             </div>
             <div className="text-center sm:text-right space-y-1">
-              <h2 className="text-xl font-black text-[#020108]">{currentUser.full_name}</h2>
-              <p className="text-xs font-bold text-[#667085]">
+              <h2 className="text-xl font-semibold text-[var(--text-primary)]">{currentUser.full_name}</h2>
+              <p className="text-xs font-bold text-[var(--text-muted-accessible)]">
                 {currentUser.role} · {currentUser.assigned_frame}
               </p>
             </div>
@@ -277,69 +277,69 @@ export default function ProfilePage() {
 
           {/* Details Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="rounded-2xl border border-[rgba(2,1,8,0.06)] bg-white/40 p-4">
-              <span className="flex items-center gap-1.5 text-[11px] font-black text-[#98A2B3] mb-1">
+            <div className="rounded-2xl border border-[rgba(2,1,8,0.06)] bg-[var(--tactical-glass)] p-4">
+              <span className="flex items-center gap-1.5 text-caption font-semibold text-[var(--command-subtle)] mb-1">
                 <Mail className="h-3.5 w-3.5" />
                 דואר אלקטרוני
               </span>
-              <span className="block text-sm font-semibold text-[#020108] font-mono select-all">
+              <span className="block text-sm font-semibold text-[var(--text-primary)] font-mono select-all">
                 {currentUser.email}
               </span>
             </div>
 
-            <div className="rounded-2xl border border-[rgba(2,1,8,0.06)] bg-white/40 p-4">
-              <span className="flex items-center gap-1.5 text-[11px] font-black text-[#98A2B3] mb-1">
+            <div className="rounded-2xl border border-[rgba(2,1,8,0.06)] bg-[var(--tactical-glass)] p-4">
+              <span className="flex items-center gap-1.5 text-caption font-semibold text-[var(--command-subtle)] mb-1">
                 <Award className="h-3.5 w-3.5" />
                 תפקיד צבאי במערכת
               </span>
-              <span className="block text-sm font-semibold text-[#020108]">
+              <span className="block text-sm font-semibold text-[var(--text-primary)]">
                 {currentUser.role}
               </span>
             </div>
 
-            <div className="rounded-2xl border border-[rgba(2,1,8,0.06)] bg-white/40 p-4">
-              <span className="flex items-center gap-1.5 text-[11px] font-black text-[#98A2B3] mb-1">
+            <div className="rounded-2xl border border-[rgba(2,1,8,0.06)] bg-[var(--tactical-glass)] p-4">
+              <span className="flex items-center gap-1.5 text-caption font-semibold text-[var(--command-subtle)] mb-1">
                 <FileText className="h-3.5 w-3.5" />
                 יחידה / מסגרת פעילות
               </span>
-              <span className="block text-sm font-semibold text-[#020108]">
+              <span className="block text-sm font-semibold text-[var(--text-primary)]">
                 {currentUser.assigned_frame}
               </span>
             </div>
 
-            <div className="rounded-2xl border border-[rgba(2,1,8,0.06)] bg-white/40 p-4">
-              <span className="flex items-center gap-1.5 text-[11px] font-black text-[#98A2B3] mb-1">
+            <div className="rounded-2xl border border-[rgba(2,1,8,0.06)] bg-[var(--tactical-glass)] p-4">
+              <span className="flex items-center gap-1.5 text-caption font-semibold text-[var(--command-subtle)] mb-1">
                 <ShieldAlert className="h-3.5 w-3.5" />
                 רמת הרשאה צבאית
               </span>
-              <span className="block text-sm font-semibold text-[#020108]">
+              <span className="block text-sm font-semibold text-[var(--text-primary)]">
                 {permissionLabel}
               </span>
             </div>
 
-            <div className="rounded-2xl border border-[rgba(2,1,8,0.06)] bg-white/40 p-4">
-              <span className="flex items-center gap-1.5 text-[11px] font-black text-[#98A2B3] mb-1">
+            <div className="rounded-2xl border border-[rgba(2,1,8,0.06)] bg-[var(--tactical-glass)] p-4">
+              <span className="flex items-center gap-1.5 text-caption font-semibold text-[var(--command-subtle)] mb-1">
                 <Calendar className="h-3.5 w-3.5" />
                 תאריך הצטרפות למערכת
               </span>
-              <span className="block text-sm font-semibold text-[#020108]">
+              <span className="block text-sm font-semibold text-[var(--text-primary)]">
                 {formattedDate}
               </span>
             </div>
 
-            <div className="rounded-2xl border border-[rgba(2,1,8,0.06)] bg-white/40 p-4">
-              <span className="flex items-center gap-1.5 text-[11px] font-black text-[#98A2B3] mb-1">
+            <div className="rounded-2xl border border-[rgba(2,1,8,0.06)] bg-[var(--tactical-glass)] p-4">
+              <span className="flex items-center gap-1.5 text-caption font-semibold text-[var(--command-subtle)] mb-1">
                 <ShieldAlert className="h-3.5 w-3.5" />
                 סטטוס פרופיל פיקודי
               </span>
-              <span className="block text-sm font-semibold text-[#020108]">
+              <span className="block text-sm font-semibold text-[var(--text-primary)]">
                 מאושר ופעיל במפקדה
               </span>
             </div>
           </div>
 
           {/* Bottom Alert */}
-          <div className="mt-8 rounded-2xl border border-[#FF6B02]/14 bg-[#FF6B02]/8 p-4 text-xs font-semibold leading-relaxed text-[#9A4600]">
+          <div className="mt-8 rounded-2xl border border-[var(--brand)]/14 bg-[var(--brand)]/8 p-4 text-xs font-semibold leading-relaxed text-[var(--color-action-on-surface)]">
             שינוי תפקיד, דרגה או מסגרת יכולים להתבצע אך ורק על ידי מפקד הפלוגה (המ״פ) או סגנו דרך פאנל הניהול של המערכת.
           </div>
         </GlassCard>

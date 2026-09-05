@@ -3,9 +3,14 @@ import { Rubik } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
 
+// Four weights, matching the four roles in DESIGN.md §2.2 — 300/800/900 were
+// dropped once the weight-role rollout left zero `font-black` in src/ (§2.3
+// made that the precondition, because dropping 900 while call sites still ask
+// for it makes the browser synthesise a worse-looking bold). This halves the
+// font payload: 4 weights x 2 subsets instead of 7 x 2.
 const rubik = Rubik({
   subsets: ["hebrew", "latin"],
-  weight: ["300", "400", "500", "600", "700", "800", "900"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-rubik",
   display: "swap",
 });

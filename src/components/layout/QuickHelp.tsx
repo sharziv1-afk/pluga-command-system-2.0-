@@ -24,12 +24,12 @@ export const QuickHelp: React.FC = () => {
             type="button"
             aria-label="סגור עזרה"
             onClick={() => setIsOpen(false)}
-            className="absolute inset-0 bg-[#020108]/10 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-[var(--text-primary)]/10 backdrop-blur-[2px]"
           />
 
-          <div className="command-help-panel relative mx-auto w-full max-w-md rounded-[22px] border border-[rgba(2,1,8,0.10)] bg-white/94 p-4 text-right shadow-[0_18px_50px_rgba(2,1,8,0.16)] backdrop-blur-2xl">
+          <div className="command-help-panel relative mx-auto w-full max-w-md rounded-[22px] border border-[rgba(2,1,8,0.10)] bg-[var(--tactical-strong-glass)] p-4 text-right shadow-[0_18px_50px_rgba(2,1,8,0.16)] backdrop-blur-2xl">
             <div className="flex items-start justify-between gap-3">
-              <h2 className="text-sm font-black text-[#020108]">עזרה מהירה</h2>
+              <h2 className="text-sm font-semibold text-[var(--text-primary)]">עזרה מהירה</h2>
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
@@ -40,10 +40,10 @@ export const QuickHelp: React.FC = () => {
               </button>
             </div>
 
-            <div className="mt-3 space-y-2 text-xs font-semibold leading-relaxed text-[#667085]">
+            <div className="mt-3 space-y-2 text-xs font-semibold leading-relaxed text-[var(--text-muted-accessible)]">
               <p>הכניסה כוללת אימות באמצעות קוד חד-פעמי שנשלח למייל.</p>
               <p>משימות, דרישות ופורום פעילים ומחוברים למסד הנתונים — כל שינוי נשמר ומשפיע על המידע האמיתי של הפלוגה.</p>
-              <p className="rounded-2xl border border-[#FF6B02]/20 bg-[#FF6B02]/10 px-3 py-2 text-[#9A4600]">
+              <p className="rounded-2xl border border-[var(--brand)]/20 bg-[var(--brand)]/10 px-3 py-2 text-[var(--color-action-on-surface)]">
                 כשאין חיבור לרשת, המערכת מציגה נתונים שמורים מהמכשיר ומסנכרנת שינויים כשהחיבור חוזר.
               </p>
             </div>

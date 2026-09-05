@@ -63,7 +63,7 @@ export function OfflineGate({ onRetry }: { onRetry: () => void }) {
     <div className="command-page-shell flex h-svh items-center justify-center p-4" dir="rtl">
       <GlassCard className="w-full max-w-md text-center">
         <WifiOff className="mx-auto mb-3 h-10 w-10 text-[var(--color-warning)]" />
-        <h1 className="text-lg font-black text-[var(--text-primary)]">אין חיבור לרשת</h1>
+        <h1 className="text-lg font-bold text-[var(--text-primary)]">אין חיבור לרשת</h1>
 
         {(pinConfigured || biometricConfigured) && snapshot ? (
           <>
@@ -80,7 +80,7 @@ export function OfflineGate({ onRetry }: { onRetry: () => void }) {
                 type="button"
                 onClick={handleBiometricUnlock}
                 disabled={isChecking}
-                className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--action)] px-4 text-sm font-black text-white transition hover:bg-[var(--action-hover)] disabled:opacity-50"
+                className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--action)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--action-hover)] disabled:opacity-50"
               >
                 <Fingerprint className="h-4 w-4" />
                 זיהוי ביומטרי
@@ -95,13 +95,13 @@ export function OfflineGate({ onRetry }: { onRetry: () => void }) {
                   value={pin}
                   onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 8))}
                   placeholder="קוד גישה"
-                  className="command-input text-center text-lg font-black tracking-[0.3em]"
+                  className="command-input text-center text-lg font-semibold tracking-[0.3em]"
                   disabled={isChecking}
                 />
                 <button
                   type="submit"
                   disabled={isChecking || !pin}
-                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--action)] px-4 text-sm font-black text-white transition hover:bg-[var(--action-hover)] disabled:opacity-50"
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--action)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--action-hover)] disabled:opacity-50"
                 >
                   <ShieldCheck className="h-4 w-4" />
                   כניסה
@@ -119,7 +119,7 @@ export function OfflineGate({ onRetry }: { onRetry: () => void }) {
         <button
           type="button"
           onClick={onRetry}
-          className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-strong)] px-4 text-sm font-black text-[var(--text-secondary)] transition hover:border-[var(--action)]/40"
+          className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border-strong)] px-4 text-sm font-semibold text-[var(--text-secondary)] transition hover:border-[var(--action)]/40"
         >
           <RefreshCw className="h-4 w-4" />
           נסה להתחבר שוב

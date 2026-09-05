@@ -244,17 +244,17 @@ export default function LoginPage() {
 
       <div className="relative z-10 w-full max-w-lg">
         <div className="mb-5 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-[#FF6B02]/20 bg-[#FF6B02]/10 text-[#FF6B02] shadow-[0_14px_30px_rgba(255,107,2,0.14)]">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--brand)]/20 bg-[var(--brand)]/10 text-[var(--brand)] shadow-[0_14px_30px_rgba(255,107,2,0.14)]">
             <ShieldCheck className="h-6 w-6" />
           </div>
-          <p className="text-2xl font-black text-[#020108]">המפקד</p>
-          <p className="mt-1 text-sm font-semibold text-[#667085]">מערכת ניהול פיקודית לפלוגה</p>
+          <p className="text-2xl font-bold text-[var(--text-primary)]">המפקד</p>
+          <p className="mt-1 text-sm font-semibold text-[var(--text-muted-accessible)]">מערכת ניהול פיקודית לפלוגה</p>
         </div>
 
         <GlassCard glow="orange" className="auth-dark-card w-full">
           <div className="mb-5 text-center">
-            <h1 className="text-xl font-black text-[#020108]">כניסה למערכת</h1>
-            <p className="mt-2 text-sm leading-relaxed text-[#667085]">
+            <h1 className="text-xl font-bold text-[var(--text-primary)]">כניסה למערכת</h1>
+            <p className="mt-2 text-sm leading-relaxed text-[var(--text-muted-accessible)]">
               הזן את כתובת הדוא״ל שלך. קוד אימות חד-פעמי יישלח אליך — אין צורך בסיסמה.
             </p>
           </div>
@@ -262,9 +262,9 @@ export default function LoginPage() {
           {step === 'email' && (
             <form onSubmit={sendCode} className="space-y-4">
               <label className="block space-y-2">
-                <span className="block text-xs font-black text-[#344054]">דוא״ל</span>
+                <span className="block text-xs font-semibold text-[var(--text-secondary)]">דוא״ל</span>
                 <span className="relative block">
-                  <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
+                  <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--command-subtle)]" />
                   <input
                     type="email"
                     dir="ltr"
@@ -312,12 +312,12 @@ export default function LoginPage() {
 
           {step === 'code' && (
             <form onSubmit={verifyCode} className="space-y-4">
-              <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/58 px-4 py-3 text-sm font-bold text-[#667085]">
+              <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-muted-accessible)]">
                 קוד האימות נשלח אל <span dir="ltr">{email}</span>
               </div>
 
               <label className="block space-y-2">
-                <span className="block text-xs font-black text-[#344054]">קוד אימות</span>
+                <span className="block text-xs font-semibold text-[var(--text-secondary)]">קוד אימות</span>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -327,7 +327,7 @@ export default function LoginPage() {
                   value={otpCode}
                   onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, '').slice(0, 8))}
                   placeholder="12345678"
-                  className="command-input text-center text-lg font-black tracking-[0.28em]"
+                  className="command-input text-center text-lg font-semibold tracking-[0.28em]"
                   disabled={isVerifyingOtp}
                   autoFocus
                 />
@@ -347,7 +347,7 @@ export default function LoginPage() {
               )}
 
               {cooldownText && (
-                <div className="rounded-2xl border border-[#FF6B02]/18 bg-[#FF6B02]/10 px-4 py-3 text-center text-xs font-black text-[#9A4600]">
+                <div className="rounded-2xl border border-[var(--brand)]/18 bg-[var(--brand)]/10 px-4 py-3 text-center text-xs font-semibold text-[var(--color-action-on-surface)]">
                   {cooldownText}
                 </div>
               )}
@@ -372,7 +372,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={backToEmail}
-                className="flex min-h-10 w-full items-center justify-center rounded-2xl text-xs font-black text-[#667085] transition-colors hover:text-[#FF6B02]"
+                className="flex min-h-10 w-full items-center justify-center rounded-2xl text-xs font-semibold text-[var(--text-muted-accessible)] transition-colors hover:text-[var(--brand)]"
               >
                 שנה כתובת מייל / שלח שוב
               </button>
@@ -381,14 +381,14 @@ export default function LoginPage() {
 
           {step === 'claim' && (
             <form onSubmit={claimProfile} className="space-y-4">
-              <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-white/58 px-4 py-3 text-sm font-bold text-[#667085]">
+              <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-muted-accessible)]">
                 כניסה ראשונה עבור <span dir="ltr">{email}</span> — אשר את שמך המלא כדי לשייך את המשתמש.
               </div>
 
               <label className="block space-y-2">
-                <span className="block text-xs font-black text-[#344054]">שם מלא ודרגה</span>
+                <span className="block text-xs font-semibold text-[var(--text-secondary)]">שם מלא ודרגה</span>
                 <span className="relative block">
-                  <UserRound className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
+                  <UserRound className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--command-subtle)]" />
                   <input
                     type="text"
                     required
@@ -427,8 +427,8 @@ export default function LoginPage() {
             </form>
           )}
 
-          <div className="mt-5 flex items-center justify-center border-t border-[rgba(2,1,8,0.08)] pt-5 text-xs font-bold text-[#667085]">
-            <span className="text-[#98A2B3]">גישה למערכת נפתחת על ידי מפקד הפלוגה בלבד</span>
+          <div className="mt-5 flex items-center justify-center border-t border-[rgba(2,1,8,0.08)] pt-5 text-xs font-bold text-[var(--text-muted-accessible)]">
+            <span className="text-[var(--command-subtle)]">גישה למערכת נפתחת על ידי מפקד הפלוגה בלבד</span>
           </div>
         </GlassCard>
       </div>

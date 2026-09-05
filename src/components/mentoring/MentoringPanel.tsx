@@ -264,8 +264,8 @@ export function MentoringPanel() {
     return (
       <GlassCard className="flex flex-col items-center justify-center py-12 text-center">
         <ShieldAlert className="mb-3 h-10 w-10 text-[var(--color-danger)]" />
-        <h2 className="text-sm font-black text-[#020108]">מסך זה זמין למ״פ בלבד</h2>
-        <p className="mt-1 max-w-sm text-xs font-semibold text-[#667085]">יומן החניכה הוא כלי אישי של המ״פ למעקב אחרי המ״מים והסמ״פ.</p>
+        <h2 className="text-sm font-semibold text-[var(--text-primary)]">מסך זה זמין למ״פ בלבד</h2>
+        <p className="mt-1 max-w-sm text-xs font-semibold text-[var(--text-muted-accessible)]">יומן החניכה הוא כלי אישי של המ״פ למעקב אחרי המ״מים והסמ״פ.</p>
       </GlassCard>
     );
   }
@@ -316,22 +316,22 @@ export function MentoringPanel() {
             return (
               <GlassCard key={mentee.id} className="flex flex-col gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#FF6B02]/10 text-[#FF6B02]">
+                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[var(--brand)]/10 text-[var(--brand)]">
                     <GraduationCap className="h-5 w-5" />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="truncate text-sm font-black text-[#020108]">{mentee.name}</h3>
-                    <p className="text-xs font-bold text-[#667085]">{mentee.role}{mentee.unitName ? ` · ${mentee.unitName}` : ''}</p>
+                    <h3 className="truncate text-sm font-semibold text-[var(--text-primary)]">{mentee.name}</h3>
+                    <p className="text-xs font-bold text-[var(--text-muted-accessible)]">{mentee.role}{mentee.unitName ? ` · ${mentee.unitName}` : ''}</p>
                   </div>
                 </div>
 
                 {latest ? (
-                  <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--surface-muted)] px-3 py-2.5 text-xs font-semibold leading-relaxed text-[#344054]">
-                    <span className="block text-[10px] font-black text-[#98A2B3]">שיחה אחרונה · {formatDate(latest.occurred_on)}</span>
+                  <div className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--surface-muted)] px-3 py-2.5 text-xs font-semibold leading-relaxed text-[var(--text-secondary)]">
+                    <span className="block text-caption font-semibold text-[var(--command-subtle)]">שיחה אחרונה · {formatDate(latest.occurred_on)}</span>
                     <span className="mt-1 block truncate">{latest.focus}</span>
                   </div>
                 ) : (
-                  <p className="text-xs font-bold text-[#98A2B3]">עדיין לא נרשמה שיחת חניכה.</p>
+                  <p className="text-xs font-bold text-[var(--command-subtle)]">עדיין לא נרשמה שיחת חניכה.</p>
                 )}
 
                 <div className="mt-auto flex items-center gap-2 pt-1">
@@ -344,7 +344,7 @@ export function MentoringPanel() {
                   </GlossyButton>
                 </div>
                 {first && first.id !== latest?.id && (
-                  <p className="text-[10px] font-bold text-[#98A2B3]">שיחה ראשונה: {formatDate(first.occurred_on)}</p>
+                  <p className="text-caption font-bold text-[var(--command-subtle)]">שיחה ראשונה: {formatDate(first.occurred_on)}</p>
                 )}
               </GlassCard>
             );
@@ -367,25 +367,25 @@ export function MentoringPanel() {
         {selectedMentee && (
           <div className="space-y-3">
             {entriesFor(selectedMentee.id).length === 0 ? (
-              <p className="text-sm font-bold text-[#98A2B3]">עדיין לא נרשמה שיחת חניכה עם {selectedMentee.name}.</p>
+              <p className="text-sm font-bold text-[var(--command-subtle)]">עדיין לא נרשמה שיחת חניכה עם {selectedMentee.name}.</p>
             ) : (
               entriesFor(selectedMentee.id).map(entry => (
                 <div key={entry.id} className="rounded-2xl border border-[rgba(2,1,8,0.08)] bg-[var(--surface)] p-4 text-sm">
                   <div className="mb-2 flex items-center justify-between">
-                    <span className="font-mono text-xs font-black text-[#98A2B3]">{formatDate(entry.occurred_on)}</span>
+                    <span className="font-mono text-xs font-semibold text-[var(--command-subtle)]">{formatDate(entry.occurred_on)}</span>
                     {entry.next_check_at && (
-                      <span className="rounded-full border border-[var(--action)]/20 bg-[var(--action)]/10 px-2.5 py-0.5 text-[10px] font-bold text-[#C54F00]">
+                      <span className="rounded-full border border-[var(--action)]/20 bg-[var(--action)]/10 px-2.5 py-0.5 text-caption font-bold text-[var(--color-action-on-surface)]">
                         בדיקה: {formatDate(entry.next_check_at)}
                       </span>
                     )}
                   </div>
-                  {entry.observation && <p className="mb-1"><strong className="font-black">תצפית:</strong> {entry.observation}</p>}
-                  <p className="mb-1"><strong className="font-black">מוקד:</strong> {entry.focus}</p>
-                  <p><strong className="font-black">פעולה מוסכמת:</strong> {entry.agreed_action}</p>
+                  {entry.observation && <p className="mb-1"><strong className="font-semibold">תצפית:</strong> {entry.observation}</p>}
+                  <p className="mb-1"><strong className="font-semibold">מוקד:</strong> {entry.focus}</p>
+                  <p><strong className="font-semibold">פעולה מוסכמת:</strong> {entry.agreed_action}</p>
                   {entry.task_id ? (
                     <p className="mt-2 text-xs font-bold text-emerald-700">נפתחה משימה למעקב</p>
                   ) : (
-                    <button type="button" onClick={() => void convertToTask(entry)} disabled={isWritePending} className="mt-2 text-xs font-bold text-[#FF6B02] hover:underline">
+                    <button type="button" onClick={() => void convertToTask(entry)} disabled={isWritePending} className="mt-2 text-xs font-semibold text-[var(--color-action-on-surface)] hover:underline">
                       הפוך למשימה
                     </button>
                   )}

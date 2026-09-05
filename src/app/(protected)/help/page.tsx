@@ -155,7 +155,7 @@ export default function HelpPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-900">
             <div className="flex items-center gap-2">
               <BookOpen className="w-4 h-4 text-cyan-400" />
-              <h2 className="text-xs font-black text-slate-200">מילון מונחי פיקוד וראשי תיבות</h2>
+              <h2 className="text-xs font-semibold text-slate-200">מילון מונחי פיקוד וראשי תיבות</h2>
             </div>
             
             {/* Search Input */}
@@ -166,7 +166,7 @@ export default function HelpPage() {
                 placeholder="חיפוש מונח או ראשי תיבות..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-950/80 border border-slate-900 focus:border-cyan-500/50 rounded-xl py-1.5 pr-9 pl-3 text-[10px] text-slate-100 placeholder-slate-600 focus:outline-none transition duration-300 text-right"
+                className="w-full bg-slate-950/80 border border-slate-900 focus:border-cyan-500/50 rounded-xl py-1.5 pr-9 pl-3 text-caption text-slate-100 placeholder-slate-600 focus:outline-none transition duration-300 text-right"
               />
             </div>
           </div>
@@ -181,13 +181,13 @@ export default function HelpPage() {
                 <div key={idx} className="p-3.5 rounded-xl bg-slate-950/40 border border-slate-900 flex flex-col justify-between gap-2">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-black text-slate-200">{t.abbreviation}</span>
-                      <span className="text-[10px] text-slate-500 font-bold">({t.term})</span>
+                      <span className="text-xs font-semibold text-slate-200">{t.abbreviation}</span>
+                      <span className="text-caption text-slate-500 font-bold">({t.term})</span>
                     </div>
-                    <p className="text-[10px] text-slate-400 leading-relaxed">{t.definition}</p>
+                    <p className="text-caption text-slate-400 leading-relaxed">{t.definition}</p>
                   </div>
                   <div className="self-start mt-2">
-                    <span className="text-[8px] font-black px-2 py-0.5 rounded-md bg-slate-900 text-cyan-400 border border-cyan-500/10">
+                    <span className="text-caption font-semibold px-2 py-0.5 rounded-md bg-slate-900 text-cyan-400 border border-cyan-500/10">
                       {t.category}
                     </span>
                   </div>
@@ -201,18 +201,18 @@ export default function HelpPage() {
         <GlassCard className="space-y-4" glow="none">
           <div className="flex items-center gap-2 pb-3 border-b border-slate-900">
             <HelpCircle className="w-4 h-4 text-orange-400" />
-            <h2 className="text-xs font-black text-slate-200">הנחיות שימוש מהירות</h2>
+            <h2 className="text-xs font-semibold text-slate-200">הנחיות שימוש מהירות</h2>
           </div>
 
           <div className="space-y-4 text-right">
             {/* Step 1 */}
             <div className="flex gap-3">
-              <div className="w-5 h-5 rounded-lg bg-orange-500/10 border border-orange-500/25 text-orange-500 flex items-center justify-center font-bold text-[10px] shrink-0">
+              <div className="w-5 h-5 rounded-lg bg-orange-500/10 border border-orange-500/25 text-orange-500 flex items-center justify-center font-bold text-caption shrink-0">
                 1
               </div>
               <div className="space-y-0.5">
-                <span className="block text-[10px] font-black text-slate-200">קבלת אישור גישה</span>
-                <span className="block text-[9px] text-slate-450 leading-relaxed">
+                <span className="block text-caption font-semibold text-slate-200">קבלת אישור גישה</span>
+                <span className="block text-caption text-slate-450 leading-relaxed">
                   הירשם באונבורדינג והמתן לאישור מפקד. המ"פ או הסמ"פ יקבלו התראה מיידית בלשונית "אישור משתמשים" ויאשרו את כניסתך.
                 </span>
               </div>
@@ -220,12 +220,12 @@ export default function HelpPage() {
 
             {/* Step 2 */}
             <div className="flex gap-3">
-              <div className="w-5 h-5 rounded-lg bg-cyan-500/10 border border-cyan-500/25 text-cyan-400 flex items-center justify-center font-bold text-[10px] shrink-0">
+              <div className="w-5 h-5 rounded-lg bg-cyan-500/10 border border-cyan-500/25 text-cyan-400 flex items-center justify-center font-bold text-caption shrink-0">
                 2
               </div>
               <div className="space-y-0.5">
-                <span className="block text-[10px] font-black text-slate-200">ניהול לוח שליטה (HUD)</span>
-                <span className="block text-[9px] text-slate-450 leading-relaxed">
+                <span className="block text-caption font-semibold text-slate-200">ניהול לוח שליטה (HUD)</span>
+                <span className="block text-caption text-slate-450 leading-relaxed">
                   עבור על מדדי סד"כ, כשירות ומשימות פעילות. מפקדי מחלקות מנהלים כאן משימות ופערים מחלקתיים ייעודיים.
                 </span>
               </div>
@@ -233,12 +233,12 @@ export default function HelpPage() {
 
             {/* Step 3 */}
             <div className="flex gap-3">
-              <div className="w-5 h-5 rounded-lg bg-[#00f5d4]/10 border border-[#00f5d4]/25 text-[#00f5d4] flex items-center justify-center font-bold text-[10px] shrink-0">
+              <div className="w-5 h-5 rounded-lg bg-[var(--color-teal)]/10 border border-[var(--color-teal)]/25 text-[var(--color-teal)] flex items-center justify-center font-bold text-caption shrink-0">
                 3
               </div>
               <div className="space-y-0.5">
-                <span className="block text-[10px] font-black text-slate-200">סנכרון ודיווח יומי</span>
-                <span className="block text-[9px] text-slate-450 leading-relaxed">
+                <span className="block text-caption font-semibold text-slate-200">סנכרון ודיווח יומי</span>
+                <span className="block text-caption text-slate-450 leading-relaxed">
                   בסוף כל יום עבודה הגישו סיכום לפורום המוביל. המערכת תבצע אינטגרציה מלאה ותייצר נוסח הודעת סגירת יום ל-WhatsApp.
                 </span>
               </div>
@@ -247,7 +247,7 @@ export default function HelpPage() {
             {/* Technical alert banner */}
             <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex gap-2.5 mt-2">
               <AlertCircle className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
-              <p className="text-[9px] text-slate-400 leading-normal">
+              <p className="text-caption text-slate-400 leading-normal">
                 נתקלת בבעיה טכנית במערכת או שגיאת הרשאות? פנה לצוות התמיכה הטכנית של פלוגה א׳ במייל <strong className="text-cyan-400 font-mono">support.a@idf.il</strong>.
               </p>
             </div>

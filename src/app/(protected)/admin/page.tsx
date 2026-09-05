@@ -191,8 +191,8 @@ export default function AdminPage() {
     return (
       <div className="flex h-[50vh] w-full items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-[#FF6B02]" />
-          <span className="text-sm font-black text-slate-400">טוען בקרת גישה פלוגתית...</span>
+          <Loader2 className="h-8 w-8 animate-spin text-[var(--color-action-on-surface)]" />
+          <span className="text-sm font-semibold text-slate-400">טוען בקרת גישה פלוגתית...</span>
         </div>
       </div>
     );
@@ -203,9 +203,9 @@ export default function AdminPage() {
       <div className="space-y-6 text-right">
         <PageHeader title="אישור מפקדים" subtitle="ניהול הרשאות ואישורי סגל פלוגתי" />
         <GlassCard className="py-12 flex flex-col items-center justify-center text-center text-slate-500">
-          <Lock className="w-12 h-12 mb-3 text-[#FF6B02]" />
-          <span className="text-sm font-black text-[#020108]">אין לך הרשאות גישה למסך זה</span>
-          <p className="text-xs text-[#667085] mt-2 max-w-sm leading-relaxed">
+          <Lock className="w-12 h-12 mb-3 text-[var(--brand)]" />
+          <span className="text-sm font-semibold text-[var(--text-primary)]">אין לך הרשאות גישה למסך זה</span>
+          <p className="text-xs text-[var(--text-muted-accessible)] mt-2 max-w-sm leading-relaxed">
             הגישה לפאנל ניהול הרשאות מוגבלת למפקד הפלוגה (מ״פ) או סגנו (סמ״פ) בלבד, ופרופיל המפקד שלך חייב להיות מאושר במערכת.
           </p>
         </GlassCard>
@@ -556,7 +556,7 @@ export default function AdminPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Pending Requests Column */}
         <div className="lg:col-span-2 space-y-4">
-          <h2 className="text-xs font-black text-slate-400 flex items-center gap-2">
+          <h2 className="text-xs font-semibold text-slate-400 flex items-center gap-2">
             <Clock className="w-4 h-4 text-orange-400" />
             בקשות גישה ממתינות לאישור ({activeRequests.length})
           </h2>
@@ -564,8 +564,8 @@ export default function AdminPage() {
           {activeRequests.length === 0 ? (
             <GlassCard className="py-12 flex flex-col items-center justify-center text-center text-slate-500">
               <UserCheck className="w-8 h-8 mb-3 text-slate-600" />
-              <span className="text-xs font-black text-slate-350">אין בקשות גישה ממתינות</span>
-              <p className="text-[10px] text-slate-500 mt-1">כל בקשות המפקדים והסגל טופלו ואושרו בהצלחה.</p>
+              <span className="text-xs font-semibold text-slate-350">אין בקשות גישה ממתינות</span>
+              <p className="text-caption text-slate-500 mt-1">כל בקשות המפקדים והסגל טופלו ואושרו בהצלחה.</p>
             </GlassCard>
           ) : (
             <div className="space-y-3">
@@ -575,7 +575,7 @@ export default function AdminPage() {
                     /* Inline Editing Mode */
                     <div className="space-y-4">
                       <div className="flex items-center justify-between border-b border-[rgba(2,1,8,0.06)] pb-2">
-                        <span className="text-xs font-black text-[#020108]">עריכת פרטי סגל: {req.name}</span>
+                        <span className="text-xs font-semibold text-[var(--text-primary)]">עריכת פרטי סגל: {req.name}</span>
                         <GlossyButton variant="slate" size="sm" onClick={() => setEditingUserId(null)}>
                           <X className="w-3 h-3" />
                           ביטול
@@ -584,7 +584,7 @@ export default function AdminPage() {
 
                       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                         <label className="block space-y-1.5">
-                          <span className="block text-[11px] font-black text-[#344054]">תפקיד</span>
+                          <span className="block text-caption font-semibold text-[var(--text-secondary)]">תפקיד</span>
                           <select
                             value={editRole}
                             onChange={(e) => handleRoleChange(e.target.value)}
@@ -599,7 +599,7 @@ export default function AdminPage() {
                         </label>
 
                         <label className="block space-y-1.5">
-                          <span className="block text-[11px] font-black text-[#344054]">מסגרת</span>
+                          <span className="block text-caption font-semibold text-[var(--text-secondary)]">מסגרת</span>
                           <select
                             value={editUnitId}
                             onChange={(e) => setEditUnitId(e.target.value)}
@@ -615,7 +615,7 @@ export default function AdminPage() {
                         </label>
 
                         <label className="block space-y-1.5">
-                          <span className="block text-[11px] font-black text-[#344054]">יחידה בפיקוד</span>
+                          <span className="block text-caption font-semibold text-[var(--text-secondary)]">יחידה בפיקוד</span>
                           <select
                             value={editCommandedUnitId}
                             onChange={(e) => setEditCommandedUnitId(e.target.value)}
@@ -631,7 +631,7 @@ export default function AdminPage() {
                         </label>
 
                         <label className="block space-y-1.5">
-                          <span className="block text-[11px] font-black text-[#344054]">רמת הרשאה</span>
+                          <span className="block text-caption font-semibold text-[var(--text-secondary)]">רמת הרשאה</span>
                           <input
                             type="number"
                             min="0"
@@ -660,23 +660,23 @@ export default function AdminPage() {
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div className="space-y-2">
                         <div className="flex items-center gap-2.5">
-                          <span className="text-sm font-black text-[#020108]">{req.name}</span>
+                          <span className="text-sm font-semibold text-[var(--text-primary)]">{req.name}</span>
                           <StatusBadge status={req.role_approval_status === 'pending' ? 'ממתין לאישור' : req.role_approval_status} />
                         </div>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#667085] font-bold">
-                          <span>תפקיד: <strong className="text-[#FF6B02]">{req.role}</strong></span>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-[var(--text-muted-accessible)] font-bold">
+                          <span>תפקיד: <strong className="text-[var(--brand)]">{req.role}</strong></span>
                           <span>•</span>
-                          <span>מסגרת: <strong className="text-[#020108]">{req.units?.name || 'פלוגה'}</strong></span>
+                          <span>מסגרת: <strong className="text-[var(--text-primary)]">{req.units?.name || 'פלוגה'}</strong></span>
                           {req.commanded_unit_id && (
                             <>
                               <span>•</span>
-                              <span>בפיקוד: <strong className="text-[#020108]">{req.commanded_units?.name || 'לא מזוהה'}</strong></span>
+                              <span>בפיקוד: <strong className="text-[var(--text-primary)]">{req.commanded_units?.name || 'לא מזוהה'}</strong></span>
                             </>
                           )}
                           <span>•</span>
                           <span>דוא״ל: <strong className="text-slate-600 font-mono">{req.email}</strong></span>
                           <span>•</span>
-                          <span>הרשאה: <strong className="text-[#020108] font-mono">{req.permission_level}</strong></span>
+                          <span>הרשאה: <strong className="text-[var(--text-primary)] font-mono">{req.permission_level}</strong></span>
                         </div>
                       </div>
 
@@ -686,7 +686,7 @@ export default function AdminPage() {
                           size="sm"
                           onClick={() => startEditing(req)}
                           disabled={isActionSubmitting !== null}
-                          className="border-slate-300 text-slate-600 hover:text-[#020108]"
+                          className="border-slate-300 text-slate-600 hover:text-[var(--text-primary)]"
                         >
                           <Edit2 className="w-3 h-3" />
                           ערוך
@@ -723,7 +723,7 @@ export default function AdminPage() {
 
         {/* History Column */}
         <div className="space-y-4">
-          <h2 className="text-xs font-black text-slate-400 flex items-center gap-2">
+          <h2 className="text-xs font-semibold text-slate-400 flex items-center gap-2">
             <Database className="w-4 h-4 text-cyan-500" />
             מפקדים וסגל שאושרו / נדחו
           </h2>
@@ -733,11 +733,11 @@ export default function AdminPage() {
               <p className="text-center text-xs font-bold text-slate-400 py-6">טרם טופלו מפקדים</p>
             ) : (
               pastRequests.map((req) => (
-                <GlassCard key={req.id} className="p-4 bg-white/40 border-[rgba(2,1,8,0.06)]" glow="none">
+                <GlassCard key={req.id} className="p-4 bg-[var(--tactical-glass)] border-[rgba(2,1,8,0.06)]" glow="none">
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
-                      <span className="block text-xs font-black text-[#020108]">{req.name}</span>
-                      <span className="block text-[10px] text-[#667085] font-bold">
+                      <span className="block text-xs font-semibold text-[var(--text-primary)]">{req.name}</span>
+                      <span className="block text-caption text-[var(--text-muted-accessible)] font-bold">
                         {req.role} • {req.units?.name || 'פלוגה'}
                         {req.commanded_unit_id ? ` • בפיקוד: ${req.commanded_units?.name || 'לא מזוהה'}` : ''}
                         {' '}• הרשאה {req.permission_level}

@@ -8,7 +8,7 @@ import { ShieldAlert } from 'lucide-react';
  * initials/classification over full identifying detail.
  */
 export const FieldPrivacyHint: React.FC = () => (
-  <span className="mt-1 flex items-start gap-1.5 text-[11px] font-semibold leading-relaxed text-[#98A2B3]">
+  <span className="mt-1 flex items-start gap-1.5 text-caption font-semibold leading-relaxed text-[var(--command-subtle)]">
     <ShieldAlert className="mt-0.5 h-3 w-3 shrink-0" />
     מומלץ להשתמש בראשי תיבות או בסיווג כללי במקום פרטים מזהים מלאים.
   </span>

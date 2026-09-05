@@ -31,6 +31,7 @@ import { getScheduleDisplayStatus } from '@/lib/schedule';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
 import type { DbAuditLog, DbEvent, DbTask } from '@/lib/types';
+import { formatTime } from '@/lib/datetime';
 
 type RequestStatus = 'open' | 'in_progress' | 'approved' | 'rejected' | 'completed' | 'cancelled';
 type TaskStatus = 'open' | 'in_progress' | 'blocked' | 'completed' | 'cancelled';
@@ -246,15 +247,6 @@ function isActiveTask(task: DbTask) {
 function isOverdueTask(task: DbTask, now = new Date()) {
   if (!task.due_at || task.status === 'completed' || task.status === 'cancelled') return false;
   return new Date(task.due_at).getTime() < now.getTime();
-}
-
-function formatTime(value: string | null) {
-  if (!value) return '';
-  return new Date(value).toLocaleTimeString('he-IL', {
-    timeZone: 'Asia/Jerusalem',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 }
 
 function formatShortDateTime(value: string | null) {

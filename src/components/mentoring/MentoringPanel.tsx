@@ -16,6 +16,7 @@ import { useApp } from '@/lib/context/AppContext';
 import { isCompanyCommander, normalizeRole } from '@/lib/permissions';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
+import { formatDate } from '@/lib/datetime';
 
 type Mentee = {
   id: string;
@@ -34,10 +35,6 @@ type MentoringEntry = {
   next_check_at: string | null;
   task_id: string | null;
 };
-
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
 
 function today() {
   return new Date().toISOString().slice(0, 10);

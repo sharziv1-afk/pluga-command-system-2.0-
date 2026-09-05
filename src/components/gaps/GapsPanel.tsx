@@ -18,6 +18,7 @@ import { hasCompanyWideUiAccess } from '@/lib/permissions';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
+import { formatDate } from '@/lib/datetime';
 
 type GapCategory = 'לוגיסטי' | 'הדרכתי' | 'לו"זי';
 type GapUrgency = 'רגיל' | 'חשוב' | 'דחוף' | 'קריטי';
@@ -52,10 +53,6 @@ const ROUTING: Record<GapCategory, string> = {
   'לו"זי': 'סמ״פ / מ״פ',
 };
 
-
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
 
 export function GapsPanel() {
   const { currentUser } = useApp();

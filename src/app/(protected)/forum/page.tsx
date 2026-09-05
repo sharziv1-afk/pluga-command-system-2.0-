@@ -69,6 +69,7 @@ import { useApp } from '@/lib/context/AppContext';
 import { getPermissionLevelForRole, hasCompanyWideUiAccess, normalizeRole } from '@/lib/permissions';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
+import { toDbProfile, type DbProfile } from '@/lib/dbProfile';
 
 type ForumTab = 'posts' | 'daily';
 type ReportLevel = 'squad' | 'platoon' | 'company' | 'staff';
@@ -83,14 +84,6 @@ const reportLevelLabels: Record<ReportLevel, string> = {
 type ReportStatus = 'draft' | 'in_progress' | 'submitted' | 'closed';
 type StaffRole = 'medic' | 'assistant_commander' | 'logistics_nco' | 'deputy_commander';
 
-type DbProfile = {
-  id: string;
-  name: string;
-  email?: string;
-  role: string;
-  unit_id: string | null;
-  permission_level: number;
-};
 
 type ForumPostRow = {
   id: string;
@@ -551,14 +544,7 @@ export default function ForumPage() {
   const lastHydratedCompanyReportId = useRef<string | null | undefined>(undefined);
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-  const dbProfile = useMemo<DbProfile | null>(() => currentUser ? {
-    id: currentUser.id,
-    name: currentUser.full_name,
-    email: currentUser.email,
-    role: currentUser.role,
-    unit_id: currentUser.unit_id,
-    permission_level: currentUser.permission_level,
-  } : null, [currentUser]);
+  const dbProfile = useMemo(() => toDbProfile(currentUser), [currentUser]);
   const profilePermissionLevel = dbProfile?.permission_level ?? getPermissionLevelForRole(currentUser?.role ?? '');
   const canSeeAll = Boolean(currentUser && hasCompanyWideUiAccess(dbProfile?.role ?? currentUser.role, profilePermissionLevel));
   const staffRole = useMemo(() => inferStaffRole(dbProfile?.role ?? currentUser?.role ?? ''), [currentUser?.role, dbProfile?.role]);

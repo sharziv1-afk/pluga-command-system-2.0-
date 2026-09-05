@@ -37,6 +37,8 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
 import { LIST_FETCH_LIMIT, TRUNCATION_NOTICE, isTruncated } from '@/lib/queryLimits';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
+import { formatDate, formatDateTime, formatTime } from '@/lib/datetime';
+import { toDbProfile, type DbProfile } from '@/lib/dbProfile';
 
 // Loaded on demand: GapsPanel is ~500 lines behind the פערים toggle, and
 // viewMode defaults to 'requests', so most visits never render it. ssr:false
@@ -53,15 +55,6 @@ type RequestCategory = 'לוגיסטיקה' | 'רפואה' | 'קשר' | 'רכב'
 type RequestPriority = 'נמוכה' | 'רגילה' | 'גבוהה' | 'דחופה';
 type TabId = 'all' | 'mine' | 'open' | 'urgent' | 'in_progress' | 'completed' | 'closed';
 
-type DbProfile = {
-  id: string;
-  name: string;
-  email?: string;
-  role: string;
-  unit_id: string | null;
-  permission_level: number;
-  units: { name: string } | null;
-};
 
 type AssigneeUser = {
   id: string;
@@ -181,33 +174,6 @@ function getRequestPriority(request: DbRequest): RequestPriority {
   return priorities.includes(priority as RequestPriority) ? (priority as RequestPriority) : 'רגילה';
 }
 
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString('he-IL', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
-}
-
-function formatDateTime(value: string) {
-  return new Date(value).toLocaleString('he-IL', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function formatTime(value: string | null) {
-  if (!value) return '';
-  return new Date(value).toLocaleTimeString('he-IL', {
-    timeZone: 'Asia/Jerusalem',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
 function formatEventTimeLabel(startsAt: string | null, endsAt: string | null) {
   const start = formatTime(startsAt);
   if (!start) return null;
@@ -289,15 +255,7 @@ export default function RequestsPage() {
   const [filterPriority, setFilterPriority] = useState<RequestPriority | 'הכל'>('הכל');
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-  const dbProfile = useMemo<DbProfile | null>(() => currentUser ? {
-    id: currentUser.id,
-    name: currentUser.full_name,
-    email: currentUser.email,
-    role: currentUser.role,
-    unit_id: currentUser.unit_id,
-    permission_level: currentUser.permission_level,
-    units: { name: currentUser.assigned_frame },
-  } : null, [currentUser]);
+  const dbProfile = useMemo(() => toDbProfile(currentUser), [currentUser]);
 
   const profilePermissionLevel = dbProfile?.permission_level ?? getPermissionLevelForRole(currentUser?.role ?? '');
   const canSeeAll = Boolean(currentUser && hasCompanyWideUiAccess(dbProfile?.role ?? currentUser.role, profilePermissionLevel));

@@ -619,7 +619,6 @@ export default function TrackingPage() {
 
     const previousStatus = record?.status ?? 'empty';
     const nextStatus = getNextStatus(previousStatus);
-    const previousRecords = records;
     const nowIso = new Date().toISOString();
     const optimisticRecord: DbTrackingRecord = record
       ? {
@@ -689,7 +688,18 @@ export default function TrackingPage() {
     setUpdatingCellKey(null);
 
     if (operationError || !entityId || !savedRecord) {
-      setRecords(previousRecords);
+      // Roll back only this cell. The previous code snapshotted the whole
+      // records array before the request and restored it here, so a different
+      // cell that saved successfully while this one was in flight got wiped
+      // off the screen by this failure — a classic stale closure, and
+      // inconsistent with the optimistic update above, which is already
+      // functional. Cells are keyed independently, so undoing just this one
+      // is both narrower and correct.
+      setRecords(current => (
+        record
+          ? current.map(itemRecord => (itemRecord.id === record.id ? record : itemRecord))
+          : current.filter(itemRecord => itemRecord.id !== optimisticRecord.id)
+      ));
       if (operationError) logSupabaseError('[tracking] tracking record update failed', operationError);
       setErrorMessage(getRlsAwareErrorMessage(
         operationError,

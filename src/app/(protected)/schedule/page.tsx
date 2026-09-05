@@ -35,20 +35,13 @@ import { logSupabaseError } from '@/lib/supabase/error';
 import { LIST_FETCH_LIMIT, TRUNCATION_NOTICE, isTruncated } from '@/lib/queryLimits';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 import type { DbEvent } from '@/lib/types';
+import { formatDateTime, formatTime } from '@/lib/datetime';
+import { toDbProfile, type DbProfile } from '@/lib/dbProfile';
 
 type EventType = DbEvent['event_type'];
 type EventStatus = DbEvent['status'];
 type ScheduleTab = 'today' | 'tomorrow' | 'week' | 'all';
 
-type DbProfile = {
-  id: string;
-  name: string;
-  email?: string;
-  role: string;
-  unit_id: string | null;
-  permission_level: number;
-  units: { name: string } | null;
-};
 
 type EventUser = {
   id: string;
@@ -130,27 +123,6 @@ function getJerusalemDateKey(value: Date | string) {
   const month = parts.find(part => part.type === 'month')?.value;
   const day = parts.find(part => part.type === 'day')?.value;
   return `${year}-${month}-${day}`;
-}
-
-function formatDateTime(value: string | null) {
-  if (!value) return 'לא נקבע';
-  return new Date(value).toLocaleString('he-IL', {
-    timeZone: 'Asia/Jerusalem',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function formatTime(value: string | null) {
-  if (!value) return '';
-  return new Date(value).toLocaleTimeString('he-IL', {
-    timeZone: 'Asia/Jerusalem',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 }
 
 function formatDateTimeLocalInput(value: string | null) {
@@ -267,15 +239,7 @@ export default function SchedulePage() {
   const [editResponsibleUserId, setEditResponsibleUserId] = useState('none');
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-  const dbProfile = useMemo<DbProfile | null>(() => currentUser ? {
-    id: currentUser.id,
-    name: currentUser.full_name,
-    email: currentUser.email,
-    role: currentUser.role,
-    unit_id: currentUser.unit_id,
-    permission_level: currentUser.permission_level,
-    units: { name: currentUser.assigned_frame },
-  } : null, [currentUser]);
+  const dbProfile = useMemo(() => toDbProfile(currentUser), [currentUser]);
   const profilePermissionLevel = dbProfile?.permission_level ?? getPermissionLevelForRole(currentUser?.role ?? '');
   const canSeeAll = Boolean(currentUser && hasCompanyWideUiAccess(dbProfile?.role ?? currentUser.role, profilePermissionLevel));
   // ponytail: one page-wide write lock; split by event only if concurrent edits become necessary.

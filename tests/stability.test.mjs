@@ -360,6 +360,11 @@ test('an RLS-denied update is distinguished from a real success', () => {
     const source = readFileSync(file, 'utf8');
     for (const match of source.matchAll(/\.(update|delete)\(/g)) {
       const statement = source.slice(match.index, match.index + 900).split(';')[0];
+      // Only Supabase query chains. `.delete()` also exists on Set and Map —
+      // tracking's in-flight cell guard tripped this before the `.from(`
+      // requirement was added, which is a false positive, not a finding.
+      const chain = source.slice(Math.max(0, match.index - 400), match.index);
+      if (!chain.includes('.from(')) continue;
       if (!statement.includes('.select(')) {
         const line = source.slice(0, match.index).split('\n').length;
         unguarded.push(file + ':' + line + ' .' + match[1] + '()');

@@ -35,7 +35,7 @@ import { logSupabaseError } from '@/lib/supabase/error';
 import { LIST_FETCH_LIMIT, TRUNCATION_NOTICE, isTruncated } from '@/lib/queryLimits';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 import type { DbEvent } from '@/lib/types';
-import { formatDateTime, formatTime } from '@/lib/datetime';
+import { addDaysToDateKey, dateFromKey, formatDateTime, formatTime, getJerusalemDateKey } from '@/lib/datetime';
 import { toDbProfile, type DbProfile } from '@/lib/dbProfile';
 
 type EventType = DbEvent['event_type'];
@@ -110,21 +110,6 @@ function getUserDisplayName(user: Pick<EventUser, 'name' | 'email'>) {
   return user.name || user.email;
 }
 
-function getJerusalemDateKey(value: Date | string) {
-  const date = typeof value === 'string' ? new Date(value) : value;
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Asia/Jerusalem',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(date);
-
-  const year = parts.find(part => part.type === 'year')?.value;
-  const month = parts.find(part => part.type === 'month')?.value;
-  const day = parts.find(part => part.type === 'day')?.value;
-  return `${year}-${month}-${day}`;
-}
-
 function formatDateTimeLocalInput(value: string | null) {
   if (!value) return '';
   const date = new Date(value);
@@ -144,7 +129,7 @@ function formatDateLabel(value: string) {
 }
 
 function formatShortDateFromKey(dateKey: string) {
-  return new Date(`${dateKey}T12:00:00`).toLocaleDateString('he-IL', {
+  return dateFromKey(dateKey).toLocaleDateString('he-IL', {
     timeZone: 'Asia/Jerusalem',
     day: '2-digit',
     month: '2-digit',
@@ -152,7 +137,7 @@ function formatShortDateFromKey(dateKey: string) {
 }
 
 function formatWeekdayFromKey(dateKey: string) {
-  return new Date(`${dateKey}T12:00:00`).toLocaleDateString('he-IL', {
+  return dateFromKey(dateKey).toLocaleDateString('he-IL', {
     timeZone: 'Asia/Jerusalem',
     weekday: 'short',
   });
@@ -164,12 +149,6 @@ function getTimelineHour(value: string) {
     hour: '2-digit',
     minute: '2-digit',
   });
-}
-
-function addDaysToDateKey(dateKey: string, days: number) {
-  const date = new Date(`${dateKey}T12:00:00`);
-  date.setDate(date.getDate() + days);
-  return getJerusalemDateKey(date);
 }
 
 function getWeekDateKeys() {
@@ -849,7 +828,7 @@ export default function SchedulePage() {
       .filter(event => event.status !== 'cancelled' && getJerusalemDateKey(event.starts_at) === tomorrowKey)
       .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
 
-    const tomorrowLabel = new Date(`${tomorrowKey}T12:00:00`).toLocaleDateString('he-IL', {
+    const tomorrowLabel = dateFromKey(tomorrowKey).toLocaleDateString('he-IL', {
       timeZone: 'Asia/Jerusalem',
       weekday: 'long',
       day: '2-digit',

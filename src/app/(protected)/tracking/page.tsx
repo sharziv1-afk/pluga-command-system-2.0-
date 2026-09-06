@@ -183,7 +183,17 @@ export default function TrackingPage() {
   const [isItemSubmitting, setIsItemSubmitting] = useState(false);
   const [soldierForm, setSoldierForm] = useState<SoldierFormState>(initialSoldierForm);
   const [itemForm, setItemForm] = useState<ItemFormState>(initialItemForm);
-  const [updatingCellKey, setUpdatingCellKey] = useState<string | null>(null);
+  // A set, not a single key: cells save independently, so one in-flight write
+  // must not clear the guard on another. With a single key, clicking A then B
+  // then A again passed the guard every time (B !== A), and two responses for
+  // the same cell could land out of order and leave the screen showing a
+  // status the server does not hold.
+  const [updatingCells, setUpdatingCells] = useState<ReadonlySet<string>>(() => new Set());
+  const releaseCell = (cellKey: string) => setUpdatingCells(current => {
+    const next = new Set(current);
+    next.delete(cellKey);
+    return next;
+  });
   const [removingSoldierId, setRemovingSoldierId] = useState<string | null>(null);
   const [removingItemId, setRemovingItemId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
@@ -615,7 +625,7 @@ export default function TrackingPage() {
     record: DbTrackingRecord | undefined,
   ) => {
     const cellKey = `${soldier.id}:${item.id}`;
-    if (updatingCellKey === cellKey) return;
+    if (updatingCells.has(cellKey)) return;
 
     const previousStatus = record?.status ?? 'empty';
     const nextStatus = getNextStatus(previousStatus);
@@ -642,7 +652,7 @@ export default function TrackingPage() {
 
     setErrorMessage(null);
     setSuccessMessage(null);
-    setUpdatingCellKey(cellKey);
+    setUpdatingCells(current => new Set(current).add(cellKey));
     setRecords(current => (
       record
         ? current.map(itemRecord => (itemRecord.id === record.id ? optimisticRecord : itemRecord))
@@ -653,6 +663,10 @@ export default function TrackingPage() {
     let operationError: unknown = null;
     let savedRecord: DbTrackingRecord | null = null;
 
+    // finally, not a plain call after the awaits: a network-level throw would
+    // otherwise leave this cell in updatingCells forever, and unlike the old
+    // single-key guard nothing later would overwrite it.
+    try {
     if (record) {
       const { data: updatedRecord, error: updateError } = await supabase
         .from('tracking_records')
@@ -685,7 +699,9 @@ export default function TrackingPage() {
       operationError = insertError;
     }
 
-    setUpdatingCellKey(null);
+    } finally {
+      releaseCell(cellKey);
+    }
 
     if (operationError || !entityId || !savedRecord) {
       // Roll back only this cell. The previous code snapshotted the whole
@@ -1212,7 +1228,7 @@ export default function TrackingPage() {
                     const record = recordByCell.get(`${soldier.id}:${item.id}`);
                     const status = record?.status ?? 'empty';
                     const cellKey = `${soldier.id}:${item.id}`;
-                    const isCellUpdating = updatingCellKey === cellKey;
+                    const isCellUpdating = updatingCells.has(cellKey);
 
                     return (
                       <div key={item.id} className="flex items-center justify-between gap-3 py-2.5">
@@ -1306,7 +1322,7 @@ export default function TrackingPage() {
                       const record = recordByCell.get(`${soldier.id}:${item.id}`);
                       const status = record?.status ?? 'empty';
                       const cellKey = `${soldier.id}:${item.id}`;
-                      const isCellUpdating = updatingCellKey === cellKey;
+                      const isCellUpdating = updatingCells.has(cellKey);
 
                       return (
                         <td

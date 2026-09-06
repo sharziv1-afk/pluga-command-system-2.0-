@@ -60,3 +60,50 @@ export function formatTime(value: string | null | undefined, fallback = '') {
     minute: '2-digit',
   });
 }
+
+/**
+ * A "date key" is a Jerusalem calendar date as `YYYY-MM-DD` — the identity the
+ * schedule uses for a day. Arithmetic on it must not involve the host
+ * timezone at all.
+ */
+export function getJerusalemDateKey(value: Date | string) {
+  const date = typeof value === 'string' ? new Date(value) : value;
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const get = (type: string) => parts.find(part => part.type === type)?.value;
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
+/**
+ * Add days to a date key, entirely in UTC.
+ *
+ * The schedule previously did this by building `new Date(key + 'T12:00:00')`
+ * — no zone suffix, so *local* noon — and converting back to a Jerusalem key.
+ * At a large negative offset local noon is already the next day in Jerusalem,
+ * so the round-trip shifted the date: in Pacific/Honolulu, adding zero days to
+ * 2026-09-08 returned 2026-09-09, moving the whole week view and making
+ * "מחר" mean the day after tomorrow.
+ *
+ * The input is already a Jerusalem calendar date, so there is nothing to
+ * convert — this is plain calendar arithmetic, and UTC is the only way to do
+ * it without the host timezone getting a vote. Date.UTC normalises overflow,
+ * so month and year boundaries need no special case.
+ */
+export function addDaysToDateKey(dateKey: string, days: number) {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + days));
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
+}
+
+/**
+ * A date key as a Date for display formatters, anchored at UTC noon so the
+ * shift into Asia/Jerusalem (UTC+2/+3) stays on the same calendar day.
+ */
+export function dateFromKey(dateKey: string) {
+  return new Date(`${dateKey}T12:00:00Z`);
+}

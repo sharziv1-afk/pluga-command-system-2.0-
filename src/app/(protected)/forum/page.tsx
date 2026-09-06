@@ -2458,6 +2458,21 @@ export default function ForumPage() {
 
     const closed = (closedRows ?? []) as DailyReportRow[];
 
+    // An empty result here is ambiguous: either everything was already closed,
+    // or RLS filtered the whole update out. The two look identical to the
+    // client, so compare against what was actually open before the call —
+    // if there were open reports and none came back, nothing was closed and
+    // the commander must not be told the forum was distributed.
+    const openBefore = dailyReports.filter(report => report.status !== 'closed').length;
+    if (openBefore > 0 && closed.length === 0) {
+      setDailyError('לא נסגר אף דוח. ייתכן שאין לך הרשאה לסגור את דוחות היום, או שהם כבר נסגרו במקביל.');
+      setIsCompanyReportBusy(false);
+      setIsDailySaving(false);
+      setShowCompanyPublishConfirm(false);
+      await loadDailyReports(selectedDate);
+      return;
+    }
+
     // 3) Carry each closed report forward — fire-and-forget, never blocks the publish.
     closed.forEach(row => {
       void carryForwardClosedReport(row).catch(carryError => {

@@ -225,7 +225,7 @@ Audit actions added by this round (best-effort, in `src/lib/audit.ts`):
 ## 4. QA that passed
 
 > ⚠️ **The `2026-08-20` baseline is no longer reproducible.** As of
-> 2026-09-05, `forum_daily_reports` on Staging (`vmfihyritfmjycrfpxjn`)
+> 2026-09-05, `forum_daily_reports` on the LIVE project (`vmfihyritfmjycrfpxjn`)
 > holds exactly one date — `2026-09-08`, 21 reports. The `2026-08-20` rows
 > that produced `124/138` are gone, so every instruction below and in
 > `AGENTS.md` to "re-verify on 2026-08-20" cannot be followed as written.

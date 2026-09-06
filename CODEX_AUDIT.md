@@ -72,7 +72,7 @@ grep -rE '(text|bg|border)-(emerald|red|blue|amber|slate|zinc)-[0-9]' src --incl
   is really rendered, and trust the screenshot.
 - Login is email OTP to `sharziv1@gmail.com`; the code arrives via the
   Resend API (list recent sent emails). Dev server: `npm run dev`, port 3010.
-- Staging holds real data. Open and cancel dialogs; do not confirm
+- The LIVE project holds real data. Open and cancel dialogs; do not confirm
   destructive actions. Never run "publish and close forum".
 
 ## Known-open (don't report as new)
@@ -82,7 +82,7 @@ hand-rolled; two `window.confirm` remain in the forum's
 `requestDailyScopeTransition` (synchronous control flow covered by tests);
 terminology (בקשה/דרישה/פערים) is unaddressed; there are two `<h1>` per page
 (sidebar wordmark + page title). The documented forum baseline `2026-08-20`
-no longer exists in Staging — only `2026-09-08` has data.
+no longer exists in the LIVE project — only `2026-09-08` has data.
 
 ## What I want back
 

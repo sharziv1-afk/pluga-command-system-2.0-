@@ -1,7 +1,7 @@
 /**
  * Row ceilings for the unbounded list queries.
  *
- * Measured on Staging (2026-09-06) before adding these: 4 requests, 7 tasks,
+ * Measured on the LIVE project (2026-09-06) before adding these: 4 requests, 7 tasks,
  * 13 events, 12 soldiers, 3 tracking items, 12 tracking records. Nothing is
  * slow today — these are a guard against growth, not a fix for a present
  * problem, and the commit message should not pretend otherwise.

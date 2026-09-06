@@ -11,7 +11,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## Current State (2026-09-04)
 
-- **The app is in real daily use.** The מ״פ signs in from his phone against Supabase Staging `vmfihyritfmjycrfpxjn` every day. Treat its data as production data.
+- **The app is in real daily use.** The מ״פ signs in from his phone against the LIVE project `vmfihyritfmjycrfpxjn` every day. Treat its data as production data.
 - Production project `hjltpajvqhnygjybtivd` is wired to nothing. Which project gets promoted is an open decision — do not touch either without explicit approval.
 - Never deployed to Vercel. A launch-readiness plan is approved and in progress; **Vercel and design work each require step-by-step approval from the user before any action.**
 - `AI_HANDOFF_CHECKPOINT.md` is the most accurate document in the repo. When it disagrees with anything in `docs/archive/` (retired `README` history, `PROJECT_SUMMARY.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`), believe the checkpoint — those carry stale sections from earlier rounds.

@@ -2,7 +2,7 @@
 
 > **Update 2026-09-06:** Phases 1-6 and four audit cycles are complete; see the Current State block
 > in `CLAUDE.md` for what changed and what is still open. The forum regression baseline referenced
-> below (`2026-08-20`, 124/138) **no longer exists in Staging** — the live baseline is `2026-09-08`
+> below (`2026-08-20`, 124/138) **no longer exists in the LIVE project** — the live baseline is `2026-09-08`
 > = 128/138 from 34/36 + 31/34 + 30/33 + 33/35, and `tests/companyReport.test.mjs` asserts the
 > aggregation and the platoon-by-owner invariant without needing live data at all.
 
@@ -15,8 +15,8 @@ Read this before touching the codebase. It captures exactly what state the proje
 This repo (`C:\DEV\pluga-command-system`) is **the canonical, active product**. Three sibling folders exist on this machine — `PLUGA A APP`, `thepluton`, `pluga-reference-render` — they are sandboxes for stealing ideas/patterns from, not competing sources of truth. Do not let their docs (some of which explicitly say "avoid Supabase/auth/RLS") override what's actually running here.
 
 **Supabase projects — see `ENVIRONMENTS.md`; the names are backwards:**
-- **Staging** `vmfihyritfmjycrfpxjn` — this is the one actually in live use right now. The commander logs in on his phone against this project daily. Treat it as production-grade in terms of care, even though it's named "Staging."
-- **Production** `hjltpajvqhnygjybtivd` — exists but is NOT wired up to anything live. No `send-email` Edge Function, no Send Email Hook configured there. Do not assume parity with Staging.
+- **LIVE** `vmfihyritfmjycrfpxjn` (display name may say "staging" — see `ENVIRONMENTS.md`) — this is the one actually in live use right now. The commander logs in on his phone against this project daily. Treat it as production-grade in terms of care, even though it's named "Staging."
+- **SANDBOX** `hjltpajvqhnygjybtivd` (display name may say "production") — empty, being repurposed as the sandbox. NOT wired up to anything live. No `send-email` Edge Function, no Send Email Hook configured there. Do not assume parity with Staging.
 
 ## How to run it locally
 
@@ -24,7 +24,7 @@ This repo (`C:\DEV\pluga-command-system`) is **the canonical, active product**. 
 cd "C:\DEV\pluga-command-system"
 npm run dev          # next dev, binds 0.0.0.0:3000
 ```
-`.env.local` (gitignored) points `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY` at Staging. Production's values are commented out in the same file as a backup, clearly labeled "DO NOT USE."
+`.env.local` (gitignored) points `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY` at the LIVE project. Production's values are commented out in the same file as a backup, clearly labeled "DO NOT USE."
 
 **Phone testing over LAN**: `next.config.ts` has `allowedDevOrigins` hardcoded to specific IPs. The commander's home network IP changes across sessions (DHCP) — if he reports buttons doing nothing on his phone (a real incident that happened, see below), check `ipconfig` for the current IP and add it to that array, then restart the dev server (`next dev` doesn't hot-reload config changes).
 
@@ -34,7 +34,7 @@ npm run dev          # next dev, binds 0.0.0.0:3000
 
 Email-only OTP, invite-only, no passwords. Flow: commander creates a `public.users` row via `/admin` (status=pending, no `auth_user_id`) → invitee enters their email on `/login` → `signInWithOtp({shouldCreateUser:true})` → enters the 6-8 digit code → `verifyOtp` → if no linked profile found, `claim_own_profile` RPC links the verified auth identity to the pre-created row by matching email. `shouldCreateUser:false` is NOT used — the real invite gate is `claim_own_profile` raising `P0002` ("no invitation found") when the email has no matching unclaimed row.
 
-**OTP email delivery** was broken for most of one session (Supabase's default SMTP is team-members-only; custom SMTP via Resend hung/failed on both 587 and 465). The fix that actually works: a Supabase **Send Email Hook** (Authentication → Hooks in the Dashboard) pointing at a deployed Edge Function (`supabase/functions/send-email/index.ts`, now checked into git) that verifies the Standard Webhooks signature and calls Resend's REST API directly — bypassing SMTP entirely. This is deployed and configured on **Staging only**. If Production ever needs real logins, this whole Edge Function + Hook setup needs to be replicated there manually (Dashboard config can't be scripted via the Supabase MCP tools — no MCP method exists for it).
+**OTP email delivery** was broken for most of one session (Supabase's default SMTP is team-members-only; custom SMTP via Resend hung/failed on both 587 and 465). The fix that actually works: a Supabase **Send Email Hook** (Authentication → Hooks in the Dashboard) pointing at a deployed Edge Function (`supabase/functions/send-email/index.ts`, now checked into git) that verifies the Standard Webhooks signature and calls Resend's REST API directly — bypassing SMTP entirely. This is deployed and configured on the **LIVE project only**. If the sandbox ever needs real logins, this whole Edge Function + Hook setup needs to be replicated there manually (Dashboard config can't be scripted via the Supabase MCP tools — no MCP method exists for it).
 
 ## What actually exists (verified working tonight, not just "should work")
 
@@ -106,4 +106,4 @@ Not done: pagination/row caps on tasks/requests/schedule (fine at ~20 users and 
 
 ## If the commander reports something is broken
 
-Check, in this order: (1) is the dev server actually running (`netstat -ano | grep :3000`)? (2) is `allowedDevOrigins` current for his phone's IP? (3) hard-reload before assuming a real bug — HMR staleness is a known false alarm generator. (4) check Supabase Staging logs via the MCP `query_logs` tool before guessing. He has been burned before by guessed diagnoses that turned out wrong (SMTP delivery saga) — verify against ground truth (DB queries, actual logs) before reporting a fix as done.
+Check, in this order: (1) is the dev server actually running (`netstat -ano | grep :3000`)? (2) is `allowedDevOrigins` current for his phone's IP? (3) hard-reload before assuming a real bug — HMR staleness is a known false alarm generator. (4) check the LIVE project's Supabase logs via the MCP `query_logs` tool before guessing. He has been burned before by guessed diagnoses that turned out wrong (SMTP delivery saga) — verify against ground truth (DB queries, actual logs) before reporting a fix as done.

@@ -45,7 +45,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 ```
 
 Never commit `.env.local` or real keys. See `AI_HANDOFF_CHECKPOINT.md` for
-which Supabase project (`vmfihyritfmjycrfpxjn`, "Staging") is the one
+which Supabase project (`vmfihyritfmjycrfpxjn`, the LIVE one — see `ENVIRONMENTS.md`) is the one
 actually in live use.
 
 ## Routes

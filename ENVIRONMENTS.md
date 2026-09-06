@@ -14,13 +14,19 @@ Verified against both projects on 2026-09-06.
 |---|---|---|
 | Project ref | `vmfihyritfmjycrfpxjn` | `hjltpajvqhnygjybtivd` |
 | Supabase name today | `hamifkad-staging` | `pluga-command-system` |
-| **What it actually is** | **the real system, in daily use** | **empty, safe to break** |
+| **What it actually is** | **the real system, in daily use** | **safe to break — no company records** |
 | Created | 2026-07-25 | 2026-05-20 |
-| Tables | 20 | 18 |
-| Functions | 12 | 9 |
-| Migrations applied | 18 | 8 |
-| Rows of company data | ~100 real | 0 |
-| Auth accounts | 5 | 4 (orphans from an abandoned run) |
+| Tables | 20 | 20 (caught up 2026-09-06) |
+| Functions | 12 | 12 |
+| Policies | 72 | 72 |
+| Rows of company data | ~100, all seeded 2026-09-03 | leftovers from May-July |
+| Auth accounts | 5 | 4 (orphans from the abandoned run) |
+
+**Counting caveat:** `pg_stat_user_tables.n_live_tup` reports 0 for the
+sandbox because those tables were never analysed. It is an estimate, not a
+count — a real `count(*)` finds 315 audit_logs, 44 forum_daily_reports, 14
+users and assorted content left over from when this project was the active
+one. Use `count(*)` when the answer matters.
 
 The names are backwards for a boring historical reason: the project created
 first (`pluga-command-system`) was abandoned early, and the second one
@@ -44,20 +50,36 @@ Until that is done, the table above is the authority, not the label.
 **LIVE holds the company's real data.** The מ״פ signs in against it every day.
 Nothing is tried there first. No schema change, no bulk update, no experiment.
 
-**SANDBOX is where things get tried.** Same schema, no real data. Break it
-freely; if it gets into a bad state, it can be rebuilt from the migrations.
+**SANDBOX is where things get tried.** Identical schema, and nothing in it is
+a company record — what it holds is leftovers from when it was the active
+project in May-July. Break it freely; it can be rebuilt from the migrations.
 
 Flow for anything risky: try it in SANDBOX → confirm → apply to LIVE.
 
-Until the sandbox is caught up (below), there is *no* safe place to try
-anything, and every experiment lands on real data. That is the situation this
-document exists to end.
+Before 2026-09-06 there was no safe place to try anything and every
+experiment landed on real data. That is what this document ends.
 
 ---
 
-## Bringing the sandbox up to the live schema
+## Sandbox catch-up — DONE (2026-09-06)
 
-The sandbox is ten migrations behind. The gap was measured, not assumed:
+Migrations 023-032 were applied to the sandbox, plus one policy
+(`requests: select own unit`) that predated them and had never reached it.
+Both databases now report identical signatures:
+
+```
+tables 20 | functions 12 | policies 72 | tables_without_rls 0
+schema_sig  ae3ba9a6252830e50c2fd124d5b433b0
+func_sig    f89628f87f3aa90ec13bd9488458f924
+policy_sig  ce4dd9b4d9463886eca704864d57c086
+```
+
+**Lesson worth keeping:** the first parity check compared tables, columns
+and functions and passed — while a policy was still missing. Schema equality
+is not access equality. Always compare `policy_sig` too; the query at the
+bottom of this file does.
+
+The gap that was closed, for the record:
 
 - **Missing tables:** `mentoring_entries`, `tracking_weeks`
 - **Missing columns:** `forum_daily_reports.updated_by`, `tasks.updated_by`,
@@ -67,15 +89,13 @@ The sandbox is ten migrations behind. The gap was measured, not assumed:
 - Every other table matches exactly, compared by a hash of its column names
   and types — including `users`.
 
-`supabase/sandbox/001_bring_sandbox_to_live_schema.sql` closes that gap. It is
-migrations 023–032 in order, all idempotent, schema only — it inserts no users
-and no company data.
+`supabase/sandbox/001_bring_sandbox_to_live_schema.sql` is that gap as one
+idempotent script, kept for the record and for rebuilding a sandbox from
+scratch. **It is for the SANDBOX only** — LIVE is already at this state.
 
-**Run it in the SANDBOX project's SQL editor. Never in LIVE** (LIVE is already
-at this state; running it there is a no-op at best).
-
-Afterwards both projects should report the same table, function and column
-signature. The verification query is at the bottom of this file.
+The sandbox still holds its own old data (see the counting caveat above). It
+is harmless and unrelated to the company's real records, but it is not a
+clean slate. Clearing it is a separate decision.
 
 ---
 
@@ -122,12 +142,21 @@ select
      where table_schema='public' and table_type='BASE TABLE') as tables,
   (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
      where n.nspname='public') as functions,
+  (select count(*) from pg_policy p join pg_class c on c.oid=p.polrelid
+     join pg_namespace n on n.oid=c.relnamespace where n.nspname='public') as policies,
   (select md5(string_agg(t||c, ',' order by t, c)) from (
      select table_name t, column_name||':'||data_type c
-       from information_schema.columns where table_schema='public') x
-  ) as schema_signature;
+       from information_schema.columns where table_schema='public') x) as schema_sig,
+  (select md5(string_agg(proname, ',' order by proname))
+     from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+     where n.nspname='public') as func_sig,
+  (select md5(string_agg(c.relname||'::'||p.polname, ',' order by c.relname, p.polname))
+     from pg_policy p join pg_class c on c.oid=p.polrelid
+     join pg_namespace n on n.oid=c.relnamespace where n.nspname='public') as policy_sig,
+  (select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace
+     where n.nspname='public' and c.relkind='r' and not c.relrowsecurity) as tables_without_rls;
 ```
 
-A matching `schema_signature` means the two databases have identical tables,
-columns and types. It deliberately ignores data — the sandbox should stay
-empty.
+All three signatures must match. `schema_sig` alone is not enough — that is
+exactly the check that passed while a policy was missing. It deliberately
+ignores data.

@@ -2,7 +2,8 @@
 
 ## Current State (2026-09-06)
 
-- **In real daily use.** The מ״פ signs in from his phone against Supabase Staging `vmfihyritfmjycrfpxjn` daily. Its data is production data.
+- **In real daily use.** The מ״פ signs in from his phone daily against `vmfihyritfmjycrfpxjn`. Its data is production data.
+- **`ENVIRONMENTS.md` decides which database is which — read it before touching either.** The Supabase project *names* are backwards: `hamifkad-staging` (`vmfihyritfmjycrfpxjn`) is the LIVE system, and `pluga-command-system` (`hjltpajvqhnygjybtivd`) is an empty abandoned shell being repurposed as the sandbox. Trust the ref, not the label.
 - Never deployed to Vercel. A launch-readiness plan is approved and in progress.
 - **Two standing approval gates set by the user:** any *design* change and any *Vercel* action must be presented and approved step by step, one screen / one step at a time. Everything else follows the normal loop (implement → `npm run check` → CRLF scan → browser QA → independent review → commit).
 - `AI_HANDOFF_CHECKPOINT.md` is the most accurate doc here. `docs/archive/README_HISTORY.md`, `docs/archive/PROJECT_SUMMARY.md` and `docs/archive/PROJECT_HANDOFF_AI_CONTEXT.md` are retired checkpoint history — believe the checkpoint over them.

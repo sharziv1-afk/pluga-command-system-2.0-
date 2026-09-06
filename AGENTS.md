@@ -1,6 +1,11 @@
 <!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know
 
+> **Databases: read `ENVIRONMENTS.md` first.** The Supabase project names are
+> backwards — `vmfihyritfmjycrfpxjn` ("hamifkad-staging") is the LIVE system with
+> the company's real data; `hjltpajvqhnygjybtivd` ("pluga-command-system") is an
+> empty shell being repurposed as the sandbox. Go by the ref, never the name.
+
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 

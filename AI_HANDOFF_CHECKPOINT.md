@@ -14,7 +14,7 @@ Read this before touching the codebase. It captures exactly what state the proje
 
 This repo (`C:\DEV\pluga-command-system`) is **the canonical, active product**. Three sibling folders exist on this machine — `PLUGA A APP`, `thepluton`, `pluga-reference-render` — they are sandboxes for stealing ideas/patterns from, not competing sources of truth. Do not let their docs (some of which explicitly say "avoid Supabase/auth/RLS") override what's actually running here.
 
-**Supabase projects:**
+**Supabase projects — see `ENVIRONMENTS.md`; the names are backwards:**
 - **Staging** `vmfihyritfmjycrfpxjn` — this is the one actually in live use right now. The commander logs in on his phone against this project daily. Treat it as production-grade in terms of care, even though it's named "Staging."
 - **Production** `hjltpajvqhnygjybtivd` — exists but is NOT wired up to anything live. No `send-email` Edge Function, no Send Email Hook configured there. Do not assume parity with Staging.
 

@@ -462,6 +462,20 @@ same element wins, which is what a call site expects.
 tints converted properly): light 5.07–6.79, dark 7.07–11.85, light+high
 10.33–12.98, dark+high 8.45–16.06.
 
+A second caution, about query counts: every Supabase call appears **twice**
+in dev. Measured on /forum — 10 requests, 5 distinct, each exactly 2x. That
+uniform doubling is React StrictMode double-invoking effects, which Next
+enables by default and which does not happen in a production build. It is
+not an N+1 and there is nothing to fix; the five queries are the profile,
+its unit name, the day's reports, the owner options, and those owners' unit
+names. Confirm distinct-vs-total before optimising anything here:
+
+```js
+const api = performance.getEntriesByType('resource')
+  .filter(r => /supabase\.co\/rest/.test(r.name));
+// group by URL — if every entry is exactly 2x, it is StrictMode
+```
+
 A caution for whoever verifies this next: in this app `getComputedStyle`
 can return stale values for elements inside the `backdrop-filter` nav after
 a runtime theme flip, and for `display:none` subtrees such as the mobile

@@ -25,6 +25,26 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         // fail silently if the browser or environment blocks it.
       });
     }
+
+    // Ask the browser not to evict our storage.
+    //
+    // iOS Safari clears a web app's caches, IndexedDB and localStorage after
+    // roughly seven days without a visit. For this app that is not a cache
+    // miss, it is data loss with consequences: the device PIN lives in
+    // localStorage (so offline sign-in stops working) and the offline write
+    // queue lives in IndexedDB (so edits made in the field, before the phone
+    // got signal again, disappear without telling anyone).
+    //
+    // A granted persistent-storage request exempts the origin from that
+    // eviction. Safari decides heuristically and weights an installed
+    // home-screen app heavily, which is exactly our case. It costs one call
+    // and there is no downside to being refused.
+    if (navigator.storage?.persist) {
+      void navigator.storage.persist().catch(() => {
+        // Not supported, or declined. Nothing to do — the app already
+        // tolerates an empty cache; this only reduces how often that happens.
+      });
+    }
   }, []);
 
   return (

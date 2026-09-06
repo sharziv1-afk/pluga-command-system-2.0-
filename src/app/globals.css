@@ -106,6 +106,10 @@
   --action: #c2410c;
   --action-hover: #a63d00;
   --focus-ring: rgba(255, 107, 2, 0.45);
+  /* Solid companion to --focus-ring, for the outline-based indicator below.
+     The translucent one is fine layered over a fill; an outline sits on
+     whatever is behind the control, so it needs full opacity. */
+  --focus-outline: #c2410c;
 
   --radius-card: 1rem;
 
@@ -161,6 +165,7 @@
   --action: #c2410c;
   --action-hover: #a63d00;
   --color-action-on-surface: #ffb077;
+  --focus-outline: #ffb077;
   /* Status colors must lighten on a dark ground — the light-mode values are
      dark inks and measure ~1.9:1 against a dark surface. --color-danger-solid
      deliberately does not change: it backs white text. */
@@ -185,6 +190,7 @@
   --text-secondary: #1d2939;
   --text-muted-accessible: #344054;
   --focus-ring: #000000;
+  --focus-outline: #000000;
   --color-success: #054f31;
   --color-warning: #7a2e0e;
   --color-danger: #7a271a;
@@ -197,6 +203,7 @@
   --text-secondary: #f1f5f9;
   --text-muted-accessible: #e2e8f0;
   --focus-ring: #ffffff;
+  --focus-outline: #ffffff;
   --color-success: #a9efc5;
   --color-warning: #fedf89;
   --color-danger: #fecdca;
@@ -964,6 +971,29 @@ option {
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
+}
+
+/* ============================================================
+   Keyboard focus indicator — one rule for the whole app.
+
+   Components carry `focus-visible:outline-none focus-visible:ring-4
+   focus-visible:ring-[var(--focus-ring)]`, and that combination painted
+   NOTHING. Tailwind v4's ring utility only assigns --tw-ring-shadow; some
+   other declaration has to compose that variable into `box-shadow`, and on
+   these elements nothing did — verified in the browser: :focus-visible
+   matched, --tw-ring-shadow held the right value, and the computed
+   box-shadow contained no ring colour at all. Meanwhile outline-none had
+   already removed the browser's own indicator, so keyboard users were
+   navigating with no visible focus anywhere in the app.
+
+   outline is immune to that whole problem: it is its own property, it never
+   competes with box-shadow, and it follows border-radius in every current
+   browser. Declared unlayered so it beats Tailwind's layered
+   `focus-visible:outline-none` (same mechanism as .command-dialog above).
+   ============================================================ */
+:is(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--focus-outline);
+  outline-offset: 2px;
 }
 
 /* ============================================================

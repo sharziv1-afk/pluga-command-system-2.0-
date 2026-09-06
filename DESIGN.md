@@ -354,6 +354,37 @@ automatic P1 in review:
 
 ## 6. Accessibility floor
 
+**Focus is an outline, not a ring.** Components still carry
+`focus-visible:ring-*` classes and they are inert: Tailwind v4's ring
+utility only assigns `--tw-ring-shadow`, and on these elements nothing
+composed that variable into `box-shadow`. Verified in the browser —
+`:focus-visible` matched, `--tw-ring-shadow` held the right value, and the
+computed `box-shadow` contained no ring colour. Because
+`focus-visible:outline-none` had already removed the browser default, there
+was no keyboard focus indicator anywhere in the app.
+
+One unlayered rule in globals.css now paints `outline: 3px solid
+var(--focus-outline)` with a 2px offset on every focusable element.
+Unlayered so it beats Tailwind's layered `outline-none`; `outline` because
+it is its own property and never competes with `box-shadow`.
+`--focus-outline` is defined for all four theme combinations.
+
+**Every control needs a name, and repeated controls need distinct ones.**
+Per-card selects (status, assignee) all read identically to a screen reader
+— "combo box" eight times. They take an `aria-label` that includes the row's
+title. A `placeholder` is not an accessible name.
+
+Audit snippet to re-run in the browser (there is no static check for this):
+
+```js
+[...document.querySelectorAll('input,select,textarea')].filter(e => {
+  const lab = e.id && document.querySelector(`label[for="${CSS.escape(e.id)}"]`);
+  return !lab && !e.getAttribute('aria-label')
+    && !e.getAttribute('aria-labelledby') && !e.closest('label');
+})
+```
+
+
 - WCAG AA (4.5:1 body text, 3:1 UI components) everywhere; AAA (7:1) under
   `data-contrast="high"`.
 - Touch targets ≥ 44×44px — the existing `.touch-target` utility and the

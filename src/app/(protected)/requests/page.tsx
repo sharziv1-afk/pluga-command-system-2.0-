@@ -1082,6 +1082,7 @@ export default function RequestsPage() {
             value={searchText}
             onChange={e => setSearchText(e.target.value)}
             className="command-input pl-10 pr-4"
+            aria-label="חיפוש דרישות לפי כותרת או פירוט"
             placeholder="חיפוש לפי כותרת או פירוט"
           />
         </div>
@@ -1089,6 +1090,7 @@ export default function RequestsPage() {
           value={filterCategory}
           onChange={e => setFilterCategory(e.target.value as RequestCategory | 'הכל')}
           className="command-select min-w-0"
+          aria-label="סינון לפי קטגוריה"
         >
           <option value="הכל">כל הקטגוריות</option>
           {categories.map(c => <option key={c} value={c}>{c}</option>)}
@@ -1097,6 +1099,7 @@ export default function RequestsPage() {
           value={filterPriority}
           onChange={e => setFilterPriority(e.target.value as RequestPriority | 'הכל')}
           className="command-select min-w-0"
+          aria-label="סינון לפי עדיפות"
         >
           <option value="הכל">כל העדיפויות</option>
           {priorities.map(p => <option key={p} value={p}>{p}</option>)}
@@ -1206,6 +1209,7 @@ export default function RequestsPage() {
                       value={request.assigned_to ?? 'none'}
                       onChange={event => handleAssigneeChange(request, event.target.value)}
                       className="touch-target command-select min-h-10 flex-1 text-xs"
+                      aria-label={`שיוך מטפל לדרישה: ${request.title}`}
                       disabled={isRequestWritePending || (assigneeUsers.length === 0 && !request.assigned_to)}
                     >
                       <option value="none">{request.assigned_to ? 'הסר שיוך' : 'בחר מטפל'}</option>
@@ -1252,6 +1256,7 @@ export default function RequestsPage() {
                           value={request.status}
                           onChange={e => handleStatusChange(request.id, e.target.value as RequestStatus)}
                           className="touch-target command-select min-h-10 max-w-xs text-xs"
+                          aria-label={`עדכון סטטוס לדרישה: ${request.title}`}
                           disabled={isRequestWritePending}
                         >
                           {statusOptions.map(s => <option key={s} value={s}>{statusLabels[s]}</option>)}

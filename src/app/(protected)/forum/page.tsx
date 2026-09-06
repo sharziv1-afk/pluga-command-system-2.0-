@@ -3114,7 +3114,7 @@ export default function ForumPage() {
               type="button"
               onClick={() => void deleteSelectedReport()}
               disabled={isDailySaving}
-              className="flex min-h-9 items-center justify-center gap-2 rounded-xl border border-[var(--color-danger)]/25 bg-[var(--tactical-glass)] px-3 text-xs font-semibold text-[var(--color-danger)] transition hover:border-[var(--color-danger)]/25 hover:bg-[var(--color-danger)]/10 disabled:pointer-events-none disabled:opacity-50"
+              className="touch-target flex min-h-9 items-center justify-center gap-2 rounded-xl border border-[var(--color-danger)]/25 bg-[var(--tactical-glass)] px-3 text-xs font-semibold text-[var(--color-danger)] transition hover:border-[var(--color-danger)]/25 hover:bg-[var(--color-danger)]/10 disabled:pointer-events-none disabled:opacity-50"
             >
               <Trash2 className="h-3.5 w-3.5" />
               מחק דוח
@@ -3219,7 +3219,7 @@ export default function ForumPage() {
                 onClick={toggleTreeCollapsed}
                 aria-expanded={!isTreeCollapsed}
                 aria-label="קפל את רשימת בעלי התפקידים"
-                className="inline-flex shrink-0 rounded-xl border border-[var(--brand)]/25 bg-[var(--tactical-glass)] p-2 text-[var(--color-action-on-surface)] transition hover:bg-[var(--surface)]"
+                className="touch-target inline-flex shrink-0 items-center justify-center rounded-xl border border-[var(--brand)]/25 bg-[var(--tactical-glass)] p-2 text-[var(--color-action-on-surface)] transition hover:bg-[var(--surface)]"
               >
                 <PanelRightClose className="h-4 w-4" />
               </button>

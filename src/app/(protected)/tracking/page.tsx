@@ -1125,7 +1125,7 @@ export default function TrackingPage() {
               <button
                 type="button"
                 onClick={() => setSelectedWeekId('all')}
-                className={`min-h-9 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${selectedWeekId === 'all' ? 'border-[var(--action)] bg-[var(--action)] text-white shadow-[0_6px_16px_rgba(255,107,2,0.22)]' : 'border-[var(--border-subtle)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)] hover:border-[var(--action)]/30'}`}
+                className={`touch-target min-h-9 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${selectedWeekId === 'all' ? 'border-[var(--action)] bg-[var(--action)] text-white shadow-[0_6px_16px_rgba(255,107,2,0.22)]' : 'border-[var(--border-subtle)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)] hover:border-[var(--action)]/30'}`}
               >
                 כל השבועות
               </button>
@@ -1135,7 +1135,7 @@ export default function TrackingPage() {
                   type="button"
                   onClick={() => setSelectedWeekId(week.id)}
                   title={week.description ?? undefined}
-                  className={`min-h-9 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${selectedWeekId === week.id ? 'border-[var(--action)] bg-[var(--action)] text-white shadow-[0_6px_16px_rgba(255,107,2,0.22)]' : 'border-[var(--border-subtle)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)] hover:border-[var(--action)]/30'}`}
+                  className={`touch-target min-h-9 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${selectedWeekId === week.id ? 'border-[var(--action)] bg-[var(--action)] text-white shadow-[0_6px_16px_rgba(255,107,2,0.22)]' : 'border-[var(--border-subtle)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)] hover:border-[var(--action)]/30'}`}
                 >
                   {week.title}
                 </button>

@@ -1,5 +1,11 @@
 # AI Handoff Checkpoint — 2026-09-04
 
+> **Update 2026-09-06:** Phases 1-6 and four audit cycles are complete; see the Current State block
+> in `CLAUDE.md` for what changed and what is still open. The forum regression baseline referenced
+> below (`2026-08-20`, 124/138) **no longer exists in Staging** — the live baseline is `2026-09-08`
+> = 128/138 from 34/36 + 31/34 + 30/33 + 33/35, and `tests/companyReport.test.mjs` asserts the
+> aggregation and the platoon-by-owner invariant without needing live data at all.
+
 Read this before touching the codebase. It captures exactly what state the project is in, why decisions were made, and what's genuinely still open. Written for a fresh AI agent with zero prior context.
 
 ## What this project is

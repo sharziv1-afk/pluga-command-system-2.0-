@@ -17,6 +17,7 @@ import { isCompanyCommander, normalizeRole } from '@/lib/permissions';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
 import { formatDate } from '@/lib/datetime';
+import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 
 type Mentee = {
   id: string;
@@ -233,8 +234,18 @@ export function MentoringPanel() {
         return;
       }
 
-      const { error: updateError } = await supabase.from('mentoring_entries').update({ task_id: task.id }).eq('id', entry.id);
-      if (updateError) logSupabaseError('Mentoring entry task_id update failed', updateError);
+      // Same 204-on-RLS-denial problem: without .select('id') a denied link
+      // is indistinguishable from a successful one, and the entry silently
+      // stays unlinked from the task that was just created for it.
+      const { data: linkedRows, error: updateError } = await supabase
+        .from('mentoring_entries')
+        .update({ task_id: task.id })
+        .eq('id', entry.id)
+        .select('id');
+      if (updateError || !didRowsUpdate(linkedRows)) {
+        logSupabaseError('Mentoring entry task_id update failed', updateError);
+        setError('המשימה נוצרה, אך לא ניתן היה לקשר אותה לרשומת החניכה.');
+      }
 
       void createAuditLog(supabase, {
         userId: currentUser.id,

@@ -779,13 +779,19 @@ export default function TasksPage() {
     setSuccess(null);
 
     try {
-    const { error: deleteError } = await supabase
+    // A DELETE filtered out by RLS returns 204 with no error — verified
+    // against the live API — so `deleteError` alone cannot tell a real
+    // deletion from a denied one. Without .select('id') this reported
+    // success, wrote an audit log for a deletion that never happened, and
+    // dropped the row from the screen until the next refresh brought it back.
+    const { data: deletedRows, error: deleteError } = await supabase
       .from('tasks')
       .delete()
-      .eq('id', task.id);
+      .eq('id', task.id)
+      .select('id');
 
-    if (deleteError) {
-      logSupabaseError('Task delete failed', deleteError);
+    if (deleteError || !didRowsUpdate(deletedRows)) {
+      if (deleteError) logSupabaseError('Task delete failed', deleteError);
       setError('לא ניתן למחוק את המשימה. בדוק שיש לך הרשאה למחוק משימה זו.');
       return;
     }

@@ -70,6 +70,7 @@ import { getPermissionLevelForRole, hasCompanyWideUiAccess, normalizeRole } from
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
 import { toDbProfile, type DbProfile } from '@/lib/dbProfile';
+import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 
 type ForumTab = 'posts' | 'daily';
 type ReportLevel = 'squad' | 'platoon' | 'company' | 'staff';
@@ -1462,13 +1463,14 @@ export default function ForumPage() {
       is_pinned: canSeeAll ? editPostPinned : post.is_pinned,
     };
 
-    const { error: updateError } = await supabase
+    const { data: updatedRows, error: updateError } = await supabase
       .from('forum_posts')
       .update(updatePayload)
-      .eq('id', post.id);
+      .eq('id', post.id)
+      .select('id');
 
-    if (updateError) {
-      logSupabaseError('Forum post update failed', updateError);
+    if (updateError || !didRowsUpdate(updatedRows)) {
+      if (updateError) logSupabaseError('Forum post update failed', updateError);
       setEditPostError('לא ניתן לעדכן את הפוסט כרגע. בדוק הרשאות או נסה שוב.');
       setIsSubmitting(false);
       return;
@@ -1939,14 +1941,15 @@ export default function ForumPage() {
     setDailyError(null);
     setDailySuccess(null);
 
-    const { error: closeError } = await supabase
+    const { data: closedRows, error: closeError } = await supabase
       .from('forum_daily_reports')
       .update({ status: 'closed' })
-      .eq('id', selectedReport.id);
+      .eq('id', selectedReport.id)
+      .select('id');
 
-    if (closeError) {
-      logSupabaseError('Forum daily report close failed', closeError);
-      setDailyError('לא ניתן לסגור את הדיווח כרגע.');
+    if (closeError || !didRowsUpdate(closedRows)) {
+      if (closeError) logSupabaseError('Forum daily report close failed', closeError);
+      setDailyError('לא ניתן לסגור את הדיווח. ייתכן שאין לך הרשאה לכך.');
       setIsDailySaving(false);
       return;
     }
@@ -1981,14 +1984,15 @@ export default function ForumPage() {
     setDailyError(null);
     setDailySuccess(null);
 
-    const { error: reopenError } = await supabase
+    const { data: reopenedRows, error: reopenError } = await supabase
       .from('forum_daily_reports')
       .update({ status: 'in_progress' })
-      .eq('id', selectedReport.id);
+      .eq('id', selectedReport.id)
+      .select('id');
 
-    if (reopenError) {
-      logSupabaseError('Forum daily report reopen failed', reopenError);
-      setDailyError('לא ניתן לפתוח את נעילת הדיווח כרגע.');
+    if (reopenError || !didRowsUpdate(reopenedRows)) {
+      if (reopenError) logSupabaseError('Forum daily report reopen failed', reopenError);
+      setDailyError('לא ניתן לפתוח את נעילת הדיווח. ייתכן שאין לך הרשאה לכך.');
       setIsDailySaving(false);
       return;
     }
@@ -2032,14 +2036,15 @@ export default function ForumPage() {
       },
     };
 
-    const { error: returnError } = await supabase
+    const { data: returnedRows, error: returnError } = await supabase
       .from('forum_daily_reports')
       .update(updatePayload)
-      .eq('id', selectedReport.id);
+      .eq('id', selectedReport.id)
+      .select('id');
 
-    if (returnError) {
-      logSupabaseError('Forum daily report return failed', returnError);
-      setDailyError('לא ניתן להחזיר את הדיווח לדרג מטה כרגע.');
+    if (returnError || !didRowsUpdate(returnedRows)) {
+      if (returnError) logSupabaseError('Forum daily report return failed', returnError);
+      setDailyError('לא ניתן להחזיר את הדיווח לדרג מטה. ייתכן שאין לך הרשאה לכך.');
       setIsDailySaving(false);
       return;
     }
@@ -2110,13 +2115,14 @@ export default function ForumPage() {
       metadata: resetMetadata,
     };
 
-    const { error: resetError } = await supabase
+    const { data: resetRows, error: resetError } = await supabase
       .from('forum_daily_reports')
       .update(updatePayload)
-      .eq('id', target.id);
+      .eq('id', target.id)
+      .select('id');
 
-    if (resetError) {
-      logSupabaseError('Forum daily report reset failed', resetError);
+    if (resetError || !didRowsUpdate(resetRows)) {
+      if (resetError) logSupabaseError('Forum daily report reset failed', resetError);
       setDailyError('לא ניתן לאפס את הדיווח כרגע. בדוק הרשאות או נסה שוב.');
       setIsDailySaving(false);
       return;
@@ -2168,14 +2174,20 @@ export default function ForumPage() {
       metadata: target.metadata,
     };
 
-    const { error: deleteError } = await supabase
+    // A DELETE filtered out by RLS returns 204 with no error — verified
+    // against the live API — so `deleteError` alone cannot tell a real
+    // deletion from a denied one. Without .select('id') this reported
+    // success, wrote an audit log for a deletion that never happened, and
+    // dropped the row from the screen until the next refresh brought it back.
+    const { data: deletedRows, error: deleteError } = await supabase
       .from('forum_daily_reports')
       .delete()
-      .eq('id', target.id);
+      .eq('id', target.id)
+      .select('id');
 
-    if (deleteError) {
-      logSupabaseError('Forum daily report delete failed', deleteError);
-      setDailyError('לא ניתן למחוק את הדיווח כרגע. נסה שוב בעוד רגע.');
+    if (deleteError || !didRowsUpdate(deletedRows)) {
+      if (deleteError) logSupabaseError('Forum daily report delete failed', deleteError);
+      setDailyError('לא ניתן למחוק את הדיווח כרגע. ייתכן שאין לך הרשאה למחוק אותו.');
       setIsDailySaving(false);
       return;
     }

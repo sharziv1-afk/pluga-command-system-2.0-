@@ -334,18 +334,43 @@ test('an RLS-denied update is distinguished from a real success', () => {
   assert.equal(didRowsUpdate([]), false);
   assert.equal(didRowsUpdate(null), false);
 
-  for (const [file, count] of [
-    ['src/app/(protected)/requests/page.tsx', 3],
-    ['src/app/(protected)/schedule/page.tsx', 2],
-    ['src/app/(protected)/tasks/page.tsx', 1],
-    ['src/app/(protected)/tracking/page.tsx', 2],
-    ['src/app/(protected)/admin/page.tsx', 3],
-    ['src/components/gaps/GapsPanel.tsx', 1],
-  ]) {
+  // Assert that no mutation is UNGUARDED, rather than that there are exactly
+  // N guarded ones. The previous version pinned an exact count per file, so
+  // adding a guard — a strict improvement — failed the build, and it would
+  // have stayed green if a guarded write had been swapped for an unguarded
+  // one somewhere else in the same file.
+  //
+  // The rule: every .update() and .delete() on a Supabase query must carry a
+  // .select() in the same statement, because PostgREST answers an
+  // RLS-filtered write with a success and an empty result set (verified
+  // against the live API: a denied DELETE returns HTTP 204, empty body, no
+  // error). .insert() is exempt — a denied insert raises.
+  const FILES = [
+    'src/app/(protected)/requests/page.tsx',
+    'src/app/(protected)/schedule/page.tsx',
+    'src/app/(protected)/tasks/page.tsx',
+    'src/app/(protected)/tracking/page.tsx',
+    'src/app/(protected)/admin/page.tsx',
+    'src/app/(protected)/forum/page.tsx',
+    'src/components/gaps/GapsPanel.tsx',
+    'src/components/mentoring/MentoringPanel.tsx',
+  ];
+  const unguarded = [];
+  for (const file of FILES) {
     const source = readFileSync(file, 'utf8');
-    const matches = [...source.matchAll(/didRowsUpdate\(/g)].length;
-    assert.equal(matches, count, `${file}: expected ${count} guarded update(s), found ${matches}`);
+    for (const match of source.matchAll(/\.(update|delete)\(/g)) {
+      const statement = source.slice(match.index, match.index + 900).split(';')[0];
+      if (!statement.includes('.select(')) {
+        const line = source.slice(0, match.index).split('\n').length;
+        unguarded.push(file + ':' + line + ' .' + match[1] + '()');
+      }
+    }
   }
+  assert.deepEqual(
+    unguarded,
+    [],
+    'these writes cannot tell an RLS denial from a success: ' + unguarded.join(', '),
+  );
 });
 
 test('an unidentified last editor never loses to the caller by default', () => {

@@ -796,14 +796,20 @@ export default function SchedulePage() {
     setSuccess(null);
 
     try {
-    const { error: deleteError } = await supabase
+    // A DELETE filtered out by RLS returns 204 with no error — verified
+    // against the live API — so `deleteError` alone cannot tell a real
+    // deletion from a denied one. Without .select('id') this reported
+    // success, wrote an audit log for a deletion that never happened, and
+    // dropped the row from the screen until the next refresh brought it back.
+    const { data: deletedRows, error: deleteError } = await supabase
       .from('events')
       .delete()
-      .eq('id', event.id);
+      .eq('id', event.id)
+      .select('id');
 
-    if (deleteError) {
-      logSupabaseError('Event delete failed', deleteError);
-      setError('לא ניתן למחוק את המופע כרגע.');
+    if (deleteError || !didRowsUpdate(deletedRows)) {
+      if (deleteError) logSupabaseError('Event delete failed', deleteError);
+      setError('לא ניתן למחוק את המופע כרגע. בדוק שיש לך הרשאה למחוק מופע זה.');
       return;
     }
 

@@ -29,6 +29,13 @@ const supabaseOrigin = (() => {
 const csp = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  // Declared explicitly rather than left to fall back through child-src to
+  // script-src. The offline service worker is the whole reason this app works
+  // without signal, and a CSP that blocks its registration breaks that
+  // silently — the page still loads, it just never caches anything, and the
+  // failure only shows up on a phone with no reception. Not worth depending
+  // on fallback behaviour for something with that failure mode.
+  "worker-src 'self'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",

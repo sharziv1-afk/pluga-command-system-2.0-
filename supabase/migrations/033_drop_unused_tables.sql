@@ -27,7 +27,17 @@
 --
 -- Run manually in the Supabase SQL editor. SANDBOX FIRST, verify the app
 -- still loads, then LIVE.
+--
+-- RESTRICT, not CASCADE. Both are equivalent here — a fresh check found zero
+-- foreign keys pointing at any of the three, in both projects — but they
+-- behave very differently if that ever stops being true. CASCADE would
+-- silently drop whatever had come to depend on them; RESTRICT refuses and
+-- tells you. When the whole point is "delete only what is genuinely dead",
+-- the version that fails loudly is the correct one.
+--
+-- RESTRICT is PostgreSQL's default, so it is written out here only to make
+-- the choice visible rather than accidental.
 
-drop table if exists public.approvals cascade;
-drop table if exists public.feature_flags cascade;
-drop table if exists public.onboarding_progress cascade;
+drop table if exists public.approvals restrict;
+drop table if exists public.feature_flags restrict;
+drop table if exists public.onboarding_progress restrict;

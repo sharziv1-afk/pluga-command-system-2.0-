@@ -63,7 +63,7 @@ const nextConfig: NextConfig = {
   // changes across sessions (DHCP) — when phone testing breaks again with
   // buttons doing nothing, check `ipconfig` and add the current IP here.
   // No effect on production builds.
-  allowedDevOrigins: ["192.168.1.231", "192.168.1.233", "192.168.1.224"],
+  allowedDevOrigins: ["192.168.1.231", "192.168.1.233", "192.168.1.224", "192.168.1.241"],
   async headers() {
     return [
       {

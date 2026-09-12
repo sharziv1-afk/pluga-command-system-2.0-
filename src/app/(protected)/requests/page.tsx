@@ -39,6 +39,7 @@ import { LIST_FETCH_LIMIT, TRUNCATION_NOTICE, isTruncated } from '@/lib/queryLim
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 import { formatDate, formatDateTime, formatTime } from '@/lib/datetime';
 import { toDbProfile, type DbProfile } from '@/lib/dbProfile';
+import { writeFailureMessage } from '@/lib/offline/writeErrors';
 
 // Loaded on demand: GapsPanel is ~500 lines behind the פערים toggle, and
 // viewMode defaults to 'requests', so most visits never render it. ssr:false
@@ -491,7 +492,7 @@ export default function RequestsPage() {
       if (insertError) {
         logSupabaseError('Request create failed', insertError);
       }
-      setError('לא הצלחנו לפתוח את הדרישה. בדוק שיש לך הרשאה לפעולה זו ונסה שוב.');
+      setError(writeFailureMessage('לא הצלחנו לפתוח את הדרישה. בדוק שיש לך הרשאה לפעולה זו ונסה שוב.'));
       return;
     }
     void createAuditLog(supabase, {
@@ -515,7 +516,7 @@ export default function RequestsPage() {
     await loadRequests();
     } catch (createError) {
       logSupabaseError('Request create failed unexpectedly', createError);
-      setError('לא הצלחנו לפתוח את הדרישה. נסה שוב בעוד רגע.');
+      setError(writeFailureMessage('לא הצלחנו לפתוח את הדרישה. נסה שוב בעוד רגע.'));
     } finally {
       setIsSubmitting(false);
     }

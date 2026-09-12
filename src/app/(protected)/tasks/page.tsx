@@ -28,6 +28,7 @@ import { useApp } from '@/lib/context/AppContext';
 import { writeWithHierarchyResolution } from '@/lib/concurrency/hierarchyWrite';
 import { cacheGet, cacheSet } from '@/lib/offline/db';
 import { enqueueWrite, flushWriteQueue, pendingWriteCount } from '@/lib/offline/syncEngine';
+import { writeFailureMessage } from '@/lib/offline/writeErrors';
 import { getPermissionLevelForRole, hasCompanyWideUiAccess } from '@/lib/permissions';
 import { getScheduleDisplayStatus } from '@/lib/schedule';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
@@ -506,7 +507,7 @@ export default function TasksPage() {
 
     if (insertError || !createdTask) {
       if (insertError) logSupabaseError('Task create failed', insertError);
-      setError('לא הצלחנו ליצור את המשימה. בדוק שיש לך הרשאה לפעולה זו ונסה שוב.');
+      setError(writeFailureMessage('לא הצלחנו ליצור את המשימה. בדוק שיש לך הרשאה לפעולה זו ונסה שוב.'));
       return;
     }
 
@@ -532,7 +533,7 @@ export default function TasksPage() {
     await loadTasks();
     } catch (createError) {
       logSupabaseError('Task create failed unexpectedly', createError);
-      setError('לא הצלחנו ליצור את המשימה. נסה שוב בעוד רגע.');
+      setError(writeFailureMessage('לא הצלחנו ליצור את המשימה. נסה שוב בעוד רגע.'));
     } finally {
       setIsSubmitting(false);
     }

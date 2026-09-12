@@ -37,6 +37,7 @@ import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 import type { DbEvent } from '@/lib/types';
 import { addDaysToDateKey, dateFromKey, formatDateTime, formatTime, getJerusalemDateKey } from '@/lib/datetime';
 import { toDbProfile, type DbProfile } from '@/lib/dbProfile';
+import { writeFailureMessage } from '@/lib/offline/writeErrors';
 
 type EventType = DbEvent['event_type'];
 type EventStatus = DbEvent['status'];
@@ -523,7 +524,7 @@ export default function SchedulePage() {
 
     if (insertError || !createdEvent) {
       if (insertError) logSupabaseError('Event create failed', insertError);
-      setError('לא הצלחנו ליצור את המופע. בדוק שיש לך הרשאה לפעולה זו ונסה שוב.');
+      setError(writeFailureMessage('לא הצלחנו ליצור את המופע. בדוק שיש לך הרשאה לפעולה זו ונסה שוב.'));
       return;
     }
 
@@ -549,7 +550,7 @@ export default function SchedulePage() {
     await loadEvents();
     } catch (createError) {
       logSupabaseError('Event create failed unexpectedly', createError);
-      setError('לא הצלחנו ליצור את המופע. נסה שוב בעוד רגע.');
+      setError(writeFailureMessage('לא הצלחנו ליצור את המופע. נסה שוב בעוד רגע.'));
     } finally {
       setIsSubmitting(false);
     }

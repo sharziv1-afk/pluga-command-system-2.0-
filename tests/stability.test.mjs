@@ -452,19 +452,19 @@ test('forum daily mutations only succeed when the expected row was returned', ()
 
   const source = readFileSync('src/app/(protected)/forum/page.tsx', 'utf8');
 
-  // submitSelectedReport still uses the raw update+select+didPersistDailyReport
-  // pattern — it doesn't yet route through the hierarchy-conflict helper.
-  const submitFlowOnly = source.slice(source.indexOf('const submitSelectedReport'), source.indexOf('const carryForwardClosedReport'));
-  assert.match(submitFlowOnly, /\.select\('id'\)\s*\.maybeSingle<\{ id: string \}>\(\)/);
-  assert.match(submitFlowOnly, /didPersistDailyReport\(/);
-
-  // saveSelectedReport and persistCompanyReportContent are the two highest
-  // write-conflict-risk paths (whole-object overwrite / merged patch onto a
-  // possibly stale base) — both route through writeWithHierarchyResolution,
-  // which diffs field-by-field: only a field BOTH sides actually changed
-  // falls back to role hierarchy, everything else merges automatically.
+  // All three write paths that can overwrite report content route through
+  // writeWithHierarchyResolution, which diffs field-by-field: only a field
+  // BOTH sides actually changed falls back to role hierarchy, everything else
+  // merges automatically.
+  //
+  // submitSelectedReport is in this list as of 2026-09-12. It used to write
+  // `content: draftToSubmit` wholesale, discarding anything a concurrent
+  // editor had changed since the draft was loaded — and the מ״פ can edit a
+  // subordinate's report, so that was a reachable path, not a theoretical
+  // one. This assertion is what stops it regressing back.
   for (const [startMarker, endMarker] of [
     ['const saveSelectedReport', 'const submitSelectedReport'],
+    ['const submitSelectedReport', 'const carryForwardClosedReport'],
     ['const persistCompanyReportContent', 'const applyCompanyAggregation'],
   ]) {
     const flow = source.slice(source.indexOf(startMarker), source.indexOf(endMarker));

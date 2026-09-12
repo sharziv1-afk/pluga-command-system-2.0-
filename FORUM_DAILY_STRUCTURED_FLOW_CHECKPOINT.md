@@ -300,10 +300,10 @@ These are not tasks to "do" — they are invariants to guard on every future cha
 
 | Guard | Why | Tests required |
 |---|---|---|
-| Owner mapping (`resolvePlatoonNumber`, `assignPlatoonReports`) | A regression silently swaps platoon content | Browser QA + (future) unit tests; never map by index/`unit_id` |
+| Owner mapping (`resolvePlatoonNumber`, `assignPlatoonReports`) | A regression silently swaps platoon content | `tests/companyReport.test.mjs` — asserts binding by `owner_user_id` with the reports deliberately reversed, so an index-based implementation fails even though the totals still add up. Never map by index/`unit_id` |
 | Ownership (`created_by` vs `owner_user_id`) | Breaks aggregation, permissions, history | Verify both columns on every insert path |
 | WhatsApp preview mapping (`generateWhatsappText`) | Must stay consistent with aggregation | Parity check vs `aggregateCompanyStructured` |
-| Structured aggregation (`aggregateCompanyStructured`) | Core company report correctness | Aggregation 124/138 regression on QA data |
+| Structured aggregation (`aggregateCompanyStructured`) | Core company report correctness | `tests/companyReport.test.mjs` — asserts 128/138 from 34/36 + 31/34 + 30/33 + 33/35 against a fixture, so it needs no live data. The live equivalent is `2026-09-08`; the old `2026-08-20` / 124/138 figures are gone from the database |
 | Lifecycle (publish/close/reopen, read-only after close) | Editing after close / blocked close | Browser QA full lifecycle |
 | RLS / Auth / `src/proxy.ts` / migrations | Security & access | No change without snapshot + explicit plan |
 
@@ -383,8 +383,14 @@ npm run build
 
 ### 8.4 Regression assertions
 
-- Aggregation is **124 / 138** on the QA data set.
+- Aggregation is **128 / 138** on the live `2026-09-08` data, from
+  `34/36 + 31/34 + 30/33 + 33/35`. (The older `124 / 138` figure belonged to
+  the `2026-08-20` fixture, which no longer exists — see §4.)
+  `tests/companyReport.test.mjs` asserts the same numbers against a fixture,
+  so this one runs in CI without touching the database.
 - מחלקה 1 does **not** receive מחלקה 2 content (no index-based swap).
+  Also covered by that test: the reports are fed in reversed order and the
+  content must still land on the right platoon.
 - מחלקה 2 includes the "UPDATED" text.
 - `draft` / `in_progress` are tagged `[בטיפול — טרם הוגש סופית]`.
 - A missing platoon shows `[לא הוגש דוח]`.

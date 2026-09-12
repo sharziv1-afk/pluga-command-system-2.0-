@@ -74,7 +74,7 @@ Two rounds landed after the section above was written.
 
 The review also caught a bug *introduced* by fix 3: an attempt counter that counted failures which happened while offline, deleting real unsaved work after a few page navigations. That is why `flushWriteQueue` now returns early when offline and never counts an offline failure. **The lesson is worth keeping: the scope creep ("add a safety limit nobody asked for") caused the worst bug of the round.**
 
-Full invariants are in `AGENTS.md` → "Write Conflicts & Offline". Two known holes remain open there: `submitSelectedReport` and the task status change both still bypass the resolver, and an RLS-denied write is still indistinguishable from a conflict (PostgREST returns 204 with no error).
+Full invariants are in `AGENTS.md` → "Write Conflicts & Offline". **Both holes described here previously are now closed** (2026-09-12): `submitSelectedReport` routes through the resolver like the other two forum write paths, and an RLS-denied write is no longer indistinguishable from a conflict — every `.update()`/`.delete()` carries `.select()` and checks the returned rows. The task status change still does not use the resolver, deliberately: it writes one scalar column, so there is no field-level merge to perform.
 
 ## Explicitly rejected features (don't re-propose these without a new reason)
 

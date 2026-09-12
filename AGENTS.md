@@ -9,13 +9,15 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
-## Current State (2026-09-04)
+## Current State (2026-09-12)
 
 - **The app is in real daily use.** The מ״פ signs in from his phone against the LIVE project `vmfihyritfmjycrfpxjn` every day. Treat its data as production data.
-- Production project `hjltpajvqhnygjybtivd` is wired to nothing. Which project gets promoted is an open decision — do not touch either without explicit approval.
-- Never deployed to Vercel. A launch-readiness plan is approved and in progress; **Vercel and design work each require step-by-step approval from the user before any action.**
-- `AI_HANDOFF_CHECKPOINT.md` is the most accurate document in the repo. When it disagrees with anything in `docs/archive/` (retired `README` history, `PROJECT_SUMMARY.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`), believe the checkpoint — those carry stale sections from earlier rounds.
-- Latest work: Phase 1 of the launch plan closed — RLS-false-success fixes, `/mentoring` route protection, dead-code removal, an anon info-leak close, the `mentoring_entries` policy gap, doc consolidation, and false UI status text. Phase 0 (`c05cf51` → `d5304db` → `b871069`) closed three security bugs in the offline/conflict-resolution layer before it. See "Write Conflicts & Offline" below.
+- **`CLAUDE.md` carries the current phase status; this file carries the invariants.** If the two disagree about *what has been done*, believe `CLAUDE.md`. If they disagree about *what must not be broken*, believe this file.
+- The sandbox `hjltpajvqhnygjybtivd` is no longer "wired to nothing": as of 2026-09-06 it matches the live schema exactly (same `schema_sig`, `func_sig`, `policy_sig`) and was cleared to units + roles only. It is the place to try anything risky. See `ENVIRONMENTS.md`.
+- Never deployed to Vercel. **Vercel and design work each require step-by-step approval from the user before any action.**
+- `AI_HANDOFF_CHECKPOINT.md` is accurate about *architecture and reasoning*, but its "what's still open" list is from 2026-09-04 and several items on it are now done. Cross-check against `CLAUDE.md` before trusting any single entry.
+- Latest work: **Phases 1-6 plus four audit cycles and an external Codex review.** Design system, iPhone/PWA, security headers + query ceilings, one datetime module pinned to Asia/Jerusalem, 30 → 54 tests each verified to fail on the bug it guards. Then: ten writes that reported success without writing (an RLS-denied `.delete()` returns HTTP 204 with no error), no keyboard focus indicator anywhere in the app, 15 unlabelled controls, and three Codex findings. **Next: Phase 7 — Vercel.**
+- Known-open, short list: ten iPhone/iPad checks only a real device can make (`QA_CHECKLIST.md` §8.5), the demo dataset on LIVE (20 of 21 users are `@example.com`/`@demo.mil`, to be cleared just before or after the deploy), and the large-file splits, which wait on wider test coverage.
 
 ## Local AI Execution
 
@@ -74,5 +76,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Cache keys embed the owner's id, and a successful profile load purges any cache entry that isn't the signed-in user's. Sign-out and a different user signing in both clear the device PIN, biometric credential and identity snapshot.
 - The offline identity snapshot expires after 7 days, and an offline session revalidates against the server as soon as connectivity returns — otherwise a blocked or demoted user keeps their old permissions offline indefinitely.
 
-**Still bypassing the resolver** (known, not yet fixed): `submitSelectedReport` in `forum/page.tsx` replaces the whole `content` column with no guard, and the task status change in `tasks/page.tsx` updates without one. Also, PostgREST returns 204 with no error when RLS filters an update, so a denied write is currently indistinguishable from a conflict.
+**Resolver coverage** (accurate as of 2026-09-12 — this paragraph used to list three open holes, and two of them are now closed):
+
+- `saveSelectedReport`, `submitSelectedReport` and `persistCompanyReportContent` in `forum/page.tsx` all route through `writeWithHierarchyResolution`, as does the offline replay in `syncEngine.ts`. `submitSelectedReport` was the last one to be converted (2026-09-12) — it used to write `content:` wholesale, discarding a concurrent editor's changes, and the מ״פ can edit a subordinate's report, so it was reachable. `tests/stability.test.mjs` asserts all three route through the resolver; that assertion is what stops it regressing.
+- **An RLS-denied write is no longer indistinguishable from a conflict.** PostgREST answers a filtered-out write with a success and an empty result set (verified against the live API: a denied `DELETE` returns HTTP 204, empty body, no error), so every `.update()` and `.delete()` now carries `.select()` and checks the result. A test enumerates the write paths and fails on any that does not.
+- **Deliberately not using the resolver:** `handleStatusChange` in `tasks/page.tsx`. It writes one scalar column (`status`), where last-write-wins is the honest semantic — there is no field-level merge to perform. It does verify the row came back, so a denied write is still caught.
 - Commit messages must be descriptive and specific (e.g., `Add request and event editing`, `Update project handoff after editing milestone`). Do not use generic names like `update`, `fix`, `changes`, or a hash alone.

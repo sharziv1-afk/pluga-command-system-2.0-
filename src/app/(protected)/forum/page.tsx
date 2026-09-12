@@ -58,7 +58,6 @@ import {
   canMutateDailyDraft,
   canTransitionDraft,
   dailyDraftScopeKey,
-  didPersistDailyReport,
   isDraftDirty,
   isLatestDailyLoad,
   nextDraftBaseline,
@@ -1825,19 +1824,43 @@ export default function ForumPage() {
     setDailySuccess(null);
     const draftToSubmit = snapshotDraftFields(reportDraftRef.current, reportDraftFields);
 
-    try {
-      const { data: submittedReport, error: submitError } = await supabase
-        .from('forum_daily_reports')
-        .update({ status: 'submitted', content: draftToSubmit })
-        .eq('id', selectedReport.id)
-        .select('id')
-        .maybeSingle<{ id: string }>();
+    // Submitting used to write `content: draftToSubmit` wholesale, which threw
+    // away anything a concurrent editor had changed since this draft was
+    // loaded — and the מ״פ can edit a subordinate's report, so that is a real
+    // path, not a theoretical one. It now goes through the same resolver the
+    // save path above uses: per-field, rank-decided in the database, and an
+    // unidentifiable other editor wins by default rather than being silently
+    // overwritten.
+    //
+    // `base` is the value this draft was loaded with, `next` is what the user
+    // is submitting. A field the user never touched has base === next and so
+    // cannot conflict with anyone.
+    const contentChanges: Record<string, { base: unknown; next: unknown }> = {};
+    for (const field of reportDraftFields) {
+      contentChanges[field] = {
+        base: (selectedReport.content as Record<string, unknown>)[field],
+        next: (draftToSubmit as Record<string, unknown>)[field],
+      };
+    }
 
-      if (submitError || !didPersistDailyReport(submittedReport, selectedReport.id)) {
-        if (submitError) logSupabaseError('Forum daily report submit failed', submitError);
-        setDailyError('לא ניתן להגיש את הדיווח כרגע.');
-        recordDailyDraftSave(draftToSubmit, false);
-        return;
+    try {
+      const writeResult = await writeWithHierarchyResolution({
+        supabase,
+        table: 'forum_daily_reports',
+        id: selectedReport.id,
+        baseUpdatedAt: selectedReport.updated_at,
+        changes: contentChanges,
+        selectColumns: 'content,updated_by',
+        extractFields: (row) => (row.content as Record<string, unknown>) ?? {},
+        buildPayload: (fields) => ({
+          content: { ...selectedReport.content, ...fields },
+          status: 'submitted',
+        }),
+        currentUserId: dbProfile.id,
+      });
+
+      if (writeResult.status === 'merged' && writeResult.overriddenFields.length > 0) {
+        setDailyError(`הדיווח הוגש, אך חלק מהשדות (${writeResult.overriddenFields.join(', ')}) עודכנו במקביל על ידי מפקד/ת בכיר/ה יותר ולא נשמרו מההגשה שלך — שאר השינויים נשמרו.`);
       }
 
       void createAuditLog(supabase, {

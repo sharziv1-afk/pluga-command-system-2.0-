@@ -48,6 +48,40 @@ Never commit `.env.local` or real keys. See `AI_HANDOFF_CHECKPOINT.md` for
 which Supabase project (`vmfihyritfmjycrfpxjn`, the LIVE one — see `ENVIRONMENTS.md`) is the one
 actually in live use.
 
+## Moving to another machine
+
+Verified end to end on 2026-09-13. Everything needed is in the repo; three
+commands and one paste:
+
+```bash
+git clone https://github.com/sharziv1-afk/pluga-command-system-2.0-.git
+cd pluga-command-system-2.0- && npm install && cp .env.example .env.local
+```
+
+Then fill `.env.local` with the two values from the Supabase dashboard →
+Project `vmfihyritfmjycrfpxjn` → Settings → API. Both are publishable values
+(the anon key is designed to ship to browsers); there is no service-role key
+in this project and there must never be one.
+
+What deliberately does **not** travel, and why that is correct:
+
+| Not in git | Why it doesn't matter |
+|---|---|
+| `node_modules/` | `npm install` rebuilds it from `package-lock.json` |
+| `.next/`, `.next-build/` | build output |
+| `.env.local` | secrets stay out of git; `.env.example` lists the keys |
+| `smtp password.png` | **must never be committed** — verified absent from every commit on every branch with `git log --all -S` |
+
+Before switching machines, check nothing is stranded locally:
+
+```bash
+git status --short && git log --branches --not --remotes --oneline
+```
+
+The second command lists commits that exist **only on this machine**. A
+`wip/*` branch with no upstream is invisible to a fresh clone — push it, or
+accept losing it.
+
 ## Routes
 
 Protected via `src/proxy.ts`:

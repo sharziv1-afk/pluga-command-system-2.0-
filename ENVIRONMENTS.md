@@ -99,6 +99,75 @@ clean slate. Clearing it is a separate decision.
 
 ---
 
+## Parity re-audit — 2026-09-13: three signatures were not enough
+
+Every previous round called the two projects "twins" on the strength of three
+md5 signatures (schema, functions, policies). That was too few, and the
+function signature as computed did not include function *bodies*. Re-ran the
+comparison across **eleven** catalogs:
+
+| Catalog | LIVE | SANDBOX | Match |
+|---|---|---|---|
+| tables (+ RLS flag) | 17 | 17 | ✅ |
+| columns | 197 | 197 | ✅ |
+| policies | 72 | 72 | ✅ |
+| triggers | 19 | 19 | ✅ |
+| event triggers | 7 | 7 | ✅ |
+| indexes | 86 | 86 | ✅ |
+| constraints | 78 | 78 | ✅ |
+| grants | 476 | 476 | ✅ |
+| extensions | 5 | 5 | ✅ |
+| enums | 33 | 33 | ✅ |
+| **functions** | 12 | 12 | ❌ **different bodies** |
+
+Two functions diverged:
+
+1. **`is_commander`** — LIVE 985 chars, SANDBOX 426. The sandbox was running a
+   pre-`002` version using `exists(...)` over every matching row instead of
+   `limit 1` into locals. On today's data they agree; given two rows sharing an
+   `auth_user_id` they need not. Fixed by
+   `migrations/034_sandbox_is_commander_parity.sql` — a no-op on LIVE, which
+   already matches the repo, and the correction on the sandbox. **Run it on
+   both**, so afterwards each is provably the repo's version rather than
+   assumed to be.
+2. **`set_updated_at`** — 196 vs 191 chars, identical logic, `\r\n` vs `\n`
+   line endings. Cosmetic; left alone deliberately rather than churning a
+   trigger function over whitespace.
+
+### The gap none of the SQL signatures could ever have caught
+
+**Edge Functions are not in the Postgres catalog**, so no schema comparison
+sees them:
+
+| | LIVE | SANDBOX |
+|---|---|---|
+| Edge Functions | `send-email` (v3, ACTIVE) | **none** |
+
+The sandbox therefore **cannot send a login code at all** — Supabase Auth's
+Send Email hook has nothing to call. Nobody can sign in to the sandbox, which
+is worth knowing before anyone tries to rehearse anything there.
+
+**Check these by hand when comparing environments; SQL will not tell you:**
+Edge Functions, Auth hooks, Auth providers, project secrets, storage buckets,
+and scheduled jobs.
+
+### Deployed code drifted from the repo
+
+`supabase/functions/send-email/index.ts` in git reads secrets as
+`Deno.env.get("RESEND_API_KEY") ?? ""`. The **deployed** v3 does not — it
+carries a live Resend API key and the `v1,whsec_...` hook secret as hardcoded
+fallbacks. Neither value appears in any commit on any branch (verified with
+`git log --all -S`), so nothing leaked to GitHub; the exposure is limited to
+anyone with Supabase project access.
+
+Do **not** simply redeploy the repo version to fix this. If the dashboard
+secrets were never actually set, the `?? ""` version authenticates with an
+empty key and **every login email stops working**. Order: confirm both secrets
+exist under Project Settings → Edge Functions → Secrets, redeploy, then send
+yourself a code to prove it still arrives.
+
+---
+
 ## Which project the app talks to
 
 `.env.local` (git-ignored) holds two variables:

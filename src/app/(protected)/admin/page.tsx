@@ -145,7 +145,7 @@ export default function AdminPage() {
       }
 
       if (usersError) {
-        console.error('Database users fetch error:', usersError);
+        logSupabaseError('Admin users fetch failed', usersError);
         // "בינתיים אפשר להציג error ברור: נדרשת מדיניות RLS נוספת לניהול משתמשים"
         if (usersError.code === '42501') {
           setRlsError('אין לך הרשאה מתאימה לניהול משתמשים כרגע. פנה למנהל המערכת.');
@@ -165,7 +165,7 @@ export default function AdminPage() {
         setProfilesList(mappedUsers as AdminUserProfile[]);
       }
     } catch (err) {
-      console.error('Failed to load admin data:', err);
+      logSupabaseError('Admin data load failed unexpectedly', err);
       setRlsError('שגיאה בלתי צפויה בטעינת נתוני מנהל.');
     } finally {
       setIsLoadingData(false);
@@ -242,7 +242,7 @@ export default function AdminPage() {
         .select('id');
 
       if (error) {
-        console.error('Failed to approve user:', error);
+        logSupabaseError('User approval failed', error);
         if (error.code === '42501') {
           setRlsError('אין לך הרשאה מתאימה לניהול משתמשים כרגע. פנה למנהל המערכת.');
         } else {
@@ -260,7 +260,7 @@ export default function AdminPage() {
         prev.map(p => p.id === userId ? { ...p, status: 'active', role_approval_status: 'approved', permission_level: calculatedLevel } : p)
       );
     } catch (err) {
-      console.error(err);
+      logSupabaseError('User approval threw', err);
       setRlsError('שגיאה בלתי צפויה בעת אישור משתמש.');
     } finally {
       setIsActionSubmitting(null);
@@ -283,7 +283,7 @@ export default function AdminPage() {
         .select('id');
 
       if (error) {
-        console.error('Failed to reject user:', error);
+        logSupabaseError('User rejection failed', error);
         if (error.code === '42501') {
           setRlsError('אין לך הרשאה מתאימה לניהול משתמשים כרגע. פנה למנהל המערכת.');
         } else {
@@ -300,7 +300,7 @@ export default function AdminPage() {
         prev.map(p => p.id === userId ? { ...p, status: 'inactive', role_approval_status: 'rejected' } : p)
       );
     } catch (err) {
-      console.error(err);
+      logSupabaseError('User rejection threw', err);
       setRlsError('שגיאה בלתי צפויה בעת דחיית משתמש.');
     } finally {
       setIsActionSubmitting(null);
@@ -357,7 +357,7 @@ export default function AdminPage() {
         .select('id');
 
       if (error) {
-        console.error('Failed to save profile edits:', error);
+        logSupabaseError('Admin profile edit save failed', error);
         if (error.code === '42501') {
           setRlsError('אין לך הרשאה מתאימה לניהול משתמשים כרגע. פנה למנהל המערכת.');
         } else {
@@ -383,7 +383,7 @@ export default function AdminPage() {
       );
       setEditingUserId(null);
     } catch (err) {
-      console.error(err);
+      logSupabaseError('Admin profile edit threw', err);
       setRlsError('שגיאה בלתי צפויה בעת שמירת שינויים.');
     } finally {
       setIsActionSubmitting(null);
@@ -442,7 +442,7 @@ export default function AdminPage() {
         } else if (insertError?.code === '42501') {
           setInviteError('אין לך הרשאה להוסיף משתמשים כרגע.');
         } else {
-          console.error('Failed to invite user:', insertError);
+          logSupabaseError('User invite failed', insertError);
           setInviteError('לא הצלחנו להוסיף את המשתמש. נסה שוב בעוד רגע.');
         }
         return;
@@ -462,7 +462,7 @@ export default function AdminPage() {
       setIsInviteOpen(false);
       await loadAdminData();
     } catch (err) {
-      console.error(err);
+      logSupabaseError('User invite threw', err);
       setInviteError('שגיאה בלתי צפויה בעת הוספת המשתמש.');
     } finally {
       setIsInviting(false);

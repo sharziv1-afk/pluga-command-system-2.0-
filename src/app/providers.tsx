@@ -8,28 +8,49 @@ import { AppProvider } from '@/lib/context/AppContext';
  * be", but in a standalone (home-screen) launch on some iOS versions it
  * measures short in **portrait only** — confirmed on a real device: the
  * gap below the bottom nav vanished in landscape and came straight back in
- * portrait. Landscape isn't a coincidence there; it means the CSS unit
- * itself is the thing lying, not any positioning rule that reads it.
+ * portrait, and its colour is our own body gradient, not Safari chrome. That
+ * rules out both "it's the browser's toolbar" and "the positioning is wrong"
+ * at once — the CSS unit itself is under-measuring.
  *
- * The fix is not a smarter CSS unit — there isn't a more-reliable one available,
- * `dvh` has the same iOS history — it's to stop asking the engine to compute
- * this at all. `window.innerHeight` is the actual rendered viewport, always,
- * on every iOS version. Setting it as a custom property make it the source
- * of truth `.protected-layout-shell` reads (globals.css), falling back to
- * `100svh` for the brief instant before this effect runs and for any
- * environment where `window` is unavailable (SSR).
+ * First attempt read `window.innerHeight` once on mount plus on resize /
+ * orientationchange, and it did not fix it — reported back, on the same
+ * device, still short. That is consistent with a further-documented iOS
+ * quirk: right after a standalone launch, `innerHeight` itself can report
+ * the safe-area-excluded height for a beat before the OS finishes settling
+ * the layout, with no resize event firing to say so — nothing beyond the
+ * numbers changed.
+ *
+ * Fixed by not trusting one read at one moment:
+ *   - `visualViewport.height` where it exists — it is the API iOS itself
+ *     recommends for exactly this, tracks the actual visible area rather
+ *     than a layout box, and fires its own `resize` independent of window's.
+ *   - re-measured again after a short delay on mount, specifically to catch
+ *     the silent post-launch correction that fires no event at all.
+ *   - `window.innerHeight` stays as the fallback where visualViewport is
+ *     unsupported (older WebKit, non-Safari browsers).
  */
 function useRealViewportHeight() {
   useEffect(() => {
     const setViewportHeight = () => {
-      document.documentElement.style.setProperty('--app-vh', `${window.innerHeight}px`);
+      const height = window.visualViewport?.height ?? window.innerHeight;
+      document.documentElement.style.setProperty('--app-vh', `${height}px`);
     };
+
     setViewportHeight();
+    // iOS has settled its safe-area layout by ~300ms after mount in every
+    // case observed; re-checking here catches the silent post-launch
+    // correction even when nothing fires a resize event for it.
+    const settleTimeout = window.setTimeout(setViewportHeight, 300);
+
     window.addEventListener('resize', setViewportHeight);
     window.addEventListener('orientationchange', setViewportHeight);
+    window.visualViewport?.addEventListener('resize', setViewportHeight);
+
     return () => {
+      window.clearTimeout(settleTimeout);
       window.removeEventListener('resize', setViewportHeight);
       window.removeEventListener('orientationchange', setViewportHeight);
+      window.visualViewport?.removeEventListener('resize', setViewportHeight);
     };
   }, []);
 }

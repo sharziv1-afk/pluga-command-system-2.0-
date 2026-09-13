@@ -324,6 +324,7 @@ export default function LoginPage() {
                 <input
                   type="text"
                   inputMode="numeric"
+                  autoComplete="one-time-code"
                   maxLength={8}
                   dir="ltr"
                   required

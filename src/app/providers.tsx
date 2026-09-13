@@ -3,7 +3,40 @@
 import React, { useEffect } from 'react';
 import { AppProvider } from '@/lib/context/AppContext';
 
+/**
+ * iOS Safari's `100svh` is meant to be "the smallest the viewport can ever
+ * be", but in a standalone (home-screen) launch on some iOS versions it
+ * measures short in **portrait only** — confirmed on a real device: the
+ * gap below the bottom nav vanished in landscape and came straight back in
+ * portrait. Landscape isn't a coincidence there; it means the CSS unit
+ * itself is the thing lying, not any positioning rule that reads it.
+ *
+ * The fix is not a smarter CSS unit — there isn't a more-reliable one available,
+ * `dvh` has the same iOS history — it's to stop asking the engine to compute
+ * this at all. `window.innerHeight` is the actual rendered viewport, always,
+ * on every iOS version. Setting it as a custom property make it the source
+ * of truth `.protected-layout-shell` reads (globals.css), falling back to
+ * `100svh` for the brief instant before this effect runs and for any
+ * environment where `window` is unavailable (SSR).
+ */
+function useRealViewportHeight() {
+  useEffect(() => {
+    const setViewportHeight = () => {
+      document.documentElement.style.setProperty('--app-vh', `${window.innerHeight}px`);
+    };
+    setViewportHeight();
+    window.addEventListener('resize', setViewportHeight);
+    window.addEventListener('orientationchange', setViewportHeight);
+    return () => {
+      window.removeEventListener('resize', setViewportHeight);
+      window.removeEventListener('orientationchange', setViewportHeight);
+    };
+  }, []);
+}
+
 export default function Providers({ children }: { children: React.ReactNode }) {
+  useRealViewportHeight();
+
   useEffect(() => {
     if (process.env.NODE_ENV !== 'production') {
       // Never register in dev: Turbopack's dev bundles aren't content-hashed

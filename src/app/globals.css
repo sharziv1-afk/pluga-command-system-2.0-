@@ -268,6 +268,12 @@ textarea {
   position: relative;
   min-height: 100vh;
   min-height: 100svh;
+  /* Overrides the height above once JS has measured the real viewport (see
+     providers.tsx) — 100svh under-measures in portrait on some iOS versions
+     when launched from the home screen, leaving a gap below the bottom nav.
+     Falls back to the min-height rules for the first paint and for any
+     browser that never runs the effect (JS disabled, an SSR crawl). */
+  height: var(--app-vh, 100svh);
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;

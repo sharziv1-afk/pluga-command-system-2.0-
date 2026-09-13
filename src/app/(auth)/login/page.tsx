@@ -238,7 +238,10 @@ export default function LoginPage() {
   return (
     <main className="command-page-shell relative flex items-center justify-center p-4 text-right sm:p-6">
       <div className="command-auth-overlay pointer-events-none absolute inset-0" />
-      <div className="absolute left-4 top-4 z-20">
+      <div
+        className="absolute left-4 z-20"
+        style={{ top: 'max(1rem, calc(env(safe-area-inset-top) + 0.375rem))' }}
+      >
         <ThemeToggle />
       </div>
 

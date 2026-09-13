@@ -1178,14 +1178,14 @@ function QuickCreateModal({
         aria-label="סגירת יצירה מהירה"
         onClick={onClose}
         disabled={isSubmitting}
-        className="fixed inset-0 z-40 cursor-default bg-black/5 disabled:pointer-events-none"
+        className="fixed inset-0 z-40 cursor-default bg-[var(--text-primary)]/10 backdrop-blur-[2px] disabled:pointer-events-none"
       />
 
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="quick-create-title"
-        className="fixed inset-x-4 top-2 z-50 flex max-h-[calc(100dvh-6rem)] w-auto max-w-none flex-col rounded-3xl border border-white/80 bg-[var(--tactical-strong-glass)] shadow-[0_18px_50px_rgba(2,1,8,0.16)] sm:top-4 sm:max-h-[calc(100dvh-2rem)] md:inset-x-auto md:left-1/2 md:top-32 md:max-h-[calc(100dvh-10rem)] md:w-[min(92vw,520px)] md:max-w-[calc(100vw-2rem)] md:-translate-x-1/2"
+        className="fixed inset-x-4 top-2 z-50 flex max-h-[calc(100dvh-6rem)] w-auto max-w-none flex-col rounded-3xl border border-white/80 bg-[var(--tactical-strong-glass)] shadow-[0_18px_50px_rgba(2,1,8,0.16)] backdrop-blur-2xl sm:top-4 sm:max-h-[calc(100dvh-2rem)] md:inset-x-auto md:left-1/2 md:top-32 md:max-h-[calc(100dvh-10rem)] md:w-[min(92vw,520px)] md:max-w-[calc(100vw-2rem)] md:-translate-x-1/2"
         dir="rtl"
       >
         <span className="absolute -top-2 left-1/2 hidden h-4 w-4 -translate-x-1/2 rotate-45 border-r border-t border-white/80 bg-[var(--tactical-strong-glass)] md:block" aria-hidden="true" />

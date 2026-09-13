@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Profile } from '../types';
 import { fetchCurrentProfile } from '../supabase/profile';
 import { createSupabaseBrowserClient } from '../supabase/browser';
@@ -264,16 +264,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, []);
 
+  // Every consumer of useApp() — which is every page in the app — re-renders
+  // whenever this Provider's value reference changes, because Context reads
+  // are compared by reference, not by shape. A bare object literal here is a
+  // new reference on every render of AppProvider (which sits above the
+  // entire app and re-renders for reasons that have nothing to do with these
+  // six fields), so every page was re-rendering more than its own state ever
+  // required. refreshProfile and unlockOfflineSession are already stable
+  // (useCallback with an empty deps array), so this memo only actually
+  // recomputes when one of the real values below changes.
+  const value = useMemo(() => ({
+    currentUser,
+    isLoading: authStatus === 'loading',
+    authStatus,
+    authError,
+    refreshProfile,
+    isOfflineSession,
+    unlockOfflineSession,
+  }), [currentUser, authStatus, authError, refreshProfile, isOfflineSession, unlockOfflineSession]);
+
   return (
-    <AppContext.Provider value={{
-      currentUser,
-      isLoading: authStatus === 'loading',
-      authStatus,
-      authError,
-      refreshProfile,
-      isOfflineSession,
-      unlockOfflineSession,
-    }}>
+    <AppContext.Provider value={value}>
       {children}
     </AppContext.Provider>
   );

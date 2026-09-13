@@ -4,53 +4,51 @@ import React, { useEffect } from 'react';
 import { AppProvider } from '@/lib/context/AppContext';
 
 /**
- * iOS Safari's `100svh` is meant to be "the smallest the viewport can ever
- * be", but in a standalone (home-screen) launch on some iOS versions it
- * measures short in **portrait only** — confirmed on a real device: the
- * gap below the bottom nav vanished in landscape and came straight back in
- * portrait, and its colour is our own body gradient, not Safari chrome. That
- * rules out both "it's the browser's toolbar" and "the positioning is wrong"
- * at once — the CSS unit itself is under-measuring.
+ * Measured on the reporting device (iPhone, installed to the home screen,
+ * portrait), via a temporary on-screen readout — see git history for
+ * ViewportDebug.tsx:
  *
- * First attempt read `window.innerHeight` once on mount plus on resize /
- * orientationchange, and it did not fix it — reported back, on the same
- * device, still short. That is consistent with a further-documented iOS
- * quirk: right after a standalone launch, `innerHeight` itself can report
- * the safe-area-excluded height for a beat before the OS finishes settling
- * the layout, with no resize event firing to say so — nothing beyond the
- * numbers changed.
+ *   innerHeight: 873    visualViewport.height: 873    screen.height: 932
+ *   safe-area-inset-bottom: 34
  *
- * Fixed by not trusting one read at one moment:
- *   - `visualViewport.height` where it exists — it is the API iOS itself
- *     recommends for exactly this, tracks the actual visible area rather
- *     than a layout box, and fires its own `resize` independent of window's.
- *   - re-measured again after a short delay on mount, specifically to catch
- *     the silent post-launch correction that fires no event at all.
- *   - `window.innerHeight` stays as the fallback where visualViewport is
- *     unsupported (older WebKit, non-Safari browsers).
+ * 932 − 873 = 59, and this device's top inset is 59 (Dynamic Island model).
+ * That is not a coincidence or a stale reading: `innerHeight` here already
+ * excludes BOTH safe-area insets from its own count, not only the bottom one
+ * `env(safe-area-inset-bottom)` separately reports for CSS padding. Two
+ * earlier attempts (a plain `innerHeight` read, then `visualViewport` plus a
+ * delayed re-check) both measured that same excluded-both-insets number more
+ * precisely each time — neither could have worked, because the number itself
+ * was never the full viewport to begin with.
+ *
+ * The fix: add both insets back. `.protected-layout-shell` is sized to
+ * innerHeight + safe-area-inset-top + safe-area-inset-bottom, which is the
+ * true full-screen height (873 + 59 = 932, matching screen.height exactly on
+ * that device) — the shell now spans edge to edge, and the bottom nav's own
+ * `.safe-bottom-nav` padding (already in globals.css) keeps its tap targets
+ * clear of the home-indicator gesture area within that.
+ *
+ * This also explains, instead of merely fitting, why landscape never showed
+ * the gap: rotated, both insets move to the left/right edges and contribute
+ * ~0 to height, so innerHeight alone already equalled the true height there —
+ * nothing needed adding back.
  */
 function useRealViewportHeight() {
   useEffect(() => {
     const setViewportHeight = () => {
-      const height = window.visualViewport?.height ?? window.innerHeight;
+      const rootStyle = getComputedStyle(document.documentElement);
+      const topInset = parseFloat(rootStyle.getPropertyValue('--safe-area-top')) || 0;
+      const bottomInset = parseFloat(rootStyle.getPropertyValue('--safe-area-bottom')) || 0;
+      const height = window.innerHeight + topInset + bottomInset;
       document.documentElement.style.setProperty('--app-vh', `${height}px`);
     };
 
     setViewportHeight();
-    // iOS has settled its safe-area layout by ~300ms after mount in every
-    // case observed; re-checking here catches the silent post-launch
-    // correction even when nothing fires a resize event for it.
-    const settleTimeout = window.setTimeout(setViewportHeight, 300);
-
     window.addEventListener('resize', setViewportHeight);
     window.addEventListener('orientationchange', setViewportHeight);
-    window.visualViewport?.addEventListener('resize', setViewportHeight);
 
     return () => {
-      window.clearTimeout(settleTimeout);
       window.removeEventListener('resize', setViewportHeight);
       window.removeEventListener('orientationchange', setViewportHeight);
-      window.visualViewport?.removeEventListener('resize', setViewportHeight);
     };
   }, []);
 }

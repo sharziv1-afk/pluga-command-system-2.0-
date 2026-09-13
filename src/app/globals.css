@@ -840,10 +840,16 @@ option {
    for free), responsive shell helpers, safe areas, KPI type.
    ============================================================ */
 
-/* Diagnostic only — exposes env(safe-area-inset-bottom) to JS via
-   getComputedStyle, which cannot read env() directly. Remove alongside
-   ViewportDebug.tsx once the portrait gap is diagnosed. */
-:root { --sat-debug-bottom: env(safe-area-inset-bottom); }
+/* Exposes the two safe-area insets to JS via getComputedStyle, which cannot
+   read env() directly. providers.tsx needs both: iOS's innerHeight in a
+   home-screen-installed app excludes BOTH insets from its own count (not
+   just the one env(safe-area-inset-bottom) already covers for CSS
+   padding), confirmed by measurement — innerHeight + top + bottom equalled
+   screen.height exactly on the reporting device. */
+:root {
+  --safe-area-top: env(safe-area-inset-top);
+  --safe-area-bottom: env(safe-area-inset-bottom);
+}
 
 /* Safe-area helpers (mobile bottom nav / sheets) */
 /* Top inset. Nothing handled this before: with viewport-fit: cover now set,

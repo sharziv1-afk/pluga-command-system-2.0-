@@ -7,7 +7,6 @@ import { AppSidebar } from '@/components/layout/AppSidebar';
 import { MobileHeader } from '@/components/layout/MobileHeader';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { InstallHint } from '@/components/layout/InstallHint';
-import { ViewportDebug } from '@/components/layout/ViewportDebug';
 import { PageTransition } from '@/components/layout/PageTransition';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { OfflineGate } from '@/components/layout/OfflineGate';
@@ -127,7 +126,6 @@ export default function ProtectedLayout({ children }: Readonly<{ children: React
 
       <BottomNav />
       <InstallHint />
-      <ViewportDebug />
     </div>
   );
 }

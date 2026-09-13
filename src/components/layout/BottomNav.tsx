@@ -18,9 +18,10 @@ function isActivePath(pathname: string, path: string) {
  * The sheet was its own dialog for what was, at most, six extra links —
  * a tap to open a window to tap again for the actual destination. A phone
  * screen isn't wide enough for ten tabs at a comfortable touch size, but it
- * doesn't need to be: the row scrolls, the four most-used screens (in
- * navigationItems' own order) land first so they need no scrolling at all,
- * and every screen is one tap away instead of two.
+ * doesn't need to be: the row scrolls, the everyday screens sit first in
+ * navigationItems (which is why that array's order is load-bearing — see the
+ * note on it) so they need no scrolling at all, and every screen is one tap
+ * away instead of two.
  */
 export const BottomNav: React.FC = () => {
   const pathname = usePathname();

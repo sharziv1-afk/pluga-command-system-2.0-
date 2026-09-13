@@ -16,19 +16,23 @@ export interface NavItem {
   name: string;
   path: string;
   icon: LucideIcon;
-  /** Shown in the mobile bottom navigation (max 4 + "More"). */
-  primary?: boolean;
   /** Restricted to company command roles (מ״פ / סמ״פ). */
   adminOnly?: boolean;
   /** Restricted to the מ״פ only — not even סמ״פ. */
   commanderOnly?: boolean;
 }
 
+/**
+ * Order matters and is not cosmetic: the mobile bottom nav renders this list
+ * as one scrollable row, so whatever sits at the top here is what a
+ * commander can reach without scrolling. The first four are the
+ * everyday screens; reordering this array reorders that row.
+ */
 export const navigationItems: NavItem[] = [
-  { name: 'לוח מפקד', path: '/dashboard', icon: LayoutDashboard, primary: true },
-  { name: 'משימות ובקרה', path: '/tasks', icon: CheckSquare, primary: true },
-  { name: 'דרישות', path: '/requests', icon: Truck, primary: true },
-  { name: 'פורום מוביל', path: '/forum', icon: MessageSquare, primary: true },
+  { name: 'לוח מפקד', path: '/dashboard', icon: LayoutDashboard },
+  { name: 'משימות ובקרה', path: '/tasks', icon: CheckSquare },
+  { name: 'דרישות', path: '/requests', icon: Truck },
+  { name: 'פורום מוביל', path: '/forum', icon: MessageSquare },
   { name: 'לו״ז', path: '/schedule', icon: CalendarClock },
   { name: 'מעקב', path: '/tracking', icon: Table2 },
   { name: 'חניכה', path: '/mentoring', icon: GraduationCap, commanderOnly: true },
@@ -40,13 +44,4 @@ export const navigationItems: NavItem[] = [
 /** Nav items visible to a user, filtered by admin/commander access. */
 export function visibleNavItems(isAdmin: boolean, isCompanyCommander = false): NavItem[] {
   return navigationItems.filter((item) => (!item.adminOnly || isAdmin) && (!item.commanderOnly || isCompanyCommander));
-}
-
-/** Bottom-nav layout: up to 4 primary items; everything else lives under "More". */
-export function bottomNavSplit(isAdmin: boolean, isCompanyCommander = false): { primary: NavItem[]; more: NavItem[] } {
-  const items = visibleNavItems(isAdmin, isCompanyCommander);
-  return {
-    primary: items.filter((item) => item.primary).slice(0, 4),
-    more: items.filter((item) => !item.primary),
-  };
 }

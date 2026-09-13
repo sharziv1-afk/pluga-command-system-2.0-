@@ -16,6 +16,7 @@ import {
   ShieldAlert,
   Sparkles,
   UserRound,
+  WifiOff,
   X,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -25,6 +26,7 @@ import { eventStatusLabels, requestStatusLabels, taskStatusLabels } from '@/lib/
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { createAuditLog } from '@/lib/audit';
 import { useApp } from '@/lib/context/AppContext';
+import { cacheGet, cacheSet } from '@/lib/offline/db';
 import { ambiguousMutationMessage, runQuickCreateMutation } from '@/lib/inFlightLock';
 import { getPermissionLevelForRole, hasCompanyWideUiAccess } from '@/lib/permissions';
 import { getScheduleDisplayStatus } from '@/lib/schedule';
@@ -506,6 +508,12 @@ export default function DashboardPage() {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [dashboardData, setDashboardData] = useState<DashboardData>(emptyDashboardData);
   const [isLoading, setIsLoading] = useState(true);
+  const [isOffline, setIsOffline] = useState(false);
+  const [cachedAt, setCachedAt] = useState<number | null>(null);
+  // Scoped per user, like every other cache key in this app — a shared
+  // device must not surface one commander's cached dashboard to the next
+  // person who signs in.
+  const DASHBOARD_CACHE_KEY = `dashboard:${currentUser?.id ?? 'anonymous'}`;
   const [quickCreateType, setQuickCreateType] = useState<QuickCreateType | null>(null);
   const [isQuickCreateSubmitting, setIsQuickCreateSubmitting] = useState(false);
   const quickCreateInFlight = useRef(false);
@@ -523,6 +531,22 @@ export default function DashboardPage() {
     }
 
     setIsLoading(true);
+
+    // This page had no offline cache at all — every other list page in the
+    // app (tasks, requests, schedule...) falls back to its last-known-good
+    // IndexedDB copy when there's no network; the dashboard just reset to
+    // the empty state and showed zero tasks, zero requests, nothing, even
+    // though the device had a perfectly good cached view moments earlier.
+    if (!navigator.onLine) {
+      const cached = await cacheGet<DashboardData>(DASHBOARD_CACHE_KEY);
+      setIsOffline(true);
+      setCachedAt(cached?.cachedAt ?? null);
+      setDashboardData(cached?.data ?? emptyDashboardData);
+      setIsLoading(false);
+      return;
+    }
+    setIsOffline(false);
+
     const nextData: DashboardData = { ...emptyDashboardData, errors: [] };
 
     try {
@@ -627,13 +651,24 @@ export default function DashboardPage() {
     }
 
     setDashboardData(nextData);
+    void cacheSet(DASHBOARD_CACHE_KEY, nextData);
     } catch (loadError) {
       logSupabaseError('Dashboard load failed unexpectedly', loadError);
-      setDashboardData({ ...emptyDashboardData, errors: ['לא ניתן לטעון את תמונת המצב כרגע. נסה שוב בעוד רגע.'] });
+      // navigator.onLine can lie (some browsers/networks report "online" on
+      // a dead connection) — a network-shaped failure falls back to cache
+      // too, not just the explicit offline check at the top of this function.
+      const cached = await cacheGet<DashboardData>(DASHBOARD_CACHE_KEY);
+      if (cached) {
+        setIsOffline(true);
+        setCachedAt(cached.cachedAt);
+        setDashboardData(cached.data);
+      } else {
+        setDashboardData({ ...emptyDashboardData, errors: ['לא ניתן לטעון את תמונת המצב כרגע. נסה שוב בעוד רגע.'] });
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser, supabase]);
+  }, [currentUser, supabase, DASHBOARD_CACHE_KEY]);
 
   useEffect(() => {
     void loadDashboard();
@@ -976,6 +1011,15 @@ export default function DashboardPage() {
           </div>
         }
       />
+
+      {isOffline && (
+        <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-warning)]/25 bg-[var(--color-warning)]/10 px-4 py-3 text-sm font-bold text-[var(--color-warning)]">
+          <WifiOff className="h-4 w-4 shrink-0" />
+          <span>
+            אין רשת — מוצג לוח המפקד שנשמר במכשיר{cachedAt ? ` בשעה ${new Date(cachedAt).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}` : ''}.
+          </span>
+        </div>
+      )}
 
       {successMessage && (
         <GlassCard className="border-[var(--color-success)]/25 bg-[var(--color-success)]/10 py-4">

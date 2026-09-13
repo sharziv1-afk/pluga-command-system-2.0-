@@ -542,7 +542,13 @@ export default function DashboardPage() {
       supabase
         .from('events')
         .select('id,title,description,event_type,starts_at,ends_at,location,unit_id,created_by,responsible_user_id,status,metadata,created_at,updated_at')
-        .order('starts_at', { ascending: true })
+        // Descending, not ascending: ascending + a fixed cap means once the
+        // table holds more rows than the cap, the query returns only the
+        // OLDEST events ever created and today's/upcoming events silently
+        // stop appearing forever. Descending keeps whatever is most recently
+        // scheduled — which, since real usage keeps creating events further
+        // forward in time, is exactly today's and the near future's events.
+        .order('starts_at', { ascending: false })
         .limit(80)
         .returns<DbEvent[]>(),
       supabase

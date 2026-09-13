@@ -86,6 +86,9 @@ export async function createAuditLog(
 
     if (error) console.warn('[audit] insert failed:', error.message);
   } catch (error) {
-    console.warn('[audit] insert failed:', error);
+    // Match the branch above: log a message, not the raw thrown value — a
+    // fetch-layer exception can carry a stack, cause, and request internals
+    // that don't belong in a browser console reachable in production.
+    console.warn('[audit] insert failed:', error instanceof Error ? error.message : String(error));
   }
 }

@@ -256,7 +256,11 @@ export default function SchedulePage() {
         supabase
           .from('events')
           .select('id,title,description,event_type,starts_at,ends_at,location,unit_id,created_by,responsible_user_id,status,metadata,created_at,updated_at')
-          .order('starts_at', { ascending: true })
+          // Descending — see the matching comment in dashboard/page.tsx.
+          // Ascending + a fixed cap silently drops today's/upcoming events
+          // once the table outgrows the cap, favoring the oldest rows ever
+          // created instead of the ones actually relevant to look at now.
+          .order('starts_at', { ascending: false })
           .limit(LIST_FETCH_LIMIT)
           .returns<DbEvent[]>(),
         canAssign

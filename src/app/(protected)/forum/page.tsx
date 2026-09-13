@@ -54,6 +54,7 @@ import { enqueueWrite, flushWriteQueue, pendingWriteCount } from '@/lib/offline/
 import { copyTextToClipboard } from '@/lib/clipboard';
 import { aggregateCompanyStructured, assignPlatoonReports } from '@/lib/forum/companyReport';
 import type { CompanyReportInput, CompanyReportPlatoon } from '@/lib/forum/companyReport';
+import { advanceReportStatus } from '@/lib/forum/reportStatus';
 import {
   canMutateDailyDraft,
   canTransitionDraft,
@@ -65,7 +66,7 @@ import {
   snapshotDraftFields,
 } from '@/lib/forum/draftProtection';
 import { useApp } from '@/lib/context/AppContext';
-import { getPermissionLevelForRole, hasCompanyWideUiAccess, normalizeRole } from '@/lib/permissions';
+import { getPermissionLevelForRole, hasAdminAccess, hasCompanyWideUiAccess, normalizeRole } from '@/lib/permissions';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
 import { toDbProfile, type DbProfile } from '@/lib/dbProfile';
@@ -547,6 +548,15 @@ export default function ForumPage() {
   const dbProfile = useMemo(() => toDbProfile(currentUser), [currentUser]);
   const profilePermissionLevel = dbProfile?.permission_level ?? getPermissionLevelForRole(currentUser?.role ?? '');
   const canSeeAll = Boolean(currentUser && hasCompanyWideUiAccess(dbProfile?.role ?? currentUser.role, profilePermissionLevel));
+  // `canSeeAll` also grants מש"ד (permission_level 85) company-wide READ
+  // access, which is correct — but the DB's "commander update all" RLS
+  // policy on forum_daily_reports (migration 010) is gated by is_commander:
+  // מ"פ, סמ"פ, or permission_level >= 90. מש"ד satisfies neither. Bulk-
+  // closing the whole forum needs that DB-level authority, not just
+  // company-wide visibility, or the write silently narrows to "owner update
+  // own" under RLS and closes only the caller's own report. Mirrors
+  // is_commander exactly rather than reusing canSeeAll for this one action.
+  const canPublishForum = Boolean(currentUser) && (hasAdminAccess(dbProfile?.role ?? currentUser?.role) || profilePermissionLevel >= 90);
   const staffRole = useMemo(() => inferStaffRole(dbProfile?.role ?? currentUser?.role ?? ''), [currentUser?.role, dbProfile?.role]);
   const ownerLabels = useMemo(() => new Map(ownerOptions.map(owner => [
     owner.id,
@@ -1751,11 +1761,11 @@ export default function ForumPage() {
           id: selectedReport.id,
           baseUpdatedAt: selectedReport.updated_at,
           changes: contentChanges,
-          selectColumns: 'content,updated_by',
+          selectColumns: 'content,status,updated_by',
           extractFields: (row) => (row.content as Record<string, unknown>) ?? {},
-          buildPayload: (fields) => ({
+          buildPayload: (fields, currentRow) => ({
             content: { ...selectedReport.content, ...fields },
-            status: updatePayload.status,
+            status: advanceReportStatus(currentRow ? currentRow.status : selectedReport.status, 'in_progress'),
             summary_text: updatePayload.summary_text,
             whatsapp_text: updatePayload.whatsapp_text,
           }),
@@ -1850,11 +1860,11 @@ export default function ForumPage() {
         id: selectedReport.id,
         baseUpdatedAt: selectedReport.updated_at,
         changes: contentChanges,
-        selectColumns: 'content,updated_by',
+        selectColumns: 'content,status,updated_by',
         extractFields: (row) => (row.content as Record<string, unknown>) ?? {},
-        buildPayload: (fields) => ({
+        buildPayload: (fields, currentRow) => ({
           content: { ...selectedReport.content, ...fields },
-          status: 'submitted',
+          status: advanceReportStatus(currentRow ? currentRow.status : selectedReport.status, 'submitted'),
         }),
         currentUserId: dbProfile.id,
       });
@@ -2440,7 +2450,7 @@ export default function ForumPage() {
   // next-day draft (reusing the existing carryForwardClosedReport). Single-report close/reopen
   // are untouched; there is no "reopen the whole forum" — reopen stays per-report.
   const publishAndCloseForum = async () => {
-    if (!dbProfile || !canSeeAll) return;
+    if (!dbProfile || !canPublishForum) return;
 
     setIsCompanyReportBusy(true);
     setIsDailySaving(true);
@@ -2481,14 +2491,32 @@ export default function ForumPage() {
 
     const closed = (closedRows ?? []) as DailyReportRow[];
 
-    // An empty result here is ambiguous: either everything was already closed,
-    // or RLS filtered the whole update out. The two look identical to the
-    // client, so compare against what was actually open before the call —
-    // if there were open reports and none came back, nothing was closed and
-    // the commander must not be told the forum was distributed.
+    // Checking only "did anything close" is not enough: `is_commander`
+    // (migration 010's "commander update all" policy) recognizes מ"פ/סמ"פ or
+    // permission_level >= 90, but the UI grants this button to מש"ד too
+    // (permission_level 85, via hasCompanyWideUiAccess). A מש"ד's bulk update
+    // is silently narrowed by RLS to the "owner update own" policy, so it
+    // closes only their own report — `closed.length` is a real, positive
+    // number, and the old `=== 0` check saw a success. Comparing against how
+    // many were actually open beforehand is what tells full from partial
+    // apart; the two are otherwise indistinguishable from the response alone.
     const openBefore = dailyReports.filter(report => report.status !== 'closed').length;
     if (openBefore > 0 && closed.length === 0) {
       setDailyError('לא נסגר אף דוח. ייתכן שאין לך הרשאה לסגור את דוחות היום, או שהם כבר נסגרו במקביל.');
+      setIsCompanyReportBusy(false);
+      setIsDailySaving(false);
+      setShowCompanyPublishConfirm(false);
+      await loadDailyReports(selectedDate);
+      return;
+    }
+    if (closed.length < openBefore) {
+      // Some reports closed (this account's own, most likely) but not all —
+      // the forum is NOT distributed. Never say otherwise, and never carry
+      // forward or audit-log this as a completed publish.
+      setDailyError(
+        `נסגרו רק ${closed.length} מתוך ${openBefore} דוחות פתוחים — הפורום עדיין לא הופץ במלואו. ` +
+        `ייתכן שאין לך הרשאת מפקד לסגור דוחות שאינם בבעלותך. פנה למ״פ/סמ״פ לסגירה מלאה.`,
+      );
       setIsCompanyReportBusy(false);
       setIsDailySaving(false);
       setShowCompanyPublishConfirm(false);
@@ -3060,7 +3088,7 @@ export default function ForumPage() {
           </div>
         )}
 
-        {canSeeAll && selectedNode.level === 'company' && renderCompanyPublishBlock()}
+        {canPublishForum && selectedNode.level === 'company' && renderCompanyPublishBlock()}
 
         <div className="tactical-glass-card flex flex-col gap-3 rounded-3xl p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm font-bold text-[var(--text-muted-accessible)]">היררכיית המחלקות המלאה תוצג כאן לאחר שיוך משתמשים ליחידות.</div>

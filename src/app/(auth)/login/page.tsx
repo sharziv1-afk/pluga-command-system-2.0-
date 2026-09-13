@@ -6,6 +6,7 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { GlossyButton } from '@/components/ui/GlossyButton';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
+import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 
 type Step = 'email' | 'code' | 'claim';
 
@@ -169,7 +170,20 @@ export default function LoginPage() {
         return;
       }
 
-      await supabase.from('users').update({ last_login_at: new Date().toISOString() }).eq('id', profile.id);
+      // This was the one .update() in the app with no .select() to confirm it
+      // actually matched a row — PostgREST returns 204 with no error when RLS
+      // filters an update out, so a denied write and a real one look
+      // identical without checking. Not user-facing (a stale login timestamp
+      // isn't worth blocking sign-in over) but worth knowing about rather
+      // than failing in total silence.
+      const { data: loginTimeRows } = await supabase
+        .from('users')
+        .update({ last_login_at: new Date().toISOString() })
+        .eq('id', profile.id)
+        .select('id');
+      if (!didRowsUpdate(loginTimeRows)) {
+        logDevelopmentError('last_login_at update matched no row (RLS?)', { profileId: profile.id });
+      }
       window.location.href = getProfileRedirectPath(profile);
     } catch (unknownError) {
       logDevelopmentError('verifyOtp threw', unknownError);

@@ -85,8 +85,23 @@ export interface HierarchyWriteParams {
   selectColumns: string;
   /** Pulls the diffable field map out of a freshly-fetched row (flat columns: identity; nested e.g. `content`: unwrap it). */
   extractFields: (row: Record<string, unknown>) => Record<string, unknown>;
-  /** Shapes resolved field values into the actual DB update payload (flat columns: identity; nested: wrap in `{ content: {...} }`). */
-  buildPayload: (resolvedFields: Record<string, unknown>) => Record<string, unknown>;
+  /**
+   * Shapes resolved field values into the actual DB update payload (flat
+   * columns: identity; nested: wrap in `{ content: {...} }`).
+   *
+   * `currentRow` is the just-refetched server row, passed ONLY when a
+   * conflict was found (undefined on the fast path). A caller that derives
+   * something outside `changes` from a value it loaded earlier — e.g. an
+   * import-only lifecycle column like `status` — must read it from
+   * `currentRow` when present rather than from its own stale closure: on the
+   * fast path `baseUpdatedAt` still matched, so nothing else could have
+   * changed and the closure's loaded value is still correct; on the conflict
+   * path something else DID change, and the closure's value is exactly what
+   * it was when the caller's copy was loaded, not what is on the server now.
+   * A caller that builds such a value from the closure unconditionally will
+   * silently overwrite whatever the other write set it to.
+   */
+  buildPayload: (resolvedFields: Record<string, unknown>, currentRow?: Record<string, unknown>) => Record<string, unknown>;
   currentUserId: string;
 }
 
@@ -169,7 +184,7 @@ export async function writeWithHierarchyResolution({
 
     const { data: mergedRows, error: mergeError } = await supabase
       .from(table)
-      .update({ ...buildPayload(merged), updated_by: currentUserId })
+      .update({ ...buildPayload(merged, current), updated_by: currentUserId })
       .eq('id', id)
       .eq('updated_at', current.updated_at as string)
       .select('id');

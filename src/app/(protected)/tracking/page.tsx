@@ -175,6 +175,7 @@ export default function TrackingPage() {
   const [weeks, setWeeks] = useState<DbTrackingWeek[]>([]);
   const [selectedWeekId, setSelectedWeekId] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [unitFilter, setUnitFilter] = useState<string>('all');
   const [searchText, setSearchText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSoldierFormOpen, setIsSoldierFormOpen] = useState(false);
@@ -309,10 +310,21 @@ export default function TrackingPage() {
     });
   }, [items, selectedWeekId, categoryFilter]);
 
+  // Units actually present among the current soldiers, not every unit that
+  // exists — a platoon with nobody tracked here yet would otherwise show up
+  // as a selectable filter that always returns zero rows.
+  const availableUnits = useMemo(
+    () => [...new Set(soldiers.map(soldier => soldier.unit_id).filter(Boolean))]
+      .map(id => ({ id, name: unitNameById.get(id) ?? 'יחידה לא ידועה' }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'he')),
+    [soldiers, unitNameById],
+  );
+
   const visibleSoldiers = useMemo(() => {
     const query = searchText.trim().toLowerCase();
-    if (!query) return soldiers;
     return soldiers.filter(soldier => {
+      if (unitFilter !== 'all' && soldier.unit_id !== unitFilter) return false;
+      if (!query) return true;
       const unitName = unitNameById.get(soldier.unit_id) ?? '';
       const haystack = [soldier.full_name, unitName, soldier.squad_label, soldier.role_label]
         .filter(Boolean)
@@ -320,7 +332,7 @@ export default function TrackingPage() {
         .toLowerCase();
       return haystack.includes(query);
     });
-  }, [soldiers, searchText, unitNameById]);
+  }, [soldiers, searchText, unitFilter, unitNameById]);
 
   const recordByCell = useMemo(() => {
     const soldierIds = new Set(soldiers.map(soldier => soldier.id));
@@ -1165,6 +1177,19 @@ export default function TrackingPage() {
                 className="command-input pr-10"
               />
             </div>
+            {availableUnits.length > 0 && (
+              <select
+                value={unitFilter}
+                onChange={event => setUnitFilter(event.target.value)}
+                aria-label="סינון לפי מחלקה"
+                className="command-select min-h-11 w-full sm:w-52"
+              >
+                <option value="all">כל המחלקות</option>
+                {availableUnits.map(unit => (
+                  <option key={unit.id} value={unit.id}>{unit.name}</option>
+                ))}
+              </select>
+            )}
             {availableCategories.length > 0 && (
               <select
                 value={categoryFilter}

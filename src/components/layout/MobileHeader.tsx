@@ -5,6 +5,7 @@ import { Shield } from 'lucide-react';
 import { QuickHelp } from '@/components/layout/QuickHelp';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { ContrastToggle } from '@/components/layout/ContrastToggle';
+import { RefreshButton } from '@/components/layout/RefreshButton';
 import { useApp } from '@/lib/context/AppContext';
 
 /** Slim mobile top bar. Navigation lives in the bottom nav; this only carries
@@ -24,6 +25,7 @@ export const MobileHeader: React.FC = () => {
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
+        <RefreshButton />
         <ThemeToggle />
         <ContrastToggle />
         <QuickHelp />

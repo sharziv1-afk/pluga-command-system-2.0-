@@ -1,4 +1,36 @@
+import { networkInterfaces } from "node:os";
 import type { NextConfig } from "next";
+
+/**
+ * Every LAN address this machine currently answers on.
+ *
+ * This used to be a hand-maintained list of four 192.168.x addresses, which
+ * meant two things: it broke every time DHCP handed out a different one (the
+ * failure mode is the worst kind — the page loads, hydration is refused, and
+ * every button silently does nothing), and it was the one piece of this repo
+ * that only worked on the machine it was written on. Moving the project to a
+ * new computer would have inherited a list of a previous machine's addresses.
+ *
+ * Reading the interfaces instead means it is correct on any machine, on any
+ * network, with no list to maintain — including after a router hands out a
+ * new lease mid-session. Dev-only; `next start` ignores it entirely.
+ */
+function localNetworkOrigins(): string[] {
+  const addresses = new Set<string>();
+  try {
+    for (const iface of Object.values(networkInterfaces())) {
+      for (const net of iface ?? []) {
+        // IPv4 only, and skip loopback — Next already allows localhost, and a
+        // phone cannot reach 127.0.0.1 on someone else's machine anyway.
+        if (net.family === "IPv4" && !net.internal) addresses.add(net.address);
+      }
+    }
+  } catch {
+    // If the interface list is unavailable for any reason, degrade to "no LAN
+    // origins allowed" rather than taking the dev server down with it.
+  }
+  return [...addresses];
+}
 
 // Supabase's origin has to be allowed explicitly in connect-src, otherwise the
 // CSP blocks every API call. Read from the same env var the client uses so the
@@ -58,12 +90,11 @@ const nextConfig: NextConfig = {
     // the whole set can be pulled into a chunk because one icon was imported.
     optimizePackageImports: ['lucide-react'],
   },
-  // Dev-only: allow the dev server to serve client JS/HMR to a phone on the
-  // local network so the page hydrates and onClick/onSubmit work. The LAN IP
-  // changes across sessions (DHCP) — when phone testing breaks again with
-  // buttons doing nothing, check `ipconfig` and add the current IP here.
+  // Dev-only: lets the dev server serve client JS/HMR to a phone on the same
+  // network, so the page hydrates and onClick/onSubmit actually fire.
+  // Detected at startup rather than hardcoded — see localNetworkOrigins above.
   // No effect on production builds.
-  allowedDevOrigins: ["192.168.1.231", "192.168.1.233", "192.168.1.224", "192.168.1.241"],
+  allowedDevOrigins: localNetworkOrigins(),
   async headers() {
     return [
       {

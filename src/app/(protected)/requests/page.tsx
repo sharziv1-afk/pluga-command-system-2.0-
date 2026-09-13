@@ -214,6 +214,12 @@ function getTabEmptyText(tab: TabId): { title: string; description: string } {
 
 type ViewMode = 'requests' | 'gaps';
 
+// Hidden 2026-09-13 at the commander's request — gaps matter less than
+// requests day to day, and the toggle was extra navigation for a feature
+// used less. GapsPanel, its data, and the 'gaps' view mode are all still
+// here untouched; flip this back to show the tab again, nothing to restore.
+const GAPS_TAB_ENABLED = false;
+
 export default function RequestsPage() {
   const { currentUser, isLoading: isContextLoading, refreshProfile } = useApp();
   const [viewMode, setViewMode] = useState<ViewMode>('requests');
@@ -906,7 +912,7 @@ export default function RequestsPage() {
   if (isContextLoading || isLoading) {
     return (
       <div className="space-y-6">
-        <PageHeader title="פערים ודרישות" subtitle="מוקד פתיחה, תיעדוף וטיפול בדרישות ופערים מהשטח" />
+        <PageHeader title="דרישות" subtitle="מוקד פתיחה, תיעדוף וטיפול בדרישות מהשטח" />
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <SkeletonCard />
           <SkeletonCard />
@@ -920,7 +926,7 @@ export default function RequestsPage() {
   if (!currentUser || !dbProfile) {
     return (
       <div className="space-y-6">
-        <PageHeader title="פערים ודרישות" subtitle="מוקד פתיחה, תיעדוף וטיפול בדרישות ופערים מהשטח" />
+        <PageHeader title="דרישות" subtitle="מוקד פתיחה, תיעדוף וטיפול בדרישות מהשטח" />
         <GlassCard className="flex flex-col items-center justify-center py-12 text-center">
           <ShieldAlert className="mb-3 h-10 w-10 text-[var(--color-danger)]" />
           <h2 className="text-sm font-semibold text-[var(--text-primary)]">לא נמצא פרופיל משתמש</h2>
@@ -935,8 +941,8 @@ export default function RequestsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="פערים ודרישות"
-        subtitle="מוקד פתיחה, תיעדוף וטיפול בדרישות ופערים מהשטח"
+        title="דרישות"
+        subtitle="מוקד פתיחה, תיעדוף וטיפול בדרישות מהשטח"
         actions={
           viewMode === 'requests' ? (
             <GlossyButton variant="orange" size="sm" onClick={() => setIsFormOpen(true)}>
@@ -947,26 +953,28 @@ export default function RequestsPage() {
         }
       />
 
-      <div className="flex items-center gap-1 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
-        {([
-          { id: 'requests', label: 'דרישות' },
-          { id: 'gaps', label: 'פערים' },
-        ] as const).map(mode => (
-          <button
-            key={mode.id}
-            onClick={() => setViewMode(mode.id)}
-            className={`touch-target flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition duration-150 ${
-              viewMode === mode.id
-                ? 'bg-[var(--action)] text-white shadow-[0_4px_12px_rgba(255,107,2,0.28)]'
-                : 'text-[var(--text-muted-accessible)] hover:bg-[var(--action)]/10 hover:text-[var(--text-primary)]'
-            }`}
-          >
-            {mode.label}
-          </button>
-        ))}
-      </div>
+      {GAPS_TAB_ENABLED && (
+        <div className="flex items-center gap-1 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
+          {([
+            { id: 'requests', label: 'דרישות' },
+            { id: 'gaps', label: 'פערים' },
+          ] as const).map(mode => (
+            <button
+              key={mode.id}
+              onClick={() => setViewMode(mode.id)}
+              className={`touch-target flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition duration-150 ${
+                viewMode === mode.id
+                  ? 'bg-[var(--action)] text-white shadow-[0_4px_12px_rgba(255,107,2,0.28)]'
+                  : 'text-[var(--text-muted-accessible)] hover:bg-[var(--action)]/10 hover:text-[var(--text-primary)]'
+              }`}
+            >
+              {mode.label}
+            </button>
+          ))}
+        </div>
+      )}
 
-      {viewMode === 'gaps' && <GapsPanel />}
+      {GAPS_TAB_ENABLED && viewMode === 'gaps' && <GapsPanel />}
 
       {viewMode === 'requests' && (
       <>

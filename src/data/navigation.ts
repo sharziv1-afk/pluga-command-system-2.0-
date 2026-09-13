@@ -27,7 +27,7 @@ export interface NavItem {
 export const navigationItems: NavItem[] = [
   { name: 'לוח מפקד', path: '/dashboard', icon: LayoutDashboard, primary: true },
   { name: 'משימות ובקרה', path: '/tasks', icon: CheckSquare, primary: true },
-  { name: 'פערים ודרישות', path: '/requests', icon: Truck, primary: true },
+  { name: 'דרישות', path: '/requests', icon: Truck, primary: true },
   { name: 'פורום מוביל', path: '/forum', icon: MessageSquare, primary: true },
   { name: 'לו״ז', path: '/schedule', icon: CalendarClock },
   { name: 'מעקב', path: '/tracking', icon: Table2 },

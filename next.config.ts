@@ -82,7 +82,6 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
   },
-  distDir: ".next-build",
   // Don't advertise the framework and version to anyone scanning.
   poweredByHeader: false,
   experimental: {

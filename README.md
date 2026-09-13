@@ -68,7 +68,7 @@ What deliberately does **not** travel, and why that is correct:
 | Not in git | Why it doesn't matter |
 |---|---|
 | `node_modules/` | `npm install` rebuilds it from `package-lock.json` |
-| `.next/`, `.next-build/` | build output |
+| `.next/` | build output |
 | `.env.local` | secrets stay out of git; `.env.example` lists the keys |
 | `smtp password.png` | **must never be committed** — verified absent from every commit on every branch with `git log --all -S` |
 

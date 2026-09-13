@@ -6,6 +6,7 @@ import {
   ClipboardCheck,
   Download,
   Loader2,
+  NotebookPen,
   Plus,
   Table2,
   Trash2,
@@ -17,7 +18,7 @@ import {
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FieldPrivacyHint } from '@/components/ui/FieldPrivacyHint';
-import { CommandConfirmDialog } from '@/components/ui/CommandDialog';
+import { CommandConfirmDialog, CommandOverlay } from '@/components/ui/CommandDialog';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlossyButton } from '@/components/ui/GlossyButton';
 import { createAuditLog } from '@/lib/audit';
@@ -200,6 +201,13 @@ export default function TrackingPage() {
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  // Notes on a cell require a record to already exist — a status click always
+  // creates one first (see handleCycleCellStatus), so this only ever updates,
+  // never inserts. Keeps this feature from having to decide what status to
+  // assign a record that exists solely to hold a note.
+  const [noteDialogTarget, setNoteDialogTarget] = useState<{ soldier: DbSoldier; item: DbTrackingItem; record: DbTrackingRecord } | null>(null);
+  const [noteDraft, setNoteDraft] = useState('');
+  const [isSavingNote, setIsSavingNote] = useState(false);
 
   const sortedUnits = useMemo(() => {
     return [...units].sort((first, second) => {
@@ -767,6 +775,93 @@ export default function TrackingPage() {
     setSuccessMessage(`סטטוס התא עודכן: ${statusLabels[nextStatus]}.`);
   };
 
+  const openNoteDialog = (soldier: DbSoldier, item: DbTrackingItem, record: DbTrackingRecord) => {
+    setNoteDialogTarget({ soldier, item, record });
+    setNoteDraft(record.note ?? '');
+  };
+
+  const closeNoteDialog = () => {
+    if (isSavingNote) return;
+    setNoteDialogTarget(null);
+    setNoteDraft('');
+  };
+
+  const handleSaveCellNote = async () => {
+    if (!noteDialogTarget || isSavingNote) return;
+    const { record } = noteDialogTarget;
+    const trimmed = noteDraft.trim();
+    const nextNote = trimmed || null;
+
+    if (nextNote === record.note) {
+      closeNoteDialog();
+      return;
+    }
+
+    setIsSavingNote(true);
+    setErrorMessage(null);
+
+    const { data: updatedRecord, error: updateError } = await supabase
+      .from('tracking_records')
+      .update({ note: nextNote, updated_by: currentUserId })
+      .eq('id', record.id)
+      .select('id,soldier_id,tracking_item_id,status,note,metadata,created_by,updated_by,created_at,updated_at')
+      .single<DbTrackingRecord>();
+
+    setIsSavingNote(false);
+
+    if (updateError || !updatedRecord) {
+      if (updateError) logSupabaseError('[tracking] tracking record note update failed', updateError);
+      setErrorMessage(getRlsAwareErrorMessage(
+        updateError,
+        'לא הצלחנו לשמור את ההערה. נסה שוב.',
+        'אין לך הרשאה לערוך הערה בתא הזה.',
+      ));
+      return;
+    }
+
+    setRecords(current => current.map(itemRecord => (itemRecord.id === updatedRecord.id ? updatedRecord : itemRecord)));
+
+    if (currentUserId && currentUser) {
+      void createAuditLog(supabase, {
+        userId: currentUserId,
+        userName: currentUser.full_name,
+        userRole: currentUser.role,
+        actionType: 'tracking_record_updated',
+        entityType: 'tracking_record',
+        entityId: record.id,
+        previousValue: { note: record.note },
+        newValue: { note: nextNote },
+      });
+    }
+
+    setNoteDialogTarget(null);
+    setNoteDraft('');
+    setSuccessMessage('ההערה נשמרה.');
+  };
+
+  // Aggregates every note written this week for one soldier into a single
+  // read — only meaningful once a specific week is selected, since
+  // visibleItems only narrows to one week's items at that point (see its own
+  // definition above). With "all weeks" selected there is no single week to
+  // summarize, so the column/section is hidden entirely rather than showing
+  // a summary spanning the soldier's whole history, which is not what
+  // "notes for this week" means.
+  const weeklyNotesBySoldier = useMemo(() => {
+    const bySoldier = new Map<string, string[]>();
+    if (selectedWeekId === 'all') return bySoldier;
+
+    for (const item of visibleItems) {
+      for (const soldier of visibleSoldiers) {
+        const record = recordByCell.get(`${soldier.id}:${item.id}`);
+        if (!record?.note?.trim()) continue;
+        const existing = bySoldier.get(soldier.id) ?? [];
+        existing.push(`${item.title}: ${record.note.trim()}`);
+        bySoldier.set(soldier.id, existing);
+      }
+    }
+    return bySoldier;
+  }, [visibleItems, visibleSoldiers, recordByCell, selectedWeekId]);
+
   const headerActions = (
     <div className="flex flex-wrap items-center gap-2">
       <GlossyButton
@@ -845,6 +940,43 @@ export default function TrackingPage() {
           {errorMessage}
         </div>
       )}
+
+      <CommandOverlay
+        open={!!noteDialogTarget}
+        onClose={closeNoteDialog}
+        title={noteDialogTarget ? `הערה — ${noteDialogTarget.soldier.full_name} · ${noteDialogTarget.item.title}` : 'הערה'}
+        dismissible={!isSavingNote}
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={closeNoteDialog}
+              disabled={isSavingNote}
+              className="min-h-11 rounded-2xl border border-[var(--border-strong)] px-4 text-sm font-semibold text-[var(--text-primary)] transition hover:border-[var(--action)]/30 disabled:opacity-50"
+            >
+              ביטול
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleSaveCellNote()}
+              disabled={isSavingNote}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[var(--action)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--action-hover)] disabled:opacity-60"
+            >
+              {isSavingNote && <Loader2 className="h-4 w-4 animate-spin" />}
+              שמירה
+            </button>
+          </div>
+        }
+      >
+        <textarea
+          value={noteDraft}
+          onChange={(event) => setNoteDraft(event.target.value)}
+          disabled={isSavingNote}
+          placeholder="לדוגמה: תרגל שוב ביום ה׳, החסיר בגלל אימון קודם"
+          className="command-input min-h-32 w-full resize-none"
+          autoFocus
+        />
+      </CommandOverlay>
 
       <CommandConfirmDialog
         open={!!pendingDelete}
@@ -1261,20 +1393,50 @@ export default function TrackingPage() {
                           <div className="truncate text-xs font-semibold text-[var(--text-primary)]">{item.title}</div>
                           <div className="text-caption font-bold text-[var(--command-subtle)]">{item.category}</div>
                         </div>
-                        <button
-                          type="button"
-                          title="לחיצה מחליפה סטטוס"
-                          onClick={() => void handleCycleCellStatus(soldier, item, record)}
-                          disabled={isCellUpdating}
-                          className={`inline-flex min-h-11 min-w-20 shrink-0 items-center justify-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition hover:shadow-sm disabled:cursor-wait disabled:opacity-70 ${statusStyles[status]}`}
-                        >
-                          {isCellUpdating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                          {statusLabels[status]}
-                        </button>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <button
+                            type="button"
+                            title="לחיצה מחליפה סטטוס"
+                            onClick={() => void handleCycleCellStatus(soldier, item, record)}
+                            disabled={isCellUpdating}
+                            className={`inline-flex min-h-11 min-w-20 items-center justify-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition hover:shadow-sm disabled:cursor-wait disabled:opacity-70 ${statusStyles[status]}`}
+                          >
+                            {isCellUpdating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                            {statusLabels[status]}
+                          </button>
+                          <button
+                            type="button"
+                            title={record ? (record.note ? 'עריכת הערה' : 'הוספת הערה') : 'סמן סטטוס לפני הוספת הערה'}
+                            onClick={() => record && openNoteDialog(soldier, item, record)}
+                            disabled={!record}
+                            className={`touch-target inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                              record?.note
+                                ? 'border-[var(--brand)]/30 bg-[var(--brand)]/10 text-[var(--color-action-on-surface)]'
+                                : 'border-[var(--border-strong)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)]'
+                            }`}
+                          >
+                            <NotebookPen className="h-4 w-4" />
+                            <span className="sr-only">הערה</span>
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
                 </div>
+
+                {weeklyNotesBySoldier.has(soldier.id) && (
+                  <div className="mt-3 rounded-xl border border-[var(--brand)]/20 bg-[var(--brand)]/5 p-3">
+                    <div className="mb-1 flex items-center gap-1.5 text-caption font-bold text-[var(--color-action-on-surface)]">
+                      <NotebookPen className="h-3.5 w-3.5" />
+                      הערות השבוע
+                    </div>
+                    <ul className="space-y-1 text-xs font-semibold text-[var(--text-secondary)]">
+                      {weeklyNotesBySoldier.get(soldier.id)?.map((line, index) => (
+                        <li key={index}>{line}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -1311,6 +1473,14 @@ export default function TrackingPage() {
                       </div>
                     </th>
                   ))}
+                  {selectedWeekId !== 'all' && (
+                    <th className="w-56 rounded-l-xl px-3 py-2 align-bottom">
+                      <div className="flex items-center gap-1.5 font-semibold text-[var(--text-primary)]">
+                        <NotebookPen className="h-3.5 w-3.5" />
+                        הערות השבוע
+                      </div>
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -1349,24 +1519,58 @@ export default function TrackingPage() {
                       const cellKey = `${soldier.id}:${item.id}`;
                       const isCellUpdating = updatingCells.has(cellKey);
 
+                      // The notes column, when shown, is the true last column now —
+                      // only round this cell's corner when there is no notes
+                      // column to take that place.
+                      const isLastColumn = itemIndex === visibleItems.length - 1 && selectedWeekId === 'all';
+
                       return (
                         <td
                           key={item.id}
-                          className={`px-3 py-3 text-xs font-semibold ${itemIndex === visibleItems.length - 1 ? 'rounded-l-xl' : ''}`}
+                          className={`px-3 py-3 text-xs font-semibold ${isLastColumn ? 'rounded-l-xl' : ''}`}
                         >
-                          <button
-                            type="button"
-                            title="לחיצה מחליפה סטטוס"
-                            onClick={() => void handleCycleCellStatus(soldier, item, record)}
-                            disabled={isCellUpdating}
-                            className={`inline-flex min-h-11 min-w-20 items-center justify-center gap-1.5 rounded-full border px-3 py-1 transition hover:shadow-sm disabled:cursor-wait disabled:opacity-70 ${statusStyles[status]}`}
-                          >
-                            {isCellUpdating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                            {statusLabels[status]}
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              title="לחיצה מחליפה סטטוס"
+                              onClick={() => void handleCycleCellStatus(soldier, item, record)}
+                              disabled={isCellUpdating}
+                              className={`inline-flex min-h-11 min-w-20 items-center justify-center gap-1.5 rounded-full border px-3 py-1 transition hover:shadow-sm disabled:cursor-wait disabled:opacity-70 ${statusStyles[status]}`}
+                            >
+                              {isCellUpdating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                              {statusLabels[status]}
+                            </button>
+                            <button
+                              type="button"
+                              title={record ? (record.note ? 'עריכת הערה' : 'הוספת הערה') : 'סמן סטטוס לפני הוספת הערה'}
+                              onClick={() => record && openNoteDialog(soldier, item, record)}
+                              disabled={!record}
+                              className={`touch-target inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                                record?.note
+                                  ? 'border-[var(--brand)]/30 bg-[var(--brand)]/10 text-[var(--color-action-on-surface)]'
+                                  : 'border-[var(--border-strong)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)]'
+                              }`}
+                            >
+                              <NotebookPen className="h-3.5 w-3.5" />
+                              <span className="sr-only">הערה</span>
+                            </button>
+                          </div>
                         </td>
                       );
                     })}
+                    {selectedWeekId !== 'all' && (
+                      <td className="rounded-l-xl px-3 py-3 align-top text-xs font-semibold text-[var(--text-secondary)]">
+                        {weeklyNotesBySoldier.has(soldier.id) ? (
+                          <ul className="space-y-1">
+                            {weeklyNotesBySoldier.get(soldier.id)?.map((line, index) => (
+                              <li key={index}>{line}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <span className="text-[var(--command-subtle)]">אין הערות השבוע</span>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

@@ -121,6 +121,7 @@ type QuickRequestForm = {
   category: string;
   priority: 'רגילה' | 'גבוהה' | 'דחופה';
   eventId: string;
+  assignedTo: string;
 };
 
 type QuickTaskForm = {
@@ -147,6 +148,7 @@ const defaultRequestForm: QuickRequestForm = {
   category: 'לוגיסטיקה',
   priority: 'רגילה',
   eventId: 'none',
+  assignedTo: 'none',
 };
 
 const defaultTaskForm: QuickTaskForm = {
@@ -705,6 +707,7 @@ export default function DashboardPage() {
 
     try {
       const eventId = requestForm.eventId === 'none' ? null : requestForm.eventId;
+      const assignedTo = requestForm.assignedTo === 'none' ? null : requestForm.assignedTo;
       const metadata = {
         category: requestForm.category,
         priority: requestForm.priority,
@@ -728,6 +731,7 @@ export default function DashboardPage() {
               requested_by: currentUser.id,
               unit_id: profile.unit_id,
               event_id: eventId,
+              assigned_to: assignedTo,
               metadata,
             })
             .select('id')
@@ -1250,6 +1254,17 @@ function QuickCreateModal({
                   disabled={isSubmitting}
                 >
                   {requestPriorities.map(priority => <option key={priority} value={priority}>{priority}</option>)}
+                </select>
+              </QuickField>
+              <QuickField label="שיוך למטפל" className="sm:col-span-2">
+                <select
+                  value={requestForm.assignedTo}
+                  onChange={event => onRequestChange(prev => ({ ...prev, assignedTo: event.target.value }))}
+                  className="command-select"
+                  disabled={isSubmitting}
+                >
+                  <option value="none">ללא מטפל — אפשר לשייך אחר כך</option>
+                  {assignableUsers.map(user => <option key={user.id} value={user.id}>{user.name || user.email || 'משתמש'}</option>)}
                 </select>
               </QuickField>
               <QuickField label="שיוך למופע" className="sm:col-span-2">

@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useApp } from '@/lib/context/AppContext';
-import { User, Mail, ShieldAlert, Award, Calendar, FileText, Smartphone, Trash2, Fingerprint } from 'lucide-react';
+import { User, Mail, ShieldAlert, Award, Calendar, FileText, Smartphone, Trash2, Fingerprint, LogOut } from 'lucide-react';
 import { hasDevicePin, setDevicePin, clearDevicePin } from '@/lib/offline/devicePin';
 import {
   hasDeviceBiometric,
@@ -13,6 +14,52 @@ import {
   registerDeviceBiometric,
   clearDeviceBiometric,
 } from '@/lib/offline/deviceBiometric';
+import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
+import { logSupabaseError } from '@/lib/supabase/error';
+import { clearDeviceSession } from '@/lib/offline/session';
+
+/**
+ * The bottom nav's "עוד" sheet used to be the only place to sign out. Once
+ * that sheet was replaced with a single scrollable tab row (one less window,
+ * one less button — the sheet existed mostly to hold a handful of secondary
+ * links), sign-out needed a home; the profile page is where a person actually
+ * looks for it.
+ */
+function SignOutCard() {
+  const router = useRouter();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    setError(null);
+    const { error: signOutError } = await createSupabaseBrowserClient().auth.signOut();
+    if (signOutError) {
+      logSupabaseError('Sign out failed', signOutError);
+      setError('לא ניתן להתנתק כרגע. נסה שוב בעוד רגע.');
+      setIsSigningOut(false);
+      return;
+    }
+    await clearDeviceSession();
+    router.replace('/login');
+    router.refresh();
+  };
+
+  return (
+    <GlassCard className="p-5">
+      <button
+        type="button"
+        onClick={() => void handleSignOut()}
+        disabled={isSigningOut}
+        className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 px-4 text-sm font-bold text-[var(--color-danger)] transition hover:bg-[var(--color-danger)]/15 disabled:opacity-50"
+      >
+        <LogOut className="h-4 w-4" />
+        התנתק
+      </button>
+      {error && <p role="alert" className="mt-2 text-xs font-bold text-[var(--color-danger)]">{error}</p>}
+    </GlassCard>
+  );
+}
 
 function DeviceAccessCodeCard() {
   const { currentUser } = useApp();
@@ -346,6 +393,7 @@ export default function ProfilePage() {
       </div>
 
       <DeviceAccessCodeCard />
+      <SignOutCard />
     </div>
   );
 }

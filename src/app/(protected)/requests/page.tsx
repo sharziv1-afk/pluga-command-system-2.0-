@@ -245,6 +245,7 @@ export default function RequestsPage() {
   const [category, setCategory] = useState<RequestCategory>('לוגיסטיקה');
   const [priority, setPriority] = useState<RequestPriority>('רגילה');
   const [selectedEventId, setSelectedEventId] = useState('none');
+  const [createAssignedTo, setCreateAssignedTo] = useState('none');
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editCategory, setEditCategory] = useState<RequestCategory>('לוגיסטיקה');
@@ -453,6 +454,7 @@ export default function RequestsPage() {
     setCategory('לוגיסטיקה');
     setPriority('רגילה');
     setSelectedEventId('none');
+    setCreateAssignedTo('none');
   };
 
   const resolveRequestUnitId = async () => dbProfile?.unit_id ?? null;
@@ -483,6 +485,7 @@ export default function RequestsPage() {
       requested_by: currentUser.id,
       unit_id: requestUnitId,
       event_id: selectedEventId === 'none' ? null : selectedEventId,
+      assigned_to: createAssignedTo === 'none' ? null : createAssignedTo,
       metadata,
     })
       .select('id,title,status,request_type,event_id')
@@ -1030,6 +1033,17 @@ export default function RequestsPage() {
               <option key={event.id} value={event.id}>
                 {event.title} — {event.starts_at ? formatDateTime(event.starts_at) : 'ללא זמן'}
               </option>
+            ))}
+          </CommandSelect>
+          <CommandSelect
+            label="שיוך למטפל"
+            value={createAssignedTo}
+            onChange={event => setCreateAssignedTo(event.target.value)}
+            disabled={isSubmitting || assigneeUsers.length === 0}
+          >
+            <option value="none">ללא מטפל — אפשר לשייך אחר כך</option>
+            {assigneeUsers.map(user => (
+              <option key={user.id} value={user.id}>{user.name || user.email}</option>
             ))}
           </CommandSelect>
         </form>

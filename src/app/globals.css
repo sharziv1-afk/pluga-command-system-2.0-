@@ -840,6 +840,11 @@ option {
    for free), responsive shell helpers, safe areas, KPI type.
    ============================================================ */
 
+/* Diagnostic only — exposes env(safe-area-inset-bottom) to JS via
+   getComputedStyle, which cannot read env() directly. Remove alongside
+   ViewportDebug.tsx once the portrait gap is diagnosed. */
+:root { --sat-debug-bottom: env(safe-area-inset-bottom); }
+
 /* Safe-area helpers (mobile bottom nav / sheets) */
 /* Top inset. Nothing handled this before: with viewport-fit: cover now set,
    the page paints under the status bar, so the mobile header needs the inset

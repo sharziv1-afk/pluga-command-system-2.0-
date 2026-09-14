@@ -22,10 +22,16 @@ test('the note dialog only ever updates an existing record, never inserts one', 
   assert.doesNotMatch(handlerBody, /\.insert\(/, 'handleSaveCellNote must never insert a row');
 });
 
-test('a no-op save (unchanged note) closes without hitting the network', () => {
+test('a no-op save (unchanged note and status) closes without hitting the network', () => {
   const handlerIdx = SOURCE.indexOf('const handleSaveCellNote');
-  const handlerBody = SOURCE.slice(handlerIdx, handlerIdx + 600);
-  assert.match(handlerBody, /if \(nextNote === record\.note\) \{\s*closeNoteDialog\(\);\s*return;/, 'must short-circuit when the trimmed note equals the stored one');
+  const handlerBody = SOURCE.slice(handlerIdx, handlerIdx + 700);
+  assert.match(handlerBody, /if \(nextNote === record\.note && nextStatus === record\.status\) \{\s*closeNoteDialog\(\);\s*return;/, 'must short-circuit only when both the trimmed note and the picked status equal the stored ones');
+});
+
+test('the cell dialog writes the picked status together with the note', () => {
+  const handlerIdx = SOURCE.indexOf('const handleSaveCellNote');
+  const handlerBody = SOURCE.slice(handlerIdx, handlerIdx + 1500);
+  assert.match(handlerBody, /\.update\(\{ note: nextNote, status: nextStatus/, 'status and note must go out in one update, so the cell never lands half-saved');
 });
 
 test('an empty note is stored as null, not an empty string', () => {

@@ -40,6 +40,8 @@ export type AuditActionType =
   | 'tracking_item_created'
   | 'tracking_item_updated'
   | 'tracking_record_updated'
+  | 'tracking_week_created'
+  | 'tracking_week_updated'
   | 'tracking_exported_csv'
   | 'mentoring_entry_created'
   | 'mentoring_entry_converted_to_task';
@@ -61,6 +63,7 @@ interface CreateAuditLogParams {
     | 'tracking_soldier'
     | 'tracking_item'
     | 'tracking_record'
+    | 'tracking_week'
     | 'tracking_export'
     | 'mentoring_entry';
   entityId: string;

@@ -1,12 +1,14 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  CalendarPlus,
   CheckCircle2,
   ClipboardCheck,
   Download,
   Loader2,
   NotebookPen,
+  Pencil,
   Plus,
   Table2,
   Trash2,
@@ -54,9 +56,17 @@ type ItemFormState = {
   sortOrder: string;
 };
 
+type WeekFormState = {
+  title: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+};
+
 type PendingDelete =
   | { type: 'soldier'; soldier: DbSoldier; label: string }
-  | { type: 'item'; item: DbTrackingItem; label: string };
+  | { type: 'item'; item: DbTrackingItem; label: string }
+  | { type: 'week'; week: DbTrackingWeek; label: string };
 
 const statusLabels: Record<TrackingStatus, string> = {
   empty: 'ריק',
@@ -99,7 +109,26 @@ const initialItemForm: ItemFormState = {
   sortOrder: '0',
 };
 
+const initialWeekForm: WeekFormState = {
+  title: '',
+  description: '',
+  startDate: '',
+  endDate: '',
+};
+
 const itemCategories = ['כשירות', 'אימון', 'מטווח', 'רפואה', 'מנהלה', 'אחר'];
+
+function formatShortDate(isoDate: string) {
+  const [, month, day] = isoDate.split('-');
+  return `${day}.${month}`;
+}
+
+function formatWeekRange(week: DbTrackingWeek) {
+  if (week.start_date && week.end_date) return `${formatShortDate(week.start_date)}–${formatShortDate(week.end_date)}`;
+  if (week.start_date) return `מ־${formatShortDate(week.start_date)}`;
+  if (week.end_date) return `עד ${formatShortDate(week.end_date)}`;
+  return null;
+}
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -207,7 +236,17 @@ export default function TrackingPage() {
   // assign a record that exists solely to hold a note.
   const [noteDialogTarget, setNoteDialogTarget] = useState<{ soldier: DbSoldier; item: DbTrackingItem; record: DbTrackingRecord } | null>(null);
   const [noteDraft, setNoteDraft] = useState('');
+  const [statusDraft, setStatusDraft] = useState<TrackingStatus>('empty');
   const [isSavingNote, setIsSavingNote] = useState(false);
+  const [editingSoldier, setEditingSoldier] = useState<DbSoldier | null>(null);
+  const [editingItem, setEditingItem] = useState<DbTrackingItem | null>(null);
+  // null = dialog closed; { week: null } = creating; { week } = editing.
+  const [weekDialog, setWeekDialog] = useState<{ week: DbTrackingWeek | null } | null>(null);
+  const [weekForm, setWeekForm] = useState<WeekFormState>(initialWeekForm);
+  const [isWeekSubmitting, setIsWeekSubmitting] = useState(false);
+  const [removingWeekId, setRemovingWeekId] = useState<string | null>(null);
+  const soldierFormRef = useRef<HTMLDivElement>(null);
+  const itemFormRef = useRef<HTMLDivElement>(null);
 
   const sortedUnits = useMemo(() => {
     return [...units].sort((first, second) => {
@@ -282,7 +321,12 @@ export default function TrackingPage() {
       }
 
       setSoldiers(soldiersResult.data ?? []);
-      setItems(itemsResult.data ?? []);
+      // Removing a week is a single update on the week row, not a cascade over
+      // its items — so an item whose week is no longer active leaves the table
+      // here. Skipped when the weeks query itself failed, so a load error can't
+      // make every week-bound column silently vanish.
+      const activeWeekIds = new Set((weeksResult.data ?? []).map(week => week.id));
+      setItems((itemsResult.data ?? []).filter(item => weeksResult.error || !item.week_id || activeWeekIds.has(item.week_id)));
       setRecords(recordsResult.data ?? []);
       setUnits(unitsResult.data ?? []);
       setWeeks(weeksResult.data ?? []);
@@ -371,7 +415,17 @@ export default function TrackingPage() {
     ? removingSoldierId === pendingDelete.soldier.id
     : pendingDelete?.type === 'item'
       ? removingItemId === pendingDelete.item.id
-      : false;
+      : pendingDelete?.type === 'week'
+        ? removingWeekId === pendingDelete.week.id
+        : false;
+
+  useEffect(() => {
+    if (isSoldierFormOpen) soldierFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [isSoldierFormOpen, editingSoldier]);
+
+  useEffect(() => {
+    if (isItemFormOpen) itemFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [isItemFormOpen, editingItem]);
 
   const closeDeleteModal = useCallback(() => {
     if (isDeleteSubmitting) return;
@@ -379,8 +433,86 @@ export default function TrackingPage() {
     setErrorMessage(null);
   }, [isDeleteSubmitting]);
 
-  const resetSoldierForm = () => setSoldierForm(initialSoldierForm);
-  const resetItemForm = () => setItemForm(initialItemForm);
+  const closeSoldierForm = () => {
+    setSoldierForm(initialSoldierForm);
+    setEditingSoldier(null);
+    setIsSoldierFormOpen(false);
+  };
+
+  const closeItemForm = () => {
+    setItemForm(initialItemForm);
+    setEditingItem(null);
+    setIsItemFormOpen(false);
+  };
+
+  const openCreateSoldier = () => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setEditingSoldier(null);
+    setSoldierForm(initialSoldierForm);
+    setIsSoldierFormOpen(true);
+  };
+
+  const openEditSoldier = (soldier: DbSoldier) => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setEditingSoldier(soldier);
+    setSoldierForm({
+      fullName: soldier.full_name,
+      personalNumber: soldier.personal_number ?? '',
+      unitId: soldier.unit_id,
+      squadLabel: soldier.squad_label ?? '',
+      roleLabel: soldier.role_label ?? '',
+      notes: soldier.notes ?? '',
+    });
+    setIsItemFormOpen(false);
+    setIsSoldierFormOpen(true);
+  };
+
+  const openCreateItem = () => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setEditingItem(null);
+    setItemForm({ ...initialItemForm, weekId: selectedWeekId !== 'all' ? selectedWeekId : '' });
+    setIsItemFormOpen(true);
+  };
+
+  const openEditItem = (item: DbTrackingItem) => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setEditingItem(item);
+    setItemForm({
+      title: item.title,
+      category: item.category,
+      subject: item.subject ?? '',
+      weekId: item.week_id ?? '',
+      description: item.description ?? '',
+      sortOrder: String(item.sort_order),
+    });
+    setIsSoldierFormOpen(false);
+    setIsItemFormOpen(true);
+  };
+
+  const openWeekDialog = (week: DbTrackingWeek | null) => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setWeekForm(week
+      ? { title: week.title, description: week.description ?? '', startDate: week.start_date ?? '', endDate: week.end_date ?? '' }
+      : initialWeekForm);
+    setWeekDialog({ week });
+  };
+
+  const closeWeekDialog = () => {
+    if (isWeekSubmitting) return;
+    setWeekDialog(null);
+    setWeekForm(initialWeekForm);
+  };
+
+  const requestRemoveWeek = (week: DbTrackingWeek) => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setPendingDelete({ type: 'week', week, label: week.title });
+  };
 
   const requestRemoveSoldier = (soldier: DbSoldier) => {
     setErrorMessage(null);
@@ -402,11 +534,16 @@ export default function TrackingPage() {
       return;
     }
 
+    if (pendingDelete.type === 'week') {
+      await handleRemoveWeek(pendingDelete.week);
+      return;
+    }
+
     await handleRemoveItem(pendingDelete.item);
   };
 
 
-  const handleCreateSoldier = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmitSoldier = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -424,20 +561,67 @@ export default function TrackingPage() {
 
     setIsSoldierSubmitting(true);
 
-    const payload = {
+    const fields = {
       full_name: cleanFullName,
       personal_number: soldierForm.personalNumber.trim() || null,
       unit_id: soldierForm.unitId,
       squad_label: soldierForm.squadLabel.trim() || null,
       role_label: soldierForm.roleLabel.trim() || null,
       notes: soldierForm.notes.trim() || null,
-      created_by: currentUserId,
       updated_by: currentUserId,
     };
 
+    if (editingSoldier) {
+      const { data: updatedRows, error: updateError } = await supabase
+        .from('soldiers')
+        .update(fields)
+        .eq('id', editingSoldier.id)
+        .select('id');
+
+      setIsSoldierSubmitting(false);
+
+      if (updateError) {
+        logSupabaseError('[tracking] soldier update failed', updateError);
+        setErrorMessage(getRlsAwareErrorMessage(updateError, 'לא הצלחנו לעדכן את פרטי החייל. נסה שוב.'));
+        return;
+      }
+      if (!didRowsUpdate(updatedRows)) {
+        setErrorMessage('לא ניתן לעדכן את החייל — אין לך הרשאה לכך.');
+        return;
+      }
+
+      if (currentUserId && currentUser) {
+        void createAuditLog(supabase, {
+          userId: currentUserId,
+          userName: currentUser.full_name,
+          userRole: currentUser.role,
+          actionType: 'tracking_soldier_updated',
+          entityType: 'tracking_soldier',
+          entityId: editingSoldier.id,
+          previousValue: {
+            full_name: editingSoldier.full_name,
+            unit_id: editingSoldier.unit_id,
+            squad_label: editingSoldier.squad_label,
+            role_label: editingSoldier.role_label,
+          },
+          newValue: {
+            full_name: fields.full_name,
+            unit_id: fields.unit_id,
+            squad_label: fields.squad_label,
+            role_label: fields.role_label,
+          },
+        });
+      }
+
+      closeSoldierForm();
+      setSuccessMessage('פרטי החייל עודכנו.');
+      await loadTrackingData();
+      return;
+    }
+
     const { data: createdSoldier, error: insertError } = await supabase
       .from('soldiers')
-      .insert(payload)
+      .insert({ ...fields, created_by: currentUserId })
       .select('id,full_name,unit_id')
       .single<Pick<DbSoldier, 'id' | 'full_name' | 'unit_id'>>();
 
@@ -465,13 +649,12 @@ export default function TrackingPage() {
       });
     }
 
-    resetSoldierForm();
-    setIsSoldierFormOpen(false);
+    closeSoldierForm();
     setSuccessMessage('החייל נוסף למעקב הפלוגתי.');
     await loadTrackingData();
   };
 
-  const handleCreateItem = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmitItem = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -491,20 +674,67 @@ export default function TrackingPage() {
     const parsedSortOrder = Number.parseInt(itemForm.sortOrder, 10);
     setIsItemSubmitting(true);
 
-    const payload = {
+    const fields = {
       title: cleanTitle,
       category: cleanCategory,
       subject: itemForm.subject.trim() || null,
       week_id: itemForm.weekId || null,
       description: itemForm.description.trim() || null,
       sort_order: Number.isFinite(parsedSortOrder) ? parsedSortOrder : 0,
-      created_by: currentUserId,
       updated_by: currentUserId,
     };
 
+    if (editingItem) {
+      const { data: updatedRows, error: updateError } = await supabase
+        .from('tracking_items')
+        .update(fields)
+        .eq('id', editingItem.id)
+        .select('id');
+
+      setIsItemSubmitting(false);
+
+      if (updateError) {
+        logSupabaseError('[tracking] tracking item update failed', updateError);
+        setErrorMessage(getRlsAwareErrorMessage(updateError, 'לא הצלחנו לעדכן את מופע המעקב. נסה שוב.'));
+        return;
+      }
+      if (!didRowsUpdate(updatedRows)) {
+        setErrorMessage('לא ניתן לעדכן את מופע המעקב — אין לך הרשאה לכך.');
+        return;
+      }
+
+      if (currentUserId && currentUser) {
+        void createAuditLog(supabase, {
+          userId: currentUserId,
+          userName: currentUser.full_name,
+          userRole: currentUser.role,
+          actionType: 'tracking_item_updated',
+          entityType: 'tracking_item',
+          entityId: editingItem.id,
+          previousValue: {
+            title: editingItem.title,
+            category: editingItem.category,
+            week_id: editingItem.week_id,
+            sort_order: editingItem.sort_order,
+          },
+          newValue: {
+            title: fields.title,
+            category: fields.category,
+            week_id: fields.week_id,
+            sort_order: fields.sort_order,
+          },
+        });
+      }
+
+      closeItemForm();
+      setSuccessMessage('מופע המעקב עודכן.');
+      await loadTrackingData();
+      return;
+    }
+
     const { data: createdItem, error: insertError } = await supabase
       .from('tracking_items')
-      .insert(payload)
+      .insert({ ...fields, created_by: currentUserId })
       .select('id,title,category,sort_order')
       .single<Pick<DbTrackingItem, 'id' | 'title' | 'category' | 'sort_order'>>();
 
@@ -533,9 +763,154 @@ export default function TrackingPage() {
       });
     }
 
-    resetItemForm();
-    setIsItemFormOpen(false);
+    closeItemForm();
     setSuccessMessage('מופע המעקב נוסף לטבלה.');
+    await loadTrackingData();
+  };
+
+  const handleSubmitWeek = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!weekDialog || isWeekSubmitting) return;
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    const cleanTitle = weekForm.title.trim();
+    if (!cleanTitle) {
+      setErrorMessage('יש להזין שם לשבוע.');
+      return;
+    }
+    // ISO yyyy-mm-dd strings compare correctly as plain strings.
+    if (weekForm.startDate && weekForm.endDate && weekForm.endDate < weekForm.startDate) {
+      setErrorMessage('תאריך הסיום לא יכול להיות לפני תאריך ההתחלה.');
+      return;
+    }
+
+    const fields = {
+      title: cleanTitle,
+      description: weekForm.description.trim() || null,
+      start_date: weekForm.startDate || null,
+      end_date: weekForm.endDate || null,
+    };
+    const editingWeek = weekDialog.week;
+    setIsWeekSubmitting(true);
+
+    if (editingWeek) {
+      const { data: updatedRows, error: updateError } = await supabase
+        .from('tracking_weeks')
+        .update(fields)
+        .eq('id', editingWeek.id)
+        .select('id');
+
+      setIsWeekSubmitting(false);
+
+      if (updateError) {
+        logSupabaseError('[tracking] tracking week update failed', updateError);
+        setErrorMessage(getRlsAwareErrorMessage(updateError, 'לא הצלחנו לעדכן את השבוע. נסה שוב.'));
+        return;
+      }
+      if (!didRowsUpdate(updatedRows)) {
+        setErrorMessage('לא ניתן לעדכן את השבוע — אין לך הרשאה לכך.');
+        return;
+      }
+
+      if (currentUserId && currentUser) {
+        void createAuditLog(supabase, {
+          userId: currentUserId,
+          userName: currentUser.full_name,
+          userRole: currentUser.role,
+          actionType: 'tracking_week_updated',
+          entityType: 'tracking_week',
+          entityId: editingWeek.id,
+          previousValue: {
+            title: editingWeek.title,
+            start_date: editingWeek.start_date,
+            end_date: editingWeek.end_date,
+          },
+          newValue: { title: fields.title, start_date: fields.start_date, end_date: fields.end_date },
+        });
+      }
+
+      setWeekDialog(null);
+      setWeekForm(initialWeekForm);
+      setSuccessMessage('השבוע עודכן.');
+      await loadTrackingData();
+      return;
+    }
+
+    const nextSortOrder = weeks.reduce((max, week) => Math.max(max, week.sort_order), 0) + 1;
+    const { data: createdWeek, error: insertError } = await supabase
+      .from('tracking_weeks')
+      .insert({ ...fields, sort_order: nextSortOrder, created_by: currentUserId })
+      .select('id')
+      .single<Pick<DbTrackingWeek, 'id'>>();
+
+    setIsWeekSubmitting(false);
+
+    if (insertError || !createdWeek) {
+      if (insertError) logSupabaseError('[tracking] tracking week create failed', insertError);
+      setErrorMessage(getRlsAwareErrorMessage(insertError, 'לא הצלחנו ליצור את השבוע. נסה שוב.'));
+      return;
+    }
+
+    if (currentUserId && currentUser) {
+      void createAuditLog(supabase, {
+        userId: currentUserId,
+        userName: currentUser.full_name,
+        userRole: currentUser.role,
+        actionType: 'tracking_week_created',
+        entityType: 'tracking_week',
+        entityId: createdWeek.id,
+        previousValue: null,
+        newValue: { title: fields.title, start_date: fields.start_date, end_date: fields.end_date },
+      });
+    }
+
+    setWeekDialog(null);
+    setWeekForm(initialWeekForm);
+    setSelectedWeekId(createdWeek.id);
+    setSuccessMessage('השבוע נוצר. אפשר להוסיף לו מופעי מעקב.');
+    await loadTrackingData();
+  };
+
+  const handleRemoveWeek = async (week: DbTrackingWeek) => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setRemovingWeekId(week.id);
+
+    const { data: updatedRows, error: updateError } = await supabase
+      .from('tracking_weeks')
+      .update({ is_active: false })
+      .eq('id', week.id)
+      .select('id');
+
+    setRemovingWeekId(null);
+
+    if (updateError) {
+      logSupabaseError('[tracking] tracking week soft delete failed', updateError);
+      setErrorMessage(getRlsAwareErrorMessage(updateError, 'לא הצלחנו להסיר את השבוע. נסה שוב.'));
+      return;
+    }
+    if (!didRowsUpdate(updatedRows)) {
+      setErrorMessage('לא ניתן להסיר את השבוע — אין לך הרשאה לכך.');
+      return;
+    }
+
+    if (currentUserId && currentUser) {
+      void createAuditLog(supabase, {
+        userId: currentUserId,
+        userName: currentUser.full_name,
+        userRole: currentUser.role,
+        actionType: 'tracking_week_updated',
+        entityType: 'tracking_week',
+        entityId: week.id,
+        previousValue: { title: week.title, is_active: week.is_active },
+        newValue: { title: week.title, is_active: false },
+      });
+    }
+
+    if (selectedWeekId === week.id) setSelectedWeekId('all');
+    setPendingDelete(null);
+    setSuccessMessage('השבוע הוסר, יחד עם מופעי המעקב שלו.');
     await loadTrackingData();
   };
 
@@ -778,6 +1153,7 @@ export default function TrackingPage() {
   const openNoteDialog = (soldier: DbSoldier, item: DbTrackingItem, record: DbTrackingRecord) => {
     setNoteDialogTarget({ soldier, item, record });
     setNoteDraft(record.note ?? '');
+    setStatusDraft(record.status);
   };
 
   const closeNoteDialog = () => {
@@ -791,8 +1167,9 @@ export default function TrackingPage() {
     const { record } = noteDialogTarget;
     const trimmed = noteDraft.trim();
     const nextNote = trimmed || null;
+    const nextStatus = statusDraft;
 
-    if (nextNote === record.note) {
+    if (nextNote === record.note && nextStatus === record.status) {
       closeNoteDialog();
       return;
     }
@@ -802,7 +1179,7 @@ export default function TrackingPage() {
 
     const { data: updatedRecord, error: updateError } = await supabase
       .from('tracking_records')
-      .update({ note: nextNote, updated_by: currentUserId })
+      .update({ note: nextNote, status: nextStatus, updated_by: currentUserId })
       .eq('id', record.id)
       .select('id,soldier_id,tracking_item_id,status,note,metadata,created_by,updated_by,created_at,updated_at')
       .single<DbTrackingRecord>();
@@ -813,8 +1190,8 @@ export default function TrackingPage() {
       if (updateError) logSupabaseError('[tracking] tracking record note update failed', updateError);
       setErrorMessage(getRlsAwareErrorMessage(
         updateError,
-        'לא הצלחנו לשמור את ההערה. נסה שוב.',
-        'אין לך הרשאה לערוך הערה בתא הזה.',
+        'לא הצלחנו לשמור את התא. נסה שוב.',
+        'אין לך הרשאה לערוך את התא הזה.',
       ));
       return;
     }
@@ -829,14 +1206,14 @@ export default function TrackingPage() {
         actionType: 'tracking_record_updated',
         entityType: 'tracking_record',
         entityId: record.id,
-        previousValue: { note: record.note },
-        newValue: { note: nextNote },
+        previousValue: { note: record.note, status: record.status },
+        newValue: { note: nextNote, status: nextStatus },
       });
     }
 
     setNoteDialogTarget(null);
     setNoteDraft('');
-    setSuccessMessage('ההערה נשמרה.');
+    setSuccessMessage('התא עודכן.');
   };
 
   // Aggregates every note written this week for one soldier into a single
@@ -867,7 +1244,7 @@ export default function TrackingPage() {
       <GlossyButton
         variant="slate"
         size="sm"
-        onClick={() => setIsSoldierFormOpen(value => !value)}
+        onClick={() => (isSoldierFormOpen && !editingSoldier ? closeSoldierForm() : openCreateSoldier())}
         disabled={isLoading}
       >
         <UserPlus className="h-4 w-4" />
@@ -876,11 +1253,20 @@ export default function TrackingPage() {
       <GlossyButton
         variant="slate"
         size="sm"
-        onClick={() => setIsItemFormOpen(value => !value)}
+        onClick={() => (isItemFormOpen && !editingItem ? closeItemForm() : openCreateItem())}
         disabled={isLoading}
       >
         <Plus className="h-4 w-4" />
         הוסף מופע מעקב
+      </GlossyButton>
+      <GlossyButton
+        variant="slate"
+        size="sm"
+        onClick={() => openWeekDialog(null)}
+        disabled={isLoading}
+      >
+        <CalendarPlus className="h-4 w-4" />
+        שבוע חדש
       </GlossyButton>
       <GlossyButton variant="orange" size="sm" disabled title="בשלב הבא">
         <Download className="h-4 w-4" />
@@ -944,7 +1330,7 @@ export default function TrackingPage() {
       <CommandOverlay
         open={!!noteDialogTarget}
         onClose={closeNoteDialog}
-        title={noteDialogTarget ? `הערה — ${noteDialogTarget.soldier.full_name} · ${noteDialogTarget.item.title}` : 'הערה'}
+        title={noteDialogTarget ? `עריכת תא — ${noteDialogTarget.soldier.full_name} · ${noteDialogTarget.item.title}` : 'עריכת תא'}
         dismissible={!isSavingNote}
         footer={
           <div className="flex justify-end gap-2">
@@ -968,14 +1354,107 @@ export default function TrackingPage() {
           </div>
         }
       >
-        <textarea
-          value={noteDraft}
-          onChange={(event) => setNoteDraft(event.target.value)}
-          disabled={isSavingNote}
-          placeholder="לדוגמה: תרגל שוב ביום ה׳, החסיר בגלל אימון קודם"
-          className="command-input min-h-32 w-full resize-none"
-          autoFocus
-        />
+        <div className="space-y-3">
+          <div role="radiogroup" aria-label="סטטוס" className="grid grid-cols-4 gap-2">
+            {statusCycle.map(status => (
+              <button
+                key={status}
+                type="button"
+                role="radio"
+                aria-checked={statusDraft === status}
+                onClick={() => setStatusDraft(status)}
+                disabled={isSavingNote}
+                className={`min-h-11 rounded-full border px-2 text-xs font-semibold transition disabled:opacity-60 ${statusStyles[status]} ${statusDraft === status ? 'ring-2 ring-[var(--action)] ring-offset-1 ring-offset-[var(--surface)]' : 'opacity-70'}`}
+              >
+                {statusLabels[status]}
+              </button>
+            ))}
+          </div>
+          <textarea
+            value={noteDraft}
+            onChange={(event) => setNoteDraft(event.target.value)}
+            disabled={isSavingNote}
+            placeholder="הערה — לדוגמה: תרגל שוב ביום ה׳, החסיר בגלל אימון קודם"
+            className="command-input min-h-32 w-full resize-none"
+          />
+        </div>
+      </CommandOverlay>
+
+      <CommandOverlay
+        open={!!weekDialog}
+        onClose={closeWeekDialog}
+        title={weekDialog?.week ? `עריכת שבוע — ${weekDialog.week.title}` : 'שבוע מעקב חדש'}
+        dismissible={!isWeekSubmitting}
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={closeWeekDialog}
+              disabled={isWeekSubmitting}
+              className="min-h-11 rounded-2xl border border-[var(--border-strong)] px-4 text-sm font-semibold text-[var(--text-primary)] transition hover:border-[var(--action)]/30 disabled:opacity-50"
+            >
+              ביטול
+            </button>
+            <button
+              type="submit"
+              form="tracking-week-form"
+              disabled={isWeekSubmitting}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[var(--action)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--action-hover)] disabled:opacity-60"
+            >
+              {isWeekSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              {weekDialog?.week ? 'שמירה' : 'יצירת שבוע'}
+            </button>
+          </div>
+        }
+      >
+        <form id="tracking-week-form" onSubmit={handleSubmitWeek} className="grid gap-3 sm:grid-cols-2">
+          <label className="block space-y-2 sm:col-span-2">
+            <span className="block text-xs font-semibold text-[var(--text-secondary)]">שם השבוע</span>
+            <input
+              required
+              value={weekForm.title}
+              onChange={event => setWeekForm(value => ({ ...value, title: event.target.value }))}
+              className="command-input"
+              placeholder="לדוגמה: שבוע ניווטים"
+              disabled={isWeekSubmitting}
+            />
+          </label>
+          <label className="block space-y-2">
+            <span className="block text-xs font-semibold text-[var(--text-secondary)]">תאריך התחלה</span>
+            <input
+              type="date"
+              value={weekForm.startDate}
+              onChange={event => setWeekForm(value => ({ ...value, startDate: event.target.value }))}
+              className="command-input"
+              disabled={isWeekSubmitting}
+            />
+          </label>
+          <label className="block space-y-2">
+            <span className="block text-xs font-semibold text-[var(--text-secondary)]">תאריך סיום</span>
+            <input
+              type="date"
+              value={weekForm.endDate}
+              onChange={event => setWeekForm(value => ({ ...value, endDate: event.target.value }))}
+              className="command-input"
+              disabled={isWeekSubmitting}
+            />
+          </label>
+          <label className="block space-y-2 sm:col-span-2">
+            <span className="block text-xs font-semibold text-[var(--text-secondary)]">תיאור</span>
+            <textarea
+              value={weekForm.description}
+              onChange={event => setWeekForm(value => ({ ...value, description: event.target.value }))}
+              className="command-input min-h-20 resize-none"
+              placeholder="אופציונלי"
+              disabled={isWeekSubmitting}
+            />
+          </label>
+          {errorMessage && (
+            <div className="text-caption rounded-2xl border border-[var(--color-danger)]/20 bg-[var(--color-danger)]/10 px-3 py-2 font-semibold text-[var(--color-danger)] sm:col-span-2">
+              {errorMessage}
+            </div>
+          )}
+        </form>
       </CommandOverlay>
 
       <CommandConfirmDialog
@@ -988,6 +1467,8 @@ export default function TrackingPage() {
             <p>
               {pendingDelete?.type === 'soldier' ? (
                 <>להסיר את החייל <span className="font-semibold text-[var(--text-primary)]">{pendingDelete.label}</span> מהמעקב?</>
+              ) : pendingDelete?.type === 'week' ? (
+                <>להסיר את השבוע <span className="font-semibold text-[var(--text-primary)]">{pendingDelete.label}</span>? מופעי המעקב של השבוע יוסתרו מהטבלה יחד איתו.</>
               ) : pendingDelete ? (
                 <>להסיר את מופע המעקב <span className="font-semibold text-[var(--text-primary)]">{pendingDelete.label}</span> מהטבלה?</>
               ) : null}
@@ -1008,12 +1489,15 @@ export default function TrackingPage() {
       />
 
       {isSoldierFormOpen && (
+        <div ref={soldierFormRef} className="scroll-mt-4">
         <GlassCard glow="orange" className="space-y-4">
           <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] pb-3">
-            <UserPlus className="h-4 w-4 text-[var(--brand)]" />
-            <h2 className="text-sm font-semibold text-[var(--text-primary)]">הוספת חייל למעקב</h2>
+            {editingSoldier ? <Pencil className="h-4 w-4 text-[var(--brand)]" /> : <UserPlus className="h-4 w-4 text-[var(--brand)]" />}
+            <h2 className="text-sm font-semibold text-[var(--text-primary)]">
+              {editingSoldier ? `עריכת חייל — ${editingSoldier.full_name}` : 'הוספת חייל למעקב'}
+            </h2>
           </div>
-          <form onSubmit={handleCreateSoldier} className="grid gap-4 lg:grid-cols-2">
+          <form onSubmit={handleSubmitSoldier} className="grid gap-4 lg:grid-cols-2">
             <label className="block space-y-2">
               <span className="block text-xs font-semibold text-[var(--text-secondary)]">שם מלא</span>
               <input
@@ -1090,13 +1574,13 @@ export default function TrackingPage() {
             <div className="flex flex-col gap-2 lg:col-span-2 sm:flex-row">
               <GlossyButton type="submit" variant="orange" size="lg" disabled={isSoldierSubmitting} className="flex-1">
                 {isSoldierSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                שמור חייל
+                {editingSoldier ? 'שמור שינויים' : 'שמור חייל'}
               </GlossyButton>
               <GlossyButton
                 type="button"
                 variant="slate"
                 size="lg"
-                onClick={() => { resetSoldierForm(); setIsSoldierFormOpen(false); }}
+                onClick={closeSoldierForm}
                 disabled={isSoldierSubmitting}
                 className="flex-1"
               >
@@ -1105,15 +1589,19 @@ export default function TrackingPage() {
             </div>
           </form>
         </GlassCard>
+        </div>
       )}
 
       {isItemFormOpen && (
+        <div ref={itemFormRef} className="scroll-mt-4">
         <GlassCard glow="orange" className="space-y-4">
           <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] pb-3">
-            <ClipboardCheck className="h-4 w-4 text-[var(--brand)]" />
-            <h2 className="text-sm font-semibold text-[var(--text-primary)]">הוספת מופע מעקב</h2>
+            {editingItem ? <Pencil className="h-4 w-4 text-[var(--brand)]" /> : <ClipboardCheck className="h-4 w-4 text-[var(--brand)]" />}
+            <h2 className="text-sm font-semibold text-[var(--text-primary)]">
+              {editingItem ? `עריכת מופע — ${editingItem.title}` : 'הוספת מופע מעקב'}
+            </h2>
           </div>
-          <form onSubmit={handleCreateItem} className="grid gap-4 lg:grid-cols-2">
+          <form onSubmit={handleSubmitItem} className="grid gap-4 lg:grid-cols-2">
             <label className="block space-y-2">
               <span className="block text-xs font-semibold text-[var(--text-secondary)]">שם מופע</span>
               <input
@@ -1135,7 +1623,9 @@ export default function TrackingPage() {
                 className="command-select"
                 disabled={isItemSubmitting}
               >
-                {itemCategories.map(category => (
+                {/* An existing item may carry a category outside the preset list
+                    (real data already does) — keep it selectable when editing. */}
+                {[...new Set([...itemCategories, itemForm.category].filter(Boolean))].map(category => (
                   <option key={category} value={category}>{category}</option>
                 ))}
               </select>
@@ -1193,13 +1683,13 @@ export default function TrackingPage() {
             <div className="flex flex-col gap-2 lg:col-span-2 sm:flex-row">
               <GlossyButton type="submit" variant="orange" size="lg" disabled={isItemSubmitting} className="flex-1">
                 {isItemSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                שמור מופע
+                {editingItem ? 'שמור שינויים' : 'שמור מופע'}
               </GlossyButton>
               <GlossyButton
                 type="button"
                 variant="slate"
                 size="lg"
-                onClick={() => { resetItemForm(); setIsItemFormOpen(false); }}
+                onClick={closeItemForm}
                 disabled={isItemSubmitting}
                 className="flex-1"
               >
@@ -1208,6 +1698,7 @@ export default function TrackingPage() {
             </div>
           </form>
         </GlassCard>
+        </div>
       )}
 
       {isLoading && (
@@ -1227,7 +1718,7 @@ export default function TrackingPage() {
               title="עדיין אין חיילים במעקב"
               description="הוסף חייל ראשון כדי להתחיל לבנות את טבלת המעקב הפלוגתית."
               actionText="הוסף חייל"
-              onAction={() => setIsSoldierFormOpen(true)}
+              onAction={openCreateSoldier}
               badgeLabel="Roster"
             />
           )}
@@ -1238,7 +1729,7 @@ export default function TrackingPage() {
               title="עדיין אין מופעי מעקב"
               description="הוסף כשירות, אימון, מטווח או קטגוריה אחרת כדי לפתוח עמודות בטבלה."
               actionText="הוסף מופע"
-              onAction={() => setIsItemFormOpen(true)}
+              onAction={openCreateItem}
               badgeLabel="Tracking Items"
             />
           )}
@@ -1289,11 +1780,38 @@ export default function TrackingPage() {
 
           {selectedWeekId !== 'all' && (() => {
             const week = weeks.find(w => w.id === selectedWeekId);
-            if (!week?.description) return null;
+            if (!week) return null;
+            const range = formatWeekRange(week);
             return (
-              <p className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3.5 py-2.5 text-xs font-semibold leading-relaxed text-[var(--text-muted-accessible)]">
-                {week.description}
-              </p>
+              <div className="flex items-start justify-between gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3.5 py-2.5">
+                <div className="min-w-0 text-xs font-semibold leading-relaxed text-[var(--text-muted-accessible)]">
+                  <div className="font-semibold text-[var(--text-primary)]">
+                    {week.title}{range ? ` · ${range}` : ''}
+                  </div>
+                  {week.description && <p className="mt-0.5">{week.description}</p>}
+                </div>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <button
+                    type="button"
+                    title="עריכת שבוע"
+                    onClick={() => openWeekDialog(week)}
+                    className="touch-target inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border-strong)] bg-[var(--tactical-glass)] text-[var(--text-secondary)] transition hover:border-[var(--action)]/30"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    <span className="sr-only">עריכת שבוע</span>
+                  </button>
+                  <button
+                    type="button"
+                    title="הסרת שבוע"
+                    onClick={() => requestRemoveWeek(week)}
+                    disabled={removingWeekId === week.id}
+                    className="touch-target inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 text-[var(--color-danger)] transition disabled:cursor-wait disabled:opacity-60"
+                  >
+                    {removingWeekId === week.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                    <span className="sr-only">הסרת שבוע</span>
+                  </button>
+                </div>
+              </div>
             );
           })()}
 
@@ -1345,12 +1863,48 @@ export default function TrackingPage() {
             />
           ) : (
           <>
+          {/* Mobile has no column headers to hang item actions on, so item
+              edit/remove lives in this collapsed list instead. */}
+          <details className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-4 py-3 md:hidden">
+            <summary className="cursor-pointer text-xs font-semibold text-[var(--text-primary)]">
+              ניהול מופעי מעקב ({visibleItems.length})
+            </summary>
+            <div className="mt-2 divide-y divide-[var(--border-subtle)]">
+              {visibleItems.map(item => (
+                <div key={item.id} className="flex items-center justify-between gap-3 py-2">
+                  <div className="min-w-0">
+                    <div className="truncate text-xs font-semibold text-[var(--text-primary)]">{item.title}</div>
+                    <div className="text-caption font-bold text-[var(--command-subtle)]">{item.category}</div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <button
+                      type="button"
+                      title="עריכת מופע"
+                      onClick={() => openEditItem(item)}
+                      className="touch-target inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border-strong)] bg-[var(--tactical-glass)] text-[var(--text-secondary)]"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      <span className="sr-only">עריכה</span>
+                    </button>
+                    <button
+                      type="button"
+                      title="הסר מופע מעקב מהטבלה"
+                      onClick={() => requestRemoveItem(item)}
+                      disabled={removingItemId === item.id}
+                      className="touch-target inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 text-[var(--color-danger)] disabled:cursor-wait disabled:opacity-60"
+                    >
+                      {removingItemId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                      <span className="sr-only">הסר</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </details>
+
           {/* Mobile: a table with one column per item forces horizontal
               scrolling that's unusable on a phone — stack each soldier as a
-              card with their items listed vertically instead.
-              ponytail: no per-item delete here (rare admin action, fine to
-              require desktop for it) — keeps this list focused on entering
-              status, which is what actually needs to work on a phone. */}
+              card with their items listed vertically instead. */}
           <div className="space-y-3 md:hidden">
             {visibleSoldiers.map((soldier) => (
               <div key={soldier.id} className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4 shadow-[0_8px_18px_rgba(2,1,8,0.04)]">
@@ -1364,6 +1918,16 @@ export default function TrackingPage() {
                       {soldier.role_label ?? soldier.squad_label ?? 'ללא שיוך נוסף'}
                     </div>
                   </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                  <button
+                    type="button"
+                    title="עריכת פרטי חייל"
+                    onClick={() => openEditSoldier(soldier)}
+                    className="touch-target inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--border-strong)] bg-[var(--tactical-glass)] text-[var(--text-secondary)]"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    <span className="sr-only">עריכה</span>
+                  </button>
                   <button
                     type="button"
                     title="הסר חייל מהמעקב"
@@ -1378,6 +1942,7 @@ export default function TrackingPage() {
                     )}
                     <span className="sr-only">הסר</span>
                   </button>
+                  </div>
                 </div>
 
                 <div className="mt-3 divide-y divide-[var(--border-subtle)] border-t border-[var(--border-subtle)]">
@@ -1406,7 +1971,7 @@ export default function TrackingPage() {
                           </button>
                           <button
                             type="button"
-                            title={record ? (record.note ? 'עריכת הערה' : 'הוספת הערה') : 'סמן סטטוס לפני הוספת הערה'}
+                            title={record ? 'עריכת תא — סטטוס והערה' : 'סמן סטטוס לפני עריכת התא'}
                             onClick={() => record && openNoteDialog(soldier, item, record)}
                             disabled={!record}
                             className={`touch-target inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition disabled:cursor-not-allowed disabled:opacity-40 ${
@@ -1456,6 +2021,16 @@ export default function TrackingPage() {
                           <div className="font-semibold text-[var(--text-primary)]">{item.title}</div>
                           <div className="mt-1 text-caption font-bold text-[var(--command-subtle)]">{item.category}</div>
                         </div>
+                        <div className="flex shrink-0 items-center gap-1">
+                        <button
+                          type="button"
+                          title="עריכת מופע"
+                          onClick={() => openEditItem(item)}
+                          className="touch-target inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--border-strong)] bg-[var(--tactical-glass)] text-[var(--text-secondary)] transition hover:border-[var(--action)]/30"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          <span className="sr-only">עריכה</span>
+                        </button>
                         <button
                           type="button"
                           title="הסר מופע מעקב מהטבלה"
@@ -1470,6 +2045,7 @@ export default function TrackingPage() {
                           )}
                           <span className="sr-only">הסר</span>
                         </button>
+                        </div>
                       </div>
                     </th>
                   ))}
@@ -1497,6 +2073,16 @@ export default function TrackingPage() {
                             {soldier.role_label ?? soldier.squad_label ?? 'ללא שיוך נוסף'}
                           </div>
                         </div>
+                        <div className="flex shrink-0 items-center gap-1">
+                        <button
+                          type="button"
+                          title="עריכת פרטי חייל"
+                          onClick={() => openEditSoldier(soldier)}
+                          className="touch-target inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--border-strong)] bg-[var(--tactical-glass)] text-[var(--text-secondary)] transition hover:border-[var(--action)]/30"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          <span className="sr-only">עריכה</span>
+                        </button>
                         <button
                           type="button"
                           title="הסר חייל מהמעקב"
@@ -1511,6 +2097,7 @@ export default function TrackingPage() {
                           )}
                           <span className="sr-only">הסר</span>
                         </button>
+                        </div>
                       </div>
                     </td>
                     {visibleItems.map((item, itemIndex) => {
@@ -1542,7 +2129,7 @@ export default function TrackingPage() {
                             </button>
                             <button
                               type="button"
-                              title={record ? (record.note ? 'עריכת הערה' : 'הוספת הערה') : 'סמן סטטוס לפני הוספת הערה'}
+                              title={record ? 'עריכת תא — סטטוס והערה' : 'סמן סטטוס לפני עריכת התא'}
                               onClick={() => record && openNoteDialog(soldier, item, record)}
                               disabled={!record}
                               className={`touch-target inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition disabled:cursor-not-allowed disabled:opacity-40 ${

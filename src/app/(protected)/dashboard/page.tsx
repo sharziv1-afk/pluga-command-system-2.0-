@@ -28,7 +28,7 @@ import { createAuditLog } from '@/lib/audit';
 import { useApp } from '@/lib/context/AppContext';
 import { cacheGet, cacheSet } from '@/lib/offline/db';
 import { ambiguousMutationMessage, runQuickCreateMutation } from '@/lib/inFlightLock';
-import { getPermissionLevelForRole, hasCompanyWideUiAccess } from '@/lib/permissions';
+import { getCommandBriefTitle, getPermissionLevelForRole, hasCompanyWideUiAccess } from '@/lib/permissions';
 import { getScheduleDisplayStatus } from '@/lib/schedule';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
@@ -364,7 +364,9 @@ function buildCommandBrief(
   data: DashboardData,
   attentionItems: DashboardItem[],
   todayEvents: DbEvent[],
+  role: string | null | undefined,
 ): CommandBrief {
+  const titlePrefix = getCommandBriefTitle(role);
   const openRequests = data.requests.filter(isActiveRequest).length;
   const activeTasks = data.tasks.filter(isActiveTask);
   const urgentRequests = data.requests.filter(request => isActiveRequest(request) && isUrgentRequest(request)).length;
@@ -384,7 +386,7 @@ function buildCommandBrief(
 
   if (attentionItems.length > 0) {
     return {
-      title: 'תדריך מפקד: קשב נדרש',
+      title: `${titlePrefix}: קשב נדרש`,
       text: `${attentionItems.length} פריטים דורשים טיפול או מעקב לפני שממשיכים לשגרה.`,
       tone: 'attention',
       items: items.length > 0 ? items.slice(0, 3) : ['פתח את רשימת הטיפול כדי לתעדף את ההמשך'],
@@ -393,7 +395,7 @@ function buildCommandBrief(
 
   if (openRequests > 0 || activeTasks.length > 0 || activeTodayEvents > 0) {
     return {
-      title: 'תדריך מפקד: תמונת מצב יציבה',
+      title: `${titlePrefix}: תמונת מצב יציבה`,
       text: `אין כרגע פריטים דחופים. ${openRequests} דרישות פעילות, ${activeTasks.length} משימות פתוחות ו-${activeTodayEvents} מופעים היום.`,
       tone: 'steady',
       items: items.length > 0 ? items.slice(0, 3) : ['אפשר להמשיך מעקב שוטף מהכרטיסים למטה'],
@@ -401,7 +403,7 @@ function buildCommandBrief(
   }
 
   return {
-    title: 'תדריך מפקד: אין עומס פתוח',
+    title: `${titlePrefix}: אין עומס פתוח`,
     text: 'אין כרגע דרישות, משימות או מופעים פעילים. אפשר לפתוח פריט חדש לפי צורך.',
     tone: 'empty',
     items: ['הכפתורים למעלה זמינים לפתיחה מהירה'],
@@ -697,9 +699,10 @@ export default function DashboardPage() {
     () => Object.values(dashboardData.usersById).sort((a, b) => (a.name || a.email || '').localeCompare(b.name || b.email || '', 'he')),
     [dashboardData.usersById],
   );
+  const briefRole = profile?.role ?? currentUser?.role;
   const commandBrief = useMemo(
-    () => buildCommandBrief(dashboardData, attentionItems, todayEvents),
-    [dashboardData, attentionItems, todayEvents],
+    () => buildCommandBrief(dashboardData, attentionItems, todayEvents, briefRole),
+    [dashboardData, attentionItems, todayEvents, briefRole],
   );
   const { taskCountByEventId, requestCountByEventId } = useMemo(() => {
     const taskCounts = new Map<string, number>();

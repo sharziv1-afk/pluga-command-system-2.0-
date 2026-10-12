@@ -2,6 +2,33 @@ export function normalizeRole(role: string | null | undefined): string {
   return (role ?? '').trim().replace(/[\u05F4\u05F3"'´“”‘’]/g, '"');
 }
 
+const BRIEF_EXACT_ROLES = new Set([
+  'מ"פ',
+  'סמ"פ',
+  'מש"ד',
+  'רס"פ / לוגיסטיקה',
+  'רס"פ',
+  'סרס"פ',
+  'חובש פלוגתי',
+  'קשר פלוגתי',
+  'ב.קוד / נהג',
+]);
+// 4 platoons, 3 squads each (א-ג) — migration 021 removed the 4th squad.
+const BRIEF_NUMBERED_ROLE = /^(?:מ"מ [1-4]|סמל [1-4]|מ"כ [1-4][א-ג])$/;
+
+/**
+ * Dashboard brief title for the signed-in role, e.g. "תדריך מ״מ 2".
+ * An explicit list, not getPermissionLevelForRole: that returns 0 for
+ * סרס"פ, which is a real role. Empty or unknown roles get "תדריך יומי".
+ */
+export function getCommandBriefTitle(role: string | null | undefined): string {
+  // Spacing is not significant in a stored role: "מ"מ  2" and "ב.קוד/נהג"
+  // are the same roles as "מ"מ 2" and "ב.קוד / נהג", and display the same.
+  const normalizedRole = normalizeRole(role).replace(/\s*\/\s*/g, ' / ').replace(/\s+/g, ' ');
+  const isKnown = BRIEF_EXACT_ROLES.has(normalizedRole) || BRIEF_NUMBERED_ROLE.test(normalizedRole);
+  return isKnown ? `תדריך ${normalizedRole.replace(/"/g, '״')}` : 'תדריך יומי';
+}
+
 export function hasAdminAccess(role: string | null | undefined): boolean {
   const normalizedRole = normalizeRole(role);
   return normalizedRole === 'מ"פ' || normalizedRole === 'סמ"פ';

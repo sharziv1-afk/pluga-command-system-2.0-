@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   CalendarClock,
   CalendarDays,
+  CalendarPlus,
   CheckCircle2,
   Clipboard,
   Clock3,
@@ -30,6 +31,7 @@ import { copyTextToClipboard } from '@/lib/clipboard';
 import { useApp } from '@/lib/context/AppContext';
 import { getPermissionLevelForRole, hasCompanyWideUiAccess } from '@/lib/permissions';
 import { getScheduleDisplayStatus } from '@/lib/schedule';
+import { buildGoogleCalendarUrl, buildIcsCalendar, isUpcomingForCalendar, type CalendarEntry } from '@/lib/calendarExport';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
 import { LIST_FETCH_LIMIT, TRUNCATION_NOTICE, isTruncated } from '@/lib/queryLimits';
@@ -423,6 +425,8 @@ export default function SchedulePage() {
   const tomorrowCount = tabCounts.tomorrow ?? 0;
   const weekCount = tabCounts.week ?? 0;
   const allCount = tabCounts.all ?? defaultVisibleEvents.length;
+  // Not memoised: the answer depends on the clock, not only on `events`.
+  const upcomingCalendarCount = events.filter(event => isUpcomingForCalendar(event)).length;
 
   const groupedEvents = useMemo(() => {
     const dayGroups = new Map<string, EventView[]>();
@@ -870,38 +874,35 @@ export default function SchedulePage() {
     }
   };
 
-  // Escapes per RFC 5545 §3.3.11 (comma/semicolon/backslash/newline).
-  const icsEscape = (value: string) => value.replace(/\\/g, '\\\\').replace(/,/g, '\\,').replace(/;/g, '\\;').replace(/\n/g, '\\n');
-  const icsDate = (value: string) => `${new Date(value).toISOString().replace(/[-:]/g, '').split('.')[0]}Z`;
+  const toCalendarEntry = (event: EventView): CalendarEntry => ({
+    id: event.id,
+    title: event.title,
+    starts_at: event.starts_at,
+    ends_at: event.ends_at,
+    location: event.location,
+    status: event.status,
+    details: [
+      eventTypeLabels[event.event_type],
+      event.responsibleName ? `אחראי: ${event.responsibleName}` : null,
+      event.unitName ? `מסגרת: ${event.unitName}` : null,
+      event.description || null,
+    ].filter(Boolean).join(' · '),
+  });
+
+  const openInGoogleCalendar = (event: EventView) => {
+    window.open(buildGoogleCalendarUrl(toCalendarEntry(event)), '_blank', 'noopener,noreferrer');
+  };
 
   const downloadScheduleAsIcs = () => {
-    const upcoming = events.filter(event => event.status !== 'cancelled');
-    const lines: Array<string | null> = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//המפקד//לו״ז פלוגתי//HE', 'CALSCALE:GREGORIAN'];
-    const stamp = icsDate(new Date().toISOString());
-
-    for (const event of upcoming) {
-      const descriptionParts = [
-        eventTypeLabels[event.event_type],
-        event.responsibleName ? `אחראי: ${event.responsibleName}` : null,
-        event.unitName ? `מסגרת: ${event.unitName}` : null,
-        event.description || null,
-      ].filter(Boolean);
-
-      lines.push(
-        'BEGIN:VEVENT',
-        `UID:${event.id}@hamefaked`,
-        `DTSTAMP:${stamp}`,
-        `DTSTART:${icsDate(event.starts_at)}`,
-        event.ends_at ? `DTEND:${icsDate(event.ends_at)}` : `DTEND:${icsDate(event.starts_at)}`,
-        `SUMMARY:${icsEscape(event.title)}`,
-        event.location ? `LOCATION:${icsEscape(event.location)}` : null,
-        descriptionParts.length ? `DESCRIPTION:${icsEscape(descriptionParts.join(' · '))}` : null,
-        'END:VEVENT',
-      );
+    setError(null);
+    setSuccess(null);
+    const { text, count } = buildIcsCalendar(events.map(toCalendarEntry), Date.now());
+    if (count === 0) {
+      setError('אין מופעים קרובים לייצוא.');
+      return;
     }
-    lines.push('END:VCALENDAR');
 
-    const blob = new Blob([lines.filter((line): line is string => line !== null).join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+    const blob = new Blob([text], { type: 'text/calendar;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
@@ -910,7 +911,7 @@ export default function SchedulePage() {
     anchor.click();
     document.body.removeChild(anchor);
     URL.revokeObjectURL(url);
-    setSuccess('קובץ היומן ירד — פתיחה תוסיף את כל הלו״ז ליומן במכשיר.');
+    setSuccess(`קובץ היומן ירד עם ${count} מופעים קרובים — פתיחה תוסיף אותם ליומן במכשיר.`);
   };
 
   const activeEventTasksCount = eventTasks.filter(task => ['open', 'in_progress', 'blocked'].includes(task.status)).length;
@@ -971,7 +972,7 @@ export default function SchedulePage() {
               <Clipboard className="h-4 w-4" />
               העתק לו״ז מחר
             </GlossyButton>
-            <GlossyButton variant="slate" size="sm" onClick={downloadScheduleAsIcs} disabled={isLoading || events.length === 0}>
+            <GlossyButton variant="slate" size="sm" onClick={downloadScheduleAsIcs} disabled={isLoading || upcomingCalendarCount === 0}>
               <Download className="h-4 w-4" />
               ייצוא ליומן (ICS)
             </GlossyButton>
@@ -1261,6 +1262,12 @@ export default function SchedulePage() {
           )}
 
           <div className="flex flex-wrap gap-2">
+            {isUpcomingForCalendar(selectedEvent) && (
+              <GlossyButton variant="slate" size="sm" onClick={() => openInGoogleCalendar(selectedEvent)}>
+                <CalendarPlus className="h-4 w-4" />
+                הוסף ליומן Google
+              </GlossyButton>
+            )}
             {canEditEvent(selectedEvent) && (
               <GlossyButton
                 variant="slate"

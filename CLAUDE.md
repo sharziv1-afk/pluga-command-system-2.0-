@@ -5,6 +5,7 @@
 - Read [`WORKSPACE_MODE.md`](WORKSPACE_MODE.md) for the authoritative live mode, branch/deployment status, safe QA constraints, and exact module reactivation steps.
 - Verify the current remote main and deployed SHA; old checkpoint hashes are dated baselines, not the expected latest commit.
 - Active modules are `/dashboard` and `/forum`, in that order. The other routes and their data models remain in place and are blocked at the protected layout.
+- Forum owner RLS requires an active/approved profile; closed content is guarded in the database. Client saves and offline replay must preserve the shared closed-report guard and keep locked offline drafts queued. See the 2026-10-21 M/M permissions checkpoint for the applied migration and verification limits.
 - Squad report slots are paused in company/platoon leading-forum views using `src/data/forum.ts`; restore instructions are in WORKSPACE_MODE.md. Stored squad reports and squad users' own forms are preserved.
 - Do not treat old checkpoints, live data, or preview environments as safe test fixtures. The current forum screen may contain no M/M reports for a selected date; actual cross-user sync requires a real M/M session or a dedicated QA environment.
 - Start a new task by checking Git status and the current remote main. The attached local snapshot can lag main.

@@ -3,6 +3,13 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 /** How many times to re-resolve when yet another save lands mid-resolution. */
 const MAX_MERGE_ATTEMPTS = 3;
 
+export class ClosedForumReportError extends Error {
+  constructor() {
+    super('הדוח נסגר במושב אחר. הטיוטה לא נשלחה; רענן ופתח את נעילת הדוח במכוון לפני שמירה נוספת.');
+    this.name = 'ClosedForumReportError';
+  }
+}
+
 export interface FieldChange {
   base: unknown;
   next: unknown;
@@ -126,12 +133,16 @@ export async function writeWithHierarchyResolution({
   for (const [field, { next }] of Object.entries(changes)) fullNext[field] = next;
 
   // Fast path: nobody has touched the row since it was loaded.
-  const { data: applied, error } = await supabase
+  const isForumReport = table === 'forum_daily_reports';
+  let fastWrite = supabase
     .from(table)
     .update({ ...buildPayload(fullNext), updated_by: currentUserId })
     .eq('id', id)
-    .eq('updated_at', baseUpdatedAt)
-    .select('id');
+    .eq('updated_at', baseUpdatedAt);
+  // Atomic with the write: a pre-read alone would still race with a close.
+  // Covers normal saves, submission, company saves, and offline replay.
+  if (isForumReport) fastWrite = fastWrite.neq('status', 'closed');
+  const { data: applied, error } = await fastWrite.select('id');
 
   if (error) throw error;
   if (applied && applied.length > 0) return { status: 'applied' };
@@ -144,12 +155,13 @@ export async function writeWithHierarchyResolution({
   for (let attempt = 0; attempt < MAX_MERGE_ATTEMPTS; attempt += 1) {
     const { data: current, error: readError } = await supabase
       .from(table)
-      .select(`${selectColumns},updated_at`)
+      .select(`${selectColumns},updated_at${isForumReport ? ',status' : ''}`)
       .eq('id', id)
       .maybeSingle<Record<string, unknown>>();
 
     if (readError) throw readError;
     if (!current) throw new Error(`Row ${id} not found in ${table} while resolving a write conflict`);
+    if (isForumReport && current.status === 'closed') throw new ClosedForumReportError();
 
     // `updated_by` is written by a BEFORE UPDATE trigger from the caller's
     // own JWT identity (migration 030), never from the request payload — so
@@ -182,12 +194,13 @@ export async function writeWithHierarchyResolution({
       callerOutranks,
     );
 
-    const { data: mergedRows, error: mergeError } = await supabase
+    let mergeWrite = supabase
       .from(table)
       .update({ ...buildPayload(merged, current), updated_by: currentUserId })
       .eq('id', id)
-      .eq('updated_at', current.updated_at as string)
-      .select('id');
+      .eq('updated_at', current.updated_at as string);
+    if (isForumReport) mergeWrite = mergeWrite.neq('status', 'closed');
+    const { data: mergedRows, error: mergeError } = await mergeWrite.select('id');
 
     if (mergeError) throw mergeError;
     if (mergedRows && mergedRows.length > 0) return { status: 'merged', overriddenFields };

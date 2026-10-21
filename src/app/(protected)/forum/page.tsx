@@ -48,7 +48,7 @@ import { GlossyButton } from '@/components/ui/GlossyButton';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { createAuditLog } from '@/lib/audit';
 import type { AuditActionType } from '@/lib/audit';
-import { writeWithHierarchyResolution } from '@/lib/concurrency/hierarchyWrite';
+import { ClosedForumReportError, writeWithHierarchyResolution } from '@/lib/concurrency/hierarchyWrite';
 import type { HierarchyWriteResult } from '@/lib/concurrency/hierarchyWrite';
 import { cacheGet, cacheSet } from '@/lib/offline/db';
 import { enqueueWrite, flushWriteQueue, pendingWriteCount } from '@/lib/offline/syncEngine';
@@ -941,7 +941,8 @@ export default function ForumPage() {
       && (canSeeAll || report.created_by === dbProfile.id || report.owner_user_id === dbProfile.id),
   );
   const canDeleteSelectedReport = canMutateReport(selectedReport);
-  const canResetSelectedReport = canDeleteSelectedReport;
+  // A closed report must be deliberately reopened before its content is reset.
+  const canResetSelectedReport = canDeleteSelectedReport && selectedReport?.status !== 'closed';
   const canUseDraftFormForSelectedNode = Boolean(
     !selectedReport
       && selectedNode
@@ -1787,7 +1788,7 @@ export default function ForumPage() {
         });
       } catch (updateError) {
         logSupabaseError('Forum daily report update failed', updateError);
-        setDailyError('לא ניתן לשמור את הדיווח כרגע. בדוק הרשאות או נסה שוב.');
+        setDailyError(updateError instanceof ClosedForumReportError ? updateError.message : 'לא ניתן לשמור את הדיווח כרגע. בדוק הרשאות או נסה שוב.');
         recordDailyDraftSave(draftToSave, false);
         return;
       }
@@ -1908,7 +1909,7 @@ export default function ForumPage() {
       }
     } catch (submitError) {
       logSupabaseError('Forum daily report submit threw', submitError);
-      setDailyError('לא ניתן להגיש את הדיווח כרגע. בדוק את החיבור ונסה שוב.');
+      setDailyError(submitError instanceof ClosedForumReportError ? submitError.message : 'לא ניתן להגיש את הדיווח כרגע. בדוק את החיבור ונסה שוב.');
       recordDailyDraftSave(draftToSubmit, false);
     } finally {
       dailySaveInFlight.current = false;
@@ -2351,7 +2352,7 @@ export default function ForumPage() {
         });
       } catch (updateError) {
         logSupabaseError('Forum company report save failed', updateError);
-        setDailyError('לא ניתן לשמור את הדוח הפלוגתי כרגע. בדוק הרשאות או נסה שוב.');
+        setDailyError(updateError instanceof ClosedForumReportError ? updateError.message : 'לא ניתן לשמור את הדוח הפלוגתי כרגע. בדוק הרשאות או נסה שוב.');
         return null;
       }
       if (writeResult.status === 'merged' && writeResult.overriddenFields.length > 0) {

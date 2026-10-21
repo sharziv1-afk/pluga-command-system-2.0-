@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { writeWithHierarchyResolution, type FieldChange } from '../concurrency/hierarchyWrite';
+import { ClosedForumReportError, writeWithHierarchyResolution, type FieldChange } from '../concurrency/hierarchyWrite';
 import { queueAdd, queueGetAll, queueRemove } from './db';
 import { TABLE_SYNC_CONFIG, type SyncTable } from './tableSyncConfig';
 
@@ -107,7 +107,13 @@ export async function flushWriteQueue(
       });
       await queueRemove(item.id);
       applied += 1;
-    } catch {
+    } catch (error) {
+      // A report may legitimately be reopened later. Keep its offline work
+      // without spending retry attempts or silently abandoning the draft.
+      if (error instanceof ClosedForumReportError) {
+        stillPending += 1;
+        continue;
+      }
       // Connectivity can drop mid-flush. A failure with no network says
       // nothing about whether this write is valid, so it must not count
       // toward abandoning it.

@@ -7,6 +7,7 @@ reports, soldier tracking, mentoring, and admin/approval — built on Next.js 16
 
 **Start here, not below:**
 - [`WORKSPACE_MODE.md`](WORKSPACE_MODE.md) — current live mode, release state, QA limits, and exact steps to re-enable modules.
+- [`M/M permissions and rollup audit`](docs/checkpoints/2026-10-21-mm-permissions-rollup-audit.md) — live policy findings, rollup comparison, and the owner/closed-report hardening release status.
 - [`2026-10-21 squad view release`](docs/checkpoints/2026-10-21-hide-squad-reports-release.md) — shipped UI change, production verification, preserved data, and rollback guidance.
 - [`2026-10-21 forum QA`](docs/checkpoints/2026-10-21-forum-live-demo-qa.md) — user-authorized live demo, saved company rollup, refresh behavior, and verification limits.
 - [`AI_HANDOFF_CHECKPOINT.md`](AI_HANDOFF_CHECKPOINT.md) — technical handoff and historical implementation detail; older sections are explicitly labeled.

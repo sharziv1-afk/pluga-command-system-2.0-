@@ -14,6 +14,7 @@ import { resolveFieldConflicts } from '../src/lib/concurrency/hierarchyWrite.ts'
 import { TABLE_SYNC_CONFIG } from '../src/lib/offline/tableSyncConfig.ts';
 import { isSnapshotExpired, SNAPSHOT_MAX_AGE_MS } from '../src/lib/offline/cachedProfile.ts';
 import { didRowsUpdate } from '../src/lib/supabase/assertUpdated.ts';
+import { activeModulePaths, visibleNavItems } from '../src/data/navigation.ts';
 import {
   canMutateDailyDraft,
   canTransitionDraft,
@@ -58,6 +59,32 @@ test('role normalization and existing UI capability rules share one truth table'
   assert.equal(hasCompanyWideUiAccess('מ״מ 1', 70), false);
   assert.equal(isActiveApprovedProfile('active', 'approved'), true);
   assert.equal(isActiveApprovedProfile('pending', 'approved'), false);
+});
+
+test('only dashboard and forum are available in navigation, in the requested order', () => {
+  assert.deepEqual(activeModulePaths, ['/dashboard', '/forum']);
+  for (const items of [visibleNavItems(false), visibleNavItems(true), visibleNavItems(true, true)]) {
+    assert.deepEqual(items.map(({ path }) => path), ['/dashboard', '/forum']);
+  }
+});
+
+test('paused protected routes are replaced before their page content is rendered', () => {
+  const layout = readFileSync('src/app/(protected)/layout.tsx', 'utf8');
+  const pausedRouteGuard = layout.slice(layout.indexOf('if (!loading && !isActiveModule)'), layout.indexOf('return (\n    <div className="protected-layout-shell', layout.indexOf('if (!loading && !isActiveModule)')));
+
+  assert.match(layout, /activeModulePaths\.some\(/);
+  assert.match(pausedRouteGuard, /העמוד אינו זמין כרגע/);
+  assert.doesNotMatch(pausedRouteGuard, /<PageTransition>\{children\}<\/PageTransition>/);
+});
+
+test('dashboard summary is non-interactive and quick-create controls are not rendered', () => {
+  const source = readFileSync('src/app/(protected)/dashboard/page.tsx', 'utf8');
+  const pageRender = source.slice(source.indexOf('  if (isContextLoading || isLoading)'), source.indexOf('\n}\n\nfunction CommandBriefCard'));
+  const dashboardCards = source.slice(source.indexOf('function SummaryMetricCard'), source.indexOf('function AuditLogRow'));
+
+  assert.match(pageRender, /חלק מהנתונים מוצגים כאן כסיכום בלבד/);
+  assert.doesNotMatch(pageRender, /<Link\b|<button\b|<QuickActionButton\b|<QuickCreateModal\b/);
+  assert.doesNotMatch(dashboardCards, /<Link\b/);
 });
 
 test('operational pages do not refetch the current profile', () => {

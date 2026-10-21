@@ -2,6 +2,9 @@
 description: Independent code review of the diff (read-only, code-reviewer)
 argument-hint: [diff scope]
 ---
+
+<!-- Current project state (2026-10-21): production is on cb8458e4dcb9f7f8cfb50d4726b423792e990fce (Ready); active modules are /dashboard and /forum. This file is a historical/process reference where applicable. See [../../../../WORKSPACE_MODE.md](../../../../WORKSPACE_MODE.md) for the current state and safe reactivation procedure. -->
+
 Run the **REVIEW** action for: $ARGUMENTS
 
 1. Read `.ai-workspace/actions/review.md` and `.ai-workspace/contracts/definition-of-done.md`.

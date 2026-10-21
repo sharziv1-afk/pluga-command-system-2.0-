@@ -1,5 +1,8 @@
 # Rule: Supabase & Security
 
+<!-- Current project state (2026-10-21): production is on cb8458e4dcb9f7f8cfb50d4726b423792e990fce (Ready); active modules are /dashboard and /forum. This file is a historical/process reference where applicable. See [../../../../WORKSPACE_MODE.md](../../../../WORKSPACE_MODE.md) for the current state and safe reactivation procedure. -->
+
+
 - **SQL is manual-only.** Propose SQL/migrations; never auto-run them. Prefer additive migrations; do not rerun 013/014/015.
 - Do not change schema, RLS, Auth behavior, or the `src/proxy.ts` gate without explicit planning + a snapshot.
 - Never put a service-role key in client code; never expose secrets/keys/tokens.

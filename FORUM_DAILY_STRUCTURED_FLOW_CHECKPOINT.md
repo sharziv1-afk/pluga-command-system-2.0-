@@ -1,5 +1,8 @@
 # Forum Daily — Structured Company Flow Checkpoint & Next Work Plan
 
+> **עדכון מצב (21.10.2026):** זהו תיעוד סבב פיתוח היסטורי. האתר החי נמצא ב־`cb8458e`, עם `/dashboard` + `/forum` בלבד. היום מולא דרך האתר תרחיש מומצא מלא באישור המשתמש: 4/4 מ״מים, 4/4 מפל״ג, מצבה 107/117 ודוח מ״פ שמור. אומתו עדכון מקור → רענון ריכוז → שמירה וטעינה מחדש; לא נבדקה כניסת מ״מ נפרד. התרחיש נשאר לצפיית המשתמש ולא הופץ/נסגר. ראו [`דוח בדיקה`](docs/checkpoints/2026-10-21-forum-live-demo-qa.md) ו־[`WORKSPACE_MODE.md`](WORKSPACE_MODE.md).
+
+
 Authoritative checkpoint for the **Forum Daily Structured Company Flow** round, plus the
 prioritized work plan (P0–P3), the standing QA checklist, and the risk matrix.
 

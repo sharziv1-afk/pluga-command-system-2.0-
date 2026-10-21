@@ -6,7 +6,9 @@ reports, soldier tracking, mentoring, and admin/approval — built on Next.js 16
 (App Router) and Supabase (Auth/Postgres/RLS).
 
 **Start here, not below:**
-- [`AI_HANDOFF_CHECKPOINT.md`](AI_HANDOFF_CHECKPOINT.md) — current state, what's actually live, open items. The source of truth.
+- [`WORKSPACE_MODE.md`](WORKSPACE_MODE.md) — current live mode, release state, QA limits, and exact steps to re-enable modules.
+- [`2026-10-21 forum QA`](docs/checkpoints/2026-10-21-forum-live-demo-qa.md) — user-authorized live demo, saved company rollup, refresh behavior, and verification limits.
+- [`AI_HANDOFF_CHECKPOINT.md`](AI_HANDOFF_CHECKPOINT.md) — technical handoff and historical implementation detail; older sections are explicitly labeled.
 - [`AGENTS.md`](AGENTS.md) — durable rules and invariants that must not be broken.
 - [`FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`](FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md) — the forum's regression baseline and six invariants; read before touching `forum/page.tsx`.
 - [`docs/archive/`](docs/archive/) — retired checkpoint history (old `README.md` journal, `PROJECT_SUMMARY.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`). History only, not current state.
@@ -44,24 +46,18 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 ```
 
-Never commit `.env.local` or real keys. See `AI_HANDOFF_CHECKPOINT.md` for
-which Supabase project (`vmfihyritfmjycrfpxjn`, the LIVE one — see `ENVIRONMENTS.md`) is the one
-actually in live use.
+Never commit `.env.local` or real keys. Read `ENVIRONMENTS.md` before any database work; its refs and snapshots must be re-verified before use.
 
 ## Moving to another machine
 
-Verified end to end on 2026-09-13. Everything needed is in the repo; three
-commands and one paste:
+The repository can be cloned with:
 
 ```bash
 git clone https://github.com/sharziv1-afk/pluga-command-system-2.0-.git
 cd pluga-command-system-2.0- && npm install && cp .env.example .env.local
 ```
 
-Then fill `.env.local` with the two values from the Supabase dashboard →
-Project `vmfihyritfmjycrfpxjn` → Settings → API. Both are publishable values
-(the anon key is designed to ship to browsers); there is no service-role key
-in this project and there must never be one.
+Then use credentials intended for the selected environment. Do not copy Production values into Preview or local QA by default; use a dedicated staging project for write tests. Never print or commit `.env.local`.
 
 What deliberately does **not** travel, and why that is correct:
 
@@ -83,6 +79,10 @@ The second command lists commits that exist **only on this machine**. A
 accept losing it.
 
 ## Routes
+
+The current active navigation is only `/dashboard` followed by `/forum`.
+Other protected routes remain in the code and database but are gated in the
+protected layout. See [`WORKSPACE_MODE.md`](WORKSPACE_MODE.md) before re-enabling them.
 
 Protected via `src/proxy.ts`:
 

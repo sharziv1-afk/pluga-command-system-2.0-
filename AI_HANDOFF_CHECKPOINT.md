@@ -10,6 +10,9 @@ Read this before touching the codebase. It captures exactly what state the proje
 
 ## What this project is
 
+> **Current status (2026-10-21):** This is a historical technical handoff, not the current deployment ledger. GitHub `main` and Vercel Production are on `cb8458e4dcb9f7f8cfb50d4726b423792e990fce` (Ready). Only `/dashboard` and `/forum` are active. See [`WORKSPACE_MODE.md`](WORKSPACE_MODE.md) for current state and reactivation steps. Environment, database, counts, and QA claims below are dated and must be re-verified before use.
+
+
 **"המפקד" (Hamefaked)** — a Next.js 16 (App Router, Turbopack) + Supabase command system for a single IDF infantry company (פלוגה). Hebrew RTL throughout. One commander (מ״פ) manages ~20 users across 4 platoons (מ״מ), each with 3 squads (כיתה), plus company staff (מפל״ג: סמ״פ, מש״ד, רס״פ, חופ״ל).
 
 This repo (`C:\DEV\pluga-command-system`) is **the canonical, active product**. Three sibling folders exist on this machine — `PLUGA A APP`, `thepluton`, `pluga-reference-render` — they are sandboxes for stealing ideas/patterns from, not competing sources of truth. Do not let their docs (some of which explicitly say "avoid Supabase/auth/RLS") override what's actually running here.

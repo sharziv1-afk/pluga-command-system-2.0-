@@ -1,5 +1,8 @@
 # Pre-Redesign Acceleration Checkpoint — 2026-08-02
 
+<!-- Current project state (2026-10-21): production is on cb8458e4dcb9f7f8cfb50d4726b423792e990fce (Ready); active modules are /dashboard and /forum. This file is a historical/process reference where applicable. See [../../WORKSPACE_MODE.md](../../WORKSPACE_MODE.md) for the current state and safe reactivation procedure. -->
+
+
 ## 1. מטרת המסמך והחלטת הסקופ
 
 מסמך זה הוא נקודת ההמשך היחידה לתוכנית ה־Nightly Pre-Redesign Acceleration. העבודה בוצעה בענף מבודד שנוצר ישירות מ־`main`, בלי לשלב את PR #3 או PR #5. נבחרו רק שלושה batches קטנים, עצמאיים וללא תלות ב־Supabase:

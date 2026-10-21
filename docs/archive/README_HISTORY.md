@@ -1,5 +1,8 @@
 # README History Archive
 
+<!-- Current project state (2026-10-21): production is on cb8458e4dcb9f7f8cfb50d4726b423792e990fce (Ready); active modules are /dashboard and /forum. This file is a historical/process reference where applicable. See [../../WORKSPACE_MODE.md](../../WORKSPACE_MODE.md) for the current state and safe reactivation procedure. -->
+
+
 > Archived 2026-09-04 as part of Phase 1.6 (documentation consolidation). This is the full reverse-chronological checkpoint journal that used to live in the repo-root `README.md` — kept for history. For current project state, read `AI_HANDOFF_CHECKPOINT.md`; for durable rules, read `AGENTS.md`. Nothing in this file should be treated as current.
 
 ---

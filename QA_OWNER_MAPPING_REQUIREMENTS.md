@@ -1,5 +1,8 @@
 # Forum Daily — Owner Mapping & QA Data Requirements
 
+<!-- Current project state (2026-10-21): production is on cb8458e4dcb9f7f8cfb50d4726b423792e990fce (Ready); active modules are /dashboard and /forum. This file is a historical/process reference where applicable. See [WORKSPACE_MODE.md](WORKSPACE_MODE.md) for the current state and safe reactivation procedure. -->
+
+
 > **Status:** The Forum Daily Structured Company Flow round closed at `cdcd99f` (pushed). The Full
 > Structured Company Forum Flow QA passed on 2026-08-20, and the Focused WhatsApp Preview QA passed
 > after `cdcd99f` (aggregation 124/138 on the QA data set; platoons 1/2/3/4 mapped). The

@@ -12,8 +12,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 ## Current State (2026-10-21)
 
 - Read [`WORKSPACE_MODE.md`](WORKSPACE_MODE.md) first for the verified live deployment, active modules, QA limits, and safe reactivation procedure. This document contains durable invariants, not an independent status ledger.
-- GitHub `main` and Vercel Production were verified on `cb8458e4dcb9f7f8cfb50d4726b423792e990fce`; Production is Ready.
+- Verify the current GitHub main/deployment SHA for each release; dated hashes in checkpoints describe a baseline, not an expected current HEAD.
 - Only `/dashboard` and `/forum` are active in navigation and direct routes. Other modules remain in the codebase/database and are gated at the protected layout. Login, roles, schema, RLS, and user records were not changed by this UI restriction.
+- Squad slots are hidden in company/platoon leading-forum views by `showSquadReportsInLeadingForum` in `src/data/forum.ts`. Preserve historical rows, owner mapping, and squad users' own forms. To restore the presentation, follow WORKSPACE_MODE.md; do not populate or migrate data to make counters pass.
 - Production data is real. Do not create, submit, publish, close, reset, or delete operational reports as part of routine QA. Explicitly authorized demo writes must be visibly identified and follow the user's retention/cleanup scope; audit logs may remain. The full fictional forum scenario for 2026-10-21 was retained at the user's request (8 submitted source reports + 1 saved company report). Do not delete/reset/close it automatically; see WORKSPACE_MODE.md.
 - `ENVIRONMENTS.md` contains dated environment snapshots. Verify the project ref and current connection before any database operation; never infer safety from display names.
 

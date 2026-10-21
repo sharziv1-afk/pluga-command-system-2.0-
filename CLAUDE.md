@@ -3,8 +3,9 @@
 ## Current State (2026-10-21)
 
 - Read [`WORKSPACE_MODE.md`](WORKSPACE_MODE.md) for the authoritative live mode, branch/deployment status, safe QA constraints, and exact module reactivation steps.
-- GitHub `main` and Vercel Production are on `cb8458e4dcb9f7f8cfb50d4726b423792e990fce`; Vercel reports Ready.
+- Verify the current remote main and deployed SHA; old checkpoint hashes are dated baselines, not the expected latest commit.
 - Active modules are `/dashboard` and `/forum`, in that order. The other routes and their data models remain in place and are blocked at the protected layout.
+- Squad report slots are paused in company/platoon leading-forum views using `src/data/forum.ts`; restore instructions are in WORKSPACE_MODE.md. Stored squad reports and squad users' own forms are preserved.
 - Do not treat old checkpoints, live data, or preview environments as safe test fixtures. The current forum screen may contain no M/M reports for a selected date; actual cross-user sync requires a real M/M session or a dedicated QA environment.
 - Start a new task by checking Git status and the current remote main. The attached local snapshot can lag main.
 
@@ -22,7 +23,7 @@
 Project-specific notes for Claude Code:
 
 - Read `AI_HANDOFF_CHECKPOINT.md` and `AGENTS.md` first. `docs/archive/` holds retired checkpoint history — use it for history, not for current state.
-- Current branch should be `main`. Do not pin an "expected latest commit" here; it goes stale within a day. Run `git log --oneline -5`.
+- Inspect the current branch, attached PR, and latest remote main before starting. Preserve work on existing branches; do not switch or reset automatically. Do not pin an "expected latest commit" here; run `git log --oneline -5`.
 - The forum round's detail, invariants, QA checklist and risk matrix live in `FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`. Its six invariants still hold and are restated in `AGENTS.md`.
 
 - Auth/Admin approval flow is OTP-code-only registration (no magic-link placeholders), `has_completed_onboarding=true` at registration, role→unit mapping at registration, pending users see "ממתין לאישור מ״פ", Admin prefills role (gershayim-normalized) and suggests מסגרת/יחידה בפיקוד/רמת הרשאה by role, and an Admin guardrail blocks approval without a valid role + unit.

@@ -84,6 +84,11 @@ The current active navigation is only `/dashboard` followed by `/forum`.
 Other protected routes remain in the code and database but are gated in the
 protected layout. See [`WORKSPACE_MODE.md`](WORKSPACE_MODE.md) before re-enabling them.
 
+The leading forum currently shows one M/M summary slot per platoon, without
+squad report slots in company/platoon views. Historical squad data and existing
+squad users' own forms remain intact. The presentation switch and restoration
+steps are documented in [`WORKSPACE_MODE.md`](WORKSPACE_MODE.md).
+
 Protected via `src/proxy.ts`:
 
 ```text

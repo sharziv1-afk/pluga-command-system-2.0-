@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { ShieldAlert, WifiOff } from 'lucide-react';
 import { AppSidebar } from '@/components/layout/AppSidebar';
 import { MobileHeader } from '@/components/layout/MobileHeader';
@@ -11,6 +12,7 @@ import { PageTransition } from '@/components/layout/PageTransition';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { OfflineGate } from '@/components/layout/OfflineGate';
 import { useApp } from '@/lib/context/AppContext';
+import { activeModulePaths } from '@/data/navigation';
 
 function ContentSkeleton() {
   return (
@@ -31,6 +33,7 @@ function ContentSkeleton() {
 
 export default function ProtectedLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const { authStatus, authError, refreshProfile, isOfflineSession } = useApp();
+  const pathname = usePathname();
 
   if (authStatus === 'offline') {
     return <OfflineGate onRetry={() => void refreshProfile()} />;
@@ -97,6 +100,37 @@ export default function ProtectedLayout({ children }: Readonly<{ children: React
   }
 
   const loading = authStatus === 'loading';
+  const isActiveModule = activeModulePaths.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`),
+  );
+
+  if (!loading && !isActiveModule) {
+    return (
+      <div className="protected-layout-shell flex h-svh min-w-0 max-w-full overflow-hidden bg-[var(--color-app-bg)]">
+        <AppSidebar />
+        <div className="flex min-h-0 min-w-0 max-w-full flex-1 flex-col">
+          <MobileHeader />
+          <main className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-y-auto px-4 py-4 pb-24 md:pb-6">
+            <GlassCard className="w-full max-w-md text-center" dir="rtl">
+              <ShieldAlert className="mx-auto mb-3 h-10 w-10 text-[var(--color-warning)]" />
+              <h1 className="text-lg font-bold text-[var(--text-primary)]">העמוד אינו זמין כרגע</h1>
+              <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
+                כרגע זמינים לוח מפקד ופורום מוביל בלבד.
+              </p>
+              <Link
+                href="/dashboard"
+                className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--action)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--action-hover)]"
+              >
+                חזרה ללוח מפקד
+              </Link>
+            </GlassCard>
+          </main>
+        </div>
+        <BottomNav />
+        <InstallHint />
+      </div>
+    );
+  }
 
   return (
     <div className="protected-layout-shell flex h-svh min-w-0 max-w-full overflow-hidden bg-[var(--color-app-bg)]">

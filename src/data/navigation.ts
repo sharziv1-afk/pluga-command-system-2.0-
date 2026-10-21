@@ -30,9 +30,9 @@ export interface NavItem {
  */
 export const navigationItems: NavItem[] = [
   { name: 'לוח מפקד', path: '/dashboard', icon: LayoutDashboard },
+  { name: 'פורום מוביל', path: '/forum', icon: MessageSquare },
   { name: 'משימות ובקרה', path: '/tasks', icon: CheckSquare },
   { name: 'דרישות', path: '/requests', icon: Truck },
-  { name: 'פורום מוביל', path: '/forum', icon: MessageSquare },
   { name: 'לו״ז', path: '/schedule', icon: CalendarClock },
   { name: 'מעקב', path: '/tracking', icon: Table2 },
   { name: 'חניכה', path: '/mentoring', icon: GraduationCap, commanderOnly: true },
@@ -41,7 +41,15 @@ export const navigationItems: NavItem[] = [
   { name: 'עזרה ומדריך', path: '/help', icon: HelpCircle },
 ];
 
+/** Modules currently available from navigation and direct URLs. */
+export const activeModulePaths = ['/dashboard', '/forum'] as const;
+
 /** Nav items visible to a user, filtered by admin/commander access. */
 export function visibleNavItems(isAdmin: boolean, isCompanyCommander = false): NavItem[] {
-  return navigationItems.filter((item) => (!item.adminOnly || isAdmin) && (!item.commanderOnly || isCompanyCommander));
+  return navigationItems.filter(
+    (item) =>
+      activeModulePaths.includes(item.path as (typeof activeModulePaths)[number]) &&
+      (!item.adminOnly || isAdmin) &&
+      (!item.commanderOnly || isCompanyCommander),
+  );
 }

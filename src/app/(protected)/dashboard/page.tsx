@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
 import {
   Activity,
   AlertCircle,
@@ -28,7 +27,6 @@ import { createAuditLog } from '@/lib/audit';
 import { useApp } from '@/lib/context/AppContext';
 import { cacheGet, cacheSet } from '@/lib/offline/db';
 import { ambiguousMutationMessage, runQuickCreateMutation } from '@/lib/inFlightLock';
-import { getPermissionLevelForRole, hasCompanyWideUiAccess } from '@/lib/permissions';
 import { getScheduleDisplayStatus } from '@/lib/schedule';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
@@ -675,8 +673,6 @@ export default function DashboardPage() {
   }, [loadDashboard]);
 
   const profile = dashboardData.profile;
-  const permissionLevel = profile?.permission_level ?? getPermissionLevelForRole(currentUser?.role ?? '');
-  const canSeeAll = Boolean(currentUser && hasCompanyWideUiAccess(profile?.role ?? currentUser.role, permissionLevel));
   const summaryCards = useMemo(() => buildSummaryCards(dashboardData, profile?.id ?? currentUser?.id ?? null), [dashboardData, profile?.id, currentUser?.id]);
   const attentionItems = useMemo(() => buildAttentionItems(dashboardData), [dashboardData]);
   const openTasks = useMemo(() => getOpenTasks(dashboardData), [dashboardData]);
@@ -986,31 +982,12 @@ export default function DashboardPage() {
       <PageHeader
         title="לוח מפקד"
         subtitle="תמונת מצב עדכנית של הפלוגה, המשימות, הדרישות והלו״ז"
-        actions={
-          <div className="relative flex flex-wrap justify-end gap-2">
-            <QuickActionButton onClick={() => openQuickCreate('request')} icon={FilePlus2} label="פתיחת דרישה" variant="orange" />
-            <QuickActionButton onClick={() => openQuickCreate('task')} icon={CheckSquare} label="יצירת משימה" />
-            <QuickActionButton onClick={() => openQuickCreate('event')} icon={CalendarClock} label="הוספת מופע" />
-            <QuickCreateModal
-              type={quickCreateType}
-              requestForm={requestForm}
-              taskForm={taskForm}
-              eventForm={eventForm}
-              eventOptions={eventOptions}
-              assignableUsers={assignableUsers}
-              error={quickCreateError}
-              isSubmitting={isQuickCreateSubmitting}
-              onClose={closeQuickCreate}
-              onRequestChange={setRequestForm}
-              onTaskChange={setTaskForm}
-              onEventChange={setEventForm}
-              onSubmitRequest={handleQuickRequestSubmit}
-              onSubmitTask={handleQuickTaskSubmit}
-              onSubmitEvent={handleQuickEventSubmit}
-            />
-          </div>
-        }
+        actions={<div className="min-h-11" aria-hidden="true" />}
       />
+
+      <p className="text-xs font-semibold text-[var(--text-muted-accessible)]">
+        חלק מהנתונים מוצגים כאן כסיכום בלבד; מודולים נוספים אינם זמינים כרגע.
+      </p>
 
       {isOffline && (
         <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-warning)]/25 bg-[var(--color-warning)]/10 px-4 py-3 text-sm font-bold text-[var(--color-warning)]">
@@ -1052,7 +1029,7 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)]">
         <GlassCard className="space-y-4" glow="orange">
-          <SectionHeader icon={RadioTower} title="דרוש טיפול" actionHref="/requests" actionLabel="לניהול" />
+          <SectionHeader icon={RadioTower} title="דרוש טיפול" />
           {attentionItems.length > 0 ? (
             <div className="space-y-3">
               {attentionItems.map(item => <AttentionItemCard key={`${item.type}-${item.id}`} item={item} />)}
@@ -1063,7 +1040,7 @@ export default function DashboardPage() {
         </GlassCard>
 
         <GlassCard className="space-y-4">
-          <SectionHeader icon={CalendarClock} title="היום בלו״ז" actionHref="/schedule" actionLabel="כל הלו״ז" />
+          <SectionHeader icon={CalendarClock} title="היום בלו״ז" />
           {todayEvents.length > 0 ? (
             <div className="space-y-3">
               {todayEvents.map(event => (
@@ -1083,7 +1060,7 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <GlassCard className="space-y-4">
-          <SectionHeader icon={CheckSquare} title="משימות פתוחות" actionHref="/tasks" actionLabel="כל המשימות" />
+          <SectionHeader icon={CheckSquare} title="משימות פתוחות" />
           {openTasks.length > 0 ? (
             <div className="divide-y divide-[rgba(2,1,8,0.08)]">
               {openTasks.map(task => (
@@ -1096,7 +1073,7 @@ export default function DashboardPage() {
         </GlassCard>
 
         <GlassCard className="space-y-4">
-          <SectionHeader icon={Activity} title="פעילות אחרונה" actionHref={canSeeAll ? '/admin' : '/dashboard'} actionLabel={canSeeAll ? 'ניהול' : undefined} />
+          <SectionHeader icon={Activity} title="פעילות אחרונה" />
           {dashboardData.auditLogs.length > 0 ? (
             <div className="space-y-3">
               {dashboardData.auditLogs.map(log => <AuditLogRow key={log.id} log={log} />)}
@@ -1512,10 +1489,10 @@ function SummaryMetricCard({ card }: { card: SummaryCard }) {
   const Icon = card.icon;
 
   return (
-    <Link href={card.href} className="group block h-full rounded-3xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring)]">
-      <GlassCard className="flex min-h-[108px] h-full flex-col justify-between gap-1.5 !p-2.5 transition group-active:scale-[0.99] sm:min-h-32 sm:gap-2 sm:!p-5">
+    <div className="h-full">
+      <GlassCard className="flex min-h-[108px] h-full flex-col justify-between gap-1.5 !p-2.5 sm:min-h-32 sm:gap-2 sm:!p-5">
         <div className="flex items-start justify-between gap-2">
-          <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border transition group-hover:scale-105 sm:h-10 sm:w-10 ${toneClasses[card.tone]}`}>
+          <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl border sm:h-10 sm:w-10 ${toneClasses[card.tone]}`}>
             <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
           </span>
           <span className="text-meta min-w-0 text-right font-semibold leading-tight text-[var(--text-primary)] sm:text-xs sm:text-[var(--text-muted-accessible)]">{card.title}</span>
@@ -1526,20 +1503,16 @@ function SummaryMetricCard({ card }: { card: SummaryCard }) {
           <span className="mt-1 hidden text-xs font-semibold leading-relaxed text-[var(--text-muted-accessible)] sm:block">{card.subtitle}</span>
         </div>
       </GlassCard>
-    </Link>
+    </div>
   );
 }
 
 function SectionHeader({
   icon: Icon,
   title,
-  actionHref,
-  actionLabel,
 }: {
   icon: React.ElementType;
   title: string;
-  actionHref?: string;
-  actionLabel?: string;
 }) {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-3">
@@ -1547,11 +1520,6 @@ function SectionHeader({
         <Icon className="h-4 w-4 text-[var(--brand)]" />
         <h2 className="text-sm font-semibold text-[var(--text-primary)]">{title}</h2>
       </div>
-      {actionHref && actionLabel && (
-        <Link href={actionHref} className="rounded-xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:border-[var(--action)]/30 hover:bg-[var(--action)]/10">
-          {actionLabel}
-        </Link>
-      )}
     </div>
   );
 }
@@ -1560,10 +1528,7 @@ function AttentionItemCard({ item }: { item: DashboardItem }) {
   const isCritical = item.priority >= 8;
 
   return (
-    <Link
-      href={item.href}
-      className="block rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4 transition hover:border-[var(--action)]/30 hover:bg-[var(--tactical-glass)]"
-    >
+    <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -1579,7 +1544,7 @@ function AttentionItemCard({ item }: { item: DashboardItem }) {
         </div>
         <StatusBadge status={item.status} className="self-start" />
       </div>
-    </Link>
+    </div>
   );
 }
 
@@ -1593,10 +1558,7 @@ function TodayEventCard({
   requestCount: number;
 }) {
   return (
-    <Link
-      href="/schedule"
-      className="block rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4 transition hover:border-[var(--action)]/30 hover:bg-[var(--tactical-glass)]"
-    >
+    <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <span className="block text-xs font-semibold text-[var(--color-action-on-surface)]">{formatTime(event.starts_at)}</span>
@@ -1610,13 +1572,13 @@ function TodayEventCard({
         </div>
         <StatusBadge status={eventStatusLabels[getScheduleDisplayStatus(event)]} className="shrink-0" />
       </div>
-    </Link>
+    </div>
   );
 }
 
 function OpenTaskRow({ task, assigneeName }: { task: DbTask; assigneeName: string }) {
   return (
-    <Link href="/tasks" className="flex flex-col gap-3 py-3 transition hover:bg-[var(--tactical-glass)] sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 space-y-1">
         <span className="block text-sm font-semibold text-[var(--text-primary)]">{task.title}</span>
         <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--text-muted-accessible)]">
@@ -1625,7 +1587,7 @@ function OpenTaskRow({ task, assigneeName }: { task: DbTask; assigneeName: strin
         </div>
       </div>
       <StatusBadge status={taskStatusLabels[task.status as TaskStatus] ?? task.status} className="self-start sm:self-center" />
-    </Link>
+    </div>
   );
 }
 

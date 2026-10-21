@@ -1,5 +1,8 @@
 # SECURITY
 
+<!-- Workspace guide: [../../WORKSPACE_MODE.md](../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
+
 מטרה: לבדוק Auth, RLS, secrets, tenant boundaries והרשאות.
 
 1. מפה actor, resource, action ו־trust boundary.

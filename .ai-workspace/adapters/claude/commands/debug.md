@@ -2,6 +2,9 @@
 description: Root-cause a runtime/build/env issue (read + diagnostics, runtime-debugger)
 argument-hint: <symptom / repro>
 ---
+
+<!-- Workspace guide: [../../../../WORKSPACE_MODE.md](../../../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
 Run the **DEBUG** action for: $ARGUMENTS
 
 1. Read `.ai-workspace/actions/run.md` and `.ai-workspace/playbooks/bug-flow.md`.

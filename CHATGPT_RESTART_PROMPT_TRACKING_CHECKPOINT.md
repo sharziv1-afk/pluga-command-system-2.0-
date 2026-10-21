@@ -1,3 +1,5 @@
+> **Current state (2026-10-21):** This file captures a previous Tracking/forum checkpoint and its TODO list is historical. For current live state, active modules, QA limits, and the exact reactivation procedure, read [`WORKSPACE_MODE.md`](WORKSPACE_MODE.md) first. GitHub `main` and Production are on `cb8458e4dcb9f7f8cfb50d4726b423792e990fce`, Ready; only `/dashboard` and `/forum` are active. Do not treat old QA rows or production data claims below as current without re-verification.
+
 # פרומפט פתיחה לשיחה חדשה עם ChatGPT — Tracking Checkpoint
 
 > העתק את כל הטקסט שמתחת לקו לשיחה חדשה עם ChatGPT. הוא מסכם את מצב הפרויקט "המפקד" / `pluga-command-system` אחרי שסבב **Forum Daily Structured Company Flow** נסגר ועלה ל-main (`cdcd99f`). מודול ה-Tracking (Phase 1+2) גם הוא חי. הפירוט המלא של הסבב, תוכנית העבודה, צ'קליסט ה-QA ומטריצת הסיכונים: `FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`.

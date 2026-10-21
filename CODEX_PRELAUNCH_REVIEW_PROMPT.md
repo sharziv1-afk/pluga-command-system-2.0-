@@ -1,5 +1,8 @@
 # פרומפט ל‑Codex — סקירה שנייה, לפני עלייה ל‑Vercel
 
+<!-- Workspace guide: [WORKSPACE_MODE.md](WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
+
 **להעתיק ולהדביק ל‑Codex כמו שזה. אל תשנה קוד, אל תריץ SQL, אל תיגע ב‑git.**
 
 ---

@@ -40,6 +40,7 @@ import {
   WifiOff,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { showSquadReportsInLeadingForum } from '@/data/forum';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FieldPrivacyHint } from '@/components/ui/FieldPrivacyHint';
 import { CommandConfirmDialog } from '@/components/ui/CommandDialog';
@@ -533,7 +534,7 @@ export default function ForumPage() {
   const [dailySuccess, setDailySuccess] = useState<string | null>(null);
   const [ownerOptions, setOwnerOptions] = useState<ReportOwnerOption[]>([]);
   const [selectedOwnerId, setSelectedOwnerId] = useState('');
-  const [commanderReportLevel, setCommanderReportLevel] = useState<ReportLevel>('squad');
+  const [commanderReportLevel, setCommanderReportLevel] = useState<ReportLevel>(showSquadReportsInLeadingForum ? 'squad' : 'platoon');
   const [commanderStaffRole, setCommanderStaffRole] = useState<StaffRole>('medic');
   const [whatsappMode, setWhatsappMode] = useState<'short' | 'detailed'>('short');
   const [isEditingReport, setIsEditingReport] = useState(false);
@@ -567,7 +568,7 @@ export default function ForumPage() {
     setDailyDateInputValue(selectedDate);
   }, [selectedDate]);
 
-  const dailyNodes = useMemo<DailyNode[]>(() => {
+  const allDailyNodes = useMemo<DailyNode[]>(() => {
     if (canSeeAll) {
       const platoonSummaryOwners = new Map(
         platoonNodes.map((platoon) => [
@@ -740,6 +741,16 @@ export default function ForumPage() {
       owned: true,
     }];
   }, [canSeeAll, currentUser?.role, dailyReports, dbProfile?.id, dbProfile?.role, ownerLabels, ownerOptions, staffRole]);
+
+  // Keep legacy squad reports and their owner mapping intact, while excluding both
+  // structural slots and dynamic reports from the leading forum and its counters.
+  // A squad user's own form stays available; this is presentation, not an access rule.
+  const dailyNodes = useMemo(() => {
+    const isLeadingForumView = canSeeAll || isPlatoonCommander(dbProfile?.role ?? currentUser?.role ?? '');
+    return isLeadingForumView && !showSquadReportsInLeadingForum
+      ? allDailyNodes.filter(node => node.level !== 'squad')
+      : allDailyNodes;
+  }, [allDailyNodes, canSeeAll, currentUser?.role, dbProfile?.role]);
 
   const selectedNode = dailyNodes.find(node => node.id === selectedNodeId);
 
@@ -960,7 +971,8 @@ export default function ForumPage() {
     const divider = '─'.repeat(22);
     const lines = [`📋 *פורום מוביל פלוגתי — ${formatSelectedDate(selectedDate)}*`];
     if (dbProfile) lines.push(`👤 ${dbProfile.name} · ${dbProfile.role}`);
-    lines.push(divider, `סטטוס כללי: ${dailyReports.length} דיווחים נטענו`);
+    const visibleReportCount = dailyReports.filter(report => showSquadReportsInLeadingForum || report.report_level !== 'squad').length;
+    lines.push(divider, `סטטוס כללי: ${visibleReportCount} דיווחים נטענו`);
 
     // Resolve platoon reports the same way the (QA-passed) structured company aggregation
     // does: owner_user_id (מ״מ N role + מחלקה N unit) first, metadata.node_label only as a
@@ -972,7 +984,9 @@ export default function ForumPage() {
     }));
     const { byNumber: platoonByNumber, unidentified: unidentifiedPlatoonReports } =
       assignPlatoonReports(dailyReports, platoons);
-    const squadReports = dailyReports.filter(report => report.report_level === 'squad');
+    const squadReports = showSquadReportsInLeadingForum
+      ? dailyReports.filter(report => report.report_level === 'squad')
+      : [];
 
     // Company manpower overview — sum present/total across the mapped platoons using the same
     // assignPlatoonReports source of truth as the structured aggregation, so the WhatsApp summary
@@ -2860,7 +2874,7 @@ export default function ForumPage() {
               <label className="block">
                 <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">סוג דיווח</span>
                 <select value={commanderReportLevel} onChange={event => setCommanderReportLevel(event.target.value as ReportLevel)} className="command-select">
-                  <option value="squad">squad · מ״כ/כיתה</option>
+                  {showSquadReportsInLeadingForum && <option value="squad">squad · מ״כ/כיתה</option>}
                   <option value="platoon">platoon · מ״מ/מחלקה</option>
                   <option value="company">company · פלוגה</option>
                   <option value="staff">staff · מפל״ג</option>

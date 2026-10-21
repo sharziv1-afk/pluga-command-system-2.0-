@@ -1,16 +1,13 @@
 @AGENTS.md
 
-## Current State (2026-09-06)
+## Current State (2026-10-21)
 
-- **In real daily use.** The מ״פ signs in from his phone daily against `vmfihyritfmjycrfpxjn`. Its data is production data.
-- **`ENVIRONMENTS.md` decides which database is which — read it before touching either.** The Supabase project *names* are backwards: `hamifkad-staging` (`vmfihyritfmjycrfpxjn`) is the LIVE system, and `pluga-command-system` (`hjltpajvqhnygjybtivd`) is an empty abandoned shell being repurposed as the sandbox. Trust the ref, not the label.
-- Never deployed to Vercel. A launch-readiness plan is approved and in progress.
-- **Two standing approval gates set by the user:** any *design* change and any *Vercel* action must be presented and approved step by step, one screen / one step at a time. Everything else follows the normal loop (implement → `npm run check` → CRLF scan → browser QA → independent review → commit).
-- `AI_HANDOFF_CHECKPOINT.md` is the most accurate doc here. `docs/archive/README_HISTORY.md`, `docs/archive/PROJECT_SUMMARY.md` and `docs/archive/PROJECT_HANDOFF_AI_CONTEXT.md` are retired checkpoint history — believe the checkpoint over them.
-- Last completed work: **Phases 1-6 plus four audit cycles.** Phase 2 (design system: DESIGN.md, semantic tokens, type scale, every hand-rolled modal on `CommandOverlay`, shared status/priority labels), Phase 3 (iPhone: `viewport-fit: cover` + safe areas, real PNG icons, service-worker fixes, touch targets, bottom-sheet dialogs on phones, iOS install hint), Phase 4 (security headers + CSP, query ceilings with a visible truncation notice, `GapsPanel` code-split, forum's dead queries stopped), Phase 5 (one datetime module pinned to Asia/Jerusalem, one dbProfile adapter, dead files deleted, React compiler lint rules back on), Phase 6 (30 → 54 tests, each verified to fail on the bug it guards; CI now runs on push to main).
-- Audit cycles after that found and fixed: ten writes that reported success without writing (RLS-denied `.delete()` returns HTTP 204 with no error — verified against the live API), no keyboard focus indicator anywhere in the app (Tailwind v4's ring utility only sets `--tw-ring-shadow` and nothing composed it into `box-shadow`, while `outline-none` had removed the browser default), 15 unlabelled form controls, and three findings from an independent Codex review (bulk-close reporting success on zero rows, a single-key in-flight guard in tracking, and date-key arithmetic that shifted a day below ~UTC-9).
-- **Next: Phase 7 — Vercel.** Not started. This is one of the two standing approval gates: every step (project creation, env vars, first deploy, deployment protection, domain, monitoring) is presented and approved individually. The Staging-vs-Production decision is still open.
-- Also open: eight iPhone/iPad checks that a desktop browser cannot make (`QA_CHECKLIST.md` §8.5) — `env(safe-area-inset-*)` is 0 in Chrome, so only the fallback was proven; three tables with RLS enabled and no policy (`approvals`, `feature_flags`, `onboarding_progress`), which need manual SQL; and the large-file splits, which wait on wider test coverage.
+- Read [`WORKSPACE_MODE.md`](WORKSPACE_MODE.md) for the authoritative live mode, branch/deployment status, safe QA constraints, and exact module reactivation steps.
+- Verify the current remote main and deployed SHA; old checkpoint hashes are dated baselines, not the expected latest commit.
+- Active modules are `/dashboard` and `/forum`, in that order. The other routes and their data models remain in place and are blocked at the protected layout.
+- Squad report slots are paused in company/platoon leading-forum views using `src/data/forum.ts`; restore instructions are in WORKSPACE_MODE.md. Stored squad reports and squad users' own forms are preserved.
+- Do not treat old checkpoints, live data, or preview environments as safe test fixtures. The current forum screen may contain no M/M reports for a selected date; actual cross-user sync requires a real M/M session or a dedicated QA environment.
+- Start a new task by checking Git status and the current remote main. The attached local snapshot can lag main.
 
 ## Agentic Workspace (Claude Code)
 
@@ -26,7 +23,7 @@
 Project-specific notes for Claude Code:
 
 - Read `AI_HANDOFF_CHECKPOINT.md` and `AGENTS.md` first. `docs/archive/` holds retired checkpoint history — use it for history, not for current state.
-- Current branch should be `main`. Do not pin an "expected latest commit" here; it goes stale within a day. Run `git log --oneline -5`.
+- Inspect the current branch, attached PR, and latest remote main before starting. Preserve work on existing branches; do not switch or reset automatically. Do not pin an "expected latest commit" here; run `git log --oneline -5`.
 - The forum round's detail, invariants, QA checklist and risk matrix live in `FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`. Its six invariants still hold and are restated in `AGENTS.md`.
 
 - Auth/Admin approval flow is OTP-code-only registration (no magic-link placeholders), `has_completed_onboarding=true` at registration, role→unit mapping at registration, pending users see "ממתין לאישור מ״פ", Admin prefills role (gershayim-normalized) and suggests מסגרת/יחידה בפיקוד/רמת הרשאה by role, and an Admin guardrail blocks approval without a valid role + unit.

@@ -1,5 +1,8 @@
 # Artifact Policy
 
+<!-- Workspace guide: [../../WORKSPACE_MODE.md](../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
+
 נשמרים ב־Git: מסמכי `.ai-workspace`, templates, contracts, playbooks, `bin/ai.ps1` ו־launcher `bin/ai.cmd`.
 
 מוחרגים: `runs/`, `artifacts/`, `screenshots/`, `traces/`, `logs/`, `tmp/` ו־`state/`.

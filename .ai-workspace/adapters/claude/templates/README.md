@@ -1,5 +1,8 @@
 # Templates (pointer)
 
+<!-- Workspace guide: [../../../../WORKSPACE_MODE.md](../../../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
+
 The Claude adapter does **not** duplicate output templates. All agents and commands
 reference the shared, canonical templates in [`.ai-workspace/templates/`](../../../templates/):
 

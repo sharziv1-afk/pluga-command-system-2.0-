@@ -1,5 +1,8 @@
 # Pre-Redesign Acceleration Checkpoint — 2026-08-02
 
+<!-- Workspace guide: [../../WORKSPACE_MODE.md](../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
+
 ## 1. מטרת המסמך והחלטת הסקופ
 
 מסמך זה הוא נקודת ההמשך היחידה לתוכנית ה־Nightly Pre-Redesign Acceleration. העבודה בוצעה בענף מבודד שנוצר ישירות מ־`main`, בלי לשלב את PR #3 או PR #5. נבחרו רק שלושה batches קטנים, עצמאיים וללא תלות ב־Supabase:

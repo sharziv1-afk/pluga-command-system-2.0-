@@ -1,5 +1,8 @@
 # DESIGN.md — "המפקד"
 
+<!-- Workspace guide: [WORKSPACE_MODE.md](WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
+
 The rules for every visual decision in this codebase. If a component or a page
 disagrees with this file, the file wins — fix the component. Written for both
 humans and AI agents touching `src/`.

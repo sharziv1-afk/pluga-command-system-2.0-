@@ -9,15 +9,14 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
-## Current State (2026-09-12)
+## Current State (2026-10-21)
 
-- **The app is in real daily use.** The מ״פ signs in from his phone against the LIVE project `vmfihyritfmjycrfpxjn` every day. Treat its data as production data.
-- **`CLAUDE.md` carries the current phase status; this file carries the invariants.** If the two disagree about *what has been done*, believe `CLAUDE.md`. If they disagree about *what must not be broken*, believe this file.
-- The sandbox `hjltpajvqhnygjybtivd` is no longer "wired to nothing": as of 2026-09-06 it matches the live schema exactly (same `schema_sig`, `func_sig`, `policy_sig`) and was cleared to units + roles only. It is the place to try anything risky. See `ENVIRONMENTS.md`.
-- Never deployed to Vercel. **Vercel and design work each require step-by-step approval from the user before any action.**
-- `AI_HANDOFF_CHECKPOINT.md` is accurate about *architecture and reasoning*, but its "what's still open" list is from 2026-09-04 and several items on it are now done. Cross-check against `CLAUDE.md` before trusting any single entry.
-- Latest work: **Phases 1-6 plus four audit cycles and an external Codex review.** Design system, iPhone/PWA, security headers + query ceilings, one datetime module pinned to Asia/Jerusalem, 30 → 54 tests each verified to fail on the bug it guards. Then: ten writes that reported success without writing (an RLS-denied `.delete()` returns HTTP 204 with no error), no keyboard focus indicator anywhere in the app, 15 unlabelled controls, and three Codex findings. **Next: Phase 7 — Vercel.**
-- Known-open, short list: ten iPhone/iPad checks only a real device can make (`QA_CHECKLIST.md` §8.5), the demo dataset on LIVE (20 of 21 users are `@example.com`/`@demo.mil`, to be cleared just before or after the deploy), and the large-file splits, which wait on wider test coverage.
+- Read [`WORKSPACE_MODE.md`](WORKSPACE_MODE.md) first for the verified live deployment, active modules, QA limits, and safe reactivation procedure. This document contains durable invariants, not an independent status ledger.
+- Verify the current GitHub main/deployment SHA for each release; dated hashes in checkpoints describe a baseline, not an expected current HEAD.
+- Only `/dashboard` and `/forum` are active in navigation and direct routes. Other modules remain in the codebase/database and are gated at the protected layout. Login, roles, schema, RLS, and user records were not changed by this UI restriction.
+- Squad slots are hidden in company/platoon leading-forum views by `showSquadReportsInLeadingForum` in `src/data/forum.ts`. Preserve historical rows, owner mapping, and squad users' own forms. To restore the presentation, follow WORKSPACE_MODE.md; do not populate or migrate data to make counters pass.
+- Production data is real. Do not create, submit, publish, close, reset, or delete operational reports as part of routine QA. Explicitly authorized demo writes must be visibly identified and follow the user's retention/cleanup scope; audit logs may remain. The full fictional forum scenario for 2026-10-21 was retained at the user's request (8 submitted source reports + 1 saved company report). Do not delete/reset/close it automatically; see WORKSPACE_MODE.md.
+- `ENVIRONMENTS.md` contains dated environment snapshots. Verify the project ref and current connection before any database operation; never infer safety from display names.
 
 ## Local AI Execution
 

@@ -2,6 +2,9 @@
 description: Independent code review of the diff (read-only, code-reviewer)
 argument-hint: [diff scope]
 ---
+
+<!-- Workspace guide: [../../../../WORKSPACE_MODE.md](../../../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
 Run the **REVIEW** action for: $ARGUMENTS
 
 1. Read `.ai-workspace/actions/review.md` and `.ai-workspace/contracts/definition-of-done.md`.

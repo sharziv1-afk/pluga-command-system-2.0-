@@ -1,5 +1,8 @@
 # Multi-Company Schema / RLS / RPC Draft
 
+<!-- Workspace guide: [WORKSPACE_MODE.md](WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
+
 **Product:** `pluga-command-system` / "המפקד"  
 **Batch:** 4C  
 **Status:** Draft only - not approved for implementation  

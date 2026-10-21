@@ -2,6 +2,9 @@
 description: Manage isolated git worktrees for safe parallel work
 argument-hint: <create|list|status|remove> <slug>
 ---
+
+<!-- Workspace guide: [../../../../WORKSPACE_MODE.md](../../../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
 Manage a git **worktree** for parallel/isolated work (via the workspace runner):
 
 ```

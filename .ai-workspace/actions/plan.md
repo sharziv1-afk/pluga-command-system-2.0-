@@ -1,5 +1,8 @@
 # PLAN
 
+<!-- Workspace guide: [../../WORKSPACE_MODE.md](../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
+
 מטרה: להפוך דרישה ל־scope ולתכנית ניתנים לביקורת, בלי לשנות קוד.
 
 1. הרץ context ו־preflight report-only.

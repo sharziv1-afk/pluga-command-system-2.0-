@@ -1,5 +1,8 @@
 # Project Summary - pluga-command-system
 
+<!-- Workspace guide: [../../WORKSPACE_MODE.md](../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
+
 ## Multi-Company Architecture Plan v1 — Batch 4B (PLANNING ONLY, no code)
 
 Target: turn the single-פלוגה MVP into a multi-company system where every מ״פ opens their own

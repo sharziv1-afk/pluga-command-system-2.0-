@@ -1,5 +1,8 @@
 # Database Change Flow
 
+<!-- Workspace guide: [../../WORKSPACE_MODE.md](../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
+
 1. הגדר data invariant, owners, backfill ו־rollback.
 2. צלם ואמת schema/RLS נוכחיים לפני הצעה.
 3. כתוב migration additive חדשה בלבד; אל תשכתב migration היסטורית.

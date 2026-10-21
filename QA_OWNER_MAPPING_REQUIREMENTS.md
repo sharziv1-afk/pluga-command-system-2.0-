@@ -1,5 +1,8 @@
 # Forum Daily — Owner Mapping & QA Data Requirements
 
+<!-- Workspace guide: [WORKSPACE_MODE.md](WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
+
 > **Status:** The Forum Daily Structured Company Flow round closed at `cdcd99f` (pushed). The Full
 > Structured Company Forum Flow QA passed on 2026-08-20, and the Focused WhatsApp Preview QA passed
 > after `cdcd99f` (aggregation 124/138 on the QA data set; platoons 1/2/3/4 mapped). The

@@ -2,6 +2,9 @@
 description: Performance review — waterfalls, N+1, render cost (read-only, security-performance-reviewer)
 argument-hint: [route or flow]
 ---
+
+<!-- Workspace guide: [../../../../WORKSPACE_MODE.md](../../../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
 Run the **PERFORMANCE** action for: $ARGUMENTS
 
 1. Read `.ai-workspace/actions/performance.md` and `.ai-workspace/playbooks/performance-flow.md`.

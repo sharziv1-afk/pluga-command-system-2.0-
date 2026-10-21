@@ -1,5 +1,8 @@
 # Rule: Workflow
 
+<!-- Workspace guide: [../../../../WORKSPACE_MODE.md](../../../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
+
 - The main Claude session is the **orchestrator**. Subagents handle isolated research, design, implementation, debugging, QA and independent review.
 - Use **Plan mode** for non-trivial work; get the plan approved before implementing.
 - Never run two **writing** agents on the same files in parallel — isolate parallel writers in git worktrees.

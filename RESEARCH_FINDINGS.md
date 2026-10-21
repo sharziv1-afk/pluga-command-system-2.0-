@@ -1,5 +1,8 @@
 # מחקר — מה מערכות אחרות עושות, ומה חסר לנו
 
+<!-- Workspace guide: [WORKSPACE_MODE.md](WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
+
 מחקר על פלטפורמות ניהול ארגוני (AppSheet ודומותיה), מערכות דיווח משמרת,
 ומטריצות כשירות — ומה מזה רלוונטי ל„המפקד".
 נערך 6 בספטמבר 2026.

@@ -1,5 +1,8 @@
 # QA
 
+<!-- Workspace guide: [../../WORKSPACE_MODE.md](../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
+
 מטרה: לאמת acceptance criteria ולחפש regression.
 
 1. הרץ preflight במצב המתאים.

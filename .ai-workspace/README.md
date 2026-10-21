@@ -1,5 +1,8 @@
 # סביבת העבודה הסוכנתית של "המפקד"
 
+<!-- Workspace guide: [../WORKSPACE_MODE.md](../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
+
 זהו ה־source of truth לתהליכי execution מקומיים של Codex וכלי פיתוח אחרים. Notion נשאר מקור האמת למוצר, משימות, החלטות ו־Roadmap; ה־repository הוא מקור האמת לקוד.
 
 ## התחלה מהירה

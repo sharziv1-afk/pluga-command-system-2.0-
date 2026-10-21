@@ -2,6 +2,9 @@
 description: Security review — Auth/RLS/ownership/tenant (read-only, security-performance-reviewer)
 argument-hint: [scope]
 ---
+
+<!-- Workspace guide: [../../../../WORKSPACE_MODE.md](../../../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
 Run the **SECURITY** action for: $ARGUMENTS
 
 1. Read `.ai-workspace/actions/security.md`, `.ai-workspace/contracts/security-policy.md`, `.ai-workspace/playbooks/auth-rls-flow.md`.

@@ -1,5 +1,8 @@
 # פרומפט ל-Codex — אימות וביקורת על עבודת Phase 2 (מערכת עיצוב), "המפקד"
 
+<!-- Workspace guide: [WORKSPACE_MODE.md](WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
+
 הדבק את כל המסמך הזה ל-Codex כפי שהוא. הוא כתוב כדי לתת לך הקשר מלא בלי
 תלות בשיחה קודמת.
 

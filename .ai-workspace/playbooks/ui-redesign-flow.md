@@ -1,5 +1,8 @@
 # UI Redesign Flow
 
+<!-- Workspace guide: [../../WORKSPACE_MODE.md](../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
+
 1. בצע audit של המסך וה־design primitives הקיימים.
 2. הגדר hierarchy, states, RTL, responsive ו־accessibility.
 3. שמור Light Gloss: רקע בהיר, `#FF6B02`, glass cards ו־`#020108`.

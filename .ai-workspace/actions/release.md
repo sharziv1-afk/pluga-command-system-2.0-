@@ -1,5 +1,8 @@
 # RELEASE
 
+<!-- Workspace guide: [../../WORKSPACE_MODE.md](../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
+
 מטרה: להכין checkpoint או release proposal ללא פרסום.
 
 1. ודא Definition of Done ו־full gates.

@@ -1,5 +1,8 @@
 # PROJECT_HANDOFF_AI_CONTEXT
 
+<!-- Workspace guide: [../../WORKSPACE_MODE.md](../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
+
 Authoritative technical handoff for AI agents and developers continuing work on `pluga-command-system`.
 
 ## Current Local Snapshot — P0 Local Stabilization Batch A

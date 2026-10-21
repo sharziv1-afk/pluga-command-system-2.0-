@@ -1,5 +1,8 @@
 # Rule: Git Safety
 
+<!-- Workspace guide: [../../../../WORKSPACE_MODE.md](../../../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
+
 - **Never** `commit` or `push` without explicit human approval.
 - Never `git reset --hard`, `git clean -fd`, force-push, or rewrite history.
 - Do not change git configuration.

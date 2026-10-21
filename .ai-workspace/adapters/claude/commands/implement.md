@@ -2,6 +2,9 @@
 description: Implement an APPROVED plan — focused diff (write-enabled, implementation-engineer)
 argument-hint: <approved plan reference>
 ---
+
+<!-- Workspace guide: [../../../../WORKSPACE_MODE.md](../../../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
 Run the **IMPLEMENT** action for: $ARGUMENTS
 
 1. Confirm an approved plan/brief exists. If not, stop and run `/plan` first.

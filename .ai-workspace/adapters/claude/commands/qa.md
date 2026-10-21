@@ -2,6 +2,9 @@
 description: Browser QA of routes/flows (read-only, qa-browser)
 argument-hint: <routes or flows to test>
 ---
+
+<!-- Workspace guide: [../../../../WORKSPACE_MODE.md](../../../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
 Run the **QA** action for: $ARGUMENTS
 
 1. Read `.ai-workspace/actions/qa.md` and `.ai-workspace/contracts/qa-gates.md`.

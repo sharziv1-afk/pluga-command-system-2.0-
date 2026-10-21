@@ -1,5 +1,8 @@
 # Rule: Artifacts & Local Output
 
+<!-- Workspace guide: [../../../../WORKSPACE_MODE.md](../../../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
+
 - Write run outputs, reports, screenshots and drafts to the git-ignored runtime dirs under `.ai-workspace/` (`runs/`, `artifacts/`, `screenshots/`, `logs/`, `tmp/`, `state/`).
 - Do not create reports/memory/artifacts under `src/` or anywhere tracked as product code.
 - Never publish sensitive/operational content to a public artifact service; this project is Restricted. Prefer local files.

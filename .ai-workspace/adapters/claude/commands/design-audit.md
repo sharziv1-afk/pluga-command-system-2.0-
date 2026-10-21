@@ -2,6 +2,9 @@
 description: Audit a screen/component and produce a design brief (read-only, ui-ux-designer)
 argument-hint: <screen or component>
 ---
+
+<!-- Workspace guide: [../../../../WORKSPACE_MODE.md](../../../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
 Run the **DESIGN** action for: $ARGUMENTS
 
 1. Read `.ai-workspace/actions/design.md` and `.ai-workspace/playbooks/ui-redesign-flow.md`.

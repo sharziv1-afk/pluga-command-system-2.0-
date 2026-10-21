@@ -4,7 +4,9 @@
 match what the projects actually are, and the mismatch is dangerous: the one
 called "pluga-command-system" sounds like the real system and is not.
 
-Verified against both projects on 2026-09-06.
+> **Freshness warning (2026-10-21):** The table and SQL findings below are dated snapshots from 2026-09-06/13, not a live verification of today's schema, rows, policies, or credentials. Confirm the exact Supabase project ref and current state before any write. For current application mode and QA restrictions, see [`WORKSPACE_MODE.md`](WORKSPACE_MODE.md).
+
+Last verified against both projects on 2026-09-06; parity re-audit notes below are from 2026-09-13.
 
 ---
 

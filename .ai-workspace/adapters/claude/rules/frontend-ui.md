@@ -1,5 +1,8 @@
 # Rule: Frontend / UI
 
+<!-- Workspace guide: [../../../../WORKSPACE_MODE.md](../../../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
+
 - Preserve **Hebrew RTL** everywhere (layouts, forms, nav, mobile).
 - Keep the **Light Gloss Operational** identity: light background `#F6F7F9`, orange brand `#FF6B02` (use the accessible `--action` token for interactive controls), teal `#0F766E`, dark text `#020108`. No dark/HUD/tactical/neon, no heavy glass/blur.
 - Use the canonical design tokens in `src/app/globals.css` and the shared primitives in `src/components/ui/**`; don't hardcode new raw hex.

@@ -1,5 +1,8 @@
 # README History Archive
 
+<!-- Workspace guide: [../../WORKSPACE_MODE.md](../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
+
 > Archived 2026-09-04 as part of Phase 1.6 (documentation consolidation). This is the full reverse-chronological checkpoint journal that used to live in the repo-root `README.md` — kept for history. For current project state, read `AI_HANDOFF_CHECKPOINT.md`; for durable rules, read `AGENTS.md`. Nothing in this file should be treated as current.
 
 ---

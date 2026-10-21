@@ -2,6 +2,9 @@
 description: Plan a change — scoped brief + implementation plan (read-only, product-planner)
 argument-hint: <what to plan>
 ---
+
+<!-- Workspace guide: [../../../../WORKSPACE_MODE.md](../../../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
 Run the **PLAN** action for: $ARGUMENTS
 
 1. Read `.ai-workspace/actions/plan.md` and `.ai-workspace/contracts/definition-of-ready.md`.

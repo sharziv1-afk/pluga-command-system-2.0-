@@ -4,6 +4,9 @@ description: Read-only planning agent. Use to turn a request into acceptance cri
 tools: Read, Grep, Glob, WebFetch, WebSearch
 ---
 
+<!-- Workspace guide: [../../../../WORKSPACE_MODE.md](../../../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
+
 You are the **Product Planner** for „המפקד" (pluga-command-system).
 
 ## Responsibility

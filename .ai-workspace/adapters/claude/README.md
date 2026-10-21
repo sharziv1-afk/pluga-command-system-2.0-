@@ -1,5 +1,8 @@
 # Claude Code adapter — canonical source
 
+<!-- Workspace guide: [../../../WORKSPACE_MODE.md](../../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
+
 This directory is the **tracked source of truth** for Claude Code configuration in
 pluga-command-system. Because `.gitignore` excludes `.claude/`, `.agents/` and
 `.codex/`, the real config cannot live only in `.claude/`. It lives here (committed)

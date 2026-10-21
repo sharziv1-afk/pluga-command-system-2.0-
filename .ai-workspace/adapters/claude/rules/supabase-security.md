@@ -1,5 +1,8 @@
 # Rule: Supabase & Security
 
+<!-- Workspace guide: [../../../../WORKSPACE_MODE.md](../../../../WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
+
 - **SQL is manual-only.** Propose SQL/migrations; never auto-run them. Prefer additive migrations; do not rerun 013/014/015.
 - Do not change schema, RLS, Auth behavior, or the `src/proxy.ts` gate without explicit planning + a snapshot.
 - Never put a service-role key in client code; never expose secrets/keys/tokens.

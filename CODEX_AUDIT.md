@@ -1,5 +1,8 @@
 # Codex audit — "המפקד" Phase 2 (design system)
 
+<!-- Workspace guide: [WORKSPACE_MODE.md](WORKSPACE_MODE.md) describes the current active modules, deployment verification, QA limits, and safe reactivation procedure. This file remains a historical/process reference where applicable. -->
+
+
 Repo: `C:\DEV\pluga-command-system`. Next.js 16 + Supabase, Hebrew RTL, in
 daily production use by one commander. **Review only — do not edit, commit
 or run migrations without being asked.** Report findings with file:line.

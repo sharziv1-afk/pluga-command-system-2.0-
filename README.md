@@ -82,9 +82,13 @@ accept losing it.
 
 ## Routes
 
-The current active navigation is only `/dashboard` followed by `/forum`.
-Other protected routes remain in the code and database but are gated in the
-protected layout. See [`WORKSPACE_MODE.md`](WORKSPACE_MODE.md) before re-enabling them.
+The restoration working tree enables the existing routes, with `/forum` first,
+then `/dashboard`, `/tasks`, `/requests`, `/schedule`, and `/tracking`.
+Mentoring remains commander-only; admin navigation remains commander/deputy-only.
+The gaps tab is restored within requests. This is not a deployment claim:
+see [`WORKSPACE_MODE.md`](WORKSPACE_MODE.md) and the
+[restoration checkpoint](docs/checkpoints/2026-10-23-platform-restoration.md)
+for the verified environment and remaining QA limits.
 
 The leading forum currently shows one M/M summary slot per platoon, without
 squad report slots in company/platoon views. Historical squad data and existing

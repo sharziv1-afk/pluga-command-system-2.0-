@@ -129,3 +129,15 @@ test('commander free text is never invented by the aggregation', () => {
   const { fields } = aggregateCompanyStructured(INPUT);
   assert.equal(fields.commander_closing, undefined, 'דגשי מ״פ stays manual');
 });
+
+test('historical squad reports cannot double count a restored company forum', () => {
+  const squad = {
+    ...platoonReport('historical-squad', 'mm-1', 999, 999, { logistics: 'SQUAD_ONLY' }),
+    report_level: 'squad',
+  };
+  const expected = aggregateCompanyStructured(INPUT);
+  const actual = aggregateCompanyStructured({ ...INPUT, reports: [squad, ...REPORTS] });
+  assert.deepEqual(actual.fields, expected.fields);
+  assert.deepEqual(actual.stats, expected.stats);
+  assert.ok(!actual.generatedFromReportIds.includes('historical-squad'));
+});

@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { getSupabaseErrorInfo } from '../src/lib/supabase/error.ts';
 
 // src/lib/supabase/error.ts logs a deliberately sanitized shape —
 // message/code/details/hint/status — and its own comment says that is there
@@ -81,4 +82,16 @@ test('the error helper still sanitizes rather than dumping the raw error', () =>
   for (const field of ['message', 'code', 'details', 'hint', 'status']) {
     assert.match(source, new RegExp(`\\b${field}:`), `the sanitized shape should still carry ${field}`);
   }
+});
+
+test('database errors cannot echo rejected records, tokens, or user identities into logs', () => {
+  const sensitive = 'synthetic.person@example.test secret-token fictional-record';
+  const result = getSupabaseErrorInfo({
+    code: '23505', status: 409, message: sensitive, details: sensitive, hint: sensitive,
+  }, { profileId: sensitive, request: { token: sensitive }, rows: 2, retryable: false });
+  assert.ok(!JSON.stringify(result).includes(sensitive));
+  assert.equal(result.code, '23505');
+  assert.equal(result.status, 409);
+  assert.deepEqual(result.context, { rows: 2, retryable: false });
+  assert.equal(getSupabaseErrorInfo({ code: sensitive }).code, null);
 });

@@ -224,6 +224,18 @@ export function reportFields(content: Record<string, unknown>): Record<string, s
   return out;
 }
 
+/** tracking_records.status codes, labelled as the tracking page shows them. */
+export const trackingStatusLabels: Record<string, string> = {
+  empty: 'ריק',
+  passed: 'עבר',
+  failed: 'לא עבר',
+  makeup: 'השלמה',
+};
+
+export function trackingLabel(code: string | null | undefined): string {
+  return trackingStatusLabels[code || 'empty'] ?? String(code);
+}
+
 export const openTaskStatuses = ['open', 'in_progress', 'blocked'] as const;
 export const openRequestStatuses = ['open', 'in_progress', 'approved'] as const;
 

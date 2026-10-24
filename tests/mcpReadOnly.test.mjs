@@ -11,6 +11,7 @@ import {
   manpowerOf,
   reportFields,
   resolveDateKey,
+  trackingLabel,
 } from '../src/lib/mcp/shape.ts';
 import { assignPlatoonReports } from '../src/lib/forum/companyReport.ts';
 import { safeNextPath } from '../src/lib/safeNextPath.ts';
@@ -100,6 +101,14 @@ test('overdue applies only to open tasks with a past due date; rows are capped',
   assert.equal(c.rows.length, 200);
   assert.equal(c.truncated, true);
   assert.equal(c.total, 205);
+});
+
+test('tracking codes are labelled as on the tracking page', () => {
+  assert.equal(trackingLabel('passed'), 'עבר');
+  assert.equal(trackingLabel('failed'), 'לא עבר');
+  assert.equal(trackingLabel('makeup'), 'השלמה');
+  assert.equal(trackingLabel(undefined), 'ריק');
+  assert.equal(trackingLabel('empty'), 'ריק');
 });
 
 test('login ?next= only follows same-origin paths', () => {

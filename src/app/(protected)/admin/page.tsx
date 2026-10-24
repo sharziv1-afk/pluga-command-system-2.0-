@@ -13,7 +13,16 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 import { logSupabaseError } from '@/lib/supabase/error';
 import { useApp } from '@/lib/context/AppContext';
-import { getPermissionLevelForRole, hasAdminAccess } from '@/lib/permissions';
+import { getPermissionLevelForRole, hasAdminAccess, isCompanyCommander } from '@/lib/permissions';
+import {
+  approvedEditIsValid,
+  canEditEmail,
+  canManageUser,
+  canToggleBlock,
+  isPlausibleEmail,
+  nextBlockStatus,
+  normalizeEmail,
+} from '@/lib/adminUserEdits';
 import {
   Shield,
   UserCheck,
@@ -26,7 +35,9 @@ import {
   Check,
   X,
   Edit2,
-  Lock
+  Lock,
+  Ban,
+  ShieldCheck
 } from 'lucide-react';
 
 interface DbUnit {
@@ -100,6 +111,10 @@ export default function AdminPage() {
   const [editUnitId, setEditUnitId] = useState<string>('none');
   const [editCommandedUnitId, setEditCommandedUnitId] = useState<string>('none');
   const [editPermissionLevel, setEditPermissionLevel] = useState<number>(0);
+  const [editEmail, setEditEmail] = useState('');
+
+  // Block / unblock confirmation
+  const [blockTarget, setBlockTarget] = useState<AdminUserProfile | null>(null);
 
   // Invite new user
   const [isInviteOpen, setIsInviteOpen] = useState(false);
@@ -112,6 +127,11 @@ export default function AdminPage() {
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const isAuthorized = Boolean(currentUser && hasAdminAccess(currentUser.role) && currentUser.status === 'approved');
+  const adminActor = {
+    id: currentUser?.id ?? '',
+    permission_level: currentUser?.permission_level ?? 0,
+    isCompanyCommander: isCompanyCommander(currentUser?.role),
+  };
 
   const loadAdminData = async () => {
     // Direct URLs must not start admin queries for a non-admin profile.
@@ -320,6 +340,7 @@ export default function AdminPage() {
     setEditUnitId(user.unit_id || resolveUnitIdByName(suggestMembershipUnitName(user.role)) || 'none');
     setEditCommandedUnitId(user.commanded_unit_id || resolveUnitIdByName(suggestCommandedUnitName(user.role)) || 'none');
     setEditPermissionLevel(user.permission_level > 0 ? user.permission_level : getPermissionLevelForRole(user.role));
+    setEditEmail(user.email);
   };
 
   const handleRoleChange = (selectedRole: string) => {
@@ -334,30 +355,55 @@ export default function AdminPage() {
   };
 
   const saveEdit = async (userId: string) => {
-    setIsActionSubmitting(userId);
-    setRlsError(null);
+    const target = profilesList.find((p) => p.id === userId);
+    if (!target || !currentUser) return;
+    if (!canManageUser(adminActor, target)) {
+      setRlsError('אין לך הרשאה לערוך את המשתמש הזה.');
+      return;
+    }
 
     const mappedUnitId = editUnitId === 'none' ? null : editUnitId;
     const mappedCommandedUnitId = editCommandedUnitId === 'none' ? null : editCommandedUnitId;
     const unitName = units.find(u => u.id === mappedUnitId)?.name || null;
     const commandedUnitName = units.find(u => u.id === mappedCommandedUnitId)?.name || null;
 
+    // Same guardrail as approval: an approved profile must keep a unit and a
+    // non-zero level, or it keeps access with no scope.
+    if (!approvedEditIsValid(target, mappedUnitId, editPermissionLevel)) {
+      setRlsError('משתמש מאושר חייב להישאר עם מסגרת ורמת הרשאה גדולה מ-0.');
+      return;
+    }
+
+    const cleanEmail = normalizeEmail(editEmail);
+    const emailChanged = canEditEmail(target) && cleanEmail !== target.email;
+    if (emailChanged && !isPlausibleEmail(cleanEmail)) {
+      setRlsError('כתובת הדוא״ל אינה תקינה.');
+      return;
+    }
+
+    setIsActionSubmitting(userId);
+    setRlsError(null);
+
+    const changes = {
+      role: editRole,
+      unit_id: mappedUnitId,
+      commanded_unit_id: mappedCommandedUnitId,
+      permission_level: editPermissionLevel,
+      ...(emailChanged ? { email: cleanEmail } : {}),
+    };
+
     try {
       const { data: updatedRows, error } = await supabase
         .from('users')
-        .update({
-          role: editRole,
-          unit_id: mappedUnitId,
-          commanded_unit_id: mappedCommandedUnitId,
-          permission_level: editPermissionLevel,
-          updated_at: new Date().toISOString()
-        })
+        .update({ ...changes, updated_at: new Date().toISOString() })
         .eq('id', userId)
         .select('id');
 
       if (error) {
         logSupabaseError('Admin profile edit save failed', error);
-        if (error.code === '42501') {
+        if (error.code === '23505') {
+          setRlsError('כבר קיים משתמש עם דוא״ל זה במערכת.');
+        } else if (error.code === '42501') {
           setRlsError('אין לך הרשאה מתאימה לניהול משתמשים כרגע. פנה למנהל המערכת.');
         } else {
           setRlsError('הפעולה נכשלה. נסה שוב בעוד רגע.');
@@ -369,13 +415,27 @@ export default function AdminPage() {
         return;
       }
 
+      void createAuditLog(supabase, {
+        userId: currentUser.id,
+        userName: currentUser.full_name,
+        userRole: currentUser.role,
+        actionType: 'user_updated',
+        entityType: 'user',
+        entityId: userId,
+        previousValue: {
+          role: target.role,
+          unit_id: target.unit_id,
+          commanded_unit_id: target.commanded_unit_id,
+          permission_level: target.permission_level,
+          ...(emailChanged ? { email: target.email } : {}),
+        },
+        newValue: changes,
+      });
+
       setProfilesList(prev =>
-        prev.map(p => p.id === userId ? { 
-          ...p, 
-          role: editRole, 
-          unit_id: mappedUnitId, 
-          commanded_unit_id: mappedCommandedUnitId,
-          permission_level: editPermissionLevel,
+        prev.map(p => p.id === userId ? {
+          ...p,
+          ...changes,
           units: unitName ? { name: unitName } : null,
           commanded_units: commandedUnitName ? { name: commandedUnitName } : null
         } : p)
@@ -386,6 +446,59 @@ export default function AdminPage() {
       setRlsError('שגיאה בלתי צפויה בעת שמירת שינויים.');
     } finally {
       setIsActionSubmitting(null);
+    }
+  };
+
+  const confirmToggleBlock = async () => {
+    const target = blockTarget;
+    if (!target || !currentUser) return;
+    if (!canManageUser(adminActor, target) || !canToggleBlock(target)) {
+      setRlsError('אין לך הרשאה לשנות את מצב החסימה של המשתמש הזה.');
+      setBlockTarget(null);
+      return;
+    }
+
+    const nextStatus = nextBlockStatus(target.status);
+    setIsActionSubmitting(target.id);
+    setRlsError(null);
+
+    try {
+      const { data: updatedRows, error } = await supabase
+        .from('users')
+        .update({ status: nextStatus, updated_at: new Date().toISOString() })
+        .eq('id', target.id)
+        .select('id');
+
+      if (error) {
+        logSupabaseError('User block toggle failed', error);
+        setRlsError(error.code === '42501'
+          ? 'אין לך הרשאה מתאימה לניהול משתמשים כרגע. פנה למנהל המערכת.'
+          : 'הפעולה נכשלה. נסה שוב בעוד רגע.');
+        return;
+      }
+      if (!didRowsUpdate(updatedRows)) {
+        setRlsError('אין לך הרשאה מתאימה לשנות את מצב החסימה של המשתמש הזה.');
+        return;
+      }
+
+      void createAuditLog(supabase, {
+        userId: currentUser.id,
+        userName: currentUser.full_name,
+        userRole: currentUser.role,
+        actionType: nextStatus === 'blocked' ? 'user_blocked' : 'user_unblocked',
+        entityType: 'user',
+        entityId: target.id,
+        previousValue: { status: target.status },
+        newValue: { status: nextStatus },
+      });
+
+      setProfilesList(prev => prev.map(p => p.id === target.id ? { ...p, status: nextStatus } : p));
+    } catch (err) {
+      logSupabaseError('User block toggle threw', err);
+      setRlsError('שגיאה בלתי צפויה בעת שינוי מצב החסימה.');
+    } finally {
+      setIsActionSubmitting(null);
+      setBlockTarget(null);
     }
   };
 
@@ -468,6 +581,116 @@ export default function AdminPage() {
     }
   };
 
+  const linkStatusLabel = (user: AdminUserProfile) =>
+    user.auth_user_id ? 'מחובר לכניסה' : 'טרם התחבר';
+
+  const renderEditor = (req: AdminUserProfile) => (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
+        <span className="text-xs font-semibold text-[var(--text-primary)]">עריכת פרטי סגל: {req.name}</span>
+        <GlossyButton variant="slate" size="sm" onClick={() => setEditingUserId(null)}>
+          <X className="w-3 h-3" />
+          ביטול
+        </GlossyButton>
+      </div>
+
+      <label className="block space-y-1.5">
+        <span className="block text-caption font-semibold text-[var(--text-secondary)]">דוא״ל</span>
+        {canEditEmail(req) ? (
+          <input
+            type="email"
+            dir="ltr"
+            value={editEmail}
+            onChange={(e) => setEditEmail(e.target.value)}
+            className="touch-target command-input min-h-10 w-full font-mono text-xs"
+          />
+        ) : (
+          <span className="block text-xs font-mono text-[var(--text-muted-accessible)]" dir="ltr">
+            {req.email}
+          </span>
+        )}
+        <span className="block text-caption text-[var(--text-muted-accessible)]">
+          {canEditEmail(req)
+            ? 'אפשר לשנות כל עוד המשתמש טרם התחבר. הכניסה תתאפשר רק מהכתובת השמורה כאן.'
+            : 'המשתמש כבר מחובר לכניסה, ולכן לא ניתן לשנות את הדוא״ל.'}
+        </span>
+      </label>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <label className="block space-y-1.5">
+          <span className="block text-caption font-semibold text-[var(--text-secondary)]">תפקיד</span>
+          <select
+            value={editRole}
+            onChange={(e) => handleRoleChange(e.target.value)}
+            className="touch-target command-select min-h-10 text-xs"
+          >
+            {roles.map((r) => (
+              <option key={r.name} value={r.name}>
+                {r.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block space-y-1.5">
+          <span className="block text-caption font-semibold text-[var(--text-secondary)]">מסגרת</span>
+          <select
+            value={editUnitId}
+            onChange={(e) => setEditUnitId(e.target.value)}
+            className="touch-target command-select min-h-10 text-xs"
+          >
+            <option value="none">ללא</option>
+            {units.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block space-y-1.5">
+          <span className="block text-caption font-semibold text-[var(--text-secondary)]">יחידה בפיקוד</span>
+          <select
+            value={editCommandedUnitId}
+            onChange={(e) => setEditCommandedUnitId(e.target.value)}
+            className="touch-target command-select min-h-10 text-xs"
+          >
+            <option value="none">-- ללא --</option>
+            {units.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block space-y-1.5">
+          <span className="block text-caption font-semibold text-[var(--text-secondary)]">רמת הרשאה</span>
+          <input
+            type="number"
+            min="0"
+            max="100"
+            value={editPermissionLevel}
+            onChange={(e) => setEditPermissionLevel(Number(e.target.value))}
+            className="touch-target command-input min-h-10 text-center font-mono text-xs"
+          />
+        </label>
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <GlossyButton
+          variant="cyan"
+          size="sm"
+          disabled={isActionSubmitting === req.id}
+          onClick={() => saveEdit(req.id)}
+        >
+          {isActionSubmitting === req.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+          שמור שינויים
+        </GlossyButton>
+      </div>
+    </div>
+  );
+
   const activeRequests = profilesList.filter(r => r.role_approval_status === 'pending');
   const pastRequests = profilesList.filter(r => r.role_approval_status !== 'pending');
 
@@ -537,6 +760,32 @@ export default function AdminPage() {
         </form>
       </CommandOverlay>
 
+      <CommandOverlay
+        open={blockTarget !== null}
+        onClose={() => setBlockTarget(null)}
+        title={blockTarget?.status === 'blocked' ? 'ביטול חסימה' : 'חסימת משתמש'}
+        description={blockTarget?.status === 'blocked'
+          ? `${blockTarget?.name ?? ''} יקבל שוב גישה לפי התפקיד והמסגרת השמורים.`
+          : `${blockTarget?.name ?? ''} יאבד מיד את הגישה לכל הנתונים. הפרופיל, הדוחות וההיסטוריה נשמרים, ואפשר לבטל את החסימה בכל עת.`}
+        dismissible={isActionSubmitting === null}
+        footer={
+          <>
+            <CommandButton variant="ghost" onClick={() => setBlockTarget(null)} disabled={isActionSubmitting !== null}>
+              ביטול
+            </CommandButton>
+            <CommandButton
+              variant={blockTarget?.status === 'blocked' ? 'primary' : 'danger'}
+              onClick={confirmToggleBlock}
+              loading={isActionSubmitting !== null}
+            >
+              {blockTarget?.status === 'blocked' ? 'בטל חסימה' : 'חסום משתמש'}
+            </CommandButton>
+          </>
+        }
+      >
+        <span className="sr-only">אישור שינוי מצב חסימה</span>
+      </CommandOverlay>
+
       {rlsError && (
         <div className="flex items-start gap-2.5 rounded-2xl border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 px-4 py-3 text-sm leading-relaxed text-[var(--color-danger)]">
           <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
@@ -571,89 +820,7 @@ export default function AdminPage() {
               {activeRequests.map((req) => (
                 <GlassCard key={req.id} glow="orange" className="p-5 flex flex-col gap-4">
                   {editingUserId === req.id ? (
-                    /* Inline Editing Mode */
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
-                        <span className="text-xs font-semibold text-[var(--text-primary)]">עריכת פרטי סגל: {req.name}</span>
-                        <GlossyButton variant="slate" size="sm" onClick={() => setEditingUserId(null)}>
-                          <X className="w-3 h-3" />
-                          ביטול
-                        </GlossyButton>
-                      </div>
-
-                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                        <label className="block space-y-1.5">
-                          <span className="block text-caption font-semibold text-[var(--text-secondary)]">תפקיד</span>
-                          <select
-                            value={editRole}
-                            onChange={(e) => handleRoleChange(e.target.value)}
-                            className="touch-target command-select min-h-10 text-xs"
-                          >
-                            {roles.map((r) => (
-                              <option key={r.name} value={r.name}>
-                                {r.name}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-
-                        <label className="block space-y-1.5">
-                          <span className="block text-caption font-semibold text-[var(--text-secondary)]">מסגרת</span>
-                          <select
-                            value={editUnitId}
-                            onChange={(e) => setEditUnitId(e.target.value)}
-                            className="touch-target command-select min-h-10 text-xs"
-                          >
-                            <option value="none">ללא</option>
-                            {units.map((u) => (
-                              <option key={u.id} value={u.id}>
-                                {u.name}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-
-                        <label className="block space-y-1.5">
-                          <span className="block text-caption font-semibold text-[var(--text-secondary)]">יחידה בפיקוד</span>
-                          <select
-                            value={editCommandedUnitId}
-                            onChange={(e) => setEditCommandedUnitId(e.target.value)}
-                            className="touch-target command-select min-h-10 text-xs"
-                          >
-                            <option value="none">-- ללא --</option>
-                            {units.map((u) => (
-                              <option key={u.id} value={u.id}>
-                                {u.name}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-
-                        <label className="block space-y-1.5">
-                          <span className="block text-caption font-semibold text-[var(--text-secondary)]">רמת הרשאה</span>
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            value={editPermissionLevel}
-                            onChange={(e) => setEditPermissionLevel(Number(e.target.value))}
-                            className="touch-target command-input min-h-10 text-center font-mono text-xs"
-                          />
-                        </label>
-                      </div>
-
-                      <div className="flex justify-end gap-2">
-                        <GlossyButton 
-                          variant="cyan" 
-                          size="sm" 
-                          disabled={isActionSubmitting === req.id}
-                          onClick={() => saveEdit(req.id)}
-                        >
-                          {isActionSubmitting === req.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                          שמור שינויים
-                        </GlossyButton>
-                      </div>
-                    </div>
+                    renderEditor(req)
                   ) : (
                     /* Default View Mode */
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -676,6 +843,8 @@ export default function AdminPage() {
                           <span>דוא״ל: <strong className="text-[var(--text-muted-accessible)] font-mono">{req.email}</strong></span>
                           <span>•</span>
                           <span>הרשאה: <strong className="text-[var(--text-primary)] font-mono">{req.permission_level}</strong></span>
+                          <span>•</span>
+                          <span>{linkStatusLabel(req)}</span>
                         </div>
                       </div>
 
@@ -731,21 +900,67 @@ export default function AdminPage() {
             {pastRequests.length === 0 ? (
               <p className="text-center text-xs font-bold text-[var(--text-muted-accessible)] py-6">טרם טופלו מפקדים</p>
             ) : (
-              pastRequests.map((req) => (
-                <GlassCard key={req.id} className="p-4 bg-[var(--tactical-glass)] border-[var(--border-subtle)]" glow="none">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <span className="block text-xs font-semibold text-[var(--text-primary)]">{req.name}</span>
-                      <span className="block text-caption text-[var(--text-muted-accessible)] font-bold">
-                        {req.role} • {req.units?.name || 'פלוגה'}
-                        {req.commanded_unit_id ? ` • בפיקוד: ${req.commanded_units?.name || 'לא מזוהה'}` : ''}
-                        {' '}• הרשאה {req.permission_level}
-                      </span>
-                    </div>
-                    <StatusBadge status={req.role_approval_status} />
-                  </div>
-                </GlassCard>
-              ))
+              pastRequests.map((req) => {
+                const manageable = canManageUser(adminActor, req);
+                return (
+                  <GlassCard key={req.id} className="p-4 bg-[var(--tactical-glass)] border-[var(--border-subtle)]" glow="none">
+                    {editingUserId === req.id ? (
+                      renderEditor(req)
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="space-y-1">
+                            <span className="block text-xs font-semibold text-[var(--text-primary)]">{req.name}</span>
+                            <span className="block text-caption text-[var(--text-muted-accessible)] font-bold">
+                              {req.role} • {req.units?.name || 'פלוגה'}
+                              {req.commanded_unit_id ? ` • בפיקוד: ${req.commanded_units?.name || 'לא מזוהה'}` : ''}
+                              {' '}• הרשאה {req.permission_level}
+                            </span>
+                            <span className="block text-caption text-[var(--text-muted-accessible)]">
+                              {linkStatusLabel(req)}
+                              {canEditEmail(req) && (
+                                <> • <span className="font-mono" dir="ltr">{req.email}</span></>
+                              )}
+                            </span>
+                          </div>
+                          <StatusBadge status={req.status === 'blocked' ? 'blocked' : req.role_approval_status} />
+                        </div>
+
+                        {manageable && (
+                          <div className="flex flex-wrap justify-end gap-2">
+                            <GlossyButton
+                              variant="slate"
+                              size="sm"
+                              onClick={() => startEditing(req)}
+                              disabled={isActionSubmitting !== null}
+                              className="border-[var(--border-strong)] text-[var(--text-muted-accessible)] hover:text-[var(--text-primary)]"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                              ערוך
+                            </GlossyButton>
+                            {canToggleBlock(req) && (
+                              <GlossyButton
+                                variant="slate"
+                                size="sm"
+                                onClick={() => setBlockTarget(req)}
+                                disabled={isActionSubmitting !== null}
+                                className={req.status === 'blocked'
+                                  ? 'border-[var(--border-strong)] text-[var(--text-muted-accessible)] hover:text-[var(--text-primary)]'
+                                  : 'border-[var(--color-danger)]/25 text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10 hover:text-[var(--color-danger)] hover:border-[var(--color-danger)]/25'}
+                              >
+                                {isActionSubmitting === req.id
+                                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  : req.status === 'blocked' ? <ShieldCheck className="w-3.5 h-3.5" /> : <Ban className="w-3.5 h-3.5" />}
+                                {req.status === 'blocked' ? 'בטל חסימה' : 'חסום'}
+                              </GlossyButton>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </GlassCard>
+                );
+              })
             )}
           </div>
         </div>

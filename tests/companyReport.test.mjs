@@ -14,7 +14,7 @@ import {
  * The fixture mirrors the real 2026-09-08 data used as the manual regression
  * baseline: 128/138 present, from 34/36 + 31/34 + 30/33 + 33/35.
  *
- * The invariant that matters most (FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT §5):
+ * The invariant that matters most (docs/checkpoints/FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md §5):
  * a platoon report is bound to its platoon by owner_user_id, NEVER by its
  * position in the array. Getting that wrong once already swapped platoon 1's
  * content with platoon 2's in a live report.

@@ -63,7 +63,7 @@ lifecycle.
 > iPhone Safari over HTTP LAN (`http://192.168.1.250:3100`) physically pasted full Forum WhatsApp
 > and Schedule output, with usable visual/scroll behavior.
 > **Remaining known issues not fixed:** ~~BUG-AUTH-008~~ and ~~BUG-CONTEXT-009~~ were fixed and
-> verified on 2026-09-04 (see `MULTI_COMPANY_SCHEMA_RLS_DRAFT.md`); this line is preserved as the
+> verified on 2026-09-04 (see `docs/plans/MULTI_COMPANY_SCHEMA_RLS_DRAFT.md`); this line is preserved as the
 > historical record of that QA round. Still open: BUG-TRACK-003, BUG-REQ-008,
 > BUG-FORUM-010, BUG-FORUM-011, and BUG-TT-007. Open items remain real logout, production demo
 > fallback review/removal, Tracking UI gating, Request UI/RLS alignment, product decisions around

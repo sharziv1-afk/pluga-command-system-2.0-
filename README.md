@@ -5,15 +5,17 @@ company (פלוגה): tasks, requests, schedule/events, daily hierarchical forum
 reports, soldier tracking, mentoring, and admin/approval — built on Next.js 16
 (App Router) and Supabase (Auth/Postgres/RLS).
 
-**Start here, not below:**
-- [`WORKSPACE_MODE.md`](WORKSPACE_MODE.md) — current live mode, release state, QA limits, and exact steps to re-enable modules.
-- [`M/M permissions and rollup audit`](docs/checkpoints/2026-10-21-mm-permissions-rollup-audit.md) — live policy findings, rollup comparison, and the owner/closed-report hardening release status.
-- [`2026-10-21 squad view release`](docs/checkpoints/2026-10-21-hide-squad-reports-release.md) — shipped UI change, production verification, preserved data, and rollback guidance.
-- [`2026-10-21 forum QA`](docs/checkpoints/2026-10-21-forum-live-demo-qa.md) — user-authorized live demo, saved company rollup, refresh behavior, and verification limits.
-- [`AI_HANDOFF_CHECKPOINT.md`](AI_HANDOFF_CHECKPOINT.md) — technical handoff and historical implementation detail; older sections are explicitly labeled.
-- [`AGENTS.md`](AGENTS.md) — durable rules and invariants that must not be broken.
-- [`FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`](FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md) — the forum's regression baseline and six invariants; read before touching `forum/page.tsx`.
-- [`docs/archive/`](docs/archive/) — retired checkpoint history (old `README.md` journal, `PROJECT_SUMMARY.md`, `PROJECT_HANDOFF_AI_CONTEXT.md`). History only, not current state.
+Live: <https://pluga-command-system-2-0.vercel.app> (every merge to `main` deploys to Vercel Production).
+
+**Start here:**
+- [`WORKSPACE_MODE.md`](WORKSPACE_MODE.md) — current live state; the only status ledger.
+- [`AGENTS.md`](AGENTS.md) — durable rules and invariants, plus the documentation map and working rules.
+- [`ENVIRONMENTS.md`](ENVIRONMENTS.md) — which Supabase project is LIVE and which is the sandbox (the names are backwards).
+- [`docs/PRODUCT_OVERVIEW.md`](docs/PRODUCT_OVERVIEW.md) — Hebrew product tour: roles, the ten screens, sign-in, offline.
+- [`docs/USER_PROVISIONING.md`](docs/USER_PROVISIONING.md) — auth email delivery and adding users.
+- [`docs/QA_CHECKLIST.md`](docs/QA_CHECKLIST.md) — per-release read-only QA by role.
+- [`docs/checkpoints/`](docs/checkpoints/) — dated records of production work; [`FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md`](docs/checkpoints/FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md) is required reading before touching `forum/page.tsx`.
+- [`docs/archive/`](docs/archive/) — retired handoffs, prompts and the old `.ai-workspace` toolkit. History only.
 
 ## Tech stack
 
@@ -82,13 +84,10 @@ accept losing it.
 
 ## Routes
 
-The restoration working tree enables the existing routes, with `/forum` first,
-then `/dashboard`, `/tasks`, `/requests`, `/schedule`, and `/tracking`.
-Mentoring remains commander-only; admin navigation remains commander/deputy-only.
-The gaps tab is restored within requests. This is not a deployment claim:
-see [`WORKSPACE_MODE.md`](WORKSPACE_MODE.md) and the
-[restoration checkpoint](docs/checkpoints/2026-10-23-platform-restoration.md)
-for the verified environment and remaining QA limits.
+All ten modules are active (PR #14), in the order defined by `navigationItems` in
+`src/data/navigation.ts`: `/forum` first, then `/dashboard`, `/tasks`, `/requests`
+(with the gaps tab), `/schedule` and `/tracking`. Mentoring is מ״פ-only; admin is
+מ״פ/סמ״פ-only.
 
 The leading forum currently shows one M/M summary slot per platoon, without
 squad report slots in company/platoon views. Historical squad data and existing
@@ -110,8 +109,8 @@ Auth/public:
 
 Auth is invite-only email OTP, plus password sign-in for Auth users already
 linked to an active profile (PR #15, 2026-10-24; no sign-up or password
-change/reset UI) — see `AGENTS.md` and the "Auth model" section of
-`AI_HANDOFF_CHECKPOINT.md`.
+change/reset UI). Codes are delivered through Gmail SMTP configured in Supabase —
+see `AGENTS.md` and [`docs/USER_PROVISIONING.md`](docs/USER_PROVISIONING.md).
 
 ## Guardrails
 

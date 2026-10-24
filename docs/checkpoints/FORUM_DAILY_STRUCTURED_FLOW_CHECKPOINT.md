@@ -1,6 +1,6 @@
 # Forum Daily — Structured Company Flow Checkpoint & Next Work Plan
 
-> **עדכון מצב (21.10.2026):** זהו תיעוד סבב פיתוח היסטורי. checkpoint תחילת הסבב הוא `cb8458e`; המודולים הפעילים הם `/dashboard` + `/forum`. מצב הפריסה ותצוגת המ״כים מתועדים ב־WORKSPACE_MODE.md. היום מולא דרך האתר תרחיש מומצא מלא באישור המשתמש: 4/4 מ״מים, 4/4 מפל״ג, מצבה 107/117 ודוח מ״פ שמור. אומתו עדכון מקור → רענון ריכוז → שמירה וטעינה מחדש; לא נבדקה כניסת מ״מ נפרד. התרחיש נשאר לצפיית המשתמש ולא הופץ/נסגר. ראו [`דוח בדיקה`](docs/checkpoints/2026-10-21-forum-live-demo-qa.md) ו־[`WORKSPACE_MODE.md`](WORKSPACE_MODE.md).
+> **עדכון מצב (21.10.2026):** זהו תיעוד סבב פיתוח היסטורי. checkpoint תחילת הסבב הוא `cb8458e`; המודולים הפעילים הם `/dashboard` + `/forum`. מצב הפריסה ותצוגת המ״כים מתועדים ב־WORKSPACE_MODE.md. היום מולא דרך האתר תרחיש מומצא מלא באישור המשתמש: 4/4 מ״מים, 4/4 מפל״ג, מצבה 107/117 ודוח מ״פ שמור. אומתו עדכון מקור → רענון ריכוז → שמירה וטעינה מחדש; לא נבדקה כניסת מ״מ נפרד. התרחיש נשאר לצפיית המשתמש ולא הופץ/נסגר. ראו [`דוח בדיקה`](2026-10-21-forum-live-demo-qa.md) ו־[`WORKSPACE_MODE.md`](../../WORKSPACE_MODE.md).
 
 
 Authoritative checkpoint for the **Forum Daily Structured Company Flow** round, plus the
@@ -63,7 +63,7 @@ lifecycle.
 > iPhone Safari over HTTP LAN (`http://192.168.1.250:3100`) physically pasted full Forum WhatsApp
 > and Schedule output, with usable visual/scroll behavior.
 > **Remaining known issues not fixed:** ~~BUG-AUTH-008~~ and ~~BUG-CONTEXT-009~~ were fixed and
-> verified on 2026-09-04 (see `MULTI_COMPANY_SCHEMA_RLS_DRAFT.md`); this line is preserved as the
+> verified on 2026-09-04 (see `docs/plans/MULTI_COMPANY_SCHEMA_RLS_DRAFT.md`); this line is preserved as the
 > historical record of that QA round. Still open: BUG-TRACK-003, BUG-REQ-008,
 > BUG-FORUM-010, BUG-FORUM-011, and BUG-TT-007. Open items remain real logout, production demo
 > fallback review/removal, Tracking UI gating, Request UI/RLS alignment, product decisions around

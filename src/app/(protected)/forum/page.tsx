@@ -471,7 +471,7 @@ export default function ForumPage() {
   // strip above the daily forum). renderPostsTab()/handleForumTabChange and
   // their dedicated state are left in place, unused, rather than ripped out
   // in the same pass as this file's own invariants (see
-  // FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md §5) make it the highest-risk
+  // docs/checkpoints/FORUM_DAILY_STRUCTURED_FLOW_CHECKPOINT.md §5) make it the highest-risk
   // file in the app to bulk-edit blind.
   const [activeTab, setActiveTab] = useState<ForumTab>('daily');
   const [isLoading, setIsLoading] = useState(true);

@@ -36,17 +36,40 @@
 
 תאריכים לפי Asia/Jerusalem. דוחות מ״כים מוסתרים, כמו בפורום המוביל.
 
-## הגדרות Supabase (חד־פעמי)
+## הגדרות Supabase (בוצעו 24.10.2026)
 
 ב־Authentication:
 
 1. **URL Configuration:** Site URL = `https://pluga-command-system-2-0.vercel.app`. ההגדרה לא משפיעה על קוד ה־OTP.
-2. **OAuth Server:** להפעיל, ונתיב אישור `/oauth/consent`.
-3. **לקוח:** רישום לקוח לכל אפליקציה, או Dynamic Client Registration אם האפליקציה דורשת זאת. הסטטוס בפועל מתועד ב־`WORKSPACE_MODE.md`.
+2. **OAuth Server:** פעיל, נתיב אישור `/oauth/consent`. Dynamic OAuth Apps **כבוי**: רק לקוח רשום יכול להתחבר.
+3. **OAuth Apps:** לקוח "Claude"
+   - Public client (PKCE, בלי secret).
+   - Client ID: `c63b00ed-fe4f-4cff-ac90-67c3b752c649`.
+   - Redirect URIs: `https://claude.ai/api/mcp/auth_callback` ו־`https://claude.com/api/mcp/auth_callback`.
+
+ל־ChatGPT צריך לקוח נוסף עם ה־redirect URI שלו. אם ChatGPT דורש Dynamic Client Registration, צריך להחליט אם להפעיל אותו, כי הוא פותח רישום לכל לקוח. גם אז נדרשים כניסה ואישור במסך ההסכמה, ורק פרופיל פעיל ומאושר יכול לאשר.
 
 ## חיבור ב־Claude
 
-Settings → Connectors → Add custom connector → כתובת: `https://pluga-command-system-2-0.vercel.app/api/mcp`. אחרי זה: כניסה, אישור ב־`/oauth/consent`, ואז שאלה.
+1. Claude, Settings → Connectors → **Add custom connector**.
+2. שם: `המפקד`. URL: `https://pluga-command-system-2-0.vercel.app/api/mcp`.
+3. Advanced settings → OAuth Client ID: `c63b00ed-fe4f-4cff-ac90-67c3b752c649`. שדה ה־secret נשאר ריק.
+4. Connect. נפתח מסך הכניסה של האתר, ואחריו מסך האישור. מאשרים.
+5. בשיחה חדשה מפעילים את המחבר ושואלים, למשל: "מה תמונת המצב היום?"
+
+הביטול נעשה ב־Claude (Disconnect), או ב־Supabase דרך OAuth Apps.
+
+## אומת חי (24.10.2026, כמ״פ, דרך /api/mcp)
+
+- **אבטחה:** בלי טוקן מתקבל 401 עם `WWW-Authenticate`, וטוקן מזויף מקבל 401.
+- **מטא־דאטה:** `/.well-known/oauth-protected-resource` מצביע על Supabase.
+- **זרימת OAuth:** `authorize` מפנה ל־`/oauth/consent`, והמסך מוצג תקין.
+- **נתונים:**
+  - `get_manpower 2026-10-21`: ‏107/117.
+  - `get_forum_status`: ‏4/4 מחלקות, 4/4 מפל״ג, דוח פלוגתי בטיפול.
+  - `list_tasks`: ‏3 פתוחות, 3 באיחור.
+  - `get_tracking`: ‏31 עבר / 3 לא עבר / 2 השלמה.
+- **פרטים מזהים:** אין מיילים בתשובות. `list_mentoring` מוחזר למ״פ בלבד.
 
 ## שלב 2 (לא נבנה)
 

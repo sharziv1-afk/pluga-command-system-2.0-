@@ -7,6 +7,7 @@ import { GlossyButton } from '@/components/ui/GlossyButton';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
+import { safeNextPath } from '@/lib/safeNextPath';
 
 type Step = 'email' | 'code' | 'claim';
 type SignInMethod = 'otp' | 'password';
@@ -28,6 +29,18 @@ function getProfileRedirectPath(profile: AppUserProfile): string {
   if (!profile.has_completed_onboarding) return '/pending-approval';
   if (profile.status === 'active' && profile.role_approval_status === 'approved') return '/dashboard';
   return '/pending-approval';
+}
+
+/**
+ * Where to go after a successful sign-in. An approved user returns to the
+ * page that sent them here (e.g. the OAuth consent screen) when ?next= is a
+ * safe same-origin path; everyone else follows the normal profile routing.
+ */
+function getPostLoginPath(profile: AppUserProfile): string {
+  const fallback = getProfileRedirectPath(profile);
+  if (fallback !== '/dashboard') return fallback;
+  const next = safeNextPath(new URLSearchParams(window.location.search).get('next'));
+  return next ?? fallback;
 }
 
 function isRateLimitError(error: { message?: string; code?: string; status?: number } | null) {
@@ -181,7 +194,7 @@ export default function LoginPage() {
         logDevelopmentError('last_login_at update matched no row (RLS?)', { profileId: profile.id });
       }
 
-      window.location.href = getProfileRedirectPath(profile);
+      window.location.href = getPostLoginPath(profile);
     } catch (unknownError) {
       logDevelopmentError('signInWithPassword threw', unknownError);
       setError('לא הצלחנו להתחבר כרגע. נסה שוב בעוד רגע.');
@@ -246,7 +259,7 @@ export default function LoginPage() {
       if (!didRowsUpdate(loginTimeRows)) {
         logDevelopmentError('last_login_at update matched no row (RLS?)', { profileId: profile.id });
       }
-      window.location.href = getProfileRedirectPath(profile);
+      window.location.href = getPostLoginPath(profile);
     } catch (unknownError) {
       logDevelopmentError('verifyOtp threw', unknownError);
       setError('אימות הקוד נכשל. בדוק את הקוד ונסה שוב.');
@@ -300,7 +313,7 @@ export default function LoginPage() {
         return;
       }
 
-      window.location.href = getProfileRedirectPath(profile);
+      window.location.href = getPostLoginPath(profile);
     } catch (unknownError) {
       logDevelopmentError('claim_own_profile threw', unknownError);
       setError('לא הצלחנו לשייך את המשתמש כרגע. נסה שוב בעוד רגע.');

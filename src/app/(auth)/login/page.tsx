@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { CheckCircle2, Loader2, Mail, ShieldCheck, UserRound } from 'lucide-react';
+import { CheckCircle2, KeyRound, Loader2, Mail, ShieldCheck, UserRound } from 'lucide-react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlossyButton } from '@/components/ui/GlossyButton';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
@@ -9,6 +9,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 
 type Step = 'email' | 'code' | 'claim';
+type SignInMethod = 'otp' | 'password';
 
 type AppUserProfile = {
   id: string;
@@ -57,10 +58,13 @@ function logDevelopmentError(message: string, error: unknown) {
 
 export default function LoginPage() {
   const [step, setStep] = useState<Step>('email');
+  const [signInMethod, setSignInMethod] = useState<SignInMethod>('otp');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [fullName, setFullName] = useState('');
   const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isSigningInWithPassword, setIsSigningInWithPassword] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
@@ -125,6 +129,64 @@ export default function LoginPage() {
       setError('לא הצלחנו לשלוח קוד אימות כרגע. נסה שוב בעוד רגע.');
     } finally {
       setIsSendingOtp(false);
+    }
+  };
+
+  const signInWithPassword = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (isSigningInWithPassword) return;
+
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail || !password) {
+      setError('יש להזין דוא״ל וסיסמה');
+      return;
+    }
+
+    setIsSigningInWithPassword(true);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      });
+
+      if (signInError || !signInData.user) {
+        logDevelopmentError('signInWithPassword failed', signInError);
+        setError('פרטי ההתחברות אינם נכונים. בדוק את המייל והסיסמה ונסה שוב.');
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from('users')
+        .select('id,status,role_approval_status,has_completed_onboarding')
+        .eq('auth_user_id', signInData.user.id)
+        .maybeSingle<AppUserProfile>();
+
+      if (profileError || !profile) {
+        logDevelopmentError('Profile lookup after password sign-in failed', profileError);
+        await supabase.auth.signOut();
+        setError('החשבון קיים אך עדיין לא שויך לפרופיל פיקודי. פנה למפקד הפלוגה.');
+        return;
+      }
+
+      const { data: loginTimeRows } = await supabase
+        .from('users')
+        .update({ last_login_at: new Date().toISOString() })
+        .eq('id', profile.id)
+        .select('id');
+      if (!didRowsUpdate(loginTimeRows)) {
+        logDevelopmentError('last_login_at update matched no row (RLS?)', { profileId: profile.id });
+      }
+
+      window.location.href = getProfileRedirectPath(profile);
+    } catch (unknownError) {
+      logDevelopmentError('signInWithPassword threw', unknownError);
+      setError('לא הצלחנו להתחבר כרגע. נסה שוב בעוד רגע.');
+    } finally {
+      setIsSigningInWithPassword(false);
     }
   };
 
@@ -272,12 +334,47 @@ export default function LoginPage() {
           <div className="mb-5 text-center">
             <h1 className="text-xl font-bold text-[var(--text-primary)]">כניסה למערכת</h1>
             <p className="mt-2 text-sm leading-relaxed text-[var(--text-muted-accessible)]">
-              הזן את כתובת הדוא״ל שלך. קוד אימות חד-פעמי יישלח אליך — אין צורך בסיסמה.
+              {signInMethod === 'otp'
+                ? 'הזן את כתובת הדוא״ל שלך וקוד אימות חד-פעמי יישלח אליך.'
+                : 'הזן את כתובת הדוא״ל והסיסמה שהוגדרו עבורך.'}
             </p>
           </div>
 
           {step === 'email' && (
-            <form onSubmit={sendCode} className="space-y-4">
+            <form onSubmit={signInMethod === 'otp' ? sendCode : signInWithPassword} className="space-y-4">
+              <div className="grid grid-cols-2 gap-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSignInMethod('otp');
+                    setError(null);
+                    setMessage(null);
+                  }}
+                  className={`touch-target rounded-xl px-3 py-2 text-xs font-bold transition-colors ${
+                    signInMethod === 'otp'
+                      ? 'bg-[var(--action)] text-white shadow-sm'
+                      : 'text-[var(--text-muted-accessible)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  קוד למייל
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSignInMethod('password');
+                    setError(null);
+                    setMessage(null);
+                  }}
+                  className={`touch-target rounded-xl px-3 py-2 text-xs font-bold transition-colors ${
+                    signInMethod === 'password'
+                      ? 'bg-[var(--action)] text-white shadow-sm'
+                      : 'text-[var(--text-muted-accessible)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  סיסמה
+                </button>
+              </div>
+
               <label className="block space-y-2">
                 <span className="block text-xs font-semibold text-[var(--text-secondary)]">דוא״ל</span>
                 <span className="relative block">
@@ -290,10 +387,30 @@ export default function LoginPage() {
                     onChange={(event) => setEmail(event.target.value)}
                     placeholder="commander@example.com"
                     className="command-input pl-11 text-left"
-                    disabled={isSendingOtp}
+                    autoComplete="email"
+                    disabled={isSendingOtp || isSigningInWithPassword}
                   />
                 </span>
               </label>
+
+              {signInMethod === 'password' && (
+                <label className="block space-y-2">
+                  <span className="block text-xs font-semibold text-[var(--text-secondary)]">סיסמה</span>
+                  <span className="relative block">
+                    <KeyRound className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--command-subtle)]" />
+                    <input
+                      type="password"
+                      dir="ltr"
+                      required
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      autoComplete="current-password"
+                      className="command-input pl-11 text-left"
+                      disabled={isSigningInWithPassword}
+                    />
+                  </span>
+                </label>
+              )}
 
               {message && (
                 <div className="flex items-start gap-2 rounded-2xl border border-[var(--color-success)]/25 bg-[var(--color-success)]/10 px-4 py-3 text-sm leading-relaxed text-[var(--color-success)]">
@@ -313,9 +430,20 @@ export default function LoginPage() {
                 variant="orange"
                 size="lg"
                 className="w-full justify-center"
-                disabled={isSendingOtp || cooldownSeconds > 0}
+                disabled={
+                  signInMethod === 'otp'
+                    ? isSendingOtp || cooldownSeconds > 0
+                    : isSigningInWithPassword
+                }
               >
-                {isSendingOtp ? (
+                {signInMethod === 'password' && isSigningInWithPassword ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    מתחבר...
+                  </>
+                ) : signInMethod === 'password' ? (
+                  'כניסה עם סיסמה'
+                ) : isSendingOtp ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
                     שולח קוד...

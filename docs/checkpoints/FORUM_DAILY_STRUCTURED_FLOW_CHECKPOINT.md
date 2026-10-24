@@ -1,6 +1,6 @@
 # Forum Daily — Structured Company Flow Checkpoint & Next Work Plan
 
-> **עדכון מצב (21.10.2026):** זהו תיעוד סבב פיתוח היסטורי. checkpoint תחילת הסבב הוא `cb8458e`; המודולים הפעילים הם `/dashboard` + `/forum`. מצב הפריסה ותצוגת המ״כים מתועדים ב־WORKSPACE_MODE.md. היום מולא דרך האתר תרחיש מומצא מלא באישור המשתמש: 4/4 מ״מים, 4/4 מפל״ג, מצבה 107/117 ודוח מ״פ שמור. אומתו עדכון מקור → רענון ריכוז → שמירה וטעינה מחדש; לא נבדקה כניסת מ״מ נפרד. התרחיש נשאר לצפיית המשתמש ולא הופץ/נסגר. ראו [`דוח בדיקה`](docs/checkpoints/2026-10-21-forum-live-demo-qa.md) ו־[`WORKSPACE_MODE.md`](WORKSPACE_MODE.md).
+> **עדכון מצב (21.10.2026):** זהו תיעוד סבב פיתוח היסטורי. checkpoint תחילת הסבב הוא `cb8458e`; המודולים הפעילים הם `/dashboard` + `/forum`. מצב הפריסה ותצוגת המ״כים מתועדים ב־WORKSPACE_MODE.md. היום מולא דרך האתר תרחיש מומצא מלא באישור המשתמש: 4/4 מ״מים, 4/4 מפל״ג, מצבה 107/117 ודוח מ״פ שמור. אומתו עדכון מקור → רענון ריכוז → שמירה וטעינה מחדש; לא נבדקה כניסת מ״מ נפרד. התרחיש נשאר לצפיית המשתמש ולא הופץ/נסגר. ראו [`דוח בדיקה`](2026-10-21-forum-live-demo-qa.md) ו־[`WORKSPACE_MODE.md`](../../WORKSPACE_MODE.md).
 
 
 Authoritative checkpoint for the **Forum Daily Structured Company Flow** round, plus the

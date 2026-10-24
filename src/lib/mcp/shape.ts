@@ -236,6 +236,70 @@ export function trackingLabel(code: string | null | undefined): string {
   return trackingStatusLabels[code || 'empty'] ?? String(code);
 }
 
+export function trackingCodeFromLabel(label: string): 'empty' | 'passed' | 'failed' | 'makeup' {
+  const map: Record<string, 'empty' | 'passed' | 'failed' | 'makeup'> = {
+    'ריק': 'empty', 'עבר': 'passed', 'לא עבר': 'failed', 'השלמה': 'makeup',
+    empty: 'empty', passed: 'passed', failed: 'failed', makeup: 'makeup',
+  };
+  const code = map[label.trim()];
+  if (!code) throw new Error(`Unknown tracking status "${label}". Use עבר, לא עבר, השלמה or ריק.`);
+  return code;
+}
+
+function squash(value: string): string {
+  return normalizeRoleText(value).replace(/\s+/g, ' ').toLowerCase();
+}
+
+/**
+ * Resolve a person/soldier/item the user named in free text. Exact match wins;
+ * otherwise a unique substring match. Never guesses between several matches —
+ * the caller reports the candidates so the user can be specific.
+ */
+export function matchByName<T>(rows: T[], query: string, nameOf: (row: T) => string): { match: T | null; candidates: string[] } {
+  const q = squash(query);
+  if (!q) return { match: null, candidates: [] };
+  const exact = rows.filter((r) => squash(nameOf(r)) === q);
+  if (exact.length === 1) return { match: exact[0], candidates: [] };
+  const partial = (exact.length > 1 ? exact : rows).filter((r) => squash(nameOf(r)).includes(q));
+  if (partial.length === 1) return { match: partial[0], candidates: [] };
+  return { match: null, candidates: partial.slice(0, 10).map(nameOf) };
+}
+
+function jerusalemOffsetMinutes(utcMillis: number): number {
+  const name = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Jerusalem', timeZoneName: 'longOffset' })
+    .formatToParts(new Date(utcMillis))
+    .find((p) => p.type === 'timeZoneName')?.value ?? 'GMT+02:00';
+  const m = name.match(/GMT([+-])(\d{2}):?(\d{2})?/);
+  if (!m) return 120;
+  const sign = m[1] === '-' ? -1 : 1;
+  return sign * (Number(m[2]) * 60 + Number(m[3] ?? 0));
+}
+
+/**
+ * Wall-clock time in Israel → ISO UTC. Accepts "YYYY-MM-DD HH:mm",
+ * "YYYY-MM-DDTHH:mm", "YYYY-MM-DD" (09:00) or a full ISO string with Z/offset
+ * (passed through). Handles the IST/IDT switch.
+ */
+export function jerusalemLocalToIso(input: string): string {
+  const value = input.trim();
+  if (/[zZ]$|[+-]\d{2}:?\d{2}$/.test(value) && value.includes('T')) {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) throw new Error(`Invalid time "${input}".`);
+    return d.toISOString();
+  }
+  const m = value.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{1,2}):(\d{2}))?$/);
+  if (!m) throw new Error(`Invalid time "${input}". Use YYYY-MM-DD HH:mm (Israel time).`);
+  const [, y, mo, d, h = '9', mi = '00'] = m;
+  const asUtc = Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi));
+  let offset = jerusalemOffsetMinutes(asUtc);
+  offset = jerusalemOffsetMinutes(asUtc - offset * 60_000);
+  return new Date(asUtc - offset * 60_000).toISOString();
+}
+
+/** Marks a row as written through MCP. The DB (migration 035) only lets an
+ *  OAuth token delete rows carrying this marker, and never lets it change it. */
+export const MCP_ORIGIN = 'mcp' as const;
+
 export const openTaskStatuses = ['open', 'in_progress', 'blocked'] as const;
 export const openRequestStatuses = ['open', 'in_progress', 'approved'] as const;
 

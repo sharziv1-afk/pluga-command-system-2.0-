@@ -88,7 +88,7 @@ export function registerReadTools(server: McpServer) {
         permission_level: c.profile.permission_level,
         scope: scopeLabel(c) === 'company' ? 'כל הפלוגה' : `המסגרת שלי (${c.profile.unit_name ?? 'לא משויך'}) ופריטים שהוקצו לי`,
         mentoring_access: isCompanyCommander(c.profile.role),
-        note: 'All data is read with your own permissions (RLS). Nothing here can change data.',
+        note: 'Everything runs with your own permissions (RLS). Write tools change real data and need your confirmation; delete_mcp_item removes only items created through Claude.',
       });
     },
   );

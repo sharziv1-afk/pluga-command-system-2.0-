@@ -7,13 +7,11 @@ import { Webhook } from "https://esm.sh/standardwebhooks@1.0.0";
 // failed auth despite the same credentials working outside Supabase). This
 // hook bypasses SMTP entirely and calls Resend's REST API directly.
 //
-// Requires these secrets set via `supabase secrets set` (or the Dashboard):
-//   RESEND_API_KEY          - Resend API key
-//   SEND_EMAIL_HOOK_SECRET  - the "v1,whsec_..." secret shown when the
-//                              Send Email Hook is created in
-//                              Authentication > Hooks in the Supabase Dashboard
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
-const HOOK_SECRET = (Deno.env.get("SEND_EMAIL_HOOK_SECRET") ?? "").replace("v1,whsec_", "");
+// Set these as Edge Function secrets before deployment. The sender must use a
+// domain verified in Resend; its test sender can only mail the account owner.
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")?.trim() ?? "";
+const HOOK_SECRET = (Deno.env.get("SEND_EMAIL_HOOK_SECRET") ?? "").replace("v1,whsec_", "").trim();
+const SEND_EMAIL_FROM = Deno.env.get("SEND_EMAIL_FROM")?.trim() ?? "";
 
 interface HookPayload {
   user: { email: string };
@@ -35,6 +33,14 @@ function buildHtml(token: string): string {
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") {
     return new Response("method not allowed", { status: 405 });
+  }
+
+  if (!RESEND_API_KEY || !HOOK_SECRET || !SEND_EMAIL_FROM) {
+    console.error("send-email configuration is incomplete");
+    return new Response(JSON.stringify({ error: { message: "email delivery unavailable" } }), {
+      status: 503,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   const payload = await req.text();
@@ -67,7 +73,7 @@ Deno.serve(async (req: Request) => {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "המפקד <onboarding@resend.dev>",
+      from: SEND_EMAIL_FROM,
       to: [email],
       subject: "קוד אימות - המפקד",
       html: buildHtml(token),
@@ -75,9 +81,11 @@ Deno.serve(async (req: Request) => {
   });
 
   if (!resendResponse.ok) {
-    const errText = await resendResponse.text();
+    // Do not echo provider responses into Auth logs: they may include private
+    // recipient or account details. The status is enough to find the request.
+    console.error("Resend send failed", resendResponse.status);
     return new Response(
-      JSON.stringify({ error: { http_code: resendResponse.status, message: errText } }),
+      JSON.stringify({ error: { message: "email delivery unavailable" } }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }

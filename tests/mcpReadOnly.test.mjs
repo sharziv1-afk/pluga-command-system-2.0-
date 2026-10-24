@@ -128,7 +128,8 @@ const context = readFileSync('src/lib/mcp/context.ts', 'utf8');
 const route = readFileSync('src/app/api/mcp/route.ts', 'utf8');
 const consent = readFileSync('src/app/(auth)/oauth/consent/page.tsx', 'utf8');
 
-test('the MCP layer contains no write calls and no service-role key', () => {
+test('the read layer contains no write calls and no service-role key', () => {
+  // Reads only: the write tools live in writes.ts and are tested in mcpWrites.test.mjs.
   for (const [name, src] of [['tools.ts', tools], ['context.ts', context], ['route.ts', route]]) {
     assert.doesNotMatch(src, /\.(insert|update|upsert|delete|rpc)\(/, `${name} must stay read-only`);
     assert.doesNotMatch(src, /SERVICE_ROLE|service_role|SUPABASE_SECRET/i, `${name} must not use a privileged key`);

@@ -47,9 +47,10 @@ export type AuditActionType =
   | 'tracking_week_updated'
   | 'tracking_exported_csv'
   | 'mentoring_entry_created'
-  | 'mentoring_entry_converted_to_task';
+  | 'mentoring_entry_converted_to_task'
+  | 'mentoring_entry_deleted';
 
-interface CreateAuditLogParams {
+export interface CreateAuditLogParams {
   userId: string;
   userName: string;
   userRole: string;

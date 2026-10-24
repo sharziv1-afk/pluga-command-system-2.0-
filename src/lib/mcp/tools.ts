@@ -11,6 +11,7 @@ import {
   capRows,
   isOverdue,
   jerusalemDateKey,
+  trackingLabel,
   openRequestStatuses,
   openTaskStatuses,
   reportFields,
@@ -438,7 +439,7 @@ export function registerReadTools(server: McpServer) {
       let soldierList = soldiers ?? [];
       if (unit) soldierList = soldierList.filter((s) => (s.unit_id ? lk.unitName.get(s.unit_id) : '') === unit);
       const recordKey = new Map((records ?? []).map((r) => [`${r.soldier_id}:${r.tracking_item_id}`, r]));
-      const statusOf = (sid: string, iid: string) => recordKey.get(`${sid}:${iid}`)?.status || 'ריק';
+      const statusOf = (sid: string, iid: string) => trackingLabel(recordKey.get(`${sid}:${iid}`)?.status);
       const perItem = itemList.map((i) => {
         const counts: Record<string, number> = {};
         for (const s of soldierList) {

@@ -15,6 +15,7 @@ import { TABLE_SYNC_CONFIG } from '../src/lib/offline/tableSyncConfig.ts';
 import { isSnapshotExpired, SNAPSHOT_MAX_AGE_MS } from '../src/lib/offline/cachedProfile.ts';
 import { didRowsUpdate } from '../src/lib/supabase/assertUpdated.ts';
 import { activeModulePaths, visibleNavItems } from '../src/data/navigation.ts';
+import { showSquadReportsInLeadingForum } from '../src/data/forum.ts';
 import {
   canMutateDailyDraft,
   canTransitionDraft,
@@ -61,11 +62,15 @@ test('role normalization and existing UI capability rules share one truth table'
   assert.equal(isActiveApprovedProfile('pending', 'approved'), false);
 });
 
-test('only dashboard and forum are available in navigation, in the requested order', () => {
-  assert.deepEqual(activeModulePaths, ['/dashboard', '/forum']);
-  for (const items of [visibleNavItems(false), visibleNavItems(true), visibleNavItems(true, true)]) {
-    assert.deepEqual(items.map(({ path }) => path), ['/dashboard', '/forum']);
-  }
+test('restored navigation puts forum first while preserving privileged module boundaries', () => {
+  assert.equal(showSquadReportsInLeadingForum, false, 'squad restoration is a separate product decision');
+  const common = ['/forum', '/dashboard', '/tasks', '/requests', '/schedule', '/tracking'];
+  assert.deepEqual(visibleNavItems(false).map(({ path }) => path), [...common, '/profile', '/help']);
+  assert.deepEqual(visibleNavItems(true).map(({ path }) => path), [...common, '/admin', '/profile', '/help']);
+  assert.deepEqual(visibleNavItems(true, true).map(({ path }) => path), [
+    ...common, '/mentoring', '/admin', '/profile', '/help',
+  ]);
+  assert.deepEqual(activeModulePaths, visibleNavItems(true, true).map(({ path }) => path));
 });
 
 test('paused protected routes are replaced before their page content is rendered', () => {
@@ -77,14 +82,20 @@ test('paused protected routes are replaced before their page content is rendered
   assert.doesNotMatch(pausedRouteGuard, /<PageTransition>\{children\}<\/PageTransition>/);
 });
 
-test('dashboard summary is non-interactive and quick-create controls are not rendered', () => {
+test('dashboard restores working links and existing creation flows with a forum shortcut', () => {
   const source = readFileSync('src/app/(protected)/dashboard/page.tsx', 'utf8');
   const pageRender = source.slice(source.indexOf('  if (isContextLoading || isLoading)'), source.indexOf('\n}\n\nfunction CommandBriefCard'));
   const dashboardCards = source.slice(source.indexOf('function SummaryMetricCard'), source.indexOf('function AuditLogRow'));
 
-  assert.match(pageRender, /חלק מהנתונים מוצגים כאן כסיכום בלבד/);
-  assert.doesNotMatch(pageRender, /<Link\b|<button\b|<QuickActionButton\b|<QuickCreateModal\b/);
-  assert.doesNotMatch(dashboardCards, /<Link\b/);
+  assert.doesNotMatch(pageRender, /מודולים נוספים אינם זמינים כרגע/);
+  assert.match(pageRender, /href="\/forum"/);
+  for (const type of ['request', 'task', 'event']) {
+    assert.ok(pageRender.includes(`openQuickCreate('${type}')`));
+  }
+  assert.match(pageRender, /<QuickCreateModal\b/);
+  assert.match(dashboardCards, /<Link href=\{card.href\}/);
+  assert.match(source, /const canManageUsers = hasAdminAccess\(currentUser\?\.role\)/);
+  assert.match(pageRender, /actionHref=\{canManageUsers \? '\/admin' : undefined\}/);
 });
 
 test('operational pages do not refetch the current profile', () => {

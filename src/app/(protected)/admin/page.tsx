@@ -13,7 +13,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 import { logSupabaseError } from '@/lib/supabase/error';
 import { useApp } from '@/lib/context/AppContext';
-import { getPermissionLevelForRole } from '@/lib/permissions';
+import { getPermissionLevelForRole, hasAdminAccess } from '@/lib/permissions';
 import {
   Shield,
   UserCheck,
@@ -111,8 +111,15 @@ export default function AdminPage() {
   const [inviteError, setInviteError] = useState<string | null>(null);
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const isAuthorized = Boolean(currentUser && hasAdminAccess(currentUser.role) && currentUser.status === 'approved');
 
   const loadAdminData = async () => {
+    // Direct URLs must not start admin queries for a non-admin profile.
+    // Database RLS remains the authorization boundary.
+    if (!isAuthorized) {
+      setIsLoadingData(false);
+      return;
+    }
     setIsLoadingData(true);
     setRlsError(null);
     setReferenceDataError(null);
@@ -178,14 +185,6 @@ export default function AdminPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, supabase]);
-
-  // Authorization Check
-  const isAuthorized = currentUser && (
-    (currentUser.role as string) === 'מ״פ' || 
-    (currentUser.role as string) === 'מ"פ' || 
-    (currentUser.role as string) === 'סמ״פ' || 
-    (currentUser.role as string) === 'סמ"פ'
-  ) && currentUser.status === 'approved';
 
   if (isContextLoading || isLoadingData) {
     return (

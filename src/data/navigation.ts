@@ -29,8 +29,8 @@ export interface NavItem {
  * everyday screens; reordering this array reorders that row.
  */
 export const navigationItems: NavItem[] = [
-  { name: 'לוח מפקד', path: '/dashboard', icon: LayoutDashboard },
   { name: 'פורום מוביל', path: '/forum', icon: MessageSquare },
+  { name: 'לוח מפקד', path: '/dashboard', icon: LayoutDashboard },
   { name: 'משימות ובקרה', path: '/tasks', icon: CheckSquare },
   { name: 'דרישות', path: '/requests', icon: Truck },
   { name: 'לו״ז', path: '/schedule', icon: CalendarClock },
@@ -42,7 +42,10 @@ export const navigationItems: NavItem[] = [
 ];
 
 /** Modules currently available from navigation and direct URLs. */
-export const activeModulePaths = ['/dashboard', '/forum'] as const;
+export const activeModulePaths = [
+  '/forum', '/dashboard', '/tasks', '/requests', '/schedule', '/tracking',
+  '/mentoring', '/admin', '/profile', '/help',
+] as const;
 
 /** Nav items visible to a user, filtered by admin/commander access. */
 export function visibleNavItems(isAdmin: boolean, isCompanyCommander = false): NavItem[] {

@@ -214,11 +214,8 @@ function getTabEmptyText(tab: TabId): { title: string; description: string } {
 
 type ViewMode = 'requests' | 'gaps';
 
-// Hidden 2026-09-13 at the commander's request — gaps matter less than
-// requests day to day, and the toggle was extra navigation for a feature
-// used less. GapsPanel, its data, and the 'gaps' view mode are all still
-// here untouched; flip this back to show the tab again, nothing to restore.
-const GAPS_TAB_ENABLED = false;
+// Restored alongside the platform modules; keep the existing panel and policies.
+const GAPS_TAB_ENABLED = true;
 
 export default function RequestsPage() {
   const { currentUser, isLoading: isContextLoading, refreshProfile } = useApp();
@@ -961,7 +958,12 @@ export default function RequestsPage() {
           ] as const).map(mode => (
             <button
               key={mode.id}
-              onClick={() => setViewMode(mode.id)}
+              onClick={() => {
+                if (viewMode === mode.id) return;
+                setViewMode(mode.id);
+                // A gap may have just created a request in the sibling panel.
+                if (mode.id === 'requests') void loadRequests();
+              }}
               className={`touch-target flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition duration-150 ${
                 viewMode === mode.id
                   ? 'bg-[var(--action)] text-white shadow-[0_4px_12px_rgba(255,107,2,0.28)]'

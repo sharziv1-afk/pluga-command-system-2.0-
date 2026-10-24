@@ -87,11 +87,10 @@ export async function createAuditLog(
       new_value: params.newValue ?? null,
     });
 
-    if (error) console.warn('[audit] insert failed:', error.message);
-  } catch (error) {
-    // Match the branch above: log a message, not the raw thrown value — a
-    // fetch-layer exception can carry a stack, cause, and request internals
-    // that don't belong in a browser console reachable in production.
-    console.warn('[audit] insert failed:', error instanceof Error ? error.message : String(error));
+    if (error) console.warn('[audit] insert failed');
+  } catch {
+    // Error messages can contain rejected row data or request credentials.
+    // Keep the failure observable without echoing any server-supplied content.
+    console.warn('[audit] insert failed');
   }
 }

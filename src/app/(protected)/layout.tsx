@@ -115,13 +115,13 @@ export default function ProtectedLayout({ children }: Readonly<{ children: React
               <ShieldAlert className="mx-auto mb-3 h-10 w-10 text-[var(--color-warning)]" />
               <h1 className="text-lg font-bold text-[var(--text-primary)]">העמוד אינו זמין כרגע</h1>
               <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
-                כרגע זמינים לוח מפקד ופורום מוביל בלבד.
+                העמוד אינו פעיל. אפשר להמשיך לפורום מוביל או לבחור מודול מהתפריט.
               </p>
               <Link
-                href="/dashboard"
+                href="/forum"
                 className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--action)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--action-hover)]"
               >
-                חזרה ללוח מפקד
+                מעבר לפורום מוביל
               </Link>
             </GlassCard>
           </main>

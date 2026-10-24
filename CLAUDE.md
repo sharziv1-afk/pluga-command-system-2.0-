@@ -58,7 +58,7 @@ Project-specific notes for Claude Code:
 ## Current Product State
 
 - Dashboard: Supabase summaries + Quick Create.
-- **Auth: email OTP only — invite-only, no passwords.** No Dev Login, no Magic Link fallback, no `/reset-password`, no auth callback route. (Earlier revisions of this file claimed all four; none exist in `src/`.)
+- **Auth: invite-only email OTP, plus password sign-in for already-linked Auth users (PR #15, 2026-10-24).** An unlinked password account is signed out. No sign-up, no password change/reset UI, no Dev Login, no Magic Link fallback, no `/reset-password`, no auth callback route.
 - Gaps (פערים): `gaps` table + `GapsPanel`, rendered as the second view mode inside `/requests`. Converts a gap to a logistics request.
 - Mentoring (תיק חניכה): `mentoring_entries` + `/mentoring`, מ״פ only. Holds the commander's private notes on his direct reports — the most sensitive data in the app.
 - Offline: read cache + author-locked write queue on `/tasks` and `/forum`, device PIN / biometric unlock. See `AGENTS.md` → "Write Conflicts & Offline".

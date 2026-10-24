@@ -108,8 +108,10 @@ Auth/public:
 /login  /pending-approval
 ```
 
-Auth is email-only OTP (invite-only, no passwords) — see the "Auth model"
-section of `AI_HANDOFF_CHECKPOINT.md` for the full flow.
+Auth is invite-only email OTP, plus password sign-in for Auth users already
+linked to an active profile (PR #15, 2026-10-24; no sign-up or password
+change/reset UI) — see `AGENTS.md` and the "Auth model" section of
+`AI_HANDOFF_CHECKPOINT.md`.
 
 ## Guardrails
 

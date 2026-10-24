@@ -201,6 +201,20 @@ people deliberately afterwards, the unclaimed invitation rows can be removed.
 **That is a destructive change to live data and is not done casually** — see
 the checklist in `QA_CHECKLIST.md` and get it confirmed explicitly first.
 
+**Update 2026-10-24 (LIVE, read-only):** two profiles are linked for sign-in
+— the מ״פ (level 100) and מ״מ 1 (level 70, מחלקה 1). Every other role-holder
+(סמ״פ, מש״ד, רס״פ/לוגיסטיקה, מ״מ 2-4, חובש, 12 מ״כים) is an unlinked,
+active/approved invitation. When real emails arrive, update the email on the
+**existing** row (matched by role + unit) — `/admin` cannot edit an email and
+its invite always inserts a new row, so do not invite them there; see
+`docs/USER_PROVISIONING.md`.
+
+**Auth email delivery (2026-10-24, LIVE):** Custom SMTP via Gmail
+(`smtp.gmail.com:587`, sender `barnash79@gmail.com`) is enabled and the Send
+Email Hook is **disabled, not deleted** — `send-email` v3 is still deployed, so
+re-enabling the hook is the rollback. The sandbox has neither SMTP nor the
+function. Compare SMTP settings by hand too; SQL does not see them.
+
 ---
 
 ## Verification query

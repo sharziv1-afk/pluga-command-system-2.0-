@@ -3,6 +3,7 @@ import type { McpServer, ServerContext } from '@modelcontextprotocol/server';
 import { assignPlatoonReports } from '@/lib/forum/companyReport';
 import { hasCompanyWideUiAccess, isCompanyCommander } from '@/lib/permissions';
 import { requestStatusLabels, taskStatusLabels, eventStatusLabels } from '@/lib/statusLabels';
+import { formatScore, readRecordScore, readScoreConfig, scoreRangeLabel, scoreRuleLabel, summarizeScores } from '@/lib/trackingScore';
 import { callerFrom, type McpCaller } from './context';
 import {
   addDays,
@@ -413,7 +414,7 @@ export function registerReadTools(server: McpServer) {
     'get_tracking',
     {
       title: 'מעקב',
-      description: 'Soldier tracking matrix (מעקב): tracking items (e.g. ranges, tests) and each soldier\'s status per item (עבר / לא עבר / השלמה / ריק), with per-item totals. Filter by week title, unit name or item.',
+      description: 'Soldier tracking matrix (מעקב): tracking items (e.g. ranges, tests) and each soldier\'s status per item (עבר / לא עבר / השלמה / ריק), with per-item totals. Score items (מעקב עם ציון) also carry each soldier\'s score, the range, the pass rule, the average and the pass rate; their status follows the score. Filter by week title, unit name or item.',
       inputSchema: z.object({
         week: z.string().optional().describe('Part of a tracking-week title, e.g. "מטווחים"'),
         unit: z.string().optional().describe('Unit name, e.g. "מחלקה 2"'),
@@ -426,9 +427,9 @@ export function registerReadTools(server: McpServer) {
       const c = caller(ctx);
       const [{ data: weeks }, { data: items, error: itemsError }, { data: soldiers, error: soldiersError }, { data: records, error: recordsError }, lk] = await Promise.all([
         c.supabase.from('tracking_weeks').select('id,title,start_date,end_date,is_active'),
-        c.supabase.from('tracking_items').select('id,title,category,subject,week_id,is_active,sort_order').eq('is_active', true),
+        c.supabase.from('tracking_items').select('id,title,category,subject,week_id,is_active,sort_order,metadata').eq('is_active', true),
         c.supabase.from('soldiers').select('id,full_name,unit_id,squad_label,role_label,is_active').eq('is_active', true),
-        c.supabase.from('tracking_records').select('soldier_id,tracking_item_id,status,note'),
+        c.supabase.from('tracking_records').select('soldier_id,tracking_item_id,status,note,metadata'),
         lookups(c),
       ]);
       if (itemsError || soldiersError || recordsError) return fail('Could not load tracking data.');
@@ -440,13 +441,34 @@ export function registerReadTools(server: McpServer) {
       if (unit) soldierList = soldierList.filter((s) => (s.unit_id ? lk.unitName.get(s.unit_id) : '') === unit);
       const recordKey = new Map((records ?? []).map((r) => [`${r.soldier_id}:${r.tracking_item_id}`, r]));
       const statusOf = (sid: string, iid: string) => trackingLabel(recordKey.get(`${sid}:${iid}`)?.status);
+      const scoreOf = (sid: string, iid: string) => readRecordScore(recordKey.get(`${sid}:${iid}`)?.metadata);
+      const scoreConfigOf = new Map(itemList.map((i) => [i.id, readScoreConfig(i.metadata)]));
+      const scoredItems = itemList.filter((i) => scoreConfigOf.get(i.id));
       const perItem = itemList.map((i) => {
         const counts: Record<string, number> = {};
         for (const s of soldierList) {
           const st = statusOf(s.id, i.id);
           counts[st] = (counts[st] ?? 0) + 1;
         }
-        return { item: i.title, category: i.category, week: weekById.get(i.week_id)?.title ?? null, counts };
+        const config = scoreConfigOf.get(i.id);
+        const summary = config ? summarizeScores(soldierList.map((s) => scoreOf(s.id, i.id)), config) : null;
+        return {
+          item: i.title,
+          category: i.category,
+          week: weekById.get(i.week_id)?.title ?? null,
+          counts,
+          ...(config && summary
+            ? {
+                score: {
+                  range: scoreRangeLabel(config),
+                  rule: scoreRuleLabel(config),
+                  scored: summary.count,
+                  average: summary.average,
+                  pass_rate_percent: summary.passRate,
+                },
+              }
+            : {}),
+        };
       });
       let cells = soldierList.map((s) => ({
         soldier: s.full_name,
@@ -455,6 +477,16 @@ export function registerReadTools(server: McpServer) {
         role: s.role_label || null,
         statuses: Object.fromEntries(itemList.map((i) => [i.title, statusOf(s.id, i.id)])),
         notes: Object.fromEntries(itemList.map((i) => [i.title, recordKey.get(`${s.id}:${i.id}`)?.note || null]).filter(([, n]) => n)),
+        ...(scoredItems.length > 0
+          ? {
+              scores: Object.fromEntries(
+                scoredItems
+                  .map((i) => [i.title, scoreOf(s.id, i.id)] as const)
+                  .filter(([, score]) => score !== null)
+                  .map(([title, score]) => [title, formatScore(score as number)]),
+              ),
+            }
+          : {}),
       }));
       if (only_not_passed) {
         cells = cells

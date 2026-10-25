@@ -164,7 +164,7 @@ export function registerWriteTools(server: McpServer) {
     'update_task_status',
     {
       title: 'עדכון סטטוס משימה',
-      description: 'Change a task\'s status (open, in_progress, blocked = תקועה, completed, cancelled). Use list_tasks to get the id. Allowed only where the site allows you to update that task.' + CONFIRM_NOTE,
+      description: 'Change a task\'s status (open, in_progress, blocked = תקועה, completed, cancelled). Use list_tasks to get the id. Allowed only where the site allows you to update that task: its creator and commanders can set any status; the person it is assigned to can set any status except cancelled, and cannot reopen a cancelled task.' + CONFIRM_NOTE,
       inputSchema: z.object({ task_id: z.string().uuid(), status: z.enum(TASK_STATUSES) }),
       annotations: WRITE,
     },

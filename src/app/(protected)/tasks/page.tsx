@@ -539,10 +539,21 @@ export default function TasksPage() {
     }
   };
 
+  // The assignee may change status only, and may not cancel or reopen a
+  // cancelled task — the same limits migration 036 enforces in the database.
+  const isAssigneeOnly = (task: TaskView) => (
+    !!dbProfile && !canSeeAll && task.created_by !== dbProfile.id && task.assigned_to === dbProfile.id
+  );
+
   const canUpdateTaskStatus = (task: TaskView) => {
     if (!dbProfile) return false;
-    return canSeeAll || task.created_by === dbProfile.id;
+    if (canSeeAll || task.created_by === dbProfile.id) return true;
+    return task.assigned_to === dbProfile.id && task.status !== 'cancelled';
   };
+
+  const statusChoicesFor = (task: TaskView) => (
+    isAssigneeOnly(task) ? statusOptions.filter(status => status !== 'cancelled') : statusOptions
+  );
 
   const canEditTask = (task: TaskView) => canSeeAll || task.created_by === dbProfile?.id;
 
@@ -1166,7 +1177,7 @@ export default function TasksPage() {
                           aria-label={`עדכון סטטוס למשימה: ${task.title}`}
                           className="touch-target rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
                         >
-                          {statusOptions.map(status => <option key={status} value={status}>{statusLabels[status]}</option>)}
+                          {statusChoicesFor(task).map(status => <option key={status} value={status}>{statusLabels[status]}</option>)}
                         </select>
                         {updatingTaskId === task.id && <Loader2 className="h-4 w-4 animate-spin text-[var(--color-action-on-surface)]" />}
                       </div>

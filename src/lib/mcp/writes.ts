@@ -3,6 +3,15 @@ import type { McpServer, ServerContext } from '@modelcontextprotocol/server';
 import { createAuditLog, type CreateAuditLogParams } from '@/lib/audit';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 import { isCompanyCommander } from '@/lib/permissions';
+import {
+  formatScore,
+  readRecordScore,
+  readScoreConfig,
+  scoreRangeLabel,
+  statusForScore,
+  validateScore,
+  withRecordScore,
+} from '@/lib/trackingScore';
 import { callerFrom, type McpCaller } from './context';
 import {
   MCP_ORIGIN,
@@ -292,11 +301,12 @@ export function registerWriteTools(server: McpServer) {
     'set_tracking_status',
     {
       title: 'עדכון תא במעקב',
-      description: 'Set one soldier\'s status for one tracking item (מעקב): עבר / לא עבר / השלמה / ריק, with an optional note. "ריק" clears the cell. Soldier and item are matched by name.' + CONFIRM_NOTE,
+      description: 'Set one soldier\'s result for one tracking item (מעקב), with an optional note. Regular items take a status: עבר / לא עבר / השלמה / ריק ("ריק" clears the cell). Score items (מעקב עם ציון) take a score instead, within the item\'s range; עבר / לא עבר then follows the item\'s pass rule. Status "ריק" without a score clears a score item too. Soldier and item are matched by name.' + CONFIRM_NOTE,
       inputSchema: z.object({
         soldier: z.string().min(2),
         item: z.string().min(2).describe('Tracking item title, e.g. "מטווח רובה"'),
-        status: z.enum(['עבר', 'לא עבר', 'השלמה', 'ריק']),
+        status: z.enum(['עבר', 'לא עבר', 'השלמה', 'ריק']).optional().describe('Regular items only (and "ריק" to clear a score item)'),
+        score: z.number().optional().describe('Score items only, e.g. 86'),
         note: z.string().max(500).optional(),
       }),
       annotations: WRITE,
@@ -305,13 +315,33 @@ export function registerWriteTools(server: McpServer) {
       const c = caller(ctx);
       const [{ data: soldiers }, { data: items }] = await Promise.all([
         c.supabase.from('soldiers').select('id,full_name').eq('is_active', true),
-        c.supabase.from('tracking_items').select('id,title').eq('is_active', true),
+        c.supabase.from('tracking_items').select('id,title,metadata').eq('is_active', true),
       ]);
       const s = matchByName(soldiers ?? [], args.soldier, (x) => x.full_name);
       if (!s.match) return fail(s.candidates.length ? `Several soldiers match: ${s.candidates.join('; ')}` : `No visible soldier named "${args.soldier}".`);
       const it = matchByName(items ?? [], args.item, (x) => x.title);
       if (!it.match) return fail(it.candidates.length ? `Several items match: ${it.candidates.join('; ')}` : `No active tracking item named "${args.item}".`);
-      const status = trackingCodeFromLabel(args.status);
+      // Score items: the score decides עבר / לא עבר; a hand-picked status would
+      // contradict it. Regular items never carry a score.
+      const scoreConfig = readScoreConfig(it.match.metadata);
+      let status: ReturnType<typeof trackingCodeFromLabel>;
+      let score: number | null = null;
+      if (scoreConfig) {
+        if (args.score === undefined) {
+          if (args.status !== 'ריק') return fail(`"${it.match.title}" is a score item — give a score between ${scoreRangeLabel(scoreConfig)}, or status "ריק" to clear it.`);
+          status = 'empty';
+        } else {
+          if (args.status !== undefined) return fail(`"${it.match.title}" is a score item — give only a score; עבר / לא עבר follows from it.`);
+          const rangeError = validateScore(args.score, scoreConfig);
+          if (rangeError) return fail(`Score out of range for "${it.match.title}": ${scoreRangeLabel(scoreConfig)}.`);
+          score = args.score;
+          status = statusForScore(score, scoreConfig);
+        }
+      } else {
+        if (args.score !== undefined) return fail(`"${it.match.title}" is not a score item — give a status (עבר / לא עבר / השלמה / ריק).`);
+        if (args.status === undefined) return fail('A status is required (עבר / לא עבר / השלמה / ריק).');
+        status = trackingCodeFromLabel(args.status);
+      }
 
       const { data: existing } = await c.supabase
         .from('tracking_records')
@@ -328,7 +358,10 @@ export function registerWriteTools(server: McpServer) {
             status,
             ...(args.note !== undefined ? { note: args.note.trim() || null } : {}),
             updated_by: c.profile.id,
-            metadata: { ...((existing.metadata as Record<string, unknown>) ?? {}), last_updated_via: MCP_ORIGIN },
+            metadata: {
+              ...(scoreConfig ? withRecordScore(existing.metadata, score) : ((existing.metadata as Record<string, unknown>) ?? {})),
+              last_updated_via: MCP_ORIGIN,
+            },
           })
           .eq('id', existing.id)
           .select('id');
@@ -344,7 +377,7 @@ export function registerWriteTools(server: McpServer) {
             note: args.note?.trim() || null,
             created_by: c.profile.id,
             updated_by: c.profile.id,
-            metadata: { created_via: MCP_ORIGIN, mcp_client_id: clientIdOf(ctx) },
+            metadata: { created_via: MCP_ORIGIN, mcp_client_id: clientIdOf(ctx), ...(score !== null ? { score } : {}) },
           })
           .select('id')
           .single();
@@ -355,10 +388,21 @@ export function registerWriteTools(server: McpServer) {
         actionType: 'tracking_record_updated',
         entityType: 'tracking_record',
         entityId: recordId!,
-        previousValue: existing ? { status: existing.status } : null,
-        newValue: { soldier: s.match.full_name, item: it.match.title, status },
+        previousValue: existing
+          ? { status: existing.status, ...(scoreConfig ? { score: readRecordScore(existing.metadata) } : {}) }
+          : null,
+        newValue: { soldier: s.match.full_name, item: it.match.title, status, ...(scoreConfig ? { score } : {}) },
       });
-      return ok({ updated: 'tracking', soldier: s.match.full_name, item: it.match.title, from: existing ? trackingLabel(existing.status) : 'ריק', to: args.status });
+      return ok({
+        updated: 'tracking',
+        soldier: s.match.full_name,
+        item: it.match.title,
+        from: existing ? trackingLabel(existing.status) : 'ריק',
+        to: trackingLabel(status),
+        ...(scoreConfig
+          ? { from_score: existing ? readRecordScore(existing.metadata) : null, score: score === null ? null : formatScore(score) }
+          : {}),
+      });
     },
   );
 

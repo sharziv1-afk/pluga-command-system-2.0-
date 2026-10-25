@@ -909,7 +909,7 @@ export default function RequestsPage() {
   if (isContextLoading || isLoading) {
     return (
       <div className="space-y-6">
-        <PageHeader title="דרישות" subtitle="מוקד פתיחה, תיעדוף וטיפול בדרישות מהשטח" />
+        <PageHeader title="דרישות" subtitle="בקשה שגורם מטפל יספק משאב או טיפול: לוגיסטיקה, רפואה, קשר, רכב או כוח אדם — משהו שצריך לקבל. אם אתה מבצע את זה בעצמך, זו משימה." />
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <SkeletonCard />
           <SkeletonCard />
@@ -923,7 +923,7 @@ export default function RequestsPage() {
   if (!currentUser || !dbProfile) {
     return (
       <div className="space-y-6">
-        <PageHeader title="דרישות" subtitle="מוקד פתיחה, תיעדוף וטיפול בדרישות מהשטח" />
+        <PageHeader title="דרישות" subtitle="בקשה שגורם מטפל יספק משאב או טיפול: לוגיסטיקה, רפואה, קשר, רכב או כוח אדם — משהו שצריך לקבל. אם אתה מבצע את זה בעצמך, זו משימה." />
         <GlassCard className="flex flex-col items-center justify-center py-12 text-center">
           <ShieldAlert className="mb-3 h-10 w-10 text-[var(--color-danger)]" />
           <h2 className="text-sm font-semibold text-[var(--text-primary)]">לא נמצא פרופיל משתמש</h2>
@@ -939,7 +939,7 @@ export default function RequestsPage() {
     <div className="space-y-6">
       <PageHeader
         title="דרישות"
-        subtitle="מוקד פתיחה, תיעדוף וטיפול בדרישות מהשטח"
+        subtitle="בקשה שגורם מטפל יספק משאב או טיפול: לוגיסטיקה, רפואה, קשר, רכב או כוח אדם — משהו שצריך לקבל. אם אתה מבצע את זה בעצמך, זו משימה."
         actions={
           viewMode === 'requests' ? (
             <GlossyButton variant="orange" size="sm" onClick={() => setIsFormOpen(true)}>

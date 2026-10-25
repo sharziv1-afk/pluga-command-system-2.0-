@@ -431,7 +431,14 @@ export default function SchedulePage() {
   const groupedEvents = useMemo(() => {
     const dayGroups = new Map<string, EventView[]>();
 
-    for (const event of visibleEvents) {
+    // Events load newest-first (see the fetch above), so without this the list
+    // read bottom-up: on a phone the nearest event sat at the end of the page.
+    // Display order is chronological — nearest day, and earliest hour, first.
+    const chronological = [...visibleEvents].sort(
+      (a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime(),
+    );
+
+    for (const event of chronological) {
       const dayKey = getJerusalemDateKey(event.starts_at);
       const dayItems = dayGroups.get(dayKey) ?? [];
       dayItems.push(event);

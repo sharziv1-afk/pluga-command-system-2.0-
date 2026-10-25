@@ -193,7 +193,8 @@ function filterByTab(request: DbRequest, tab: TabId, profileId: string | undefin
     case 'mine': return request.requested_by === profileId;
     case 'open': return request.status === 'open';
     case 'urgent': return getRequestPriority(request) === 'דחופה';
-    case 'in_progress': return request.status === 'in_progress';
+    // Approved requests still wait for the handler, so they count as in handling.
+    case 'in_progress': return request.status === 'in_progress' || request.status === 'approved';
     case 'completed': return request.status === 'completed';
     case 'closed': return request.status === 'rejected' || request.status === 'cancelled';
     default: return true;
@@ -444,7 +445,7 @@ export default function RequestsPage() {
     let completed = 0;
     for (const r of visibleRequests) {
       if (r.status === 'open') open += 1;
-      if (r.status === 'in_progress') inProgress += 1;
+      if (r.status === 'in_progress' || r.status === 'approved') inProgress += 1;
       if (r.status === 'completed') completed += 1;
       if (getRequestPriority(r) === 'דחופה') urgent += 1;
     }

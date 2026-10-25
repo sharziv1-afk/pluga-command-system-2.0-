@@ -240,6 +240,11 @@ function isActiveRequest(request: DashboardRequest) {
   return request.status === 'open' || request.status === 'in_progress' || request.status === 'approved';
 }
 
+// "1 משימות באיחור" reads wrong; a count of one gets its own phrase.
+function countPhrase(count: number, one: string, many: string) {
+  return count === 1 ? one : `${count} ${many}`;
+}
+
 function isUrgentRequest(request: DashboardRequest) {
   const priority = request.metadata?.priority;
   return priority === 'גבוהה' || priority === 'דחופה' || priority === 'high' || priority === 'urgent';
@@ -305,7 +310,7 @@ function buildSummaryCards(data: DashboardData, profileId: string | null): Summa
 
   return [
     {
-      title: 'דרישות פתוחות',
+      title: 'דרישות פעילות',
       value: String(openRequests.length),
       subtitle: 'פתוחות, בטיפול או מאושרות',
       compactSubtitle: 'פתוחות / בטיפול',
@@ -373,31 +378,32 @@ function buildCommandBrief(
   const urgentRequests = data.requests.filter(request => isActiveRequest(request) && isUrgentRequest(request)).length;
   const blockedTasks = activeTasks.filter(task => task.status === 'blocked').length;
   const overdueTasks = activeTasks.filter(task => isOverdueTask(task)).length;
-  const activeTodayEvents = todayEvents.filter(event => {
+  // Only events that have not ended yet; the "מופעים היום" card counts all of today's.
+  const remainingTodayEvents = todayEvents.filter(event => {
     const status = getScheduleDisplayStatus(event);
     return status !== 'completed' && status !== 'cancelled';
   }).length;
 
   const items = [
-    urgentRequests > 0 ? `${urgentRequests} דרישות בעדיפות גבוהה` : null,
-    blockedTasks > 0 ? `${blockedTasks} משימות תקועות` : null,
-    overdueTasks > 0 ? `${overdueTasks} משימות באיחור` : null,
-    activeTodayEvents > 0 ? `${activeTodayEvents} מופעים היום` : null,
+    urgentRequests > 0 ? countPhrase(urgentRequests, 'דרישה אחת בעדיפות גבוהה', 'דרישות בעדיפות גבוהה') : null,
+    blockedTasks > 0 ? countPhrase(blockedTasks, 'משימה אחת תקועה', 'משימות תקועות') : null,
+    overdueTasks > 0 ? countPhrase(overdueTasks, 'משימה אחת באיחור', 'משימות באיחור') : null,
+    remainingTodayEvents > 0 ? countPhrase(remainingTodayEvents, 'מופע אחד נותר היום', 'מופעים נותרו היום') : null,
   ].filter(Boolean) as string[];
 
   if (attentionItems.length > 0) {
     return {
       title: `${titlePrefix}: קשב נדרש`,
-      text: `${attentionItems.length} פריטים דורשים טיפול או מעקב לפני שממשיכים לשגרה.`,
+      text: `${countPhrase(attentionItems.length, 'פריט אחד דורש', 'פריטים דורשים')} טיפול או מעקב לפני שממשיכים לשגרה.`,
       tone: 'attention',
       items: items.length > 0 ? items.slice(0, 3) : ['פתח את רשימת הטיפול כדי לתעדף את ההמשך'],
     };
   }
 
-  if (openRequests > 0 || activeTasks.length > 0 || activeTodayEvents > 0) {
+  if (openRequests > 0 || activeTasks.length > 0 || remainingTodayEvents > 0) {
     return {
       title: `${titlePrefix}: תמונת מצב יציבה`,
-      text: `אין כרגע פריטים דחופים. ${openRequests} דרישות פעילות, ${activeTasks.length} משימות פתוחות ו-${activeTodayEvents} מופעים היום.`,
+      text: `אין כרגע פריטים דחופים. ${countPhrase(openRequests, 'דרישה אחת פעילה', 'דרישות פעילות')}, ${countPhrase(activeTasks.length, 'משימה אחת פתוחה', 'משימות פתוחות')} ${remainingTodayEvents === 1 ? 'ו' : 'ו-'}${countPhrase(remainingTodayEvents, 'מופע אחד שנותר היום', 'מופעים שנותרו היום')}.`,
       tone: 'steady',
       items: items.length > 0 ? items.slice(0, 3) : ['אפשר להמשיך מעקב שוטף מהכרטיסים למטה'],
     };

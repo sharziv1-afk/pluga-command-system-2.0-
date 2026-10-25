@@ -215,6 +215,14 @@ Email Hook is **disabled, not deleted** — `send-email` v3 is still deployed, s
 re-enabling the hook is the rollback. The sandbox has neither SMTP nor the
 function. Compare SMTP settings by hand too; SQL does not see them.
 
+**MCP / OAuth (2026-10-24, LIVE):** OAuth 2.1 server enabled (Site URL =
+production, consent path `/oauth/consent`, one public client "Claude",
+dynamic registration off). Migration `035_mcp_oauth_write_limits.sql` is
+applied to BOTH projects (sandbox first, 14/14 rollback test). It adds 40
+restrictive `oauth: …` policies, the `guard_mcp_origin_marker` trigger on
+tasks/requests/events/mentoring_entries, and `mentoring_entries.created_via`.
+Policy counts in the parity table above predate it.
+
 ---
 
 ## Verification query

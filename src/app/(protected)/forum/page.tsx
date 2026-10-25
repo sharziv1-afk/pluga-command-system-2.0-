@@ -608,6 +608,8 @@ export default function ForumPage() {
           if (report.report_level === 'platoon') return !matchedPlatoonSummaryOwnerIds.has(report.owner_user_id);
           if (report.report_level === 'squad') return !matchedSquadOwnerIds.has(report.owner_user_id);
           if (report.report_level === 'staff') return !matchedStaffOwnerIds.has(report.owner_user_id);
+          // The "סיכום פלוגתי" slot resolves to the viewer's own company report.
+          if (report.report_level === 'company') return report.owner_user_id !== dbProfile?.id;
           return true;
         })
         .map(report => ({
@@ -3381,10 +3383,11 @@ export default function ForumPage() {
               type="button"
               onClick={toggleTreeCollapsed}
               aria-label={isTreeCollapsed ? 'הצג את רשימת בעלי התפקידים' : 'קפל את רשימת בעלי התפקידים'}
-              className="fixed bottom-24 left-4 z-40 flex items-center gap-2 rounded-2xl border border-[var(--brand)]/25 bg-[var(--surface)] px-4 py-3 text-sm font-semibold text-[var(--color-action-on-surface)] shadow-[0_14px_32px_rgba(2,1,8,0.16)] transition hover:bg-[var(--action)]/10 md:bottom-6 md:left-6"
+              className="fixed bottom-24 left-4 z-40 flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-2xl border border-[var(--brand)]/25 bg-[var(--surface)] px-3 py-3 sm:px-4 text-sm font-semibold text-[var(--color-action-on-surface)] shadow-[0_14px_32px_rgba(2,1,8,0.16)] transition hover:bg-[var(--action)]/10 md:bottom-6 md:left-6"
             >
               {isTreeCollapsed ? <PanelRightOpen className="h-4 w-4" /> : <PanelRightClose className="h-4 w-4" />}
-              {isTreeCollapsed ? 'בעלי תפקידים' : 'כווץ תפריט'}
+              {/* Icon-only on phones, where the label covered report text. */}
+              <span className="hidden sm:inline">{isTreeCollapsed ? 'בעלי תפקידים' : 'כווץ תפריט'}</span>
             </button>,
             document.body,
           )}

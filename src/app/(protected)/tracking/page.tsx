@@ -28,6 +28,22 @@ import { useApp } from '@/lib/context/AppContext';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
+import {
+  formatScore,
+  parseScoreInput,
+  readRecordScore,
+  readScoreConfig,
+  scoreRangeLabel,
+  scoreRuleLabel,
+  statusForScore,
+  summarizeScores,
+  validateScore,
+  validateScoreConfig,
+  withRecordScore,
+  withScoreConfig,
+  withoutScoreConfig,
+  type ScoreConfig,
+} from '@/lib/trackingScore';
 import type { DbSoldier, DbTrackingItem, DbTrackingRecord, DbTrackingWeek, TrackingStatus } from '@/lib/types';
 
 type DbUnit = {
@@ -54,6 +70,12 @@ type ItemFormState = {
   weekId: string;
   description: string;
   sortOrder: string;
+  scoreMode: boolean;
+  scoreMin: string;
+  scoreMax: string;
+  passScore: string;
+  lowerIsBetter: boolean;
+  passInclusive: boolean;
 };
 
 type WeekFormState = {
@@ -107,6 +129,12 @@ const initialItemForm: ItemFormState = {
   weekId: '',
   description: '',
   sortOrder: '0',
+  scoreMode: false,
+  scoreMin: '0',
+  scoreMax: '100',
+  passScore: '80',
+  lowerIsBetter: false,
+  passInclusive: true,
 };
 
 const initialWeekForm: WeekFormState = {
@@ -190,6 +218,20 @@ function getUnitSortRank(unit: DbUnit) {
   return ranks[unit.code ?? ''] ?? 20;
 }
 
+// The score part of the item form: null config for a regular item.
+function readItemFormScoreConfig(form: ItemFormState): { config: ScoreConfig | null; error: string | null } {
+  if (!form.scoreMode) return { config: null, error: null };
+  const min = parseScoreInput(form.scoreMin);
+  const max = parseScoreInput(form.scoreMax);
+  const pass = parseScoreInput(form.passScore);
+  if (typeof min !== 'number' || typeof max !== 'number' || typeof pass !== 'number') {
+    return { config: null, error: 'יש להזין מינימום, מקסימום ורף מעבר כמספרים.' };
+  }
+  const config = { min, max, pass, lowerIsBetter: form.lowerIsBetter, passInclusive: form.passInclusive };
+  const error = validateScoreConfig(config);
+  return error ? { config: null, error } : { config, error: null };
+}
+
 function getUnitLabel(unit: DbUnit) {
   return unit.code ? `${unit.name} (${unit.code})` : unit.name;
 }
@@ -238,6 +280,13 @@ export default function TrackingPage() {
   const [noteDraft, setNoteDraft] = useState('');
   const [statusDraft, setStatusDraft] = useState<TrackingStatus>('empty');
   const [isSavingNote, setIsSavingNote] = useState(false);
+  // Score items: a score is entered here, never by cycling statuses. Unlike the
+  // note dialog this may create the record — entering a score is the score
+  // item's equivalent of the first status click.
+  const [scoreDialogTarget, setScoreDialogTarget] = useState<{ soldier: DbSoldier; item: DbTrackingItem; record: DbTrackingRecord | null } | null>(null);
+  const [scoreDraft, setScoreDraft] = useState('');
+  const [scoreError, setScoreError] = useState<string | null>(null);
+  const [isSavingScore, setIsSavingScore] = useState(false);
   const [editingSoldier, setEditingSoldier] = useState<DbSoldier | null>(null);
   const [editingItem, setEditingItem] = useState<DbTrackingItem | null>(null);
   // null = dialog closed; { week: null } = creating; { week } = editing.
@@ -397,6 +446,22 @@ export default function TrackingPage() {
     );
   }, [items, records, soldiers]);
 
+  const scoreConfigByItem = useMemo(
+    () => new Map(items.map(item => [item.id, readScoreConfig(item.metadata)] as const)),
+    [items],
+  );
+
+  const scoreSummaryByItem = useMemo(() => {
+    const summaries = new Map<string, ReturnType<typeof summarizeScores>>();
+    for (const item of visibleItems) {
+      const config = scoreConfigByItem.get(item.id);
+      if (!config) continue;
+      const scores = visibleSoldiers.map(soldier => readRecordScore(recordByCell.get(`${soldier.id}:${item.id}`)?.metadata));
+      summaries.set(item.id, summarizeScores(scores, config));
+    }
+    return summaries;
+  }, [visibleItems, visibleSoldiers, recordByCell, scoreConfigByItem]);
+
   const statusCounts = useMemo(() => {
     const counts = { ...initialStatusCounts };
     const totalCells = soldiers.length * items.length;
@@ -481,6 +546,7 @@ export default function TrackingPage() {
     setErrorMessage(null);
     setSuccessMessage(null);
     setEditingItem(item);
+    const scoreConfig = readScoreConfig(item.metadata);
     setItemForm({
       title: item.title,
       category: item.category,
@@ -488,6 +554,12 @@ export default function TrackingPage() {
       weekId: item.week_id ?? '',
       description: item.description ?? '',
       sortOrder: String(item.sort_order),
+      scoreMode: !!scoreConfig,
+      scoreMin: scoreConfig ? String(scoreConfig.min) : initialItemForm.scoreMin,
+      scoreMax: scoreConfig ? String(scoreConfig.max) : initialItemForm.scoreMax,
+      passScore: scoreConfig ? String(scoreConfig.pass) : initialItemForm.passScore,
+      lowerIsBetter: scoreConfig?.lowerIsBetter ?? false,
+      passInclusive: scoreConfig?.passInclusive ?? true,
     });
     setIsSoldierFormOpen(false);
     setIsItemFormOpen(true);
@@ -671,6 +743,26 @@ export default function TrackingPage() {
       return;
     }
 
+    const { config: scoreConfig, error: scoreConfigError } = readItemFormScoreConfig(itemForm);
+    if (scoreConfigError) {
+      setErrorMessage(scoreConfigError);
+      return;
+    }
+
+    const previousScoreConfig = editingItem ? readScoreConfig(editingItem.metadata) : null;
+    // Results already entered were recorded as עבר/לא עבר or as scores; turning
+    // one kind into the other would leave them meaningless.
+    if (editingItem && !!previousScoreConfig !== !!scoreConfig) {
+      const hasResults = records.some(record => (
+        record.tracking_item_id === editingItem.id
+        && (record.status !== 'empty' || readRecordScore(record.metadata) !== null)
+      ));
+      if (hasResults) {
+        setErrorMessage('כבר הוזנו תוצאות במופע הזה, ולכן אי אפשר להחליף בין מעקב רגיל למעקב עם ציון. אפשר ליצור מופע חדש.');
+        return;
+      }
+    }
+
     const parsedSortOrder = Number.parseInt(itemForm.sortOrder, 10);
     setIsItemSubmitting(true);
 
@@ -681,6 +773,9 @@ export default function TrackingPage() {
       week_id: itemForm.weekId || null,
       description: itemForm.description.trim() || null,
       sort_order: Number.isFinite(parsedSortOrder) ? parsedSortOrder : 0,
+      metadata: scoreConfig
+        ? withScoreConfig(editingItem?.metadata, scoreConfig)
+        : withoutScoreConfig(editingItem?.metadata),
       updated_by: currentUserId,
     };
 
@@ -716,18 +811,46 @@ export default function TrackingPage() {
             category: editingItem.category,
             week_id: editingItem.week_id,
             sort_order: editingItem.sort_order,
+            score: previousScoreConfig,
           },
           newValue: {
             title: fields.title,
             category: fields.category,
             week_id: fields.week_id,
             sort_order: fields.sort_order,
+            score: scoreConfig,
           },
         });
       }
 
+      // A changed threshold or direction can flip who passes; re-derive the
+      // stored status of every scored cell so summaries and filters follow.
+      let restatusFailures = 0;
+      if (scoreConfig) {
+        const config = scoreConfig;
+        const stale = records.filter(record => (
+          record.tracking_item_id === editingItem.id
+          && record.status !== statusForScore(readRecordScore(record.metadata), config)
+        ));
+        for (const record of stale) {
+          const { data: restatused, error: restatusError } = await supabase
+            .from('tracking_records')
+            .update({ status: statusForScore(readRecordScore(record.metadata), config), updated_by: currentUserId })
+            .eq('id', record.id)
+            .select('id');
+          if (restatusError || !didRowsUpdate(restatused)) {
+            if (restatusError) logSupabaseError('[tracking] score restatus failed', restatusError);
+            restatusFailures += 1;
+          }
+        }
+      }
+
       closeItemForm();
-      setSuccessMessage('מופע המעקב עודכן.');
+      if (restatusFailures > 0) {
+        setErrorMessage(`מופע המעקב עודכן, אבל ${restatusFailures} תאים לא עודכנו לפי הרף החדש. רענן ונסה לשמור שוב.`);
+      } else {
+        setSuccessMessage('מופע המעקב עודכן.');
+      }
       await loadTrackingData();
       return;
     }
@@ -759,6 +882,7 @@ export default function TrackingPage() {
           title: createdItem.title,
           category: createdItem.category,
           sort_order: createdItem.sort_order,
+          score: scoreConfig,
         },
       });
     }
@@ -1021,6 +1145,8 @@ export default function TrackingPage() {
   ) => {
     const cellKey = `${soldier.id}:${item.id}`;
     if (updatingCells.has(cellKey)) return;
+    // A score item's status follows its score; it is never cycled by hand.
+    if (readScoreConfig(item.metadata)) return;
 
     const previousStatus = record?.status ?? 'empty';
     const nextStatus = getNextStatus(previousStatus);
@@ -1150,6 +1276,120 @@ export default function TrackingPage() {
     setSuccessMessage(`סטטוס התא עודכן: ${statusLabels[nextStatus]}.`);
   };
 
+  const openScoreDialog = (soldier: DbSoldier, item: DbTrackingItem, record: DbTrackingRecord | null) => {
+    const score = readRecordScore(record?.metadata);
+    setScoreDialogTarget({ soldier, item, record });
+    setScoreDraft(score === null ? '' : formatScore(score));
+    setScoreError(null);
+  };
+
+  const closeScoreDialog = () => {
+    if (isSavingScore) return;
+    setScoreDialogTarget(null);
+    setScoreDraft('');
+    setScoreError(null);
+  };
+
+  const handleSaveCellScore = async () => {
+    if (!scoreDialogTarget || isSavingScore) return;
+    const { soldier, item, record } = scoreDialogTarget;
+    const config = readScoreConfig(item.metadata);
+    if (!config) return;
+
+    const parsed = parseScoreInput(scoreDraft);
+    if (parsed === 'invalid') {
+      setScoreError('יש להזין ציון מספרי.');
+      return;
+    }
+    if (parsed !== null) {
+      const rangeError = validateScore(parsed, config);
+      if (rangeError) {
+        setScoreError(rangeError);
+        return;
+      }
+    }
+
+    const previousScore = readRecordScore(record?.metadata);
+    if (parsed === previousScore || (!record && parsed === null)) {
+      closeScoreDialog();
+      return;
+    }
+
+    const nextStatus = statusForScore(parsed, config);
+    const nextMetadata = withRecordScore(record?.metadata, parsed);
+    setIsSavingScore(true);
+    setScoreError(null);
+
+    let savedRecord: DbTrackingRecord | null = null;
+    let saveError: unknown = null;
+    try {
+      if (record) {
+        const { data, error } = await supabase
+          .from('tracking_records')
+          .update({ status: nextStatus, metadata: nextMetadata, updated_by: currentUserId })
+          .eq('id', record.id)
+          .select('id,soldier_id,tracking_item_id,status,note,metadata,created_by,updated_by,created_at,updated_at')
+          .single<DbTrackingRecord>();
+        savedRecord = data ?? null;
+        saveError = error;
+      } else {
+        const { data, error } = await supabase
+          .from('tracking_records')
+          .insert({
+            soldier_id: soldier.id,
+            tracking_item_id: item.id,
+            status: nextStatus,
+            note: null,
+            metadata: nextMetadata,
+            created_by: currentUserId,
+            updated_by: currentUserId,
+          })
+          .select('id,soldier_id,tracking_item_id,status,note,metadata,created_by,updated_by,created_at,updated_at')
+          .single<DbTrackingRecord>();
+        savedRecord = data ?? null;
+        saveError = error;
+      }
+    } finally {
+      setIsSavingScore(false);
+    }
+
+    if (saveError || !savedRecord) {
+      if (saveError) logSupabaseError('[tracking] tracking score save failed', saveError);
+      setScoreError(getRlsAwareErrorMessage(
+        saveError,
+        'לא הצלחנו לשמור את הציון. נסה שוב.',
+        'אין לך הרשאה לעדכן את התא הזה.',
+      ));
+      return;
+    }
+
+    const saved = savedRecord;
+    setRecords(current => (
+      record
+        ? current.map(itemRecord => (itemRecord.id === record.id ? saved : itemRecord))
+        : [saved, ...current]
+    ));
+
+    if (currentUserId && currentUser) {
+      void createAuditLog(supabase, {
+        userId: currentUserId,
+        userName: currentUser.full_name,
+        userRole: currentUser.role,
+        actionType: 'tracking_record_updated',
+        entityType: 'tracking_record',
+        entityId: saved.id,
+        previousValue: { soldier_id: soldier.id, tracking_item_id: item.id, status: record?.status ?? 'empty', score: previousScore },
+        newValue: { soldier_id: soldier.id, tracking_item_id: item.id, status: nextStatus, score: parsed },
+      });
+    }
+
+    setScoreDialogTarget(null);
+    setScoreDraft('');
+    setSuccessMessage(parsed === null
+      ? 'הציון נמחק.'
+      : `הציון נשמר: ${formatScore(parsed)} — ${nextStatus === 'passed' ? 'עובר' : 'לא עובר'}.`);
+  };
+
   const openNoteDialog = (soldier: DbSoldier, item: DbTrackingItem, record: DbTrackingRecord) => {
     setNoteDialogTarget({ soldier, item, record });
     setNoteDraft(record.note ?? '');
@@ -1275,6 +1515,16 @@ export default function TrackingPage() {
     </div>
   );
 
+  const scoreDialogConfig = scoreDialogTarget ? readScoreConfig(scoreDialogTarget.item.metadata) : null;
+  const scorePreview = parseScoreInput(scoreDraft);
+  const scorePreviewStatus = scoreDialogConfig && typeof scorePreview === 'number' && !validateScore(scorePreview, scoreDialogConfig)
+    ? statusForScore(scorePreview, scoreDialogConfig)
+    : null;
+  const itemFormPass = parseScoreInput(itemForm.passScore);
+  const itemFormRulePreview = typeof itemFormPass === 'number'
+    ? scoreRuleLabel({ min: 0, max: 0, pass: itemFormPass, lowerIsBetter: itemForm.lowerIsBetter, passInclusive: itemForm.passInclusive })
+    : null;
+
   return (
     <div className="space-y-5" dir="rtl">
       <PageHeader
@@ -1328,6 +1578,71 @@ export default function TrackingPage() {
       )}
 
       <CommandOverlay
+        open={!!scoreDialogTarget}
+        onClose={closeScoreDialog}
+        title={scoreDialogTarget ? `ציון — ${scoreDialogTarget.soldier.full_name} · ${scoreDialogTarget.item.title}` : 'ציון'}
+        dismissible={!isSavingScore}
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={closeScoreDialog}
+              disabled={isSavingScore}
+              className="min-h-11 rounded-2xl border border-[var(--border-strong)] px-4 text-sm font-semibold text-[var(--text-primary)] transition hover:border-[var(--action)]/30 disabled:opacity-50"
+            >
+              ביטול
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleSaveCellScore()}
+              disabled={isSavingScore}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[var(--action)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--action-hover)] disabled:opacity-60"
+            >
+              {isSavingScore && <Loader2 className="h-4 w-4 animate-spin" />}
+              שמירה
+            </button>
+          </div>
+        }
+      >
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleSaveCellScore();
+          }}
+          className="space-y-3"
+        >
+          {scoreDialogConfig && (
+            <p className="text-xs font-semibold text-[var(--text-muted-accessible)]">
+              טווח {scoreRangeLabel(scoreDialogConfig)} · {scoreRuleLabel(scoreDialogConfig)}
+            </p>
+          )}
+          <input
+            value={scoreDraft}
+            onChange={(event) => {
+              setScoreDraft(event.target.value);
+              setScoreError(null);
+            }}
+            inputMode="decimal"
+            dir="ltr"
+            autoFocus
+            placeholder="—"
+            aria-label="ציון"
+            disabled={isSavingScore}
+            className={`command-input w-full text-center font-mono text-3xl font-semibold ${scorePreviewStatus ? statusStyles[scorePreviewStatus] : 'text-[var(--text-primary)]'}`}
+          />
+          {scorePreviewStatus && scorePreviewStatus !== 'empty' && (
+            <p className={`rounded-full border px-3 py-1 text-center text-xs font-semibold ${statusStyles[scorePreviewStatus]}`}>
+              {scorePreviewStatus === 'passed' ? 'עובר' : 'לא עובר'}
+            </p>
+          )}
+          <p className="text-caption font-bold text-[var(--text-muted-accessible)]">שמירה עם שדה ריק מוחקת את הציון.</p>
+          {scoreError && (
+            <p role="alert" className="text-xs font-bold text-[var(--color-danger)]">{scoreError}</p>
+          )}
+        </form>
+      </CommandOverlay>
+
+      <CommandOverlay
         open={!!noteDialogTarget}
         onClose={closeNoteDialog}
         title={noteDialogTarget ? `עריכת תא — ${noteDialogTarget.soldier.full_name} · ${noteDialogTarget.item.title}` : 'עריכת תא'}
@@ -1355,6 +1670,14 @@ export default function TrackingPage() {
         }
       >
         <div className="space-y-3">
+          {noteDialogTarget && readScoreConfig(noteDialogTarget.item.metadata) ? (
+            // Score items: the status follows the score, so it is shown, not picked.
+            <p className={`rounded-2xl border px-3 py-2 text-center text-xs font-semibold ${statusStyles[noteDialogTarget.record.status]}`}>
+              ציון: {readRecordScore(noteDialogTarget.record.metadata) === null ? '—' : formatScore(readRecordScore(noteDialogTarget.record.metadata) as number)}
+              {' · '}
+              {statusLabels[noteDialogTarget.record.status]}
+            </p>
+          ) : (
           <div role="radiogroup" aria-label="סטטוס" className="grid grid-cols-4 gap-2">
             {statusCycle.map(status => (
               <button
@@ -1370,6 +1693,7 @@ export default function TrackingPage() {
               </button>
             ))}
           </div>
+          )}
           <textarea
             value={noteDraft}
             onChange={(event) => setNoteDraft(event.target.value)}
@@ -1669,6 +1993,81 @@ export default function TrackingPage() {
               />
             </label>
 
+            <div className="space-y-3 lg:col-span-2">
+              <div role="radiogroup" aria-label="סוג מעקב" className="grid grid-cols-2 gap-1 rounded-2xl border border-[var(--border-strong)] bg-[var(--surface-muted)] p-1">
+                {[
+                  { scoreMode: false, label: 'רגיל — עבר / לא עבר' },
+                  { scoreMode: true, label: 'מעקב עם ציון' },
+                ].map(option => (
+                  <button
+                    key={option.label}
+                    type="button"
+                    role="radio"
+                    aria-checked={itemForm.scoreMode === option.scoreMode}
+                    onClick={() => setItemForm(value => ({ ...value, scoreMode: option.scoreMode }))}
+                    disabled={isItemSubmitting}
+                    className={`min-h-11 rounded-xl px-3 text-sm font-semibold transition disabled:opacity-60 ${
+                      itemForm.scoreMode === option.scoreMode
+                        ? 'bg-[var(--action)] text-white shadow-sm'
+                        : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+
+              {itemForm.scoreMode && (
+                <div className="rounded-3xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4">
+                  <div className="grid grid-cols-3 gap-3">
+                    {([
+                      ['scoreMin', 'מינימום'],
+                      ['scoreMax', 'מקסימום'],
+                      ['passScore', 'רף מעבר'],
+                    ] as const).map(([key, label]) => (
+                      <label key={key} className="block">
+                        <span className="mb-1 block text-xs font-semibold text-[var(--text-muted-accessible)]">{label}</span>
+                        <input
+                          value={itemForm[key]}
+                          onChange={event => setItemForm(value => ({ ...value, [key]: event.target.value }))}
+                          inputMode="decimal"
+                          dir="ltr"
+                          placeholder="0"
+                          className="command-input w-full text-center font-mono text-lg font-semibold text-[var(--text-primary)]"
+                          disabled={isItemSubmitting}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  <div className="mt-4 grid gap-2 border-t border-[var(--border-subtle)] pt-4 sm:grid-cols-2">
+                    <label className="flex min-h-11 items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
+                      <input
+                        type="checkbox"
+                        checked={itemForm.lowerIsBetter}
+                        onChange={event => setItemForm(value => ({ ...value, lowerIsBetter: event.target.checked }))}
+                        className="h-5 w-5 accent-[var(--action)]"
+                        disabled={isItemSubmitting}
+                      />
+                      ציון נמוך עדיף (למשל זמן ריצה)
+                    </label>
+                    <label className="flex min-h-11 items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
+                      <input
+                        type="checkbox"
+                        checked={itemForm.passInclusive}
+                        onChange={event => setItemForm(value => ({ ...value, passInclusive: event.target.checked }))}
+                        className="h-5 w-5 accent-[var(--action)]"
+                        disabled={isItemSubmitting}
+                      />
+                      ציון ששווה לרף עובר
+                    </label>
+                  </div>
+                  {itemFormRulePreview && (
+                    <p className="mt-3 text-xs font-bold text-[var(--color-action-on-surface)]">{itemFormRulePreview}</p>
+                  )}
+                </div>
+              )}
+            </div>
+
             <label className="block space-y-2 lg:col-span-2">
               <span className="block text-xs font-semibold text-[var(--text-secondary)]">תיאור</span>
               <textarea
@@ -1951,23 +2350,29 @@ export default function TrackingPage() {
                     const status = record?.status ?? 'empty';
                     const cellKey = `${soldier.id}:${item.id}`;
                     const isCellUpdating = updatingCells.has(cellKey);
+                    const scoreConfig = scoreConfigByItem.get(item.id) ?? null;
+                    const score = scoreConfig ? readRecordScore(record?.metadata) : null;
+                    const cellStatus = scoreConfig ? statusForScore(score, scoreConfig) : status;
 
                     return (
                       <div key={item.id} className="flex items-center justify-between gap-3 py-2.5">
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-xs font-semibold text-[var(--text-primary)]">{item.title}</div>
-                          <div className="text-caption font-bold text-[var(--command-subtle)]">{item.category}</div>
+                          <div className="text-caption font-bold text-[var(--command-subtle)]">
+                            {item.category}
+                            {scoreConfig && ` · ${scoreRuleLabel(scoreConfig)}`}
+                          </div>
                         </div>
                         <div className="flex shrink-0 items-center gap-1.5">
                           <button
                             type="button"
-                            title="לחיצה מחליפה סטטוס"
-                            onClick={() => void handleCycleCellStatus(soldier, item, record)}
+                            title={scoreConfig ? `הזנת ציון · ${scoreRuleLabel(scoreConfig)}` : 'לחיצה מחליפה סטטוס'}
+                            onClick={() => (scoreConfig ? openScoreDialog(soldier, item, record ?? null) : void handleCycleCellStatus(soldier, item, record))}
                             disabled={isCellUpdating}
-                            className={`inline-flex min-h-11 min-w-20 items-center justify-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition hover:shadow-sm disabled:cursor-wait disabled:opacity-70 ${statusStyles[status]}`}
+                            className={`inline-flex min-h-11 min-w-20 items-center justify-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition hover:shadow-sm disabled:cursor-wait disabled:opacity-70 ${statusStyles[cellStatus]}${scoreConfig ? ' font-mono text-sm' : ''}`}
                           >
                             {isCellUpdating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                            {statusLabels[status]}
+                            {scoreConfig ? (score === null ? '—' : formatScore(score)) : statusLabels[status]}
                           </button>
                           <button
                             type="button"
@@ -2020,6 +2425,18 @@ export default function TrackingPage() {
                         <div className="min-w-0">
                           <div className="font-semibold text-[var(--text-primary)]">{item.title}</div>
                           <div className="mt-1 text-caption font-bold text-[var(--command-subtle)]">{item.category}</div>
+                          {scoreConfigByItem.get(item.id) && (() => {
+                            const config = scoreConfigByItem.get(item.id) as ScoreConfig;
+                            const summary = scoreSummaryByItem.get(item.id);
+                            return (
+                              <div className="mt-1 space-y-0.5 text-caption font-bold text-[var(--text-muted-accessible)]">
+                                <div>ציון {scoreRangeLabel(config)} · {scoreRuleLabel(config)}</div>
+                                {summary && summary.count > 0 && summary.average !== null && (
+                                  <div className="text-[var(--color-action-on-surface)]">ממוצע {formatScore(summary.average)} · {summary.passRate}% עברו</div>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
                         <div className="flex shrink-0 items-center gap-1">
                         <button
@@ -2105,6 +2522,9 @@ export default function TrackingPage() {
                       const status = record?.status ?? 'empty';
                       const cellKey = `${soldier.id}:${item.id}`;
                       const isCellUpdating = updatingCells.has(cellKey);
+                      const scoreConfig = scoreConfigByItem.get(item.id) ?? null;
+                      const score = scoreConfig ? readRecordScore(record?.metadata) : null;
+                      const cellStatus = scoreConfig ? statusForScore(score, scoreConfig) : status;
 
                       // The notes column, when shown, is the true last column now —
                       // only round this cell's corner when there is no notes
@@ -2119,13 +2539,13 @@ export default function TrackingPage() {
                           <div className="flex items-center gap-1.5">
                             <button
                               type="button"
-                              title="לחיצה מחליפה סטטוס"
-                              onClick={() => void handleCycleCellStatus(soldier, item, record)}
+                              title={scoreConfig ? `הזנת ציון · ${scoreRuleLabel(scoreConfig)}` : 'לחיצה מחליפה סטטוס'}
+                              onClick={() => (scoreConfig ? openScoreDialog(soldier, item, record ?? null) : void handleCycleCellStatus(soldier, item, record))}
                               disabled={isCellUpdating}
-                              className={`inline-flex min-h-11 min-w-20 items-center justify-center gap-1.5 rounded-full border px-3 py-1 transition hover:shadow-sm disabled:cursor-wait disabled:opacity-70 ${statusStyles[status]}`}
+                              className={`inline-flex min-h-11 min-w-20 items-center justify-center gap-1.5 rounded-full border px-3 py-1 transition hover:shadow-sm disabled:cursor-wait disabled:opacity-70 ${statusStyles[cellStatus]}${scoreConfig ? ' font-mono text-sm' : ''}`}
                             >
                               {isCellUpdating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                              {statusLabels[status]}
+                              {scoreConfig ? (score === null ? '—' : formatScore(score)) : statusLabels[status]}
                             </button>
                             <button
                               type="button"

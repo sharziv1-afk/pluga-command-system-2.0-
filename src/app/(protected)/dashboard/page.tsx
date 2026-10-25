@@ -29,7 +29,7 @@ import { createAuditLog } from '@/lib/audit';
 import { useApp } from '@/lib/context/AppContext';
 import { cacheGet, cacheSet } from '@/lib/offline/db';
 import { ambiguousMutationMessage, runQuickCreateMutation } from '@/lib/inFlightLock';
-import { hasAdminAccess } from '@/lib/permissions';
+import { getCommandBriefTitle, hasAdminAccess } from '@/lib/permissions';
 import { getScheduleDisplayStatus } from '@/lib/schedule';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
@@ -216,6 +216,30 @@ const auditActionLabels: Record<string, string> = {
   forum_daily_report_deleted: 'דוח פורום נמחק',
   forum_post_created: 'פוסט חדש פורסם בפורום',
   forum_post_updated: 'פוסט פורום עודכן',
+  forum_daily_summary_created: 'סיכום פורום נוצר',
+  forum_daily_summary_updated: 'סיכום פורום עודכן',
+  forum_daily_summary_closed: 'סיכום פורום נסגר',
+  forum_company_report_generated: 'דוח פלוגתי נבנה',
+  forum_company_report_saved: 'דוח פלוגתי נשמר',
+  forum_daily_forum_published: 'הפורום היומי הופץ',
+  gap_created: 'פער חדש נפתח',
+  gap_status_changed: 'סטטוס פער עודכן',
+  gap_converted_to_request: 'פער הומר לדרישה',
+  user_invited: 'משתמש הוזמן',
+  user_updated: 'פרטי משתמש עודכנו',
+  user_blocked: 'משתמש נחסם',
+  user_unblocked: 'חסימת משתמש בוטלה',
+  tracking_soldier_created: 'חייל נוסף למעקב',
+  tracking_soldier_updated: 'פרטי חייל במעקב עודכנו',
+  tracking_item_created: 'מופע מעקב נוסף',
+  tracking_item_updated: 'מופע מעקב עודכן',
+  tracking_record_updated: 'תא במעקב עודכן',
+  tracking_week_created: 'שבוע מעקב נוסף',
+  tracking_week_updated: 'שבוע מעקב עודכן',
+  tracking_exported_csv: 'המעקב יוצא',
+  mentoring_entry_created: 'רשומת חניכה נוספה',
+  mentoring_entry_converted_to_task: 'רשומת חניכה הומרה למשימה',
+  mentoring_entry_deleted: 'רשומת חניכה נמחקה',
 };
 
 function formatAuditAction(actionType: string) {
@@ -238,6 +262,11 @@ const toneClasses: Record<SummaryCard['tone'], string> = {
 
 function isActiveRequest(request: DashboardRequest) {
   return request.status === 'open' || request.status === 'in_progress' || request.status === 'approved';
+}
+
+// "1 משימות באיחור" reads wrong; a count of one gets its own phrase.
+function countPhrase(count: number, one: string, many: string) {
+  return count === 1 ? one : `${count} ${many}`;
 }
 
 function isUrgentRequest(request: DashboardRequest) {
@@ -305,7 +334,7 @@ function buildSummaryCards(data: DashboardData, profileId: string | null): Summa
 
   return [
     {
-      title: 'דרישות פתוחות',
+      title: 'דרישות פעילות',
       value: String(openRequests.length),
       subtitle: 'פתוחות, בטיפול או מאושרות',
       compactSubtitle: 'פתוחות / בטיפול',
@@ -365,44 +394,47 @@ function buildCommandBrief(
   data: DashboardData,
   attentionItems: DashboardItem[],
   todayEvents: DbEvent[],
+  role: string | null | undefined,
 ): CommandBrief {
+  const titlePrefix = getCommandBriefTitle(role);
   const openRequests = data.requests.filter(isActiveRequest).length;
   const activeTasks = data.tasks.filter(isActiveTask);
   const urgentRequests = data.requests.filter(request => isActiveRequest(request) && isUrgentRequest(request)).length;
   const blockedTasks = activeTasks.filter(task => task.status === 'blocked').length;
   const overdueTasks = activeTasks.filter(task => isOverdueTask(task)).length;
-  const activeTodayEvents = todayEvents.filter(event => {
+  // Only events that have not ended yet; the "מופעים היום" card counts all of today's.
+  const remainingTodayEvents = todayEvents.filter(event => {
     const status = getScheduleDisplayStatus(event);
     return status !== 'completed' && status !== 'cancelled';
   }).length;
 
   const items = [
-    urgentRequests > 0 ? `${urgentRequests} דרישות בעדיפות גבוהה` : null,
-    blockedTasks > 0 ? `${blockedTasks} משימות תקועות` : null,
-    overdueTasks > 0 ? `${overdueTasks} משימות באיחור` : null,
-    activeTodayEvents > 0 ? `${activeTodayEvents} מופעים היום` : null,
+    urgentRequests > 0 ? countPhrase(urgentRequests, 'דרישה אחת בעדיפות גבוהה', 'דרישות בעדיפות גבוהה') : null,
+    blockedTasks > 0 ? countPhrase(blockedTasks, 'משימה אחת תקועה', 'משימות תקועות') : null,
+    overdueTasks > 0 ? countPhrase(overdueTasks, 'משימה אחת באיחור', 'משימות באיחור') : null,
+    remainingTodayEvents > 0 ? countPhrase(remainingTodayEvents, 'מופע אחד נותר היום', 'מופעים נותרו היום') : null,
   ].filter(Boolean) as string[];
 
   if (attentionItems.length > 0) {
     return {
-      title: 'תדריך מפקד: קשב נדרש',
-      text: `${attentionItems.length} פריטים דורשים טיפול או מעקב לפני שממשיכים לשגרה.`,
+      title: `${titlePrefix}: קשב נדרש`,
+      text: `${countPhrase(attentionItems.length, 'פריט אחד דורש', 'פריטים דורשים')} טיפול או מעקב לפני שממשיכים לשגרה.`,
       tone: 'attention',
       items: items.length > 0 ? items.slice(0, 3) : ['פתח את רשימת הטיפול כדי לתעדף את ההמשך'],
     };
   }
 
-  if (openRequests > 0 || activeTasks.length > 0 || activeTodayEvents > 0) {
+  if (openRequests > 0 || activeTasks.length > 0 || remainingTodayEvents > 0) {
     return {
-      title: 'תדריך מפקד: תמונת מצב יציבה',
-      text: `אין כרגע פריטים דחופים. ${openRequests} דרישות פעילות, ${activeTasks.length} משימות פתוחות ו-${activeTodayEvents} מופעים היום.`,
+      title: `${titlePrefix}: תמונת מצב יציבה`,
+      text: `אין כרגע פריטים דחופים. ${countPhrase(openRequests, 'דרישה אחת פעילה', 'דרישות פעילות')}, ${countPhrase(activeTasks.length, 'משימה אחת פתוחה', 'משימות פתוחות')} ${remainingTodayEvents === 1 ? 'ו' : 'ו-'}${countPhrase(remainingTodayEvents, 'מופע אחד שנותר היום', 'מופעים שנותרו היום')}.`,
       tone: 'steady',
       items: items.length > 0 ? items.slice(0, 3) : ['אפשר להמשיך מעקב שוטף מהכרטיסים למטה'],
     };
   }
 
   return {
-    title: 'תדריך מפקד: אין עומס פתוח',
+    title: `${titlePrefix}: אין עומס פתוח`,
     text: 'אין כרגע דרישות, משימות או מופעים פעילים. אפשר לפתוח פריט חדש לפי צורך.',
     tone: 'empty',
     items: ['הכפתורים למעלה זמינים לפתיחה מהירה'],
@@ -697,9 +729,10 @@ export default function DashboardPage() {
     () => Object.values(dashboardData.usersById).sort((a, b) => (a.name || a.email || '').localeCompare(b.name || b.email || '', 'he')),
     [dashboardData.usersById],
   );
+  const briefRole = profile?.role ?? currentUser?.role;
   const commandBrief = useMemo(
-    () => buildCommandBrief(dashboardData, attentionItems, todayEvents),
-    [dashboardData, attentionItems, todayEvents],
+    () => buildCommandBrief(dashboardData, attentionItems, todayEvents, briefRole),
+    [dashboardData, attentionItems, todayEvents, briefRole],
   );
   const { taskCountByEventId, requestCountByEventId } = useMemo(() => {
     const taskCounts = new Map<string, number>();

@@ -12,6 +12,11 @@ const BRIEF_EXACT_ROLES = new Set([
   'חובש פלוגתי',
   'קשר פלוגתי',
   'ב.קוד / נהג',
+  // Added to the roster on 25.10.2026. normalizeRole turns the geresh into ".
+  'א.קוד',
+  'ע. חובש פלוגתי',
+  'סרס"פ א"',
+  'סרס"פ ב"',
 ]);
 // 4 platoons, 3 squads each (א-ג) — migration 021 removed the 4th squad.
 const BRIEF_NUMBERED_ROLE = /^(?:מ"מ [1-4]|סמל [1-4]|מ"כ [1-4][א-ג])$/;
@@ -26,7 +31,9 @@ export function getCommandBriefTitle(role: string | null | undefined): string {
   // are the same roles as "מ"מ 2" and "ב.קוד / נהג", and display the same.
   const normalizedRole = normalizeRole(role).replace(/\s*\/\s*/g, ' / ').replace(/\s+/g, ' ');
   const isKnown = BRIEF_EXACT_ROLES.has(normalizedRole) || BRIEF_NUMBERED_ROLE.test(normalizedRole);
-  return isKnown ? `תדריך ${normalizedRole.replace(/"/g, '״')}` : 'תדריך יומי';
+  // A " after a lone final letter was a geresh (סרס״פ א׳), not gershayim.
+  const display = normalizedRole.replace(/ ([א-ת])"$/, ' $1׳').replace(/"/g, '״');
+  return isKnown ? `תדריך ${display}` : 'תדריך יומי';
 }
 
 export function hasAdminAccess(role: string | null | undefined): boolean {
@@ -51,7 +58,9 @@ export function getPermissionLevelForRole(role: string | null | undefined): numb
   if (normalizedRole.startsWith('מ"מ')) return 70;
   if (normalizedRole === 'חובש פלוגתי') return 70;
   if (normalizedRole === 'קשר פלוגתי') return 70;
+  if (normalizedRole.startsWith('סרס"פ')) return 70;
   if (normalizedRole === 'ב.קוד / נהג' || normalizedRole === 'ב.קוד/נהג') return 60;
+  if (normalizedRole === 'א.קוד' || normalizedRole === 'ע. חובש פלוגתי') return 60;
   if (normalizedRole.startsWith('סמל')) return 60;
   if (normalizedRole.startsWith('מ"כ')) return 50;
   return 0;

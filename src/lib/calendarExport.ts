@@ -124,3 +124,144 @@ export function buildGoogleCalendarUrl(entry: CalendarEntry) {
   ].filter((part): part is string => part !== null);
   return `https://calendar.google.com/calendar/render?${params.join('&')}`;
 }
+
+// ── Personal subscription feed (calendar widgets) ──────────────────────────
+// What calendar_feed() (migration 037) returns for a valid link code.
+export type FeedEvent = {
+  id: string;
+  title: string;
+  description: string | null;
+  location: string | null;
+  starts_at: string;
+  ends_at: string | null;
+  status: string;
+};
+
+export type FeedForumReport = {
+  report_date: string;
+  level: 'platoon' | 'company' | 'staff';
+  status: 'draft' | 'in_progress' | 'submitted' | 'closed';
+  mine: boolean;
+  platoon_unit_id: string | null;
+  present: string | null;
+  total: string | null;
+};
+
+export type CalendarFeedData = {
+  today: string;
+  user: { name: string; role: string; is_commander: boolean };
+  events: FeedEvent[];
+  forum: FeedForumReport[];
+};
+
+const FORUM_STATUS_LABELS: Record<FeedForumReport['status'], string> = {
+  draft: 'טיוטה',
+  in_progress: 'בטיפול',
+  submitted: 'הוגש',
+  closed: 'נסגר',
+};
+
+const isDone = (report: FeedForumReport) => report.status === 'submitted' || report.status === 'closed';
+
+function count(value: string | null) {
+  const n = Number.parseInt(String(value ?? '').trim(), 10);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+/**
+ * One line for the day's leading forum, shown as an all-day event at the top
+ * of the calendar widget. A commander sees the company picture; anyone else
+ * sees their own report only — the same scope calendar_feed() returned.
+ */
+export function forumSummaryLine(reports: FeedForumReport[], isCommander: boolean): string {
+  if (!isCommander) {
+    const mine = reports.find(report => report.mine);
+    return `פורום מוביל · הדוח שלי: ${mine ? FORUM_STATUS_LABELS[mine.status] : 'לא הוגש'}`;
+  }
+  const platoons = reports.filter(report => report.level === 'platoon');
+  const platoonsDone = new Set(platoons.filter(isDone).map(report => report.platoon_unit_id ?? report.report_date + report.status)).size;
+  const staffDone = reports.filter(report => report.level === 'staff' && isDone(report)).length;
+  const company = reports.find(report => report.level === 'company');
+  let present = 0;
+  let total = 0;
+  let counted = 0;
+  for (const report of platoons.filter(isDone)) {
+    const p = count(report.present);
+    const t = count(report.total);
+    if (p === null && t === null) continue;
+    present += p ?? 0;
+    total += t ?? 0;
+    counted += 1;
+  }
+  return [
+    'פורום מוביל',
+    `מחלקות ${Math.min(platoonsDone, 4)}/4`,
+    `מפל״ג ${Math.min(staffDone, 4)}/4`,
+    `פלוגתי: ${company ? FORUM_STATUS_LABELS[company.status] : 'לא הוגש'}`,
+    counted > 0 ? `מצבה ${present}/${total}` : null,
+  ].filter(Boolean).join(' · ');
+}
+
+function icsDate(dateKey: string) {
+  return dateKey.replace(/-/g, '');
+}
+
+function nextDateKey(dateKey: string) {
+  const date = new Date(`${dateKey}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * The subscription calendar. Unlike buildIcsCalendar it keeps the whole
+ * window calendar_feed() returned — earlier events of today included — so the
+ * widget shows the full day. The forum line is an all-day event per day that
+ * has reports, and always for today; its UID is stable per date so the
+ * calendar updates it in place on every refresh.
+ */
+export function buildFeedCalendar(feed: CalendarFeedData, nowMs = Date.now()) {
+  const stamp = icsUtc(nowMs);
+  const lines: string[] = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//המפקד//יומן אישי//HE',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    `X-WR-CALNAME:${icsEscape(`המפקד · ${feed.user.name}`)}`,
+    'X-WR-TIMEZONE:Asia/Jerusalem',
+    // Hints for how often to re-fetch. Apple Calendar and most clients honour
+    // one of these; Google Calendar ignores both and refreshes on its own.
+    'REFRESH-INTERVAL;VALUE=DURATION:PT15M',
+    'X-PUBLISHED-TTL:PT15M',
+  ];
+
+  for (const event of feed.events) {
+    if (event.status === 'cancelled') continue;
+    const endMs = validEndMs(event);
+    lines.push('BEGIN:VEVENT', `UID:${event.id}@hamefaked`, `DTSTAMP:${stamp}`, `DTSTART:${icsUtc(event.starts_at)}`);
+    if (endMs !== null) lines.push(`DTEND:${icsUtc(endMs)}`);
+    lines.push(`SUMMARY:${icsEscape(event.title)}`);
+    if (event.location) lines.push(`LOCATION:${icsEscape(event.location)}`);
+    if (event.description) lines.push(`DESCRIPTION:${icsEscape(event.description)}`);
+    lines.push('END:VEVENT');
+  }
+
+  const forumDates = new Set(feed.forum.map(report => report.report_date));
+  forumDates.add(feed.today);
+  for (const dateKey of [...forumDates].sort()) {
+    const reports = feed.forum.filter(report => report.report_date === dateKey);
+    lines.push(
+      'BEGIN:VEVENT',
+      `UID:forum-${icsDate(dateKey)}@hamefaked`,
+      `DTSTAMP:${stamp}`,
+      `DTSTART;VALUE=DATE:${icsDate(dateKey)}`,
+      `DTEND;VALUE=DATE:${icsDate(nextDateKey(dateKey))}`,
+      `SUMMARY:${icsEscape(forumSummaryLine(reports, feed.user.is_commander))}`,
+      'TRANSP:TRANSPARENT',
+      'END:VEVENT',
+    );
+  }
+
+  lines.push('END:VCALENDAR');
+  return lines.map(foldIcsLine).join('\r\n');
+}

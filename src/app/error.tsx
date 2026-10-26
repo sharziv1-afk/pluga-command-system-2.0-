@@ -15,9 +15,11 @@ import { logSupabaseError } from '@/lib/supabase/error';
  * This is Next's own App Router convention (error.tsx), not a bespoke
  * mechanism — it wraps everything under the root layout, so Providers (and
  * therefore the offline queue, the theme, the auth context) all keep running
- * underneath it. `reset()` re-renders the segment that threw without a full
- * page reload; offered alongside a real reload for the case where the error
- * came from corrupted state that `reset()` alone won't clear.
+ * underneath it. "נסה שוב" reloads the page. It used to call `reset()`,
+ * which only re-renders the segment from what the client already holds: when
+ * the error came from a stale or failed page payload (the 26.10.2026 service
+ * worker bug), it rendered the same broken state again and the button looked
+ * dead — only going back to the dashboard (a full load) recovered.
  *
  * Deliberately not more sophisticated than this: no remote error reporting
  * service, no retry-with-backoff. Console logging plus a real button beats a
@@ -26,7 +28,6 @@ import { logSupabaseError } from '@/lib/supabase/error';
  */
 export default function ErrorBoundary({
   error,
-  reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
@@ -50,7 +51,7 @@ export default function ErrorBoundary({
         <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
           <button
             type="button"
-            onClick={() => reset()}
+            onClick={() => window.location.reload()}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--action)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--action-hover)]"
           >
             <RefreshCw className="h-4 w-4" />

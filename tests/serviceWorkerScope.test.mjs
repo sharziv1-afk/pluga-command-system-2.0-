@@ -14,7 +14,20 @@ test('the service worker never caches API or OAuth metadata responses', () => {
   assert.ok(skip < fetchHandler.indexOf('event.respondWith('), 'the skip must come before respondWith');
 });
 
-test('the cache name moved on, so the old cache with API responses is dropped', () => {
-  assert.match(sw, /const CACHE_NAME = 'hamefaked-shell-v2';/);
-  assert.match(sw, /keys\.filter\(\(key\) => key !== CACHE_NAME\)\.map\(\(key\) => caches\.delete\(key\)\)/);
+test('page payloads (RSC) are never cached or served from cache', () => {
+  // The 26.10.2026 navigation bug: 519 cached ?_rsc= payloads from older
+  // builds were served on client navigation, so pages reloaded or errored.
+  const fetchHandler = sw.slice(sw.indexOf("addEventListener('fetch'"));
+  const skip = fetchHandler.indexOf("if (url.searchParams.has('_rsc') || request.headers.get('RSC') === '1') return;");
+  assert.ok(skip > 0 && skip < fetchHandler.indexOf('event.respondWith('));
+});
+
+test('a new worker takes over at once and purges all but hashed build assets', () => {
+  assert.match(sw, /const CACHE_NAME = 'hamefaked-shell-v3';/);
+  assert.match(sw, /self\.skipWaiting\(\);/, 'v2 sat in "waiting" for days behind open tabs');
+  assert.match(sw, /const isStaticAsset = \(url\) => url\.pathname\.startsWith\('\/_next\/static\/'\);/);
+  const activate = sw.slice(sw.indexOf("addEventListener('activate'"), sw.indexOf("addEventListener('fetch'"));
+  assert.match(activate, /\.filter\(\(request\) => !isStaticAsset\(new URL\(request\.url\)\)\)/, 'stale payloads, documents and API responses go');
+  assert.doesNotMatch(activate, /caches\.delete\(key\)/, 'whole caches stay, so an open older tab keeps its chunks');
+  assert.match(activate, /self\.clients\.claim\(\)/);
 });

@@ -18,7 +18,6 @@ import { logSupabaseError } from '@/lib/supabase/error';
  */
 export default function GlobalError({
   error,
-  reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
@@ -59,7 +58,9 @@ export default function GlobalError({
           </p>
           <button
             type="button"
-            onClick={() => reset()}
+            // A full reload, not reset(): reset() re-renders from the same
+            // client state, which is exactly what failed (see error.tsx).
+            onClick={() => window.location.reload()}
             style={{
               marginTop: 16,
               minHeight: 44,

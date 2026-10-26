@@ -5,26 +5,40 @@
 // (see AI_HANDOFF_CHECKPOINT.md) — this only makes sure the app shell itself
 // still loads with zero network, so the PIN-gated offline screen has
 // something to render instead of the browser's own connection-error page.
-// v2 (26.10.2026): bumped so the activate handler drops v1, which may still
-// hold API responses — including personal calendar feeds — from before /api/
-// was excluded below.
-const CACHE_NAME = 'hamefaked-shell-v2';
+// v3 (26.10.2026). v1 cached Next's page payloads (RSC, `?_rsc=`) and served
+// them stale-while-revalidate: after a deploy, moving between pages got a
+// payload from an older build, so Next either reloaded the whole page or
+// showed the error screen — whose retry re-rendered the same stale payload.
+// Only a full load (network-first) recovered. v2 never activated: it waited
+// for every tab to close, which on a phone can be days.
+const CACHE_NAME = 'hamefaked-shell-v3';
 
-self.addEventListener('install', (event) => {
-  // Deliberately NOT skipWaiting(). A deploy replaces the content-hashed JS
-  // chunks; taking over a live session mid-work means the page asks for a
-  // chunk name that no longer exists and dies with a chunk-load error in the
-  // middle of what the commander was doing. Waiting until every tab is closed
-  // costs a slightly later update and avoids that entirely.
+// Only content-hashed build assets are worth keeping across versions: an open
+// tab from an older build still needs its own chunks, and they never change.
+const isStaticAsset = (url) => url.pathname.startsWith('/_next/static/');
+
+self.addEventListener('install', () => {
+  // Take over at once. Waiting for every tab to close (the old rule) left a
+  // broken worker in charge for days. Taking over is safe because activate
+  // keeps the hashed chunks an older open tab still needs (see below).
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
+  // Purge everything but content-hashed build assets from every cache —
+  // stale page payloads, documents and any API response — instead of
+  // deleting whole caches, which would take an open tab's chunks with them.
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))),
-    ),
+    caches.keys()
+      .then((keys) => Promise.all(keys.map(async (key) => {
+        const cache = await caches.open(key);
+        const requests = await cache.keys();
+        await Promise.all(requests
+          .filter((request) => !isStaticAsset(new URL(request.url)))
+          .map((request) => cache.delete(request)));
+      })))
+      .then(() => self.clients.claim()),
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
@@ -36,6 +50,9 @@ self.addEventListener('fetch', (event) => {
   // Never API or OAuth metadata responses: a cached personal calendar feed
   // kept serving after its link was revoked, and API data must be live.
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/.well-known/')) return;
+  // Never Next's page payloads (client navigation and prefetch): they belong
+  // to one build, and a cached one from an older build breaks navigation.
+  if (url.searchParams.has('_rsc') || request.headers.get('RSC') === '1') return;
 
   event.respondWith(
     caches.open(CACHE_NAME).then(async (cache) => {
@@ -54,7 +71,8 @@ self.addEventListener('fetch', (event) => {
         }
       }
 
-      const cached = await cache.match(request);
+      // Any cache: an older version's cache may still hold this build's chunk.
+      const cached = await caches.match(request);
       const network = fetch(request)
         .then((response) => {
           if (response && response.ok) cache.put(request, response.clone());

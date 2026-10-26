@@ -335,6 +335,9 @@ function isSquadCommander(role: string) {
 
 function inferStaffRole(role: string): StaffRole | null {
   const normalizedRole = normalizeRole(role);
+  // Deputies of a staff role are not that slot's owner, though their titles
+  // contain its name: סרס״פ (contains רס״פ) and ע. חובש פלוגתי (contains חובש).
+  if (normalizedRole.startsWith('סרס"פ') || /^ע\.\s*חובש/.test(normalizedRole)) return null;
   return staffNodes.find(staff => staff.roleHints.some(hint => normalizedRole.includes(normalizeRole(hint))))?.id ?? null;
 }
 
@@ -1233,9 +1236,11 @@ export default function ForumPage() {
       return;
     }
 
+    // The unit name is embedded (one round trip to the database, not two).
+    // users has two FKs to units, so the embed names the column.
     const { data, error: usersError } = await supabase
       .from('users')
-      .select('id,name,email,role,unit_id')
+      .select('id,name,email,role,unit_id,units!unit_id(name)')
       .eq('status', 'active')
       .eq('role_approval_status', 'approved')
       .order('name', { ascending: true })
@@ -1247,27 +1252,9 @@ export default function ForumPage() {
       return;
     }
 
-    const rawOwners = data ?? [];
-    const ownerUnitIds = [...new Set(rawOwners.map(owner => owner.unit_id).filter((id): id is string => Boolean(id)))];
-
-    let ownerUnitNames: Record<string, string> = {};
-    if (ownerUnitIds.length > 0) {
-      const { data: unitsData, error: unitsError } = await supabase
-        .from('units')
-        .select('id,name')
-        .in('id', ownerUnitIds)
-        .returns<UnitLookup[]>();
-
-      if (unitsError) {
-        logSupabaseError('Forum daily report owner unit lookup failed', unitsError);
-      } else {
-        ownerUnitNames = Object.fromEntries((unitsData ?? []).map(unit => [unit.id, unit.name]));
-      }
-    }
-
-    setOwnerOptions(rawOwners.map(owner => ({
+    setOwnerOptions((data ?? []).map(owner => ({
       ...owner,
-      units: owner.unit_id && ownerUnitNames[owner.unit_id] ? { name: ownerUnitNames[owner.unit_id] } : null,
+      units: owner.units?.name ? { name: owner.units.name } : null,
     })));
   }, [canSeeAll, supabase]);
 

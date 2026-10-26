@@ -29,29 +29,14 @@ export interface DbUserProfile {
   units?: { name: string } | null;
 }
 
-async function attachUnitName(dbUser: DbUserProfile): Promise<DbUserProfile> {
+// The unit comes embedded in the profile query (one round trip, not two).
+// users has two FKs to units, so the embed names the column: units!unit_id.
+function withUnitName(dbUser: DbUserProfile): DbUserProfile {
   if (!dbUser.unit_id) return { ...dbUser, unit_name: null, units: null };
-
-  const supabase = createSupabaseBrowserClient();
-  const { data: unit, error } = await supabase
-    .from('units')
-    .select('name')
-    .eq('id', dbUser.unit_id)
-    .maybeSingle<{ name: string }>();
-
-  if (error) {
-    logSupabaseError('Current profile unit lookup failed', error, {
-      profileId: dbUser.id,
-      unitId: dbUser.unit_id,
-    });
-    throw error;
-  }
-
-  if (!unit) {
+  if (!dbUser.units?.name) {
     throw new Error('Current profile unit was not found');
   }
-
-  return { ...dbUser, unit_name: unit.name, units: { name: unit.name } };
+  return { ...dbUser, unit_name: dbUser.units.name };
 }
 
 export async function fetchCurrentProfile(): Promise<CurrentProfileResult> {
@@ -60,7 +45,12 @@ export async function fetchCurrentProfile(): Promise<CurrentProfileResult> {
   try {
     const supabase = createSupabaseBrowserClient();
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // getSession() reads the stored session (refreshing it if expired) without
+    // a round trip to Supabase Auth. The profile query below is the real check:
+    // it runs under RLS with this token, so a forged or revoked session gets no
+    // row back. getUser() here cost a full extra round trip on every load.
+    const { data: { session }, error: authError } = await supabase.auth.getSession();
+    const user = session?.user ?? null;
     if (authError) {
       if (isAuthSessionMissingError(authError)) {
         return { status: 'unauthenticated', profile: null, authUserId: null };
@@ -78,7 +68,7 @@ export async function fetchCurrentProfile(): Promise<CurrentProfileResult> {
 
     const { data: dbUser, error: dbError } = await supabase
       .from('users')
-      .select('id,auth_user_id,email,name,role,unit_id,permission_level,has_completed_onboarding,role_approval_status,status,created_at')
+      .select('id,auth_user_id,email,name,role,unit_id,permission_level,has_completed_onboarding,role_approval_status,status,created_at,units!unit_id(name)')
       .eq('auth_user_id', user.id)
       .maybeSingle<DbUserProfile>();
 
@@ -117,7 +107,7 @@ export async function fetchCurrentProfile(): Promise<CurrentProfileResult> {
 
     return {
       status: 'ready',
-      profile: mapDbUserToProfile(await attachUnitName(dbUser)),
+      profile: mapDbUserToProfile(withUnitName(dbUser)),
       authUserId,
     };
   } catch (error) {

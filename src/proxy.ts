@@ -58,11 +58,14 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims() verifies the access token locally against the project's ES256
+  // signing key (JWKS, cached per instance), refreshing an expired session
+  // through the cookies above. getUser() made a round trip to Supabase Auth
+  // (Sydney) on every protected request — page loads, client navigations and
+  // link prefetches alike — which cost ~1s per navigation from Israel.
+  const { data, error } = await supabase.auth.getClaims();
 
-  if (!user) {
+  if (error || !data?.claims?.sub) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/login';
     loginUrl.searchParams.set('next', pathname);

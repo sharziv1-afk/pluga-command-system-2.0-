@@ -5,7 +5,10 @@
 // (see AI_HANDOFF_CHECKPOINT.md) — this only makes sure the app shell itself
 // still loads with zero network, so the PIN-gated offline screen has
 // something to render instead of the browser's own connection-error page.
-const CACHE_NAME = 'hamefaked-shell-v1';
+// v2 (26.10.2026): bumped so the activate handler drops v1, which may still
+// hold API responses — including personal calendar feeds — from before /api/
+// was excluded below.
+const CACHE_NAME = 'hamefaked-shell-v2';
 
 self.addEventListener('install', (event) => {
   // Deliberately NOT skipWaiting(). A deploy replaces the content-hashed JS
@@ -30,6 +33,9 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return; // never touch Supabase or other cross-origin calls
+  // Never API or OAuth metadata responses: a cached personal calendar feed
+  // kept serving after its link was revoked, and API data must be live.
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/.well-known/')) return;
 
   event.respondWith(
     caches.open(CACHE_NAME).then(async (cache) => {

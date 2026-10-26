@@ -34,9 +34,15 @@ test('commander forum line with nothing submitted yet', () => {
   assert.equal(forumSummaryLine([], true), 'פורום מוביל · מחלקות 0/4 · מפל״ג 0/4 · פלוגתי: לא הוגש');
 });
 
-test('anyone else sees only their own report', () => {
-  assert.equal(forumSummaryLine([report({ mine: true, status: 'draft' })], false), 'פורום מוביל · הדוח שלי: טיוטה');
-  assert.equal(forumSummaryLine([report({ mine: false })], false), 'פורום מוביל · הדוח שלי: לא הוגש');
+test('anyone else sees their own report first, then the company picture', () => {
+  assert.equal(
+    forumSummaryLine([report({ mine: true, status: 'draft' })], false),
+    'פורום מוביל · הדוח שלי: טיוטה · מחלקות 0/4 · מפל״ג 0/4 · פלוגתי: לא הוגש',
+  );
+  assert.equal(
+    forumSummaryLine([report({ mine: false })], false),
+    'פורום מוביל · הדוח שלי: לא הוגש · מחלקות 1/4 · מפל״ג 0/4 · פלוגתי: לא הוגש · מצבה 27/30',
+  );
 });
 
 const feed = {
@@ -94,13 +100,16 @@ test('migration 037: only hashes are stored, and each user manages only their ow
   assert.match(migration, /"oauth: no insert" on public\.calendar_feeds/);
 });
 
-test('calendar_feed() repeats the events and forum read rules for the link owner', () => {
+test('calendar_feed(): own unit + the company for events, the company picture for the forum', () => {
   const fn = migration.slice(migration.indexOf('create or replace function public.calendar_feed'));
   assert.match(fn, /security definer\s+set search_path = public/);
   assert.match(fn, /where token_hash = p_token_hash and revoked_at is null/);
   assert.match(fn, /v_user\.auth_user_id is null\s+or v_user\.status <> 'active'\s+or v_user\.role_approval_status <> 'approved'/);
-  assert.match(fn, /v_is_commander\s+or e\.created_by = v_user\.id\s+or e\.responsible_user_id = v_user\.id\s+or \(e\.unit_id is not null and e\.unit_id = v_user\.unit_id\)/);
-  assert.match(fn, /r\.report_level <> 'squad'\s+and \(v_is_commander or r\.owner_user_id = v_user\.id\)/);
+  assert.match(fn, /select coalesce\(u\.parent_unit_id, u\.id\) into v_company_unit from public\.units u where u\.id = v_user\.unit_id;/);
+  assert.match(fn, /e\.created_by = v_user\.id\s+or e\.responsible_user_id = v_user\.id\s+or \(e\.unit_id is not null and \(e\.unit_id = v_user\.unit_id or e\.unit_id = v_company_unit\)\)/);
+  assert.doesNotMatch(fn, /v_is_commander\s+or e\./, 'the commander gets his own schedule, not every platoon\'s');
+  assert.match(fn, /r\.report_level <> 'squad'/);
+  assert.doesNotMatch(fn, /'content', r\.content|r\.summary_text|r\.whatsapp_text/, 'status and manpower only, never report text');
   assert.match(migration, /revoke execute on function public\.calendar_feed\(text\) from public;/);
 });
 

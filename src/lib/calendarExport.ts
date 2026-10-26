@@ -170,14 +170,12 @@ function count(value: string | null) {
 
 /**
  * One line for the day's leading forum, shown as an all-day event at the top
- * of the calendar widget. A commander sees the company picture; anyone else
- * sees their own report only — the same scope calendar_feed() returned.
+ * of the calendar widget. Everyone sees the company picture; anyone who is not
+ * a commander also sees where their own report stands, first.
  */
 export function forumSummaryLine(reports: FeedForumReport[], isCommander: boolean): string {
-  if (!isCommander) {
-    const mine = reports.find(report => report.mine);
-    return `פורום מוביל · הדוח שלי: ${mine ? FORUM_STATUS_LABELS[mine.status] : 'לא הוגש'}`;
-  }
+  const mine = reports.find(report => report.mine);
+  const myReport = isCommander ? null : `הדוח שלי: ${mine ? FORUM_STATUS_LABELS[mine.status] : 'לא הוגש'}`;
   const platoons = reports.filter(report => report.level === 'platoon');
   const platoonsDone = new Set(platoons.filter(isDone).map(report => report.platoon_unit_id ?? report.report_date + report.status)).size;
   const staffDone = reports.filter(report => report.level === 'staff' && isDone(report)).length;
@@ -195,6 +193,7 @@ export function forumSummaryLine(reports: FeedForumReport[], isCommander: boolea
   }
   return [
     'פורום מוביל',
+    myReport,
     `מחלקות ${Math.min(platoonsDone, 4)}/4`,
     `מפל״ג ${Math.min(staffDone, 4)}/4`,
     `פלוגתי: ${company ? FORUM_STATUS_LABELS[company.status] : 'לא הוגש'}`,

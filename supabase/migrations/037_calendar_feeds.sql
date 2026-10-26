@@ -9,14 +9,16 @@
 -- and a link is revoked by setting revoked_at.
 --
 -- calendar_feed(p_token_hash) is the only way to read through a code. It is
--- SECURITY DEFINER because the request has no user session, so it repeats the
--- SELECT rules of the tables it reads, for that code's user:
---   events               — commander, or created_by / responsible_user_id is
---                          the user, or same unit_id   (events: select *)
---   forum_daily_reports  — commander, or owner_user_id is the user
---                          (forum_daily_reports: * select *)
--- and only for an active, approved, linked user. Squad reports stay out, as in
--- the leading forum.
+-- SECURITY DEFINER because the request has no user session. What a link shows
+-- was decided by the company commander (26.10.2026), and is deliberately its
+-- own scope rather than a copy of the site's RLS:
+--   events  — the user's own unit and the company above it (a platoon's
+--             parent unit), plus events the user created or is responsible
+--             for. So a מ״מ gets his platoon + the company, and the מ״פ, whose
+--             unit is the company, gets his own schedule — not every platoon's.
+--   forum   — status only (no report text) of the day's non-squad reports, so
+--             everyone sees the company picture, plus which report is theirs.
+-- Only for an active, approved, linked user.
 
 create table if not exists public.calendar_feeds (
   id uuid primary key default gen_random_uuid(),
@@ -77,6 +79,7 @@ declare
   v_feed public.calendar_feeds%rowtype;
   v_user public.users%rowtype;
   v_is_commander boolean;
+  v_company_unit uuid;
   v_today date := (now() at time zone 'Asia/Jerusalem')::date;
   v_from timestamptz := ((v_today - 2)::timestamp at time zone 'Asia/Jerusalem');
   v_to timestamptz := ((v_today + 15)::timestamp at time zone 'Asia/Jerusalem');
@@ -101,6 +104,8 @@ begin
   end if;
 
   v_is_commander := public.is_commander(v_user.auth_user_id);
+  -- The company is the unit's parent; a unit with no parent is the company.
+  select coalesce(u.parent_unit_id, u.id) into v_company_unit from public.units u where u.id = v_user.unit_id;
 
   update public.calendar_feeds set last_used_at = now() where id = v_feed.id;
 
@@ -116,10 +121,9 @@ begin
        where e.starts_at >= v_from and e.starts_at < v_to
          and e.status::text <> 'cancelled'
          and (
-           v_is_commander
-           or e.created_by = v_user.id
+           e.created_by = v_user.id
            or e.responsible_user_id = v_user.id
-           or (e.unit_id is not null and e.unit_id = v_user.unit_id)
+           or (e.unit_id is not null and (e.unit_id = v_user.unit_id or e.unit_id = v_company_unit))
          )
     ), '[]'::jsonb),
     'forum', coalesce((
@@ -131,7 +135,6 @@ begin
         from public.forum_daily_reports r
        where r.report_date between v_today - 2 and v_today + 1
          and r.report_level <> 'squad'
-         and (v_is_commander or r.owner_user_id = v_user.id)
     ), '[]'::jsonb)
   );
 end;

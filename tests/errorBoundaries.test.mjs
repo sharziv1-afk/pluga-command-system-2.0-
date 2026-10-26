@@ -13,8 +13,11 @@ test('error.tsx exists and offers a real recovery path, not just a message', () 
   assert.ok(existsSync('src/app/error.tsx'), 'src/app/error.tsx must exist to catch render errors under the root layout');
 
   const source = readFileSync('src/app/error.tsx', 'utf8');
-  assert.match(source, /export default function \w+\(\{\s*error,\s*reset,?\s*\}/s, 'must accept the (error, reset) props Next.js passes to error.tsx');
-  assert.match(source, /onClick=\{?\(?\)? *=> *reset\(\)/, 'must actually call reset(), not just render a static message');
+  assert.match(source, /export default function \w+\(\{\s*error,?\s*\}/s, 'must accept the error prop Next.js passes to error.tsx');
+  // A full reload, not reset(): reset() re-rendered the same stale client
+  // state and looked dead (26.10.2026). The reload always fetches fresh.
+  assert.match(source, /onClick=\{\(\) => window\.location\.reload\(\)\}/, 'the retry button must reload the page');
+  assert.doesNotMatch(source, /onClick=\{?\(?\)? *=> *reset\(\)/, 'reset() alone does not recover from a stale payload');
   assert.match(source, /logSupabaseError/, 'must log the error through the shared sanitizing helper, not a raw console call');
 });
 
@@ -24,7 +27,7 @@ test('global-error.tsx exists, renders its own html/body, and stays independent 
   const source = readFileSync('src/app/global-error.tsx', 'utf8');
   assert.match(source, /<html/, 'global-error must render its own <html> — there is no layout left to provide one');
   assert.match(source, /<body/, 'global-error must render its own <body>');
-  assert.match(source, /onClick=\{?\(?\)? *=> *reset\(\)/, 'must offer a working reset(), not just a message');
+  assert.match(source, /onClick=\{\(\) => window\.location\.reload\(\)\}/, 'must offer a working retry (a full reload), not just a message');
 
   // The whole point of this file is to not depend on the thing that might be
   // broken — it must not import the app's own components or global styles.

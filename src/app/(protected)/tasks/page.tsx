@@ -30,6 +30,7 @@ import { cacheGet, cacheSet } from '@/lib/offline/db';
 import { enqueueWrite, flushWriteQueue, pendingWriteCount } from '@/lib/offline/syncEngine';
 import { writeFailureMessage } from '@/lib/offline/writeErrors';
 import { getPermissionLevelForRole, hasCompanyWideUiAccess } from '@/lib/permissions';
+import { sortByCompanyHierarchy } from '@/lib/roleOrder';
 import { getScheduleDisplayStatus } from '@/lib/schedule';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
@@ -113,6 +114,14 @@ function formatDateTimeLocalInput(value: string | null) {
 
   const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
   return offsetDate.toISOString().slice(0, 16);
+}
+
+// Linking a task to an event sets its due date to the event's start; the
+// commander can still change it afterwards. Unlinking keeps the date.
+function dueAtForLinkedEvent(eventId: string, events: EventOption[], currentDueAt: string) {
+  if (eventId === 'none') return currentDueAt;
+  const startsAt = events.find(event => event.id === eventId)?.starts_at ?? null;
+  return startsAt ? formatDateTimeLocalInput(startsAt) : currentDueAt;
 }
 
 function getTaskMetadata(task: DbTask): TaskMetadata {
@@ -268,7 +277,7 @@ export default function TasksPage() {
         logSupabaseError('Task assignable users load failed', assignableUsersResult.error);
         setAssignableUsers([]);
       } else {
-        setAssignableUsers(assignableUsersResult.data ?? []);
+        setAssignableUsers(sortByCompanyHierarchy(assignableUsersResult.data ?? []));
       }
 
       const rawTasks = taskData ?? [];
@@ -1008,13 +1017,20 @@ export default function TasksPage() {
                 onChange={(event) => setDueAt(event.target.value)}
                 className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
               />
+              {selectedEventId !== 'none' && (
+                <p className="text-xs text-[var(--text-muted-accessible)]">בשיוך למופע התאריך מתעדכן לשעת המופע — אפשר לשנות</p>
+              )}
             </label>
 
             <label className="space-y-1">
               <span className="text-xs font-bold text-[var(--text-muted-accessible)]">שייך למופע</span>
               <select
                 value={selectedEventId}
-                onChange={(event) => setSelectedEventId(event.target.value)}
+                onChange={(event) => {
+                  const eventId = event.target.value;
+                  setSelectedEventId(eventId);
+                  setDueAt(current => dueAtForLinkedEvent(eventId, eventOptions, current));
+                }}
                 className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
               >
                 <option value="none">ללא שיוך</option>
@@ -1289,13 +1305,20 @@ export default function TasksPage() {
                 onChange={(event) => setEditDueAt(event.target.value)}
                 className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
               />
+              {editEventId !== 'none' && (
+                <p className="text-xs text-[var(--text-muted-accessible)]">בשיוך למופע התאריך מתעדכן לשעת המופע — אפשר לשנות</p>
+              )}
             </label>
 
             <label className="space-y-1">
               <span className="text-xs font-bold text-[var(--text-muted-accessible)]">שייך למופע</span>
               <select
                 value={editEventId}
-                onChange={(event) => setEditEventId(event.target.value)}
+                onChange={(event) => {
+                  const eventId = event.target.value;
+                  setEditEventId(eventId);
+                  setEditDueAt(current => dueAtForLinkedEvent(eventId, editEventOptions, current));
+                }}
                 className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
               >
                 <option value="none">ללא שיוך</option>

@@ -46,7 +46,7 @@ test('the tasks page sorts the assignee list it loads', () => {
 });
 
 test('picking an event fills the due date in both the new and the edit form', () => {
-  assert.match(page, /function dueAtForLinkedEvent\(eventId: string, events: EventOption\[\], currentDueAt: string\)/);
+  assert.match(page, /function dueAtForLinkedEvent\(eventId: string, events: Pick<EventOption, 'id' \| 'starts_at'>\[\], currentDueAt: string\)/);
   assert.match(page, /if \(eventId === 'none'\) return currentDueAt;/);
   assert.match(page, /return startsAt \? formatDateTimeLocalInput\(startsAt\) : currentDueAt;/);
   assert.match(page, /setDueAt\(current => dueAtForLinkedEvent\(eventId, eventOptions, current\)\)/);

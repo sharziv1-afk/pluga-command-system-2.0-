@@ -118,7 +118,7 @@ function formatDateTimeLocalInput(value: string | null) {
 
 // Linking a task to an event sets its due date to the event's start; the
 // commander can still change it afterwards. Unlinking keeps the date.
-function dueAtForLinkedEvent(eventId: string, events: EventOption[], currentDueAt: string) {
+function dueAtForLinkedEvent(eventId: string, events: Pick<EventOption, 'id' | 'starts_at'>[], currentDueAt: string) {
   if (eventId === 'none') return currentDueAt;
   const startsAt = events.find(event => event.id === eventId)?.starts_at ?? null;
   return startsAt ? formatDateTimeLocalInput(startsAt) : currentDueAt;

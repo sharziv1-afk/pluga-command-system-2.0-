@@ -85,7 +85,7 @@ test('paused protected routes are replaced before their page content is rendered
 test('dashboard restores working links and existing creation flows with a forum shortcut', () => {
   const source = readFileSync('src/app/(protected)/dashboard/page.tsx', 'utf8');
   const pageRender = source.slice(source.indexOf('  if (isContextLoading || isLoading)'), source.indexOf('\n}\n\nfunction CommandBriefCard'));
-  const dashboardCards = source.slice(source.indexOf('function SummaryMetricCard'), source.indexOf('function AuditLogRow'));
+  const dashboardCards = source.slice(source.indexOf('function SummaryMetricCard'), source.indexOf('function SectionHeader'));
 
   assert.doesNotMatch(pageRender, /מודולים נוספים אינם זמינים כרגע/);
   assert.match(pageRender, /href="\/forum"/);
@@ -94,8 +94,6 @@ test('dashboard restores working links and existing creation flows with a forum 
   }
   assert.match(pageRender, /<QuickCreateModal\b/);
   assert.match(dashboardCards, /<Link href=\{card.href\}/);
-  assert.match(source, /const canManageUsers = hasAdminAccess\(currentUser\?\.role\)/);
-  assert.match(pageRender, /actionHref=\{canManageUsers \? '\/admin' : undefined\}/);
 });
 
 test('operational pages do not refetch the current profile', () => {

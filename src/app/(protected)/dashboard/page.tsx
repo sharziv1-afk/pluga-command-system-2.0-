@@ -3,7 +3,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
-  Activity,
   AlertCircle,
   AlertTriangle,
   CalendarClock,
@@ -29,12 +28,12 @@ import { createAuditLog } from '@/lib/audit';
 import { useApp } from '@/lib/context/AppContext';
 import { cacheGet, cacheSet } from '@/lib/offline/db';
 import { ambiguousMutationMessage, runQuickCreateMutation } from '@/lib/inFlightLock';
-import { getCommandBriefTitle, hasAdminAccess } from '@/lib/permissions';
+import { getCommandBriefTitle } from '@/lib/permissions';
 import { getScheduleDisplayStatus } from '@/lib/schedule';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
-import type { DbAuditLog, DbEvent, DbTask } from '@/lib/types';
-import { formatTime } from '@/lib/datetime';
+import type { DbEvent, DbTask } from '@/lib/types';
+import { addDaysToDateKey, formatTime, getJerusalemDateKey } from '@/lib/datetime';
 
 type RequestStatus = 'open' | 'in_progress' | 'approved' | 'rejected' | 'completed' | 'cancelled';
 type TaskStatus = 'open' | 'in_progress' | 'blocked' | 'completed' | 'cancelled';
@@ -113,7 +112,6 @@ type DashboardData = {
   requests: DashboardRequest[];
   tasks: DbTask[];
   events: DbEvent[];
-  auditLogs: DbAuditLog[];
   usersById: Record<string, DashboardUser>;
   errors: string[];
 };
@@ -187,70 +185,6 @@ const eventTypeOptions: { value: EventType; label: string }[] = [
 
 
 
-
-const auditActionLabels: Record<string, string> = {
-  request_created: 'דרישה חדשה נפתחה',
-  request_updated: 'דרישה עודכנה',
-  request_completed: 'דרישה הושלמה',
-  request_status_changed: 'סטטוס דרישה עודכן',
-  request_assigned: 'שויך מטפל לדרישה',
-  request_comment_added: 'נוספה תגובה לדרישה',
-  request_deleted: 'דרישה נמחקה',
-  task_created: 'משימה חדשה נוצרה',
-  task_updated: 'משימה עודכנה',
-  task_completed: 'משימה הושלמה',
-  task_status_changed: 'סטטוס משימה עודכן',
-  task_deleted: 'משימה נמחקה',
-  event_created: 'מופע חדש נוסף ללו״ז',
-  event_updated: 'מופע לו״ז עודכן',
-  event_completed: 'מופע לו״ז הושלם',
-  event_status_changed: 'סטטוס מופע עודכן',
-  event_deleted: 'מופע נמחק',
-  forum_daily_report_carried_forward: 'דוח פורום גולגל ליום הבא',
-  forum_daily_report_closed: 'דוח פורום נסגר',
-  forum_daily_report_updated: 'דוח פורום עודכן',
-  forum_daily_report_reopened: 'דוח פורום נפתח לעריכה מחדש',
-  forum_daily_report_created: 'דוח פורום נוצר',
-  forum_daily_report_submitted: 'דוח פורום הוגש',
-  forum_daily_report_reset: 'דוח פורום אופס',
-  forum_daily_report_deleted: 'דוח פורום נמחק',
-  forum_post_created: 'פוסט חדש פורסם בפורום',
-  forum_post_updated: 'פוסט פורום עודכן',
-  forum_daily_summary_created: 'סיכום פורום נוצר',
-  forum_daily_summary_updated: 'סיכום פורום עודכן',
-  forum_daily_summary_closed: 'סיכום פורום נסגר',
-  forum_company_report_generated: 'דוח פלוגתי נבנה',
-  forum_company_report_saved: 'דוח פלוגתי נשמר',
-  forum_daily_forum_published: 'הפורום היומי הופץ',
-  gap_created: 'פער חדש נפתח',
-  gap_status_changed: 'סטטוס פער עודכן',
-  gap_converted_to_request: 'פער הומר לדרישה',
-  user_invited: 'משתמש הוזמן',
-  user_updated: 'פרטי משתמש עודכנו',
-  user_blocked: 'משתמש נחסם',
-  user_unblocked: 'חסימת משתמש בוטלה',
-  tracking_soldier_created: 'חייל נוסף למעקב',
-  tracking_soldier_updated: 'פרטי חייל במעקב עודכנו',
-  tracking_item_created: 'מופע מעקב נוסף',
-  tracking_item_updated: 'מופע מעקב עודכן',
-  tracking_record_updated: 'תא במעקב עודכן',
-  tracking_week_created: 'שבוע מעקב נוסף',
-  tracking_week_updated: 'שבוע מעקב עודכן',
-  tracking_exported_csv: 'המעקב יוצא',
-  mentoring_entry_created: 'רשומת חניכה נוספה',
-  mentoring_entry_converted_to_task: 'רשומת חניכה הומרה למשימה',
-  mentoring_entry_deleted: 'רשומת חניכה נמחקה',
-};
-
-function formatAuditAction(actionType: string) {
-  return auditActionLabels[actionType] ?? 'עדכון מערכת';
-}
-
-const typeLabels: Record<DashboardItemType, string> = {
-  request: 'דרישה',
-  task: 'משימה',
-  event: 'מופע',
-};
 
 const toneClasses: Record<SummaryCard['tone'], string> = {
   orange: 'border-[var(--color-warning)]/25 bg-[var(--color-warning)]/10 text-[var(--color-warning)]',
@@ -531,7 +465,6 @@ const emptyDashboardData: DashboardData = {
   requests: [],
   tasks: [],
   events: [],
-  auditLogs: [],
   usersById: {},
   errors: [],
 };
@@ -583,7 +516,10 @@ export default function DashboardPage() {
     const nextData: DashboardData = { ...emptyDashboardData, errors: [] };
 
     try {
-    const [requestsResult, tasksResult, eventsResult, auditResult] = await Promise.all([
+    // The events the dashboard uses — today's schedule, the next few hours,
+    // and the quick-create event picker — are all from today onward.
+    const todayKey = getJerusalemDateKey(new Date());
+    const [requestsResult, tasksResult, eventsResult] = await Promise.all([
       supabase
         .from('requests')
         .select('id,title,description,status,request_type,requested_by,assigned_to,unit_id,event_id,metadata,created_at,updated_at')
@@ -599,21 +535,17 @@ export default function DashboardPage() {
       supabase
         .from('events')
         .select('id,title,description,event_type,starts_at,ends_at,location,unit_id,created_by,responsible_user_id,status,metadata,created_at,updated_at')
-        // Descending, not ascending: ascending + a fixed cap means once the
-        // table holds more rows than the cap, the query returns only the
-        // OLDEST events ever created and today's/upcoming events silently
-        // stop appearing forever. Descending keeps whatever is most recently
-        // scheduled — which, since real usage keeps creating events further
-        // forward in time, is exactly today's and the near future's events.
-        .order('starts_at', { ascending: false })
-        .limit(80)
+        // A date window, not "the latest N by start time": once the schedule
+        // was filled weeks ahead (102 November events, 27.10.2026), the 80
+        // latest-starting events were all in November and today's dropped
+        // out, so "מופעים היום" and "היום בלו״ז" showed nothing. The window
+        // opens the evening before (20:00 UTC is 22:00/23:00 in Jerusalem)
+        // and runs two weeks; the day filters below pick today's.
+        .gte('starts_at', `${addDaysToDateKey(todayKey, -1)}T20:00:00Z`)
+        .lt('starts_at', `${addDaysToDateKey(todayKey, 15)}T00:00:00Z`)
+        .order('starts_at', { ascending: true })
+        .limit(300)
         .returns<DbEvent[]>(),
-      supabase
-        .from('audit_logs')
-        .select('id,user_id,user_name,user_role,action_type,entity_type,entity_id,previous_value,new_value,created_at')
-        .order('created_at', { ascending: false })
-        .limit(8)
-        .returns<DbAuditLog[]>(),
     ]);
 
     nextData.profile = {
@@ -646,13 +578,6 @@ export default function DashboardPage() {
       nextData.errors.push('טעינת הלוז נכשלה.');
     } else {
       nextData.events = eventsResult.data ?? [];
-    }
-
-    if (auditResult.error) {
-      logSupabaseError('Dashboard audit lookup failed', auditResult.error);
-      nextData.errors.push('טעינת הפעילות האחרונה נכשלה.');
-    } else {
-      nextData.auditLogs = auditResult.data ?? [];
     }
 
     const userIds = new Set<string>();
@@ -708,7 +633,6 @@ export default function DashboardPage() {
   }, [loadDashboard]);
 
   const profile = dashboardData.profile;
-  const canManageUsers = hasAdminAccess(currentUser?.role);
   const summaryCards = useMemo(() => buildSummaryCards(dashboardData, profile?.id ?? currentUser?.id ?? null), [dashboardData, profile?.id, currentUser?.id]);
   const attentionItems = useMemo(() => buildAttentionItems(dashboardData), [dashboardData]);
   const openTasks = useMemo(() => getOpenTasks(dashboardData), [dashboardData]);
@@ -1087,18 +1011,7 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)]">
-        <GlassCard className="space-y-4" glow="orange">
-          <SectionHeader icon={RadioTower} title="דרוש טיפול" actionHref="/requests" actionLabel="לניהול" />
-          {attentionItems.length > 0 ? (
-            <div className="space-y-3">
-              {attentionItems.map(item => <AttentionItemCard key={`${item.type}-${item.id}`} item={item} />)}
-            </div>
-          ) : (
-            <CompactEmptyState title="אין פריטים דחופים כרגע" text="לא נמצאו דרישות דחופות, משימות תקועות או מופעים שמתחילים בקרוב." />
-          )}
-        </GlassCard>
-
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <GlassCard className="space-y-4">
           <SectionHeader icon={CalendarClock} title="היום בלו״ז" actionHref="/schedule" actionLabel="כל הלו״ז" />
           {todayEvents.length > 0 ? (
@@ -1116,9 +1029,7 @@ export default function DashboardPage() {
             <CompactEmptyState title="אין מופעים להיום" text="לא נמצאו מופעים מתוכננים להיום." />
           )}
         </GlassCard>
-      </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <GlassCard className="space-y-4">
           <SectionHeader icon={CheckSquare} title="משימות פתוחות" actionHref="/tasks" actionLabel="כל המשימות" />
           {openTasks.length > 0 ? (
@@ -1131,19 +1042,7 @@ export default function DashboardPage() {
             <CompactEmptyState title="אין משימות פתוחות" text="המשימות הפעילות יופיעו כאן לאחר יצירה או שיוך." />
           )}
         </GlassCard>
-
-        <GlassCard className="space-y-4">
-          <SectionHeader icon={Activity} title="פעילות אחרונה" actionHref={canManageUsers ? '/admin' : undefined} actionLabel={canManageUsers ? 'ניהול' : undefined} />
-          {dashboardData.auditLogs.length > 0 ? (
-            <div className="space-y-3">
-              {dashboardData.auditLogs.map(log => <AuditLogRow key={log.id} log={log} />)}
-            </div>
-          ) : (
-            <CompactEmptyState title="אין פעילות להצגה" text="פעולות אחרונות במערכת יופיעו כאן." />
-          )}
-        </GlassCard>
       </div>
-
     </div>
   );
 }
@@ -1567,33 +1466,6 @@ function SectionHeader({
   );
 }
 
-function AttentionItemCard({ item }: { item: DashboardItem }) {
-  const isCritical = item.priority >= 8;
-
-  return (
-    <Link
-      href={item.href}
-      className="block rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4 transition hover:border-[var(--action)]/30 hover:bg-[var(--tactical-glass)]"
-    >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={`text-caption rounded-full border px-2.5 py-0.5 font-semibold ${isCritical ? toneClasses.red : toneClasses.orange}`}>
-              {typeLabels[item.type]}
-            </span>
-            <span className="text-sm font-semibold text-[var(--text-primary)]">{item.title}</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--text-muted-accessible)]">
-            <span>{item.meta}</span>
-            {item.time && <span>{item.time}</span>}
-          </div>
-        </div>
-        <StatusBadge status={item.status} className="self-start" />
-      </div>
-    </Link>
-  );
-}
-
 function TodayEventCard({
   event,
   taskCount,
@@ -1637,24 +1509,6 @@ function OpenTaskRow({ task, assigneeName }: { task: DbTask; assigneeName: strin
       </div>
       <StatusBadge status={taskStatusLabels[task.status as TaskStatus] ?? task.status} className="self-start sm:self-center" />
     </Link>
-  );
-}
-
-function AuditLogRow({ log }: { log: DbAuditLog }) {
-  return (
-    <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 space-y-1">
-          <span className="block text-sm font-semibold text-[var(--text-primary)]">{formatAuditAction(log.action_type)}</span>
-          <span className="block text-xs font-semibold text-[var(--text-muted-accessible)]">
-            {log.user_name || 'משתמש'} · {log.user_role || 'תפקיד לא ידוע'}
-          </span>
-        </div>
-        <span className="text-caption shrink-0 rounded-full border border-[var(--border-strong)] bg-[var(--surface-muted)] px-2.5 py-1 font-semibold text-[var(--text-muted-accessible)]">
-          {getRelativeTime(log.created_at)}
-        </span>
-      </div>
-    </div>
   );
 }
 

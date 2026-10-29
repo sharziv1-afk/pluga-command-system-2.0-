@@ -6,6 +6,8 @@ import {
   CalendarDays,
   CalendarPlus,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clipboard,
   Clock3,
   Download,
@@ -154,9 +156,20 @@ function getTimelineHour(value: string) {
   });
 }
 
-function getWeekDateKeys() {
-  const todayKey = getJerusalemDateKey(new Date());
-  return Array.from({ length: 7 }, (_, index) => addDaysToDateKey(todayKey, index));
+// `offset` moves the day and week views by whole days from today: the arrows
+// step one day in "היום" / "מחר" and seven in "השבוע" (28.10.2026 — until then
+// those views were pinned to today and later days were reachable only in "הכל").
+function getWeekDateKeys(offset = 0) {
+  const startKey = addDaysToDateKey(getJerusalemDateKey(new Date()), offset);
+  return Array.from({ length: 7 }, (_, index) => addDaysToDateKey(startKey, index));
+}
+
+function getTabDayKey(tab: 'today' | 'tomorrow', offset = 0) {
+  return addDaysToDateKey(getJerusalemDateKey(new Date()), (tab === 'tomorrow' ? 1 : 0) + offset);
+}
+
+function getTabStep(tab: ScheduleTab) {
+  return tab === 'week' ? 7 : 1;
 }
 
 function isEventVisibleInDefaultSchedule(event: DbEvent) {
@@ -166,21 +179,12 @@ function isEventVisibleInDefaultSchedule(event: DbEvent) {
   return eventEnd >= cutoff;
 }
 
-function filterEventByTab(event: EventView, tab: ScheduleTab) {
+function filterEventByTab(event: EventView, tab: ScheduleTab, offset = 0) {
   if (tab === 'all') return true;
 
-  const now = new Date();
   const eventKey = getJerusalemDateKey(event.starts_at);
-
-  if (tab === 'week') {
-    return getWeekDateKeys().includes(eventKey);
-  }
-
-  const todayKey = getJerusalemDateKey(now);
-  const tomorrowKey = addDaysToDateKey(todayKey, 1);
-
-  if (tab === 'today') return eventKey === todayKey;
-  return eventKey === tomorrowKey;
+  if (tab === 'week') return getWeekDateKeys(offset).includes(eventKey);
+  return eventKey === getTabDayKey(tab, offset);
 }
 
 export default function SchedulePage() {
@@ -205,6 +209,7 @@ export default function SchedulePage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ScheduleTab>('today');
+  const [dayOffset, setDayOffset] = useState(0);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [eventType, setEventType] = useState<EventType>('other');
@@ -410,9 +415,13 @@ export default function SchedulePage() {
     [events],
   );
 
+  // A day or week view shows every event of its days, so stepping back to an
+  // earlier day still shows it; only "הכל" hides what ended over a day ago.
   const visibleEvents = useMemo(
-    () => defaultVisibleEvents.filter(event => filterEventByTab(event, activeTab)),
-    [activeTab, defaultVisibleEvents],
+    () => activeTab === 'all'
+      ? defaultVisibleEvents
+      : events.filter(event => filterEventByTab(event, activeTab, dayOffset)),
+    [activeTab, dayOffset, defaultVisibleEvents, events],
   );
 
   const tabCounts = useMemo(() => {
@@ -466,15 +475,22 @@ export default function SchedulePage() {
   }, [visibleEvents]);
 
   const weekColumns = useMemo(() => (
-    getWeekDateKeys().map(dateKey => ({
+    getWeekDateKeys(dayOffset).map(dateKey => ({
       dateKey,
       dayLabel: formatWeekdayFromKey(dateKey),
       dateLabel: formatShortDateFromKey(dateKey),
-      events: defaultVisibleEvents
+      events: events
         .filter(event => getJerusalemDateKey(event.starts_at) === dateKey)
         .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()),
     }))
-  ), [defaultVisibleEvents]);
+  ), [dayOffset, events]);
+
+  const navigationLabel = activeTab === 'week'
+    ? `${formatShortDateFromKey(getWeekDateKeys(dayOffset)[0])} – ${formatShortDateFromKey(getWeekDateKeys(dayOffset)[6])}`
+    : activeTab === 'all'
+      ? ''
+      : `${formatWeekdayFromKey(getTabDayKey(activeTab, dayOffset))}, ${formatShortDateFromKey(getTabDayKey(activeTab, dayOffset))}`;
+  const stepLabel = activeTab === 'week' ? 'שבוע' : 'יום';
 
   const resetForm = () => {
     setTitle('');
@@ -961,7 +977,10 @@ export default function SchedulePage() {
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setDayOffset(0);
+                }}
                 className={`touch-target rounded-2xl border px-3 py-2 text-xs font-bold transition ${
                   activeTab === tab.id
                     ? 'border-[var(--action)]/40 bg-[var(--action)]/12 text-[var(--color-action-on-surface)]'
@@ -993,6 +1012,41 @@ export default function SchedulePage() {
             </GlossyButton>
           </div>
         </div>
+
+        {activeTab !== 'all' && (
+          <div className="flex items-center justify-between gap-2 rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] p-1.5">
+            <button
+              type="button"
+              onClick={() => setDayOffset(current => current - getTabStep(activeTab))}
+              aria-label={`${stepLabel} קודם`}
+              className="touch-target flex items-center gap-1 rounded-xl px-3 py-2 text-xs font-bold text-[var(--text-muted-accessible)] transition hover:bg-[var(--surface)]"
+            >
+              <ChevronRight className="h-4 w-4" />
+              <span className="hidden sm:inline">{stepLabel} קודם</span>
+            </button>
+            <div className="flex min-w-0 flex-col items-center gap-0.5 text-center">
+              <span className="text-sm font-semibold text-[var(--text-primary)]">{navigationLabel}</span>
+              {dayOffset !== 0 && (
+                <button
+                  type="button"
+                  onClick={() => setDayOffset(0)}
+                  className="text-caption font-bold text-[var(--color-action-on-surface)] underline-offset-2 hover:underline"
+                >
+                  {activeTab === 'week' ? 'חזרה לשבוע הנוכחי' : activeTab === 'tomorrow' ? 'חזרה למחר' : 'חזרה להיום'}
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setDayOffset(current => current + getTabStep(activeTab))}
+              aria-label={`${stepLabel} הבא`}
+              className="touch-target flex items-center gap-1 rounded-xl px-3 py-2 text-xs font-bold text-[var(--text-muted-accessible)] transition hover:bg-[var(--surface)]"
+            >
+              <span className="hidden sm:inline">{stepLabel} הבא</span>
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+          </div>
+        )}
 
         {error && (
           <div className="rounded-2xl border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 p-3 text-sm font-bold text-[var(--color-danger)]">

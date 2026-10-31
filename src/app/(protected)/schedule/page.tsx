@@ -12,13 +12,10 @@ import {
   Clock3,
   Download,
   Loader2,
-  MapPin,
   Pencil,
   Plus,
   RefreshCw,
   Trash2,
-  UserCheck,
-  X,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { CommandConfirmDialog, CommandOverlay } from '@/components/ui/CommandDialog';
@@ -40,7 +37,7 @@ import { LIST_FETCH_LIMIT, TRUNCATION_NOTICE, isTruncated } from '@/lib/queryLim
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 import type { DbEvent } from '@/lib/types';
 import { addDaysToDateKey, dateFromKey, formatDateTime, formatTime, getJerusalemDateKey } from '@/lib/datetime';
-import { toDbProfile, type DbProfile } from '@/lib/dbProfile';
+import { toDbProfile } from '@/lib/dbProfile';
 import { writeFailureMessage } from '@/lib/offline/writeErrors';
 
 type EventType = DbEvent['event_type'];

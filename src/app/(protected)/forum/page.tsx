@@ -70,7 +70,7 @@ import { useApp } from '@/lib/context/AppContext';
 import { getPermissionLevelForRole, hasAdminAccess, hasCompanyWideUiAccess, normalizeRole } from '@/lib/permissions';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
-import { toDbProfile, type DbProfile } from '@/lib/dbProfile';
+import { toDbProfile } from '@/lib/dbProfile';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 
 type ForumTab = 'posts' | 'daily';

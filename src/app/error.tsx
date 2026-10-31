@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { ShieldAlert, RefreshCw, Home } from 'lucide-react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { logSupabaseError } from '@/lib/supabase/error';

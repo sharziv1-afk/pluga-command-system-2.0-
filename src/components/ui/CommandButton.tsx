@@ -58,33 +58,3 @@ export const CommandButton = React.forwardRef<HTMLButtonElement, CommandButtonPr
   },
 );
 CommandButton.displayName = 'CommandButton';
-
-interface CommandIconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  label: string;
-  children: React.ReactNode;
-  active?: boolean;
-}
-
-export const CommandIconButton = React.forwardRef<HTMLButtonElement, CommandIconButtonProps>(
-  ({ label, children, active = false, className, type = 'button', ...props }, ref) => {
-    return (
-      <button
-        ref={ref}
-        type={type}
-        aria-label={label}
-        title={label}
-        className={cn(
-          'touch-target inline-flex h-9 w-9 items-center justify-center rounded-xl border transition duration-[var(--motion-fast)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus-ring)]',
-          active
-            ? 'border-[var(--action)]/30 bg-[var(--brand)]/10 text-[var(--color-action-on-surface)]'
-            : 'border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-muted-accessible)] hover:border-[var(--action)]/30 hover:text-[var(--color-action-on-surface)]',
-          className,
-        )}
-        {...props}
-      >
-        {children}
-      </button>
-    );
-  },
-);
-CommandIconButton.displayName = 'CommandIconButton';

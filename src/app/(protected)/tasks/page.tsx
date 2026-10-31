@@ -13,7 +13,6 @@ import {
   Trash2,
   UserCheck,
   WifiOff,
-  X,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { CommandConfirmDialog, CommandOverlay } from '@/components/ui/CommandDialog';
@@ -38,7 +37,7 @@ import { LIST_FETCH_LIMIT, TRUNCATION_NOTICE, isTruncated } from '@/lib/queryLim
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 import type { DbTask } from '@/lib/types';
 import { formatDate, formatDateTime, formatTime } from '@/lib/datetime';
-import { toDbProfile, type DbProfile } from '@/lib/dbProfile';
+import { toDbProfile } from '@/lib/dbProfile';
 
 type TaskStatus = 'open' | 'in_progress' | 'blocked' | 'completed' | 'cancelled';
 type TaskPriority = 'רגילה' | 'חשובה' | 'דחופה' | 'קריטית';

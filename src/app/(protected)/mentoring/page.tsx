@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { MentoringPanel } from '@/components/mentoring/MentoringPanel';
 

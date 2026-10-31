@@ -29,19 +29,6 @@ export interface Profile {
   created_at: string;
 }
 
-export interface DbAuditLog {
-  id: string;
-  user_id: string | null;
-  user_name: string | null;
-  user_role: string | null;
-  action_type: string;
-  entity_type: string;
-  entity_id: string | null;
-  previous_value: Record<string, unknown> | null;
-  new_value: Record<string, unknown> | null;
-  created_at: string;
-}
-
 export interface DbTask {
   id: string;
   title: string;

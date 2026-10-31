@@ -15,7 +15,6 @@ import {
   Search,
   UserPlus,
   UsersRound,
-  X,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';

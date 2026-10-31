@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Bot, Loader2, ShieldCheck, ShieldX } from 'lucide-react';
 import type { OAuthAuthorizationDetails } from '@supabase/supabase-js';
 import { GlassCard } from '@/components/ui/GlassCard';

@@ -38,7 +38,7 @@ import { logSupabaseError } from '@/lib/supabase/error';
 import { LIST_FETCH_LIMIT, TRUNCATION_NOTICE, isTruncated } from '@/lib/queryLimits';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 import { formatDate, formatDateTime, formatTime } from '@/lib/datetime';
-import { toDbProfile, type DbProfile } from '@/lib/dbProfile';
+import { toDbProfile } from '@/lib/dbProfile';
 import { writeFailureMessage } from '@/lib/offline/writeErrors';
 
 // Loaded on demand: GapsPanel is ~500 lines behind the פערים toggle, and

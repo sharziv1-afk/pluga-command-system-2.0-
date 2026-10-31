@@ -483,12 +483,6 @@ textarea {
   background: rgba(255, 255, 255, 0.1);
 }
 
-.command-container {
-  width: min(100%, 1120px);
-  margin-inline: auto;
-  padding-inline: clamp(1rem, 4vw, 2rem);
-}
-
 .command-input {
   min-height: 44px;
   width: 100%;
@@ -529,16 +523,6 @@ textarea {
 .command-select:focus {
   border-color: rgba(255, 107, 2, 0.42) !important;
   box-shadow: 0 0 0 4px rgba(255, 107, 2, 0.12);
-}
-
-/* Utility Animations */
-@keyframes pulse-soft {
-  0%, 100% { opacity: 0.8; }
-  50% { opacity: 0.4; }
-}
-
-.animate-pulse-soft {
-  animation: pulse-soft 3s infinite ease-in-out;
 }
 
 /* Light command theme overrides for legacy dark Tailwind utilities. */
@@ -628,14 +612,6 @@ option {
   box-shadow: 0 14px 36px rgba(2, 1, 8, 0.08) !important;
 }
 
-.auth-navy-shell {
-  background:
-    radial-gradient(circle at top right, rgba(255,107,2,0.14), transparent 28%),
-    radial-gradient(circle at bottom left, rgba(2,1,8,0.06), transparent 32%),
-    #F6F7F9 !important;
-  color: #020108 !important;
-}
-
 .auth-dark-card {
   background: rgba(255, 255, 255, 0.88) !important;
   border-color: rgba(255, 107, 2, 0.16) !important;
@@ -655,18 +631,7 @@ option {
   color: #020108;
 }
 
-.auth-dark-input {
-  background-color: rgba(255, 255, 255, 0.92) !important;
-  border: 1px solid rgba(2, 1, 8, 0.1) !important;
-  color: #020108 !important;
-}
-
-.auth-dark-input::placeholder {
-  color: #98A2B3 !important;
-}
-
 /* Night variant: keep the same gloss system while overriding legacy light utilities. */
-:root[data-theme="dark"] .auth-navy-shell,
 :root[data-theme="dark"] .command-page-shell {
   background:
     radial-gradient(circle at top right, rgba(255,107,2,0.18), transparent 30%),
@@ -749,16 +714,14 @@ option {
 
 :root[data-theme="dark"] input:not([aria-invalid="true"]),
 :root[data-theme="dark"] select:not([aria-invalid="true"]),
-:root[data-theme="dark"] textarea:not([aria-invalid="true"]),
-:root[data-theme="dark"] .auth-dark-input {
+:root[data-theme="dark"] textarea:not([aria-invalid="true"]) {
   background-color: rgba(255, 255, 255, 0.1) !important;
   border-color: rgba(255, 255, 255, 0.14) !important;
   color: #f8fafc !important;
 }
 
 :root[data-theme="dark"] input::placeholder,
-:root[data-theme="dark"] textarea::placeholder,
-:root[data-theme="dark"] .auth-dark-input::placeholder {
+:root[data-theme="dark"] textarea::placeholder {
   color: #94a3b8 !important;
 }
 
@@ -821,7 +784,7 @@ option {
 }
 
 /* Respect reduced-motion: neutralize the page-enter animation, skeleton shimmer,
-   pulse-soft, and every transition for users who request less motion (also eases
+   and every transition for users who request less motion (also eases
    low-power devices). Kept as a single global rule to avoid per-component duplication. */
 @media (prefers-reduced-motion: reduce) {
   *,

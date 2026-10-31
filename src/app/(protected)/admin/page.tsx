@@ -24,7 +24,6 @@ import {
   normalizeEmail,
 } from '@/lib/adminUserEdits';
 import {
-  Shield,
   UserCheck,
   UserX,
   UserPlus,

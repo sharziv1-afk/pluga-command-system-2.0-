@@ -1,9 +1,8 @@
 'use client';
 
-import React from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Clock3, LogOut, RefreshCw, UserCheck, ShieldAlert, Loader2 } from 'lucide-react';
+import { Clock3, LogOut, RefreshCw, UserCheck, Loader2 } from 'lucide-react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlossyButton } from '@/components/ui/GlossyButton';
 import { StatusBadge } from '@/components/ui/StatusBadge';

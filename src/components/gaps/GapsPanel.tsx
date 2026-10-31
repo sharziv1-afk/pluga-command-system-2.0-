@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ArrowLeftRight, Loader2, Plus, Search, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, ArrowLeftRight, Plus, Search, ShieldAlert } from 'lucide-react';
 import { priorityClass } from '@/lib/statusLabels';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { GlassCard } from '@/components/ui/GlassCard';

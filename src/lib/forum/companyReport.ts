@@ -73,25 +73,12 @@ export interface CompanyReportStats {
   staffTotal: number;
 }
 
-export interface CompanyReportResult {
-  text: string;
-  generatedFromReportIds: string[];
-  stats: CompanyReportStats;
-  warnings: string[];
-}
-
 const MISSING_REPORT = '[לא הוגש דוח]';
 const IN_PROGRESS_TAG = '[בטיפול — טרם הוגש סופית]';
-const DASH = '—';
-const DIVIDER = '─'.repeat(24);
 
 function getString(content: Record<string, unknown>, key: string): string {
   const value = content[key];
   return typeof value === 'string' ? value.trim() : '';
-}
-
-function valueOrDash(content: Record<string, unknown>, key: string): string {
-  return getString(content, key) || DASH;
 }
 
 function parseCount(value: string): number | null {
@@ -102,19 +89,6 @@ function parseCount(value: string): number | null {
 
 function isFinalStatus(status: CompanyReportStatus): boolean {
   return status === 'submitted' || status === 'closed';
-}
-
-function statusText(status: CompanyReportStatus): string {
-  switch (status) {
-    case 'closed':
-      return 'נסגר';
-    case 'submitted':
-      return 'הוגש';
-    case 'in_progress':
-      return 'בטיפול';
-    default:
-      return 'טרם הוגש';
-  }
 }
 
 /** Fields that count as "this report has real content" for tagging purposes. */
@@ -155,13 +129,6 @@ function resolvePlatoonNumber(
   const fromLabel = label.match(/מחלקה\s*([1-4])/);
   if (fromLabel) return Number(fromLabel[1]);
   return null;
-}
-
-function manpowerText(content: Record<string, unknown>): string {
-  const present = getString(content, 'present_count');
-  const total = getString(content, 'total_count');
-  if (!present && !total) return DASH;
-  return `${present || DASH}/${total || DASH}`;
 }
 
 /**
@@ -326,204 +293,5 @@ export function aggregateCompanyStructured(input: CompanyReportInput): CompanySt
     },
     warnings,
     generatedFromReportIds: [...usedIds],
-  };
-}
-
-/**
- * Build the deterministic company summary text from already-loaded daily reports.
- */
-export function buildCompanyReport(input: CompanyReportInput): CompanyReportResult {
-  const { reports, formattedDate, platoons, staff, keyGaps } = input;
-  const warnings: string[] = [];
-  const usedIds = new Set<string>();
-
-  // --- Assign platoon reports to platoon numbers (deterministic, never guesses by unit). ---
-  const platoonReports = reports.filter((report) => report.report_level === 'platoon');
-  const byNumber = new Map<number, CompanyReportSource>();
-  const unidentified: CompanyReportSource[] = [];
-  for (const report of platoonReports) {
-    const number = resolvePlatoonNumber(report, platoons);
-    if (number && !byNumber.has(number)) {
-      byNumber.set(number, report);
-    } else {
-      unidentified.push(report);
-    }
-  }
-
-  const orderedPlatoons = [...platoons].sort((a, b) => a.number - b.number);
-
-  // --- Company report (commander's own report) for tomorrow's schedule + closing notes. ---
-  const companyReport = reports.find((report) => report.report_level === 'company') ?? null;
-  if (companyReport) usedIds.add(companyReport.id);
-
-  // --- Header + overview ----------------------------------------------------------------
-  const lines: string[] = [];
-  lines.push('📋 פורום מוביל יומי — סיכום פלוגתי');
-  lines.push(`תאריך: ${formattedDate}`);
-  lines.push('');
-  lines.push(DIVIDER);
-  lines.push('תמונת מצב כללית');
-
-  let presentTotal: number | null = null;
-  let sdkTotal: number | null = null;
-  for (const platoon of orderedPlatoons) {
-    const report = byNumber.get(platoon.number);
-    if (!report) continue;
-    const present = parseCount(getString(report.content, 'present_count'));
-    const total = parseCount(getString(report.content, 'total_count'));
-    if (present !== null) presentTotal = (presentTotal ?? 0) + present;
-    if (total !== null) sdkTotal = (sdkTotal ?? 0) + total;
-  }
-
-  const platoonSubmitted = orderedPlatoons.filter((platoon) => {
-    const report = byNumber.get(platoon.number);
-    return report ? isFinalStatus(report.status) : false;
-  }).length;
-
-  const staffReports = staff.map((slot) => ({
-    slot,
-    report:
-      reports.find(
-        (report) => report.report_level === 'staff' && report.staff_role === slot.role,
-      ) ?? null,
-  }));
-  const staffSubmitted = staffReports.filter(
-    ({ report }) => report !== null && isFinalStatus(report.status),
-  ).length;
-
-  lines.push(
-    `• מצבה: ${presentTotal ?? DASH}/${sdkTotal ?? DASH}`,
-    `• דוחות מחלקה שהוגשו: ${platoonSubmitted}/${orderedPlatoons.length}`,
-    `• דוחות מפל״ג שהוגשו: ${staffSubmitted}/${staff.length}`,
-  );
-
-  // --- Per-platoon detail ---------------------------------------------------------------
-  for (const platoon of orderedPlatoons) {
-    lines.push('', DIVIDER, platoon.label);
-    const report = byNumber.get(platoon.number);
-    if (!report) {
-      lines.push(`• סטטוס: ${MISSING_REPORT}`);
-      warnings.push(`${platoon.label}: לא הוגש דוח.`);
-      continue;
-    }
-    usedIds.add(report.id);
-    const content = report.content;
-    const final = isFinalStatus(report.status);
-    const withContent = hasPlatoonContent(content);
-    const inProgressWithContent = !final && withContent;
-    lines.push(`• סטטוס: ${inProgressWithContent ? IN_PROGRESS_TAG : statusText(report.status)}`);
-    if (inProgressWithContent) {
-      warnings.push(`${platoon.label}: הדוח עדיין בטיפול וטרם הוגש סופית.`);
-    }
-
-    if (final || withContent) {
-      lines.push(
-        `• מצבה: ${manpowerText(content)}`,
-        `• כוננות: ${valueOrDash(content, 'readiness')}`,
-        `• ת״ש: ${valueOrDash(content, 'welfare')}`,
-        `• רפואה: ${valueOrDash(content, 'medical')}`,
-        `• לוגיסטיקה: ${valueOrDash(content, 'logistics')}`,
-        `• רצוי מול מצוי: ${valueOrDash(content, 'plan_vs_actual')}`,
-        `• לקח יומי: ${valueOrDash(content, 'daily_lessons')}`,
-        `• פעולות להמשך: ${valueOrDash(content, 'next_actions')}`,
-      );
-    } else {
-      lines.push('• טרם מולא תוכן.');
-    }
-  }
-
-  // --- Unidentified platoon reports (never dropped) -------------------------------------
-  if (unidentified.length > 0) {
-    lines.push('', DIVIDER, 'מחלקה לא מזוהה');
-    warnings.push(`${unidentified.length} דוחות מחלקה לא מזוהים (אין שיוך מ״מ/מחלקה).`);
-    unidentified.forEach((report, index) => {
-      usedIds.add(report.id);
-      const content = report.content;
-      const final = isFinalStatus(report.status);
-      const withContent = hasPlatoonContent(content);
-      const statusDisplay = !final && withContent ? IN_PROGRESS_TAG : statusText(report.status);
-      lines.push(
-        `• דוח ${index + 1} · סטטוס: ${statusDisplay}`,
-        `  מצבה: ${manpowerText(content)} · כוננות: ${valueOrDash(content, 'readiness')} · לוגיסטיקה: ${valueOrDash(content, 'logistics')}`,
-      );
-    });
-  }
-
-  // --- Staff / מפל״ג --------------------------------------------------------------------
-  lines.push('', DIVIDER, 'מפל״ג / בעלי תפקידים');
-  for (const { slot, report } of staffReports) {
-    if (!report) {
-      lines.push(`• ${slot.label}: טרם הוגש`);
-      continue;
-    }
-    usedIds.add(report.id);
-    const notes = getString(report.content, 'notes');
-    const final = isFinalStatus(report.status);
-    const tag = !final && notes ? ` ${IN_PROGRESS_TAG}` : '';
-    lines.push(`• ${slot.label}: ${notes || 'טרם הוגש'}${tag}`);
-  }
-
-  // --- Company roll-ups -----------------------------------------------------------------
-  const rollup = (title: string, key: string) => {
-    lines.push('', DIVIDER, title);
-    for (const platoon of orderedPlatoons) {
-      const report = byNumber.get(platoon.number);
-      if (!report) {
-        lines.push(`• ${platoon.label}: ${MISSING_REPORT}`);
-        continue;
-      }
-      lines.push(`• ${platoon.label}: ${valueOrDash(report.content, key)}`);
-    }
-  };
-
-  rollup('כוננות פלוגתית', 'readiness');
-  rollup('רצוי מול מצוי פלוגתי', 'plan_vs_actual');
-  rollup('לקחים מרכזיים', 'daily_lessons');
-
-  // משימות להמשך / מחר — platoon next_actions + the company tomorrow_schedule.
-  lines.push('', DIVIDER, 'משימות להמשך / מחר');
-  for (const platoon of orderedPlatoons) {
-    const report = byNumber.get(platoon.number);
-    if (!report) {
-      lines.push(`• ${platoon.label}: ${MISSING_REPORT}`);
-      continue;
-    }
-    lines.push(`• ${platoon.label}: ${valueOrDash(report.content, 'next_actions')}`);
-  }
-  if (companyReport) {
-    lines.push(`• לו״ז פלוגתי למחר: ${valueOrDash(companyReport.content, 'tomorrow_schedule')}`);
-  } else {
-    lines.push(`• לו״ז פלוגתי למחר: ${DASH}`);
-  }
-
-  // --- פערים מרכזיים — manual only, never auto-derived. ---------------------------------
-  lines.push('', DIVIDER, 'פערים מרכזיים');
-  const cleanGaps = (keyGaps ?? '').trim();
-  lines.push(cleanGaps || '(למילוי ידני — לא נגזר אוטומטית)');
-
-  // --- דגשי מ״פ -------------------------------------------------------------------------
-  lines.push('', DIVIDER, 'דגשי מ״פ');
-  if (companyReport) {
-    const closing = getString(companyReport.content, 'commander_closing');
-    lines.push(closing || '(למילוי ידני)');
-  } else {
-    lines.push('(למילוי ידני)');
-    warnings.push('טרם נוצר דוח פלוגתי של המ״פ — דגשי מ״פ ולו״ז למחר ריקים.');
-  }
-
-  lines.push('', DIVIDER, '_"המשימה מעל הכול — והאנשים בראש"_');
-
-  return {
-    text: lines.join('\n'),
-    generatedFromReportIds: [...usedIds],
-    stats: {
-      presentTotal,
-      sdkTotal,
-      platoonSubmitted,
-      platoonTotal: orderedPlatoons.length,
-      staffSubmitted,
-      staffTotal: staff.length,
-    },
-    warnings,
   };
 }

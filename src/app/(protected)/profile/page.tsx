@@ -18,6 +18,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
 import { clearDeviceSession } from '@/lib/offline/session';
 import { CalendarFeedCard } from '@/components/profile/CalendarFeedCard';
+import { NotificationSettingsCard } from '@/components/profile/NotificationSettingsCard';
 
 /**
  * The bottom nav's "עוד" sheet used to be the only place to sign out. Once
@@ -393,6 +394,7 @@ export default function ProfilePage() {
         </GlassCard>
       </div>
 
+      <NotificationSettingsCard />
       <CalendarFeedCard />
       <DeviceAccessCodeCard />
       <SignOutCard />

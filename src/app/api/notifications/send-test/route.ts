@@ -7,6 +7,7 @@ import { getSupabaseEnv } from '@/lib/supabase/env';
 // signed-in user enabled. Runs under the user's own token, so RLS decides
 // which devices are reached (their own) and send_test_notification()
 // (migration 038) rate-limits and records it in their bell.
+// Not under a folder named "test": node --test would load it as a test file.
 export const dynamic = 'force-dynamic';
 
 const reply = (body: Record<string, unknown>, status = 200) =>

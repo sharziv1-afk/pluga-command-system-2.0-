@@ -8,7 +8,7 @@
 |---|---|
 | טבלאות `notifications`, ‏`push_subscriptions`, ‏`notification_preferences`, ופונקציות `register_push_subscription()` ו־`send_test_notification()` | `supabase/migrations/038_notifications.sql` |
 | שליחת Web Push: ‏VAPID והצפנת aes128gcm, בלי חבילה חיצונית | `src/lib/push/webPush.ts`, נבדק מול הדוגמה של RFC 8291 (`tests/webPush.test.mjs`) |
-| התראת בדיקה | `POST /api/notifications/test`. רץ עם הטוקן של המשתמש עצמו, בלי מפתח service-role |
+| התראת בדיקה | `POST /api/notifications/send-test`. רץ עם הטוקן של המשתמש עצמו, בלי מפתח service-role |
 | "הפעל התראות" ו"שלח התראת בדיקה" | הפרופיל, `NotificationSettingsCard` |
 | פעמון עם מונה, "סמן הכל כנקרא" | בראש המסך בטלפון ובתחתית התפריט בצד במחשב, `NotificationBell` |
 | קבלת Push ולחיצה על התראה | `public/sw.js` |

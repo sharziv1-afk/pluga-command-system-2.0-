@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs';
 
 const sw = readFileSync('public/sw.js', 'utf8');
 const migration = readFileSync('supabase/migrations/038_notifications.sql', 'utf8');
-const route = readFileSync('src/app/api/notifications/test/route.ts', 'utf8');
+const route = readFileSync('src/app/api/notifications/send-test/route.ts', 'utf8');
 
 test('every push shows a notification (iOS revokes permission otherwise)', () => {
   const push = sw.slice(sw.indexOf("addEventListener('push'"), sw.indexOf("addEventListener('notificationclick'"));

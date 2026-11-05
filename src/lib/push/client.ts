@@ -94,7 +94,7 @@ export async function sendTestPush(): Promise<TestPushResult> {
   if (!token) return { ok: false, reason: 'failed' };
 
   try {
-    const response = await fetch('/api/notifications/test', {
+    const response = await fetch('/api/notifications/send-test', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
     });

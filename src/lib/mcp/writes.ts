@@ -250,7 +250,8 @@ export function registerWriteTools(server: McpServer) {
     'create_event',
     {
       title: 'הוספת מופע ללו״ז',
-      description: 'Add an event to the schedule (לו״ז). Times are Israel wall-clock "YYYY-MM-DD HH:mm". Types: training, logistics, meeting, inspection, operation, admin, other.' + CONFIRM_NOTE,
+      description: 'Add an event to the schedule (לו״ז). Times are Israel wall-clock "YYYY-MM-DD HH:mm". Types: training, logistics, meeting, inspection, operation, admin, other. '
+        + 'notify (who gets a phone notification): none (default — the event only appears in the schedule), responsible, unit (the staff of the creator\'s unit and the units under it), forum (פורום מוביל: מ״פ, סמ״פ, מ״מ 1–4, מש״ד, רס״פ, חובש פלוגתי), custom (the people named in notify_people). The responsible person is always notified.' + CONFIRM_NOTE,
       inputSchema: z.object({
         title: z.string().min(2).max(200),
         starts_at: z.string(),
@@ -259,11 +260,23 @@ export function registerWriteTools(server: McpServer) {
         location: z.string().max(200).optional(),
         responsible: z.string().optional().describe('Responsible person\'s name'),
         description: z.string().max(4000).optional(),
+        notify: z.enum(['none', 'responsible', 'unit', 'forum', 'custom']).optional().describe('Who gets a notification. Default none'),
+        notify_people: z.array(z.string()).max(40).optional().describe('Names, for notify = custom'),
       }),
       annotations: WRITE,
     },
     async (args, ctx) => {
       const c = caller(ctx);
+      const notify = args.notify ?? 'none';
+      const notifyUserIds: string[] = [];
+      if (notify === 'custom') {
+        if (!args.notify_people?.length) return fail('notify = custom needs at least one name in notify_people.');
+        for (const name of args.notify_people) {
+          const person = await resolvePerson(c, name);
+          if ('error' in person) return fail(person.error);
+          if (person.id) notifyUserIds.push(person.id);
+        }
+      }
       let startsAt: string;
       let endsAt: string | null = null;
       try {
@@ -287,12 +300,14 @@ export function registerWriteTools(server: McpServer) {
           responsible_user_id: responsible.id,
           status: 'scheduled',
           metadata: { created_via: MCP_ORIGIN, mcp_client_id: clientIdOf(ctx) },
+          notify_audience: notify,
+          notify_user_ids: notifyUserIds,
         })
         .select('id,title,event_type,starts_at,status')
         .single();
       if (error || !data) return fail('The event was not created — you may not have permission for this.');
       await audit(c, ctx, { actionType: 'event_created', entityType: 'event', entityId: data.id, previousValue: null, newValue: { title: data.title, event_type: data.event_type, starts_at: data.starts_at } });
-      return ok({ created: 'event', id: data.id, title: data.title, starts_at: data.starts_at, responsible: responsible.name });
+      return ok({ created: 'event', id: data.id, title: data.title, starts_at: data.starts_at, responsible: responsible.name, notify });
     },
   );
 

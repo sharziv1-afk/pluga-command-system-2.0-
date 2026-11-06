@@ -75,6 +75,8 @@
 **הפעלה ב־LIVE (כל צעד באישור):**
 1. מריצים את מיגרציה 039. היא מדליקה את pg_net. **בוצע 06.11.2026:** הטריגרים קיימים, ו־227 המופעים הקיימים קיבלו `none`. pg_net הוזז מ־public לסכמת extensions, ושתי פונקציות העזר קיבלו `search_path` קבוע. אזהרות היועץ על שני אלה נעלמו.
 2. יוצרים סוד שליחה. ב־Vercel הוא נשמר כ־`NOTIFICATIONS_DISPATCH_KEY`, רק ב־Production. במסד נשמר רק ה־hash שלו, ב־`notification_dispatch_keys`.
+2א. **בוצע 06.11.2026:** הסוד מוגדר ב־Vercel, וה־hash שלו שמור במסד. `POST /api/notifications/dispatch` החי ענה 200 ושלח.
+2ב. **מיגרציה 040:** התראת הבדיקה נוצרת כבר מסומנת כנשלחה. בלי זה השולח שלח אותה פעם שנייה (נמצא כשהשולח רץ בפעם הראשונה).
 3. אחרי המיזוג והפריסה מוסיפים ל־`notification_settings` את השורה `dispatch_url` = `https://pluga-command-system-2-0.vercel.app/api/notifications/dispatch`. בלי השורה הזו המסד לא מעיר את השולח.
 
 ---

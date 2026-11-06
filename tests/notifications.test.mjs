@@ -63,3 +63,9 @@ test('the VAPID private key is server-only', () => {
   assert.doesNotMatch(readFileSync('src/components/layout/NotificationBell.tsx', 'utf8'), /VAPID/);
   assert.match(readFileSync('src/lib/push/vapid.ts', 'utf8'), /process\.env\.VAPID_PRIVATE_KEY/);
 });
+
+test('the test notification is born pushed, so the dispatcher never sends it twice', () => {
+  const fix = readFileSync('supabase/migrations/040_test_notification_pushed.sql', 'utf8');
+  assert.match(fix, /insert into public\.notifications \(user_id, kind, title, body, url, pushed_at\)/);
+  assert.match(fix, /'\/profile', now\(\)\)/);
+});

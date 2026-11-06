@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bell, X } from 'lucide-react';
+import { Bell, Trash2, X } from 'lucide-react';
 import { useApp } from '@/lib/context/AppContext';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
@@ -41,6 +41,7 @@ export const NotificationBell: React.FC = () => {
   const [items, setItems] = useState<NotificationRow[] | null>(null);
   const [loadedAt, setLoadedAt] = useState(0);
   const [open, setOpen] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const load = useCallback(async () => {
     if (!currentUser) return;
@@ -92,13 +93,32 @@ export const NotificationBell: React.FC = () => {
     if (error) logSupabaseError('Notifications mark read failed', error);
   };
 
+  // Deleting a notification never touches the task, event or request it
+  // points at (migration 041). "נקה הכל" clears every one of the user's
+  // notifications, not just the 30 on screen.
+  const deleteItems = async (ids: string[] | 'all') => {
+    if (!currentUser) return;
+    setItems(current => (ids === 'all' ? [] : current?.filter(item => !ids.includes(item.id)) ?? null));
+    const query = createSupabaseBrowserClient().from('notifications').delete();
+    const { error } = ids === 'all' ? await query.eq('user_id', currentUser.id) : await query.in('id', ids);
+    if (error) {
+      logSupabaseError('Notifications delete failed', error);
+      void load();
+    }
+  };
+
+  const closePanel = () => {
+    setOpen(false);
+    setConfirmClear(false);
+  };
+
   if (!currentUser || items === null) return null;
 
   const unread = items.filter(item => !item.read_at);
 
   const openItem = (item: NotificationRow) => {
     void markRead([item.id]);
-    setOpen(false);
+    closePanel();
     if (item.url) router.push(item.url);
   };
 
@@ -106,7 +126,7 @@ export const NotificationBell: React.FC = () => {
     <>
       <button
         type="button"
-        onClick={() => setOpen(value => !value)}
+        onClick={() => (open ? closePanel() : setOpen(true))}
         className="command-icon-button relative"
         aria-label={unread.length ? `התראות, ${unread.length} חדשות` : 'התראות'}
         aria-expanded={open}
@@ -122,7 +142,7 @@ export const NotificationBell: React.FC = () => {
 
       {open && (
         <div className="fixed inset-0 z-50" dir="rtl">
-          <button type="button" aria-label="סגירת ההתראות" className="absolute inset-0 bg-black/20" onClick={() => setOpen(false)} />
+          <button type="button" aria-label="סגירת ההתראות" className="absolute inset-0 bg-black/20" onClick={closePanel} />
           <div
             role="dialog"
             aria-label="התראות"
@@ -140,7 +160,26 @@ export const NotificationBell: React.FC = () => {
                     סמן הכל כנקרא
                   </button>
                 )}
-                <button type="button" onClick={() => setOpen(false)} className="command-icon-button" aria-label="סגירה">
+                {items.length > 0 && (
+                  // Two taps, so one stray tap cannot wipe the list.
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!confirmClear) {
+                        setConfirmClear(true);
+                        return;
+                      }
+                      setConfirmClear(false);
+                      void deleteItems('all');
+                    }}
+                    className={confirmClear
+                      ? 'touch-target min-h-9 rounded-lg bg-[var(--color-danger)]/10 px-2 text-xs font-bold text-[var(--color-danger)]'
+                      : 'touch-target min-h-9 rounded-lg px-2 text-xs font-semibold text-[var(--color-danger)]'}
+                  >
+                    {confirmClear ? 'לחץ שוב לניקוי' : 'נקה הכל'}
+                  </button>
+                )}
+                <button type="button" onClick={closePanel} className="command-icon-button" aria-label="סגירה">
                   <X className="h-4 w-4" />
                 </button>
               </div>
@@ -153,11 +192,11 @@ export const NotificationBell: React.FC = () => {
             ) : (
               <ul className="custom-scrollbar flex-1 divide-y divide-[var(--border-subtle)] overflow-y-auto">
                 {items.map(item => (
-                  <li key={item.id}>
+                  <li key={item.id} className="flex items-stretch">
                     <button
                       type="button"
                       onClick={() => openItem(item)}
-                      className="flex w-full items-start gap-3 px-4 py-3 text-right transition hover:bg-[var(--surface-muted)]"
+                      className="flex min-w-0 flex-1 items-start gap-3 py-3 pr-4 text-right transition hover:bg-[var(--surface-muted)]"
                     >
                       <span
                         aria-hidden
@@ -170,6 +209,15 @@ export const NotificationBell: React.FC = () => {
                         {item.body && <span className="mt-0.5 block text-xs leading-relaxed text-[var(--text-secondary)]">{item.body}</span>}
                         <span className="mt-1 block text-[11px] font-semibold text-[var(--text-muted-accessible)]">{timeAgo(item.created_at, loadedAt)}</span>
                       </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void deleteItems([item.id])}
+                      className="touch-target flex w-11 shrink-0 items-center justify-center text-[var(--text-muted-accessible)] transition hover:bg-[var(--surface-muted)] hover:text-[var(--color-danger)]"
+                      aria-label={`מחק התראה: ${item.title}`}
+                      title="מחק"
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   </li>
                 ))}

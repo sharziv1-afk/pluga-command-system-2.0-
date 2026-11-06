@@ -14,6 +14,8 @@
 --     so a schedule import can never flood anyone.
 --   * 23:00–06:00 (Jerusalem) a notification lands in the bell at once and
 --     its push waits for 06:00 (push_after).
+--   * Text is one short sentence and the item's name — no dates or times
+--     (company commander, 06.11.2026). The details are one tap away.
 --
 -- Delivery: an insert into notifications pokes /api/notifications/dispatch
 -- through pg_net with an empty body. The route holds the dispatch key (in
@@ -76,16 +78,6 @@ language sql
 immutable
 as $$
   select regexp_replace(btrim(translate(coalesce(p_role, ''), '״׳', '"''')), '\s+', ' ', 'g')
-$$;
-
--- "יום ג׳ 12.11 08:00", Jerusalem time.
-create or replace function public.notification_when(p_at timestamptz)
-returns text
-language sql
-stable
-as $$
-  select 'יום ' || (array['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'])[extract(dow from p_at at time zone 'Asia/Jerusalem')::int + 1]
-         || ' ' || to_char(p_at at time zone 'Asia/Jerusalem', 'DD.MM HH24:MI')
 $$;
 
 -- Quiet hours: 23:00–06:00 Jerusalem, the push waits for 06:00.
@@ -190,7 +182,6 @@ as $$
 declare
   v_actor uuid;
   v_actor_name text;
-  v_body text;
 begin
   if auth.uid() is null then
     return null;
@@ -202,13 +193,10 @@ begin
      and (tg_op = 'INSERT' or new.assigned_to is distinct from old.assigned_to)
      and new.status::text not in ('completed', 'cancelled')
      and (new.assigned_to is distinct from v_actor or new.created_by = v_actor) then
-    v_body := case when new.assigned_to = new.created_by then 'משימה אישית'
-                   else 'מאת ' || coalesce(v_actor_name, 'המערכת') end;
-    if new.due_at is not null then
-      v_body := v_body || ' · יעד ' || public.notification_when(new.due_at);
-    end if;
-    perform public.notify_user(new.assigned_to, 'task_assigned', 'משימה חדשה: ' || new.title, v_body,
-      '/tasks', 'task', new.id, 'task_assigned:' || new.id || ':' || new.assigned_to || ':' || txid_current());
+    perform public.notify_user(new.assigned_to, 'task_assigned',
+      case when new.assigned_to = new.created_by then 'משימה אישית חדשה'
+           else 'קיבלת משימה מ־' || coalesce(v_actor_name, 'המערכת') end,
+      new.title, '/tasks', 'task', new.id, 'task_assigned:' || new.id || ':' || new.assigned_to || ':' || txid_current());
   end if;
 
   if tg_op = 'UPDATE'
@@ -218,9 +206,8 @@ begin
      and new.created_by is distinct from v_actor then
     perform public.notify_user(new.created_by,
       case when new.status::text = 'blocked' then 'task_blocked' else 'task_completed' end,
-      case when new.status::text = 'blocked' then 'משימה תקועה: ' else 'משימה הושלמה: ' end || new.title,
-      case when new.status::text = 'blocked' then 'סומנה כתקועה על ידי ' else 'הושלמה על ידי ' end || coalesce(v_actor_name, 'המערכת'),
-      '/tasks', 'task', new.id, 'task_status:' || new.id || ':' || new.status || ':' || txid_current());
+      case when new.status::text = 'blocked' then 'משימה נתקעה' else 'משימה הושלמה' end,
+      new.title, '/tasks', 'task', new.id, 'task_status:' || new.id || ':' || new.status || ':' || txid_current());
   end if;
 
   return null;
@@ -241,8 +228,6 @@ set search_path = public
 as $$
 declare
   v_actor uuid;
-  v_actor_name text;
-  v_detail text;
   v_url text;
   v_new uuid[];
   v_old uuid[] := '{}';
@@ -254,9 +239,6 @@ begin
     return null;
   end if;
   v_actor := public.current_app_user_id();
-  select name into v_actor_name from public.users where id = v_actor;
-
-  v_detail := public.notification_when(new.starts_at) || coalesce(' · ' || nullif(btrim(new.location), ''), '');
   v_url := '/schedule?date=' || to_char(new.starts_at at time zone 'Asia/Jerusalem', 'YYYY-MM-DD');
   v_new := public.event_audience_user_ids(new.notify_audience, new.unit_id, new.responsible_user_id, new.notify_user_ids);
   if tg_op = 'UPDATE' then
@@ -267,16 +249,16 @@ begin
      and new.responsible_user_id is not null
      and new.responsible_user_id is distinct from v_actor
      and (tg_op = 'INSERT' or new.responsible_user_id is distinct from old.responsible_user_id) then
-    perform public.notify_user(new.responsible_user_id, 'event_responsible', 'מופע באחריותך: ' || new.title, v_detail,
+    perform public.notify_user(new.responsible_user_id, 'event_responsible', 'מופע חדש באחריותך', new.title,
       v_url, 'event', new.id, 'event_responsible:' || new.id || ':' || new.responsible_user_id || ':' || txid_current());
   end if;
 
   if tg_op = 'UPDATE' then
     if new.status::text = 'cancelled' and old.status::text <> 'cancelled' then
-      v_change := 'בוטל';
+      v_change := 'מופע בוטל';
       v_recipients := v_old || old.responsible_user_id || new.responsible_user_id;
     elsif new.status::text <> 'cancelled' and new.starts_at is distinct from old.starts_at then
-      v_change := 'הוזז ל־' || v_detail;
+      v_change := 'מופע הוזז';
       -- People added to the audience in this same edit get an invitation below.
       v_recipients := (select coalesce(array_agg(x), '{}') from unnest(v_new) x where x = any (v_old))
                       || new.responsible_user_id;
@@ -285,7 +267,7 @@ begin
     if v_change is not null then
       for r in select distinct x from unnest(v_recipients) x where x is not null loop
         if r is distinct from v_actor then
-          perform public.notify_user(r, 'event_changed', 'שינוי במופע: ' || new.title, v_change,
+          perform public.notify_user(r, 'event_changed', v_change, new.title,
             v_url, 'event', new.id, 'event_changed:' || new.id || ':' || r || ':' || md5(v_change) || ':' || txid_current());
         end if;
       end loop;
@@ -297,8 +279,7 @@ begin
       if r is distinct from v_actor
          and r is distinct from new.responsible_user_id
          and not (r = any (v_old)) then
-        perform public.notify_user(r, 'event_invite', new.title,
-          v_detail || ' · נקבע על ידי ' || coalesce(v_actor_name, 'המערכת'),
+        perform public.notify_user(r, 'event_invite', 'נקבע מופע חדש', new.title,
           v_url, 'event', new.id, 'event_invite:' || new.id || ':' || r || ':' || txid_current());
       end if;
     end loop;
@@ -322,23 +303,20 @@ set search_path = public
 as $$
 declare
   v_actor uuid;
-  v_actor_name text;
   v_requester_name text;
 begin
   if auth.uid() is null then
     return null;
   end if;
   v_actor := public.current_app_user_id();
-  select name into v_actor_name from public.users where id = v_actor;
 
   if new.assigned_to is not null
      and (tg_op = 'INSERT' or new.assigned_to is distinct from old.assigned_to)
      and new.assigned_to is distinct from v_actor
      and new.status::text in ('open', 'in_progress') then
     select name into v_requester_name from public.users where id = new.requested_by;
-    perform public.notify_user(new.assigned_to, 'request_assigned', 'דרישה לטיפולך: ' || new.title,
-      'מאת ' || coalesce(v_requester_name, v_actor_name, 'המערכת'),
-      '/requests', 'request', new.id, 'request_assigned:' || new.id || ':' || new.assigned_to || ':' || txid_current());
+    perform public.notify_user(new.assigned_to, 'request_assigned', 'קיבלת דרישה מ־' || coalesce(v_requester_name, 'המערכת'),
+      new.title, '/requests', 'request', new.id, 'request_assigned:' || new.id || ':' || new.assigned_to || ':' || txid_current());
   end if;
 
   if tg_op = 'UPDATE'
@@ -347,9 +325,8 @@ begin
      and new.requested_by is not null
      and new.requested_by is distinct from v_actor then
     perform public.notify_user(new.requested_by, 'request_status',
-      'הדרישה ' || case new.status::text when 'approved' then 'אושרה' when 'rejected' then 'נדחתה' else 'הושלמה' end || ': ' || new.title,
-      'עודכן על ידי ' || coalesce(v_actor_name, 'המערכת'),
-      '/requests', 'request', new.id, 'request_status:' || new.id || ':' || new.status || ':' || txid_current());
+      'הדרישה שלך ' || case new.status::text when 'approved' then 'אושרה' when 'rejected' then 'נדחתה' else 'הושלמה' end,
+      new.title, '/requests', 'request', new.id, 'request_status:' || new.id || ':' || new.status || ':' || txid_current());
   end if;
 
   return null;
@@ -370,7 +347,6 @@ set search_path = public
 as $$
 declare
   v_actor uuid;
-  v_reporter_name text;
   r uuid;
 begin
   if auth.uid() is null then
@@ -382,15 +358,12 @@ begin
     return null;
   end if;
   v_actor := public.current_app_user_id();
-  select name into v_reporter_name from public.users where id = coalesce(new.reported_by, new.created_by);
 
   for r in
     select id from public.users
      where status = 'active' and public.notification_role_key(role) = 'מ"פ' and id is distinct from v_actor
   loop
-    perform public.notify_user(r, 'gap_decision', 'פער להחלטתך: ' || new.title,
-      coalesce(new.urgency, 'חשוב') || ' · דווח על ידי ' || coalesce(v_reporter_name, 'המערכת'),
-      '/dashboard', 'gap', new.id, 'gap_decision:' || new.id || ':' || r);
+    perform public.notify_user(r, 'gap_decision', 'פער מחכה להחלטתך', new.title, '/dashboard', 'gap', new.id, 'gap_decision:' || new.id || ':' || r);
   end loop;
   return null;
 end;
@@ -425,8 +398,8 @@ begin
      where status = 'active' and role_approval_status = 'approved'
        and public.notification_role_key(role) in ('מ"פ', 'סמ"פ') and id <> new.id
   loop
-    perform public.notify_user(r, 'user_pending', 'משתמש ממתין לאישור: ' || coalesce(nullif(btrim(new.name), ''), new.email),
-      new.role, '/admin', 'user', new.id, 'user_pending:' || new.id || ':' || r);
+    perform public.notify_user(r, 'user_pending', 'משתמש חדש ממתין לאישור', coalesce(nullif(btrim(new.name), ''), new.email),
+      '/admin', 'user', new.id, 'user_pending:' || new.id || ':' || r);
   end loop;
   return null;
 end;

@@ -27,11 +27,18 @@ test('nobody is notified about their own action, except a personal task', () => 
   const task = body('notify_on_task_change');
   // Decided by the company commander on 06.11.2026.
   assert.match(task, /and \(new\.assigned_to is distinct from v_actor or new\.created_by = v_actor\)/);
-  assert.match(task, /when new\.assigned_to = new\.created_by then 'משימה אישית'/);
+  assert.match(task, /when new\.assigned_to = new\.created_by then 'משימה אישית חדשה'/);
   assert.match(task, /new\.created_by is distinct from v_actor/);
   for (const name of ['notify_on_event_change', 'notify_on_request_change']) {
     assert.match(body(name), /is distinct from v_actor/);
   }
+});
+
+test('texts are one short sentence plus the item name, with no dates (06.11.2026)', () => {
+  assert.doesNotMatch(migration, /notification_when|to_char\(new\.(starts_at|due_at)[^)]*'DD/);
+  assert.match(migration, /else 'קיבלת משימה מ־' \|\| coalesce\(v_actor_name, 'המערכת'\) end,\s*new\.title,/);
+  assert.match(migration, /'event_invite', 'נקבע מופע חדש', new\.title,/);
+  assert.match(migration, /'request_assigned', 'קיבלת דרישה מ־' \|\| coalesce\(v_requester_name, 'המערכת'\),\s*new\.title,/);
 });
 
 test('events notify nobody unless someone chose an audience', () => {

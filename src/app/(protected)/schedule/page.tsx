@@ -39,6 +39,7 @@ import type { DbEvent } from '@/lib/types';
 import { addDaysToDateKey, dateFromKey, formatDateTime, formatTime, getJerusalemDateKey } from '@/lib/datetime';
 import { toDbProfile } from '@/lib/dbProfile';
 import { writeFailureMessage } from '@/lib/offline/writeErrors';
+import { EventAudienceField, type EventAudience } from '@/components/schedule/EventAudienceField';
 
 type EventType = DbEvent['event_type'];
 type EventStatus = DbEvent['status'];
@@ -214,6 +215,8 @@ export default function SchedulePage() {
   const [endsAt, setEndsAt] = useState('');
   const [location, setLocation] = useState('');
   const [responsibleUserId, setResponsibleUserId] = useState('none');
+  const [notifyAudience, setNotifyAudience] = useState<EventAudience>('none');
+  const [notifyUserIds, setNotifyUserIds] = useState<string[]>([]);
   const [editEventTitle, setEditEventTitle] = useState('');
   const [editEventDescription, setEditEventDescription] = useState('');
   const [editEventType, setEditEventType] = useState<EventType>('other');
@@ -221,6 +224,8 @@ export default function SchedulePage() {
   const [editEndsAt, setEditEndsAt] = useState('');
   const [editLocation, setEditLocation] = useState('');
   const [editResponsibleUserId, setEditResponsibleUserId] = useState('none');
+  const [editNotifyAudience, setEditNotifyAudience] = useState<EventAudience>('none');
+  const [editNotifyUserIds, setEditNotifyUserIds] = useState<string[]>([]);
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const dbProfile = useMemo(() => toDbProfile(currentUser), [currentUser]);
@@ -259,7 +264,7 @@ export default function SchedulePage() {
       const [{ data: eventData, error: eventsError }, responsibleUsersResult] = await Promise.all([
         supabase
           .from('events')
-          .select('id,title,description,event_type,starts_at,ends_at,location,unit_id,created_by,responsible_user_id,status,metadata,created_at,updated_at')
+          .select('id,title,description,event_type,starts_at,ends_at,location,unit_id,created_by,responsible_user_id,status,metadata,notify_audience,notify_user_ids,created_at,updated_at')
           // Descending — see the matching comment in dashboard/page.tsx.
           // Ascending + a fixed cap silently drops today's/upcoming events
           // once the table outgrows the cap, favoring the oldest rows ever
@@ -329,6 +334,16 @@ export default function SchedulePage() {
       setIsLoading(false);
     }
   };
+
+  // A notification opens the event's day: /schedule?date=YYYY-MM-DD.
+  useEffect(() => {
+    const dateParam = new URLSearchParams(window.location.search).get('date');
+    if (!dateParam || !/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) return;
+    const offset = Math.round((Date.parse(`${dateParam}T00:00:00Z`) - Date.parse(`${getJerusalemDateKey(new Date())}T00:00:00Z`)) / 86_400_000);
+    if (!Number.isFinite(offset)) return;
+    setActiveTab('today');
+    setDayOffset(offset);
+  }, []);
 
   useEffect(() => {
     if (!isContextLoading) void loadEvents();
@@ -497,6 +512,8 @@ export default function SchedulePage() {
     setEndsAt('');
     setLocation('');
     setResponsibleUserId('none');
+    setNotifyAudience('none');
+    setNotifyUserIds([]);
   };
 
   const resolveUnitId = async () => dbProfile?.unit_id ?? null;
@@ -528,6 +545,11 @@ export default function SchedulePage() {
       return;
     }
 
+    if (notifyAudience === 'custom' && notifyUserIds.length === 0) {
+      setError('יש לבחור לפחות אדם אחד שיקבל התראה.');
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
     setSuccess(null);
@@ -546,6 +568,8 @@ export default function SchedulePage() {
       responsible_user_id: responsibleUserId === 'none' ? null : responsibleUserId,
       status: 'scheduled',
       metadata: {},
+      notify_audience: notifyAudience,
+      notify_user_ids: notifyAudience === 'custom' ? notifyUserIds : [],
     })
       .select('id,title,event_type,starts_at,status')
       .single<Pick<DbEvent, 'id' | 'title' | 'event_type' | 'starts_at' | 'status'>>();
@@ -611,6 +635,8 @@ export default function SchedulePage() {
     setEditEndsAt(formatDateTimeLocalInput(event.ends_at));
     setEditLocation(event.location ?? '');
     setEditResponsibleUserId(event.responsible_user_id ?? 'none');
+    setEditNotifyAudience(event.notify_audience ?? 'none');
+    setEditNotifyUserIds(event.notify_user_ids ?? []);
     setEditEventError(null);
     setError(null);
     setSuccess(null);
@@ -648,6 +674,12 @@ export default function SchedulePage() {
       return;
     }
 
+    if (editNotifyAudience === 'custom' && editNotifyUserIds.length === 0) {
+      setEditEventError('יש לבחור לפחות אדם אחד שיקבל התראה.');
+      return;
+    }
+    const nextNotifyUserIds = editNotifyAudience === 'custom' ? editNotifyUserIds : [];
+
     const nextResponsibleUserId = editResponsibleUserId === 'none' ? null : editResponsibleUserId;
     const effectiveEndTime = endsAtIso ? new Date(endsAtIso) : new Date(startsAtIso);
     const shouldReopenCompletedEvent =
@@ -661,6 +693,8 @@ export default function SchedulePage() {
       ends_at: endsAtIso,
       location: cleanLocation || null,
       responsible_user_id: nextResponsibleUserId,
+      notify_audience: editNotifyAudience,
+      notify_user_ids: nextNotifyUserIds,
       ...(shouldReopenCompletedEvent ? { status: 'scheduled' as const } : {}),
     };
 
@@ -725,6 +759,8 @@ export default function SchedulePage() {
       ends_at: endsAtIso,
       location: cleanLocation || null,
       responsible_user_id: nextResponsibleUserId,
+      notify_audience: editNotifyAudience,
+      notify_user_ids: nextNotifyUserIds,
       status: nextStatus,
       responsibleName: selectedResponsibleUser ? getUserDisplayName(selectedResponsibleUser) : null,
     };
@@ -1136,6 +1172,16 @@ export default function SchedulePage() {
                 placeholder="אופציונלי"
               />
             </label>
+
+            <EventAudienceField
+              audience={notifyAudience}
+              onAudienceChange={setNotifyAudience}
+              userIds={notifyUserIds}
+              onUserIdsChange={setNotifyUserIds}
+              users={responsibleUsers}
+              disabled={isSubmitting}
+              selectClassName="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+            />
 
             <div className="flex flex-col gap-2 sm:flex-row lg:col-span-2">
               <GlossyButton variant="orange" type="submit" disabled={isSubmitting}>
@@ -1584,6 +1630,16 @@ export default function SchedulePage() {
                   disabled={isEditEventSubmitting}
                 />
               </label>
+
+              <EventAudienceField
+                audience={editNotifyAudience}
+                onAudienceChange={setEditNotifyAudience}
+                userIds={editNotifyUserIds}
+                onUserIdsChange={setEditNotifyUserIds}
+                users={responsibleUsers}
+                disabled={isEditEventSubmitting}
+                selectClassName="command-select"
+              />
 
           </form>
         </CommandOverlay>

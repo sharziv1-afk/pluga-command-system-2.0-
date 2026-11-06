@@ -59,6 +59,9 @@ export interface DbEvent {
   responsible_user_id: string | null;
   status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
   metadata: Record<string, unknown>;
+  /** Who the event notifies (migration 039). Optional: not every query selects it. */
+  notify_audience?: 'none' | 'responsible' | 'unit' | 'forum' | 'custom';
+  notify_user_ids?: string[];
   created_at: string;
   updated_at: string;
 }

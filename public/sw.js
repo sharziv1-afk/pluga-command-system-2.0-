@@ -41,6 +41,54 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Push (notifications stage 1, 05.11.2026). Every push must show a
+// notification: iOS revokes a site's push permission when a push arrives and
+// nothing is shown. Only an in-app path is ever opened, never another site.
+const DEFAULT_NOTIFICATION_URL = '/dashboard';
+const safeAppPath = (value) =>
+  typeof value === 'string' && /^\/[^/\\]/.test(value) ? value : DEFAULT_NOTIFICATION_URL;
+
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { body: event.data ? event.data.text() : '' };
+  }
+  const url = safeAppPath(data.url);
+
+  event.waitUntil(Promise.all([
+    self.registration.showNotification(typeof data.title === 'string' && data.title ? data.title : 'המפקד', {
+      body: typeof data.body === 'string' ? data.body : '',
+      icon: '/icon-192.png',
+      dir: 'rtl',
+      lang: 'he',
+      tag: typeof data.tag === 'string' ? data.tag : undefined,
+      data: { url, id: typeof data.id === 'string' ? data.id : null },
+    }),
+    // An open app refreshes its bell at once.
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then((windows) => windows.forEach((client) => client.postMessage({ type: 'notifications-updated' }))),
+  ]));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = new URL(safeAppPath(event.notification.data && event.notification.data.url), self.location.origin).href;
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (windows) => {
+      const existing = windows.find((client) => new URL(client.url).origin === self.location.origin);
+      if (existing) {
+        await existing.focus();
+        if ('navigate' in existing) await existing.navigate(target).catch(() => undefined);
+        return;
+      }
+      await self.clients.openWindow(target);
+    }),
+  );
+});
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;

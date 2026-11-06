@@ -1,6 +1,6 @@
 # MCP — חיבור Claude / ChatGPT לאתר
 
-עודכן 25.10.2026. שלב 1 (קריאה) ושלב 2 (כתיבה מוגבלת) פעילים.
+עודכן 05.11.2026. שלב 1 (קריאה) ושלב 2 (כתיבה מוגבלת) פעילים.
 
 ## מה זה
 
@@ -69,7 +69,30 @@
    - Client ID: `c63b00ed-fe4f-4cff-ac90-67c3b752c649`.
    - Redirect URIs: `https://claude.ai/api/mcp/auth_callback` ו־`https://claude.com/api/mcp/auth_callback`.
 
-ל־ChatGPT צריך לקוח נוסף עם ה־redirect URI שלו. אם ChatGPT דורש Dynamic Client Registration, צריך להחליט אם להפעיל אותו, כי הוא פותח רישום לכל לקוח. גם אז נדרשים כניסה ואישור במסך ההסכמה, ורק פרופיל פעיל ומאושר יכול לאשר.
+4. **OAuth Apps:** לקוח "ChatGPT" (נוסף ב־05.11.2026, מחובר ועובד)
+   - Public client (PKCE, בלי secret), ‏token endpoint auth method ‏`none`.
+   - Client ID: `76dd974f-b80e-454e-a0da-bac7efb6ce08`.
+   - Redirect URI: `https://chatgpt.com/connector/oauth/82u9HsGGDS8A`. זו כתובת שייחודית למחבר הזה. אם המחבר נמחק ונוצר מחדש ב־ChatGPT, הכתובת משתנה וצריך לעדכן אותה כאן.
+   - Dynamic Client Registration ו־CIMD נשארים כבויים. ChatGPT מציג על זה אזהרה כתומה, וזה תקין.
+   - מגבלות הכתיבה של מיגרציה 035 חלות על כל טוקן שיש בו `client_id`, ולכן ChatGPT מוגבל בדיוק כמו Claude.
+
+## חיבור ב־ChatGPT
+
+צריך ChatGPT Plus או Pro, במחשב, ב־chatgpt.com.
+
+1. Settings, ואז Apps & Connectors (או Plugins). ב־Advanced settings מדליקים **Developer mode**.
+2. **Create**. ממלאים:
+   - Name: `המפקד`.
+   - MCP Server URL: `https://pluga-command-system-2-0.vercel.app/api/mcp`.
+   - Authentication: `OAuth`.
+3. ב־Advanced OAuth settings:
+   - Client registration: `User-Defined OAuth Client`.
+   - Client ID: ה־ID של הלקוח ChatGPT.
+   - Secret: ריק.
+   - Token endpoint auth method: `none`.
+4. בודקים שה־Callback URL שמוצג זהה ל־Redirect URI שרשום ב־Supabase.
+5. Create. נכנסים לאתר ומאשרים במסך ההסכמה.
+6. בשיחה: לוחצים **+**, בוחרים Developer mode ומפעילים את **המפקד**.
 
 ## חיבור ב־Claude
 

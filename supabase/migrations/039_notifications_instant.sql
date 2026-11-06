@@ -26,7 +26,9 @@
 -- The poke URL lives in notification_settings ('dispatch_url'); with no row,
 -- as in the sandbox, nothing is poked.
 
-create extension if not exists pg_net;
+-- In the extensions schema, as Supabase recommends; its functions live in
+-- the net schema either way.
+create extension if not exists pg_net with schema extensions;
 
 -- ---------------------------------------------------------------------------
 -- Private config: dispatch URL and dispatch key hashes. No client access.
@@ -76,6 +78,7 @@ create or replace function public.notification_role_key(p_role text)
 returns text
 language sql
 immutable
+set search_path = public
 as $$
   select regexp_replace(btrim(translate(coalesce(p_role, ''), '״׳', '"''')), '\s+', ' ', 'g')
 $$;
@@ -85,6 +88,7 @@ create or replace function public.notification_push_after(p_kind text)
 returns timestamptz
 language plpgsql
 stable
+set search_path = public
 as $$
 declare
   v_local timestamp := now() at time zone 'Asia/Jerusalem';

@@ -67,6 +67,7 @@ import {
   snapshotDraftFields,
 } from '@/lib/forum/draftProtection';
 import { useApp } from '@/lib/context/AppContext';
+import { ForumDeadlineBar } from '@/components/forum/ForumDeadlineBar';
 import { getPermissionLevelForRole, hasAdminAccess, hasCompanyWideUiAccess, normalizeRole } from '@/lib/permissions';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
@@ -3219,6 +3220,8 @@ export default function ForumPage() {
           </div>
         </div>
       </div>
+
+      <ForumDeadlineBar date={selectedDate} canEdit={hasAdminAccess(dbProfile?.role ?? currentUser?.role)} />
 
       <div className="flex items-start gap-3 rounded-3xl border border-[var(--brand)]/20 bg-[var(--brand)]/10 px-4 py-3.5">
         <Megaphone className="mt-0.5 h-5 w-5 shrink-0 text-[var(--brand)]" />

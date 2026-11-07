@@ -76,7 +76,9 @@ test('the schedule form saves who an event notifies, and a link opens the event\
   assert.match(schedule, /notify_audience,notify_user_ids/);
   assert.equal(schedule.match(/<EventAudienceField/g)?.length, 2, 'create and edit forms');
   assert.match(schedule, /notifyAudience === 'custom' && notifyUserIds\.length === 0/);
-  assert.match(schedule, /new URLSearchParams\(window\.location\.search\)\.get\('date'\)/);
+  assert.match(schedule, /const dateParam = params\.get\('date'\);/);
+  // Stage 4: the event itself opens, too.
+  assert.match(schedule, /setFocusEventId\(uuidParam\(params, 'item'\)\)/);
 });
 
 test('Claude / ChatGPT create events with no notification unless asked', () => {

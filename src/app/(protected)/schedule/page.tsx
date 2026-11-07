@@ -38,6 +38,7 @@ import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 import type { DbEvent } from '@/lib/types';
 import { addDaysToDateKey, dateFromKey, formatDateTime, formatTime, getJerusalemDateKey } from '@/lib/datetime';
 import { toDbProfile } from '@/lib/dbProfile';
+import { SearchParamsWatcher, uuidParam } from '@/lib/notifications/focus';
 import { writeFailureMessage } from '@/lib/offline/writeErrors';
 import { EventAudienceField, type EventAudience } from '@/components/schedule/EventAudienceField';
 
@@ -335,15 +336,27 @@ export default function SchedulePage() {
     }
   };
 
-  // A notification opens the event's day: /schedule?date=YYYY-MM-DD.
-  useEffect(() => {
-    const dateParam = new URLSearchParams(window.location.search).get('date');
+  // A notification opens the event's day and the event itself:
+  // /schedule?date=YYYY-MM-DD&item=<event id> (notifications stages 2 and 4).
+  const [focusEventId, setFocusEventId] = useState<string | null>(null);
+  const onSearchParams = (params: URLSearchParams) => {
+    setFocusEventId(uuidParam(params, 'item'));
+    const dateParam = params.get('date');
     if (!dateParam || !/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) return;
     const offset = Math.round((Date.parse(`${dateParam}T00:00:00Z`) - Date.parse(`${getJerusalemDateKey(new Date())}T00:00:00Z`)) / 86_400_000);
     if (!Number.isFinite(offset)) return;
     setActiveTab('today');
     setDayOffset(offset);
-  }, []);
+  };
+
+  useEffect(() => {
+    if (!focusEventId || isLoading) return;
+    const event = events.find(item => item.id === focusEventId);
+    if (!event) return;
+    setSelectedEvent(event);
+    setFocusEventId(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusEventId, isLoading]);
 
   useEffect(() => {
     if (!isContextLoading) void loadEvents();
@@ -977,6 +990,7 @@ export default function SchedulePage() {
 
   return (
     <div className="space-y-6">
+      <SearchParamsWatcher onChange={onSearchParams} />
       <PageHeader
         title="לו״ז פלוגתי"
         subtitle="מופעים, תרגילים ותזמונים מבצעיים לפי יום ושבוע"

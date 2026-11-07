@@ -47,6 +47,24 @@ self.addEventListener('activate', (event) => {
 const DEFAULT_NOTIFICATION_URL = '/dashboard';
 const safeAppPath = (value) =>
   typeof value === 'string' && /^\/[^/\\]/.test(value) ? value : DEFAULT_NOTIFICATION_URL;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Same list as src/lib/notifications/actions.ts; the server checks it again.
+const QUICK_ACTIONS = ['task_start', 'task_done', 'request_ack', 'seen', 'mentoring_snooze'];
+// The link carries the notification id, so the page can show its action bar.
+const withNotificationId = (path, id) => (id ? `${path}${path.includes('?') ? '&' : '?'}n=${id}` : path);
+
+const notifyWindows = () => self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+  .then((windows) => windows.forEach((client) => client.postMessage({ type: 'notifications-updated' })));
+
+const openApp = (target) => self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (windows) => {
+  const existing = windows.find((client) => new URL(client.url).origin === self.location.origin);
+  if (existing) {
+    await existing.focus();
+    if ('navigate' in existing) await existing.navigate(target).catch(() => undefined);
+    return;
+  }
+  await self.clients.openWindow(target);
+});
 
 self.addEventListener('push', (event) => {
   let data = {};
@@ -56,6 +74,15 @@ self.addEventListener('push', (event) => {
     data = { body: event.data ? event.data.text() : '' };
   }
   const url = safeAppPath(data.url);
+  const id = typeof data.id === 'string' && UUID.test(data.id) ? data.id : null;
+  // Quick-action buttons (stage 4). Android shows them; iPhone does not, and
+  // a tap opens the item with the same actions at the top of the page.
+  const actions = id && Array.isArray(data.actions)
+    ? data.actions
+      .filter((a) => a && QUICK_ACTIONS.includes(a.action) && typeof a.title === 'string')
+      .slice(0, 2)
+      .map((a) => ({ action: a.action, title: a.title.slice(0, 20) }))
+    : [];
 
   event.waitUntil(Promise.all([
     self.registration.showNotification(typeof data.title === 'string' && data.title ? data.title : 'המפקד', {
@@ -64,29 +91,37 @@ self.addEventListener('push', (event) => {
       dir: 'rtl',
       lang: 'he',
       tag: typeof data.tag === 'string' ? data.tag : undefined,
-      data: { url, id: typeof data.id === 'string' ? data.id : null },
+      actions,
+      data: { url, id },
     }),
     // An open app refreshes its bell at once.
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-      .then((windows) => windows.forEach((client) => client.postMessage({ type: 'notifications-updated' }))),
+    notifyWindows(),
   ]));
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const target = new URL(safeAppPath(event.notification.data && event.notification.data.url), self.location.origin).href;
+  const data = event.notification.data || {};
+  const id = typeof data.id === 'string' && UUID.test(data.id) ? data.id : null;
+  const target = new URL(withNotificationId(safeAppPath(data.url), id), self.location.origin).href;
 
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (windows) => {
-      const existing = windows.find((client) => new URL(client.url).origin === self.location.origin);
-      if (existing) {
-        await existing.focus();
-        if ('navigate' in existing) await existing.navigate(target).catch(() => undefined);
-        return;
-      }
-      await self.clients.openWindow(target);
-    }),
-  );
+  // A button: do it in the background with the site's own session. If that
+  // fails (signed out, no permission, offline), open the item instead.
+  if (event.action && id && QUICK_ACTIONS.includes(event.action)) {
+    event.waitUntil(
+      fetch('/api/notifications/action', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action: event.action }),
+      })
+        .then((response) => (response.ok ? notifyWindows() : openApp(target)))
+        .catch(() => openApp(target)),
+    );
+    return;
+  }
+
+  event.waitUntil(openApp(target));
 });
 
 self.addEventListener('fetch', (event) => {

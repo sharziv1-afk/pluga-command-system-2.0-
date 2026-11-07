@@ -1015,3 +1015,11 @@ option {
      computed back as 1px and the mode delivered no extra weight at all. */
   border-width: 2px !important;
 }
+
+/* The item a notification opened (notifications stage 4): a ring for a few
+   seconds, so the eye finds it in the list. */
+.item-focus {
+  outline: 3px solid var(--action);
+  outline-offset: 3px;
+  transition: outline-color 0.6s ease;
+}

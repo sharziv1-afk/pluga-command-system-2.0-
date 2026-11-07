@@ -85,6 +85,22 @@ test('bad subscription keys are refused before anything is sent', () => {
   assert.throws(() => encryptPayload(Buffer.alloc(5000), { p256dh: RFC.uaPublic, auth: RFC.auth }), /too large/);
 });
 
+test('VAPID: a private key with leading zero bytes still signs (Node drops them, 1 key in 256)', () => {
+  // Found when CI drew such a key (07.11.2026): it was rejected as invalid.
+  let server;
+  do {
+    server = createECDH('prime256v1');
+    server.generateKeys();
+  } while (server.getPrivateKey().length === 32);
+  const vapid = {
+    publicKey: toBase64Url(server.getPublicKey()),
+    privateKey: toBase64Url(server.getPrivateKey()),
+    subject: 'https://pluga-command-system-2-0.vercel.app',
+  };
+  assert.match(vapidAuthorization('https://fcm.googleapis.com/fcm/send/x', vapid, 1_800_000_000), /^vapid t=[\w-]+\.[\w-]+\.[\w-]+, k=/);
+  assert.throws(() => vapidAuthorization('https://fcm.googleapis.com/x', { ...vapid, privateKey: '' }), /Invalid VAPID keys/);
+});
+
 test('VAPID header: an ES256 JWT for the push service origin, signed by our key', () => {
   const server = createECDH('prime256v1');
   server.generateKeys();

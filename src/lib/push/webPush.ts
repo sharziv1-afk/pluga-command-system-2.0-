@@ -108,8 +108,13 @@ export function encryptPayload(
 /** RFC 8292: the Authorization header value for one push service origin. */
 export function vapidAuthorization(endpoint: string, vapid: VapidKeys, nowSeconds = Math.floor(Date.now() / 1000)): string {
   const publicKey = fromBase64Url(vapid.publicKey);
-  const privateKey = fromBase64Url(vapid.privateKey);
-  if (publicKey.length !== 65 || publicKey[0] !== 4 || privateKey.length !== 32) throw new Error('Invalid VAPID keys');
+  const rawPrivateKey = fromBase64Url(vapid.privateKey);
+  if (publicKey.length !== 65 || publicKey[0] !== 4 || rawPrivateKey.length === 0 || rawPrivateKey.length > 32) {
+    throw new Error('Invalid VAPID keys');
+  }
+  // Node's ECDH getPrivateKey() drops leading zero bytes, so about 1 key in
+  // 256 is 31 bytes or shorter. It is the same scalar; JWK needs all 32 bytes.
+  const privateKey = Buffer.concat([Buffer.alloc(32 - rawPrivateKey.length), rawPrivateKey]);
 
   const key = createPrivateKey({
     key: {

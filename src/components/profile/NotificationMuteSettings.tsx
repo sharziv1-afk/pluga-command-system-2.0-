@@ -73,7 +73,9 @@ export function NotificationMuteSettings() {
                 <span className="block text-xs font-bold text-[var(--text-primary)]">{group.label}</span>
                 <span className="block text-[11px] font-semibold text-[var(--text-muted-accessible)]">{group.hint}</span>
               </span>
-              {/* A 44px hit area around a small track. */}
+              {/* A 44px hit area around a small track. The knob's white is a hex
+                  value on purpose: dark mode turns Tailwind's white background
+                  class translucent (globals.css). */}
               <button
                 type="button"
                 role="switch"
@@ -91,8 +93,8 @@ export function NotificationMuteSettings() {
                 >
                   <span
                     className={on
-                      ? 'absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow transition-all'
-                      : 'absolute top-1 right-1 h-5 w-5 rounded-full bg-white shadow transition-all'}
+                      ? 'absolute top-1 left-1 h-5 w-5 rounded-full bg-[#ffffff] shadow transition-all'
+                      : 'absolute top-1 right-1 h-5 w-5 rounded-full bg-[#ffffff] shadow transition-all'}
                   />
                 </span>
               </button>

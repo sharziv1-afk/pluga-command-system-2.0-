@@ -161,3 +161,10 @@ test('every kind can be muted, except a task given to me', () => {
   }
   assert.equal(new Set(grouped).size, grouped.length, 'each kind in one group');
 });
+
+test('the mute switch knob stays visible in dark mode', () => {
+  const mute = readFileSync('src/components/profile/NotificationMuteSettings.tsx', 'utf8');
+  // globals.css repaints any class containing bg-white as translucent in dark mode.
+  assert.doesNotMatch(mute, /bg-white/);
+  assert.match(mute, /bg-\[#ffffff\]/);
+});

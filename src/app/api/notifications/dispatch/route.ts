@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { getVapidKeys } from '@/lib/push/vapid';
 import { sendWebPush } from '@/lib/push/webPush';
 import { getSupabaseEnv } from '@/lib/supabase/env';
+import { QUICK_ACTION_LABELS, actionsForKind } from '@/lib/notifications/actions';
 
 // Sends pending notifications as Web Push (migration 039). The database pokes
 // this route through pg_net with an empty body whenever a notification is
@@ -42,7 +43,9 @@ export async function POST(request: Request) {
   if (pending.length === 0) return reply({ notifications: 0, sent: 0, failed: 0, removed: 0 });
 
   const results: PushResult[] = await Promise.all(pending.flatMap((item) => {
-    const payload = JSON.stringify({ id: item.id, title: item.title, body: item.body, url: item.url, tag: item.id });
+    // Up to two buttons (Android shows them; iPhone opens the item instead).
+    const actions = actionsForKind(item.kind).slice(0, 2).map((action) => ({ action, title: QUICK_ACTION_LABELS[action] }));
+    const payload = JSON.stringify({ id: item.id, title: item.title, body: item.body, url: item.url, tag: item.id, actions });
     return item.subscriptions.map(async (subscription): Promise<PushResult> => {
       try {
         const result = await sendWebPush(subscription, payload, vapid, { ttl: 24 * 60 * 60 });

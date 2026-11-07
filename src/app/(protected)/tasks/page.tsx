@@ -38,6 +38,7 @@ import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 import type { DbTask } from '@/lib/types';
 import { formatDate, formatDateTime, formatTime } from '@/lib/datetime';
 import { toDbProfile } from '@/lib/dbProfile';
+import { SearchParamsWatcher, focusItemElement, uuidParam, useItemChanged } from '@/lib/notifications/focus';
 
 type TaskStatus = 'open' | 'in_progress' | 'blocked' | 'completed' | 'cancelled';
 type TaskPriority = 'רגילה' | 'חשובה' | 'דחופה' | 'קריטית';
@@ -175,6 +176,8 @@ export default function TasksPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TaskTab>('all');
   const [quickFilter, setQuickFilter] = useState<TaskQuickFilter>('none');
+  // The task a notification opened (?item=, notifications stage 4).
+  const [focusTaskId, setFocusTaskId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('רגילה');
@@ -365,6 +368,19 @@ export default function TasksPage() {
     if (!isContextLoading) void loadTasks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isContextLoading, currentUser]);
+
+  // Show the opened task even if a tab or filter would hide it.
+  useEffect(() => {
+    if (!focusTaskId || isLoading || !tasks.some(task => task.id === focusTaskId)) return;
+    setActiveTab('all');
+    setQuickFilter('none');
+    focusItemElement(focusTaskId);
+    setFocusTaskId(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusTaskId, isLoading]);
+
+  // "בוצע" from the notification bar: show the new status at once.
+  useItemChanged(['task'], () => void loadTasks());
 
   useEffect(() => {
     if (!dbProfile) return;
@@ -848,6 +864,7 @@ export default function TasksPage() {
 
   return (
     <div className="space-y-6">
+      <SearchParamsWatcher onChange={params => setFocusTaskId(uuidParam(params, 'item'))} />
       <PageHeader
         title="משימות ובקרה פלוגתית"
         subtitle="עבודה שמוטלת על בעל תפקיד, עם אחראי, תאריך יעד ותוצר — משהו שצריך לבצע. אם מישהו אחר צריך לספק לך משהו, פתח דרישה."
@@ -1112,7 +1129,7 @@ export default function TasksPage() {
             const canEdit = canEditTask(task);
 
             return (
-              <GlassCard key={task.id} className="space-y-4">
+              <GlassCard key={task.id} data-item-id={task.id} className="space-y-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <h2 className="text-lg font-semibold text-[var(--text-primary)]">{task.title}</h2>

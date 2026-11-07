@@ -19,6 +19,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 import { formatDate } from '@/lib/datetime';
+import { SearchParamsWatcher, focusItemElement, uuidParam } from '@/lib/notifications/focus';
 
 type GapCategory = 'לוגיסטי' | 'הדרכתי' | 'לו"זי';
 type GapUrgency = 'רגיל' | 'חשוב' | 'דחוף' | 'קריטי';
@@ -127,6 +128,17 @@ export function GapsPanel() {
     loadGaps();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
+
+  // The gap a notification opened (?view=gaps&item=, notifications stage 4).
+  const [focusGapId, setFocusGapId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!focusGapId || isLoading || !gaps.some(gap => gap.id === focusGapId)) return;
+    setCategoryFilter('הכל');
+    setSearchText('');
+    focusItemElement(focusGapId);
+    setFocusGapId(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusGapId, isLoading]);
 
   const resetForm = () => {
     setTitle('');
@@ -320,6 +332,7 @@ export function GapsPanel() {
 
   return (
     <div className="space-y-6">
+      <SearchParamsWatcher onChange={params => setFocusGapId(uuidParam(params, 'item'))} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm font-semibold text-[var(--text-muted-accessible)]">
           פערים אינם בהכרח משימות — פער לוגיסטי ניתן להמיר לדרישה בלחיצה אחת.
@@ -393,7 +406,7 @@ export function GapsPanel() {
           {filteredGaps.map(gap => {
             const canEdit = canEditGap(gap);
             return (
-              <GlassCard key={gap.id} className="space-y-3">
+              <GlassCard key={gap.id} data-item-id={gap.id} className="space-y-3">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0">
                     <div className="mb-2 flex flex-wrap items-center gap-2">

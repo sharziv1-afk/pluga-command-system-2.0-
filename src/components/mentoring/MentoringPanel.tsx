@@ -17,6 +17,7 @@ import { isCompanyCommander, normalizeRole } from '@/lib/permissions';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
 import { formatDate } from '@/lib/datetime';
+import { SearchParamsWatcher, focusItemElement, uuidParam, useItemChanged } from '@/lib/notifications/focus';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 
 type Mentee = {
@@ -124,6 +125,20 @@ export function MentoringPanel() {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, isCommanderOnly]);
+
+  // A mentoring notification opens the mentee's log at the entry:
+  // /mentoring?mentee=<user id>&item=<entry id> (notifications stage 4).
+  const [focusTarget, setFocusTarget] = useState<{ mentee: string; entry: string | null } | null>(null);
+  useEffect(() => {
+    if (!focusTarget || isLoading || !mentees.some(mentee => mentee.id === focusTarget.mentee)) return;
+    setSelectedMenteeId(focusTarget.mentee);
+    if (focusTarget.entry) focusItemElement(focusTarget.entry);
+    setFocusTarget(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusTarget, isLoading]);
+
+  // "דחה ביום" from the notification bar: show the new check date at once.
+  useItemChanged(['mentoring_entry'], () => void loadData());
 
   const resetForm = () => {
     setOccurredOn(today());
@@ -296,6 +311,12 @@ export function MentoringPanel() {
 
   return (
     <div className="space-y-6">
+      <SearchParamsWatcher
+        onChange={params => {
+          const mentee = uuidParam(params, 'mentee');
+          setFocusTarget(mentee ? { mentee, entry: uuidParam(params, 'item') } : null);
+        }}
+      />
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
         <MetricCard label="שיחות חניכה שתועדו" value={totalEntries} icon={ListChecks} tone="brand" />
         <MetricCard label="בדיקה חוזרת דרושה" value={dueForCheck} icon={CalendarClock} tone="danger" />
@@ -378,7 +399,7 @@ export function MentoringPanel() {
               <p className="text-sm font-bold text-[var(--command-subtle)]">עדיין לא נרשמה שיחת חניכה עם {selectedMentee.name}.</p>
             ) : (
               entriesFor(selectedMentee.id).map(entry => (
-                <div key={entry.id} className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-4 text-sm">
+                <div key={entry.id} data-item-id={entry.id} className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-4 text-sm">
                   <div className="mb-2 flex items-center justify-between">
                     <span className="font-mono text-xs font-semibold text-[var(--command-subtle)]">{formatDate(entry.occurred_on)}</span>
                     {entry.next_check_at && (

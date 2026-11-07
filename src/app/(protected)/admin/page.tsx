@@ -13,6 +13,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 import { logSupabaseError } from '@/lib/supabase/error';
 import { useApp } from '@/lib/context/AppContext';
+import { SearchParamsWatcher, focusItemElement, uuidParam } from '@/lib/notifications/focus';
 import { getPermissionLevelForRole, hasAdminAccess, isCompanyCommander } from '@/lib/permissions';
 import {
   approvedEditIsValid,
@@ -204,6 +205,35 @@ export default function AdminPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, supabase]);
+
+  // Who has phone notifications on (decision ד׳, 05.11.2026). Ids only, and
+  // only for מ״פ and סמ״פ (notification_push_users, migration 045); anyone
+  // else gets an empty list and sees no mark.
+  const [pushUserIds, setPushUserIds] = useState<Set<string> | null>(null);
+  useEffect(() => {
+    if (!currentUser) return;
+    let active = true;
+    void (async () => {
+      const { data, error } = await supabase.rpc('notification_push_users');
+      if (!active) return;
+      if (error) {
+        logSupabaseError('Push users load failed', error);
+        return;
+      }
+      setPushUserIds(new Set(((data ?? []) as string[])));
+    })();
+    return () => {
+      active = false;
+    };
+  }, [currentUser, supabase]);
+
+  // "משתמש חדש ממתין לאישור" opens this page at that person (?item=).
+  const [focusUserId, setFocusUserId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!focusUserId || isLoadingData) return;
+    focusItemElement(focusUserId);
+    setFocusUserId(null);
+  }, [focusUserId, isLoadingData]);
 
   if (isContextLoading || isLoadingData) {
     return (
@@ -695,6 +725,7 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-6 text-right">
+      <SearchParamsWatcher onChange={params => setFocusUserId(uuidParam(params, 'item'))} />
       {/* Page Header */}
       <PageHeader
         title="ניהול הרשאות ואישור מפקדים"
@@ -817,7 +848,7 @@ export default function AdminPage() {
           ) : (
             <div className="space-y-3">
               {activeRequests.map((req) => (
-                <GlassCard key={req.id} glow="orange" className="p-5 flex flex-col gap-4">
+                <GlassCard key={req.id} data-item-id={req.id} glow="orange" className="p-5 flex flex-col gap-4">
                   {editingUserId === req.id ? (
                     renderEditor(req)
                   ) : (
@@ -902,7 +933,7 @@ export default function AdminPage() {
               pastRequests.map((req) => {
                 const manageable = canManageUser(adminActor, req);
                 return (
-                  <GlassCard key={req.id} className="p-4 bg-[var(--tactical-glass)] border-[var(--border-subtle)]" glow="none">
+                  <GlassCard key={req.id} data-item-id={req.id} className="p-4 bg-[var(--tactical-glass)] border-[var(--border-subtle)]" glow="none">
                     {editingUserId === req.id ? (
                       renderEditor(req)
                     ) : (
@@ -917,6 +948,9 @@ export default function AdminPage() {
                             </span>
                             <span className="block text-caption text-[var(--text-muted-accessible)]">
                               {linkStatusLabel(req)}
+                              {pushUserIds && req.role_approval_status === 'approved' && req.status !== 'blocked' && (
+                                <> • {pushUserIds.has(req.id) ? 'התראות לטלפון: פעילות' : 'התראות לטלפון: לא הופעלו'}</>
+                              )}
                               {canEditEmail(req) && (
                                 <> • <span className="font-mono" dir="ltr">{req.email}</span></>
                               )}

@@ -6,6 +6,8 @@ import { Bell, Trash2, X } from 'lucide-react';
 import { useApp } from '@/lib/context/AppContext';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
+import { notificationHref } from '@/lib/notifications/actions';
+import { NOTIFICATIONS_CHANGED_EVENT } from '@/lib/notifications/focus';
 
 type NotificationRow = {
   id: string;
@@ -72,10 +74,14 @@ export const NotificationBell: React.FC = () => {
     const onWorkerMessage = (event: MessageEvent) => {
       if (event.data?.type === 'notifications-updated') void load();
     };
+    // The action bar (stage 4) read or acted on one.
+    const onChanged = () => void load();
     document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, onChanged);
     navigator.serviceWorker?.addEventListener('message', onWorkerMessage);
     return () => {
       window.clearInterval(timer);
+      window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, onChanged);
       document.removeEventListener('visibilitychange', onVisible);
       navigator.serviceWorker?.removeEventListener('message', onWorkerMessage);
     };
@@ -119,7 +125,10 @@ export const NotificationBell: React.FC = () => {
   const openItem = (item: NotificationRow) => {
     void markRead([item.id]);
     closePanel();
-    if (item.url) router.push(item.url);
+    // The link carries the notification id: the page opens the item itself
+    // and shows its quick actions (stage 4).
+    const href = notificationHref(item.url, item.id);
+    if (href) router.push(href);
   };
 
   return (

@@ -25,7 +25,9 @@ test('a notification only ever opens a path inside the app', () => {
   assert.match(sw, /const safeAppPath = \(value\) =>\s*typeof value === 'string' && \/\^\\\/\[\^\/\\\\\]\/\.test\(value\)/);
   const click = sw.slice(sw.indexOf("addEventListener('notificationclick'"), sw.indexOf("addEventListener('fetch'"));
   assert.match(click, /safeAppPath\(/);
-  assert.match(click, /new URL\(safeAppPath\([^)]*\), self\.location\.origin\)/);
+  // Stage 4 adds ?n=<notification id> to that same in-app path.
+  assert.match(click, /new URL\(withNotificationId\(safeAppPath\([^)]*\), id\), self\.location\.origin\)/);
+  assert.match(sw, /const withNotificationId = \(path, id\) => \(id \? `\$\{path\}\$\{path\.includes\('\?'\) \? '&' : '\?'\}n=\$\{id\}` : path\);/);
   // The database refuses anything else too.
   assert.match(migration, /url ~ '\^\/\[\^\/\\\\\]'/);
 });

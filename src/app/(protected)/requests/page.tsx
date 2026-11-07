@@ -39,6 +39,7 @@ import { LIST_FETCH_LIMIT, TRUNCATION_NOTICE, isTruncated } from '@/lib/queryLim
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 import { formatDate, formatDateTime, formatTime } from '@/lib/datetime';
 import { toDbProfile } from '@/lib/dbProfile';
+import { SearchParamsWatcher, focusItemElement, uuidParam, useItemChanged } from '@/lib/notifications/focus';
 import { writeFailureMessage } from '@/lib/offline/writeErrors';
 
 // Loaded on demand: GapsPanel is ~500 lines behind the פערים toggle, and
@@ -221,6 +222,8 @@ const GAPS_TAB_ENABLED = true;
 export default function RequestsPage() {
   const { currentUser, isLoading: isContextLoading, refreshProfile } = useApp();
   const [viewMode, setViewMode] = useState<ViewMode>('requests');
+  // The request a notification opened (?item=, notifications stage 4).
+  const [focusRequestId, setFocusRequestId] = useState<string | null>(null);
   const [requestsTruncated, setRequestsTruncated] = useState(false);
   const [requests, setRequests] = useState<DbRequest[]>([]);
   const [assigneeUsers, setAssigneeUsers] = useState<AssigneeUser[]>([]);
@@ -401,6 +404,28 @@ export default function RequestsPage() {
     if (!isContextLoading) { loadRequests(); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isContextLoading, currentUser]);
+
+  // Show the opened request even if a tab, search or filter would hide it.
+  useEffect(() => {
+    if (!focusRequestId || isLoading || !requests.some(request => request.id === focusRequestId)) return;
+    setViewMode('requests');
+    setActiveTab('all');
+    setSearchText('');
+    setFilterCategory('הכל');
+    setFilterPriority('הכל');
+    focusItemElement(focusRequestId);
+    setFocusRequestId(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusRequestId, isLoading]);
+
+  // "קיבלתי" from the notification bar: show the new status at once.
+  useItemChanged(['request'], () => void loadRequests());
+
+  const onSearchParams = (params: URLSearchParams) => {
+    // A gap notification opens the gaps tab (?view=gaps); GapsPanel finds the gap.
+    if (params.get('view') === 'gaps' && GAPS_TAB_ENABLED) setViewMode('gaps');
+    setFocusRequestId(params.get('view') === 'gaps' ? null : uuidParam(params, 'item'));
+  };
 
   const visibleRequests = useMemo(() => {
     if (!dbProfile || !currentUser) return [];
@@ -938,6 +963,7 @@ export default function RequestsPage() {
 
   return (
     <div className="space-y-6">
+      <SearchParamsWatcher onChange={onSearchParams} />
       <PageHeader
         title="דרישות"
         subtitle="בקשה שגורם מטפל יספק משאב או טיפול: לוגיסטיקה, רפואה, קשר, רכב או כוח אדם — משהו שצריך לקבל. אם אתה מבצע את זה בעצמך, זו משימה."
@@ -1184,7 +1210,7 @@ export default function RequestsPage() {
             const isDeleting = deletingRequestId === request.id;
 
             return (
-              <GlassCard key={request.id} className="space-y-4">
+              <GlassCard key={request.id} data-item-id={request.id} className="space-y-4">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0">
                     <div className="mb-2 flex flex-wrap items-center gap-2">

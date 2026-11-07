@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { BellRing, Loader2 } from 'lucide-react';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { NotificationMuteSettings } from '@/components/profile/NotificationMuteSettings';
 import {
   disablePush,
   enablePush,
@@ -183,6 +184,8 @@ export function NotificationSettingsCard() {
             )}
           </div>
         )}
+
+        {support !== null && support !== 'not_configured' && <NotificationMuteSettings />}
       </GlassCard>
     </div>
   );

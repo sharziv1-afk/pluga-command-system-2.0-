@@ -73,8 +73,9 @@ export function NotificationMuteSettings() {
                 <span className="block text-xs font-bold text-[var(--text-primary)]">{group.label}</span>
                 <span className="block text-[11px] font-semibold text-[var(--text-muted-accessible)]">{group.hint}</span>
               </span>
-              {/* A 44px hit area around a small track. The knob is bg-[#ffffff], not
-                  bg-white: dark mode turns every bg-white translucent (globals.css). */}
+              {/* A 44px hit area around a small track. The knob's white is a hex
+                  value on purpose: dark mode turns Tailwind's white background
+                  class translucent (globals.css). */}
               <button
                 type="button"
                 role="switch"

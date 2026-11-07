@@ -56,6 +56,8 @@ import { copyTextToClipboard } from '@/lib/clipboard';
 import { aggregateCompanyStructured, assignPlatoonReports } from '@/lib/forum/companyReport';
 import type { CompanyReportInput, CompanyReportPlatoon } from '@/lib/forum/companyReport';
 import { advanceReportStatus } from '@/lib/forum/reportStatus';
+import { CARRY_OVER_SOURCE_STATUSES, carryOverWindow, isCarryOverTarget, pickCarryOverSource } from '@/lib/forum/carryOver';
+import type { CarryOverSourceRow } from '@/lib/forum/carryOver';
 import {
   canMutateDailyDraft,
   canTransitionDraft,
@@ -409,6 +411,9 @@ function emptyReportDraft(): ReportDraft {
 }
 
 const reportDraftFields = Object.keys(emptyReportDraft()) as (keyof ReportDraft)[];
+// The fields whose text decides whether a report is "empty" for carry-over
+// (every draft field except the company_report_manually_edited flag).
+const carryOverContentKeys = reportDraftFields.filter(key => key !== 'company_report_manually_edited');
 
 // report.content is untyped jsonb — a legacy row can hold a number where a
 // string field is expected (this crashed the app once already: present_count/
@@ -548,6 +553,13 @@ export default function ForumPage() {
   const [showCompanyRefreshConfirm, setShowCompanyRefreshConfirm] = useState(false);
   const [showCompanyPublishConfirm, setShowCompanyPublishConfirm] = useState(false);
   const lastHydratedCompanyReportId = useRef<string | null | undefined>(undefined);
+  // Carry-over ("העתק מאתמול"): the previous submitted/closed report of the
+  // selected slot, keyed by the draft scope it was loaded for, plus the scopes
+  // where the user dismissed it ("התחל דוח ריק") or asked for it on a slot
+  // that is not their own (no auto-fill there).
+  const [carryOverSource, setCarryOverSource] = useState<{ scope: string; report: CarryOverSourceRow } | null>(null);
+  const [dismissedCarryOverScopes, setDismissedCarryOverScopes] = useState<ReadonlySet<string>>(() => new Set());
+  const [acceptedCarryOverScopes, setAcceptedCarryOverScopes] = useState<ReadonlySet<string>>(() => new Set());
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const dbProfile = useMemo(() => toDbProfile(currentUser), [currentUser]);
@@ -958,6 +970,31 @@ export default function ForumPage() {
   );
   const isSelectedReportReadOnly = selectedReport?.status === 'closed' && !canReopenSelectedReport;
 
+  // Carry-over target: the slot this form writes to (same owner + level +
+  // staff role the save would use), when its report for the day is still
+  // empty. Auto-fill happens only on the viewer's own slot; on someone else's
+  // slot (a commander looking at a מ״מ) it is offered as a button.
+  const carryOverLevel: ReportLevel | null = selectedNode && selectedNode.level !== 'whatsapp' ? selectedNode.level : null;
+  const carryOverOwnerId = selectedReport
+    ? selectedReport.owner_user_id
+    : canUseDraftFormForSelectedNode ? selectedNode?.ownerUserId ?? dbProfile?.id ?? null : null;
+  const carryOverStaffRole = carryOverLevel === 'staff' ? selectedReport?.staff_role ?? selectedNode?.staffRole ?? null : null;
+  const isSelectedSlotCarryOverTarget = Boolean(
+    carryOverLevel
+      && carryOverOwnerId
+      && !isSelectedReportReadOnly
+      && isCarryOverTarget(selectedReport, carryOverContentKeys),
+  );
+  const pendingCarryOver = isSelectedSlotCarryOverTarget
+    && carryOverSource?.scope === selectedDailyDraftScope
+    && !dismissedCarryOverScopes.has(selectedDailyDraftScope)
+    ? carryOverSource.report
+    : null;
+  const isOwnCarryOverSlot = Boolean(dbProfile) && carryOverOwnerId === dbProfile?.id;
+  const appliedCarryOver = pendingCarryOver && (isOwnCarryOverSlot || acceptedCarryOverScopes.has(selectedDailyDraftScope))
+    ? pendingCarryOver
+    : null;
+
   // The commander's own company-level report holds the distributable company summary
   // (the new company_report_* keys live inside its content JSONB).
   const companyReport = useMemo(
@@ -1324,18 +1361,100 @@ export default function ForumPage() {
     const draftIsDirty = isDraftDirty(reportDraftRef.current, reportDraftBaseline.current, reportDraftFields);
     if (!shouldHydrateDraft(draftIsDirty)) return;
 
-    const nextDraft = draftFromReport(selectedReport);
+    // An empty report with a carry-over source opens filled from it. The fill
+    // is the clean baseline (not a dirty edit): leaving without saving loses
+    // nothing — it is rebuilt from the source on return — and only what the
+    // user types afterwards counts as unsaved. An existing empty report opens
+    // straight in the editor, so the read view never shows copied text as if
+    // it were already saved.
+    const nextDraft = appliedCarryOver
+      ? sanitizeReportContent(emptyReportDraft(), appliedCarryOver.content ?? {})
+      : draftFromReport(selectedReport);
     const snapshot = snapshotDraftFields(nextDraft, reportDraftFields);
     reportDraftRef.current = snapshot;
     reportDraftBaseline.current = snapshot;
     hydratedDailyDraftScope.current = selectedDailyDraftScope;
     setReportDraft(snapshot);
-    setIsEditingReport(false);
+    setIsEditingReport(Boolean(appliedCarryOver && selectedReport));
     if (selectedNode.level === 'company') {
       setCompanyGeneratedAt(null);
       setCompanyReportWarnings([]);
     }
-  }, [activeTab, selectedDailyDraftScope, selectedNode, selectedReport]);
+  }, [activeTab, appliedCarryOver, selectedDailyDraftScope, selectedNode, selectedReport]);
+
+  // Carry-over source read: the latest submitted/closed report of the same
+  // slot (owner + level + staff role) in the 7 days before the selected date.
+  // A plain SELECT under the user's own RLS — an owner sees their own rows, a
+  // commander sees all — so no schema or policy change. Read-only: nothing is
+  // written until the user saves the form. Skipped offline and while the
+  // day's reports are still loading (the slot may turn out not to be empty).
+  useEffect(() => {
+    if (activeTab !== 'daily' || isDailyLoading || isOfflineDaily) return;
+    if (!isSelectedSlotCarryOverTarget || !carryOverOwnerId || !carryOverLevel) return;
+    const scope = selectedDailyDraftScope;
+    let cancelled = false;
+
+    void (async () => {
+      const { from } = carryOverWindow(selectedDate);
+      let query = supabase
+        .from('forum_daily_reports')
+        .select('id,report_date,status,content')
+        .eq('owner_user_id', carryOverOwnerId)
+        .eq('report_level', carryOverLevel)
+        .in('status', [...CARRY_OVER_SOURCE_STATUSES])
+        .lt('report_date', selectedDate)
+        .gte('report_date', from);
+      if (carryOverStaffRole) query = query.eq('staff_role', carryOverStaffRole);
+      const { data, error: sourceError } = await query
+        .order('report_date', { ascending: false })
+        .returns<CarryOverSourceRow[]>();
+
+      if (cancelled) return;
+      if (sourceError) {
+        // Best-effort: without a source the form simply opens empty, as before.
+        logSupabaseError('Forum carry-over source load failed', sourceError);
+        return;
+      }
+      const source = pickCarryOverSource(data ?? [], selectedDate, carryOverContentKeys);
+      setCarryOverSource(source ? { scope, report: source } : null);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeTab,
+    carryOverLevel,
+    carryOverOwnerId,
+    carryOverStaffRole,
+    isDailyLoading,
+    isOfflineDaily,
+    isSelectedSlotCarryOverTarget,
+    selectedDailyDraftScope,
+    selectedDate,
+    supabase,
+  ]);
+  // End carry-over source read
+
+  const applyCarryOverNow = () => {
+    if (!pendingCarryOver) return;
+    if (
+      isDraftDirty(reportDraftRef.current, reportDraftBaseline.current, reportDraftFields)
+      && !window.confirm('יש שינויים שלא נשמרו. ההעתקה תחליף אותם בתוכן הדוח הקודם. להמשיך?')
+    ) return;
+    replaceWithCleanDailyDraft(sanitizeReportContent(emptyReportDraft(), pendingCarryOver.content ?? {}));
+    setAcceptedCarryOverScopes(current => new Set(current).add(selectedDailyDraftScope));
+    setIsEditingReport(true);
+  };
+
+  const dismissCarryOver = () => {
+    if (
+      isDraftDirty(reportDraftRef.current, reportDraftBaseline.current, reportDraftFields)
+      && !window.confirm('יש שינויים שלא נשמרו. התחלת דוח ריק תמחק אותם. להמשיך?')
+    ) return;
+    replaceWithCleanDailyDraft(draftFromReport(selectedReport));
+    setDismissedCarryOverScopes(current => new Set(current).add(selectedDailyDraftScope));
+  };
 
   // Hydrate the company-report editor meta from its row, but only when the underlying report
   // identity changes — so a content reload (e.g. our own save) never re-flags manual edits or
@@ -3001,6 +3120,36 @@ export default function ForumPage() {
                 {returnedInfo.at ? ` · ${formatDate(returnedInfo.at)}` : ''}
               </span>
             </div>
+          </div>
+        )}
+
+        {pendingCarryOver && (
+          <div className="flex flex-col gap-3 rounded-2xl border border-[var(--brand)]/25 bg-[var(--brand)]/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <CalendarClock className="mt-0.5 h-5 w-5 shrink-0 text-[var(--color-action-on-surface)]" />
+              {appliedCarryOver && !isReadView ? (
+                <div className="text-sm font-bold text-[var(--text-primary)]">
+                  <span className="block font-semibold">מולא מהדוח של {formatSelectedDate(pendingCarryOver.report_date)}</span>
+                  <span className="text-[var(--text-muted-accessible)]">ערוך את מה שהשתנה ולחץ שמור. עד אז שום דבר לא נשמר.</span>
+                </div>
+              ) : (
+                <div className="text-sm font-bold text-[var(--text-primary)]">
+                  <span className="block font-semibold">יש דוח קודם מ{formatSelectedDate(pendingCarryOver.report_date)}</span>
+                  <span className="text-[var(--text-muted-accessible)]">אפשר להעתיק אותו לכאן ולערוך רק את מה שהשתנה.</span>
+                </div>
+              )}
+            </div>
+            {appliedCarryOver && !isReadView ? (
+              <GlossyButton variant="slate" size="sm" onClick={dismissCarryOver} disabled={isDailySaving} className="shrink-0">
+                <RefreshCw className="h-4 w-4" />
+                התחל דוח ריק
+              </GlossyButton>
+            ) : (
+              <GlossyButton variant="orange" size="sm" onClick={applyCarryOverNow} disabled={isDailySaving} className="shrink-0">
+                <Clipboard className="h-4 w-4" />
+                העתק מהדוח הקודם
+              </GlossyButton>
+            )}
           </div>
         )}
 

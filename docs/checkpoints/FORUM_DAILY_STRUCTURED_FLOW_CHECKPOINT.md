@@ -219,6 +219,7 @@ Verified by read-only code audit. Two files carry the whole flow.
 | `persistCompanyReportContent` | 1778–1861 | Safe merge write (`{ ...existing, ...patch }`) of the company report content. |
 | `publishAndCloseForum` | 1897–1957 | Saves the final company form, bulk-closes the day, runs carry-forward. |
 | `carryForwardClosedReport` | 1409–1472 | Best-effort next-day draft on close (insert only, `23505` skipped, never blocks). |
+| Carry-over read + hydration (2026-11-07) | — | Opening an empty own report fills the form (clean baseline, no write) from the latest submitted/closed report of the same owner/level/staff role in the prior 7 days. Rules in `src/lib/forum/carryOver.ts`; read-only SELECT under existing RLS; others' slots get a button, not auto-fill. |
 
 Audit actions added by this round (best-effort, in `src/lib/audit.ts`):
 `forum_company_report_saved`, `forum_daily_forum_published`, `forum_daily_report_carried_forward`.

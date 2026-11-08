@@ -13,6 +13,7 @@ import {
   withRecordScore,
 } from '@/lib/trackingScore';
 import { callerFrom, type McpCaller } from './context';
+import { attendanceCodeFromLabel, isAttendanceItem, staffUserIdOf } from './tracking';
 import {
   MCP_ORIGIN,
   asText,
@@ -36,36 +37,36 @@ import {
  * The user's own permissions (RLS) still decide every write.
  */
 
-const WRITE = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } as const;
-const DESTRUCTIVE = { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false } as const;
+export const WRITE = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } as const;
+export const DESTRUCTIVE = { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false } as const;
 
 const TASK_PRIORITIES = ['רגילה', 'חשובה', 'דחופה', 'קריטית'] as const;
 const TASK_STATUSES = ['open', 'in_progress', 'blocked', 'completed', 'cancelled'] as const;
 const REQUEST_CATEGORIES = ['לוגיסטיקה', 'רפואה', 'קשר', 'רכב', 'כוח אדם', 'אחר'] as const;
 const REQUEST_PRIORITIES = ['נמוכה', 'רגילה', 'גבוהה', 'דחופה'] as const;
 const REQUEST_STATUSES = ['open', 'in_progress', 'approved', 'rejected', 'completed', 'cancelled'] as const;
-const EVENT_TYPES = ['training', 'logistics', 'meeting', 'inspection', 'operation', 'admin', 'other'] as const;
+export const EVENT_TYPES = ['training', 'logistics', 'meeting', 'inspection', 'operation', 'admin', 'other'] as const;
 
-const CONFIRM_NOTE = ' Changes real data: tell the user exactly what will be written and get their confirmation before calling.';
+export const CONFIRM_NOTE = ' Changes real data: tell the user exactly what will be written and get their confirmation before calling.';
 
-function caller(ctx: ServerContext): McpCaller {
+export function caller(ctx: ServerContext): McpCaller {
   return callerFrom(ctx.http?.authInfo);
 }
 
-function clientIdOf(ctx: ServerContext): string {
+export function clientIdOf(ctx: ServerContext): string {
   return ctx.http?.authInfo?.clientId ?? 'unknown';
 }
 
-function fail(message: string) {
+export function fail(message: string) {
   return { ...asText({ ok: false, error: message }), isError: true };
 }
 
-function ok(value: Record<string, unknown>) {
+export function ok(value: Record<string, unknown>) {
   return asText({ ok: true, ...value });
 }
 
 /** Awaited so the row lands before the serverless function returns; never throws. */
-async function audit(c: McpCaller, ctx: ServerContext, params: Omit<CreateAuditLogParams, 'userId' | 'userName' | 'userRole'>) {
+export async function audit(c: McpCaller, ctx: ServerContext, params: Omit<CreateAuditLogParams, 'userId' | 'userName' | 'userRole'>) {
   await createAuditLog(c.supabase, {
     ...params,
     userId: c.profile.id,
@@ -75,13 +76,13 @@ async function audit(c: McpCaller, ctx: ServerContext, params: Omit<CreateAuditL
   });
 }
 
-async function visibleUsers(c: McpCaller): Promise<UserLite[]> {
+export async function visibleUsers(c: McpCaller): Promise<UserLite[]> {
   const { data } = await c.supabase.from('users').select('id,name,role,unit_id,status,role_approval_status');
   return ((data ?? []) as UserLite[]).filter((u) => u.status !== 'blocked');
 }
 
 /** Resolve a person by name, or explain why not (none / ambiguous). */
-async function resolvePerson(c: McpCaller, name: string | undefined): Promise<{ id: string | null; name: string | null } | { error: string }> {
+export async function resolvePerson(c: McpCaller, name: string | undefined): Promise<{ id: string | null; name: string | null } | { error: string }> {
   if (!name) return { id: null, name: null };
   const { match, candidates } = matchByName(await visibleUsers(c), name, (u) => `${u.name} (${u.role})`);
   if (match) return { id: match.id, name: match.name };
@@ -100,6 +101,30 @@ function creatorMeta(c: McpCaller, ctx: ServerContext) {
     created_via: MCP_ORIGIN,
     mcp_client_id: clientIdOf(ctx),
   };
+}
+
+/**
+ * A person on the tracking table: a soldier by name, or a staff member (סגל)
+ * added with add_tracking_soldier — matched by the soldier row's own name, or
+ * through the staff user it is linked to (name or role, e.g. "מ״מ 2").
+ */
+async function resolveTrackedPerson(
+  c: McpCaller,
+  rows: Array<{ id: string; full_name: string; metadata: unknown }>,
+  query: string,
+): Promise<{ match: { id: string; full_name: string } } | { error: string }> {
+  const direct = matchByName(rows, query, (x) => x.full_name);
+  if (direct.match) return { match: direct.match };
+  if (direct.candidates.length) return { error: `Several people match: ${direct.candidates.join('; ')}` };
+
+  const staff = matchByName(await visibleUsers(c), query, (u) => `${u.name} (${u.role})`);
+  if (staff.match) {
+    const linked = rows.find((row) => staffUserIdOf(row.metadata) === staff.match!.id);
+    if (linked) return { match: linked };
+    return { error: `${staff.match.name} (${staff.match.role}) is not on the tracking table yet. Add them with add_tracking_soldier (staff: true).` };
+  }
+  if (staff.candidates.length) return { error: `Several people match: ${staff.candidates.join('; ')}` };
+  return { error: `No visible soldier or staff member named "${query}" on the tracking table.` };
 }
 
 export function registerWriteTools(server: McpServer) {
@@ -316,11 +341,11 @@ export function registerWriteTools(server: McpServer) {
     'set_tracking_status',
     {
       title: 'עדכון תא במעקב',
-      description: 'Set one soldier\'s result for one tracking item (מעקב), with an optional note. Regular items take a status: עבר / לא עבר / השלמה / ריק ("ריק" clears the cell). Score items (מעקב עם ציון) take a score instead, within the item\'s range; עבר / לא עבר then follows the item\'s pass rule. Status "ריק" without a score clears a score item too. Soldier and item are matched by name.' + CONFIRM_NOTE,
+      description: 'Set one person\'s result for one tracking item (מעקב), with an optional note. Works for soldiers and for staff (סגל) added to the tracking table with add_tracking_soldier — a staff member can be named by their name or role (e.g. "מ״מ 2"). Regular items take a status: עבר / לא עבר / השלמה / ריק ("ריק" clears the cell). Attendance items (נוכחות) take נכח / לא נכח / ריק. Score items (מעקב עם ציון) take a score instead, within the item\'s range; עבר / לא עבר then follows the item\'s pass rule. Status "ריק" without a score clears a score item too. Person and item are matched by name.' + CONFIRM_NOTE,
       inputSchema: z.object({
-        soldier: z.string().min(2),
+        soldier: z.string().min(2).describe('The soldier\'s or staff member\'s name (staff also by role, e.g. "מ״מ 2")'),
         item: z.string().min(2).describe('Tracking item title, e.g. "מטווח רובה"'),
-        status: z.enum(['עבר', 'לא עבר', 'השלמה', 'ריק']).optional().describe('Regular items only (and "ריק" to clear a score item)'),
+        status: z.enum(['עבר', 'לא עבר', 'השלמה', 'ריק', 'נכח', 'לא נכח']).optional().describe('Regular items: עבר / לא עבר / השלמה / ריק. Attendance items: נכח / לא נכח / ריק. "ריק" also clears a score item'),
         score: z.number().optional().describe('Score items only, e.g. 86'),
         note: z.string().max(500).optional(),
       }),
@@ -329,11 +354,11 @@ export function registerWriteTools(server: McpServer) {
     async (args, ctx) => {
       const c = caller(ctx);
       const [{ data: soldiers }, { data: items }] = await Promise.all([
-        c.supabase.from('soldiers').select('id,full_name').eq('is_active', true),
+        c.supabase.from('soldiers').select('id,full_name,metadata').eq('is_active', true),
         c.supabase.from('tracking_items').select('id,title,metadata').eq('is_active', true),
       ]);
-      const s = matchByName(soldiers ?? [], args.soldier, (x) => x.full_name);
-      if (!s.match) return fail(s.candidates.length ? `Several soldiers match: ${s.candidates.join('; ')}` : `No visible soldier named "${args.soldier}".`);
+      const s = await resolveTrackedPerson(c, soldiers ?? [], args.soldier);
+      if ('error' in s) return fail(s.error);
       const it = matchByName(items ?? [], args.item, (x) => x.title);
       if (!it.match) return fail(it.candidates.length ? `Several items match: ${it.candidates.join('; ')}` : `No active tracking item named "${args.item}".`);
       // Score items: the score decides עבר / לא עבר; a hand-picked status would
@@ -352,9 +377,16 @@ export function registerWriteTools(server: McpServer) {
           score = args.score;
           status = statusForScore(score, scoreConfig);
         }
+      } else if (isAttendanceItem(it.match.metadata)) {
+        if (args.score !== undefined) return fail(`"${it.match.title}" is an attendance item — give נכח / לא נכח / ריק.`);
+        if (args.status === undefined || !['נכח', 'לא נכח', 'ריק'].includes(args.status)) {
+          return fail(`"${it.match.title}" is an attendance item — give נכח / לא נכח / ריק.`);
+        }
+        status = attendanceCodeFromLabel(args.status);
       } else {
         if (args.score !== undefined) return fail(`"${it.match.title}" is not a score item — give a status (עבר / לא עבר / השלמה / ריק).`);
         if (args.status === undefined) return fail('A status is required (עבר / לא עבר / השלמה / ריק).');
+        if (args.status === 'נכח' || args.status === 'לא נכח') return fail(`"${it.match.title}" is not an attendance item — give עבר / לא עבר / השלמה / ריק.`);
         status = trackingCodeFromLabel(args.status);
       }
 

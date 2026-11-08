@@ -3,6 +3,7 @@ import type { McpServer, ServerContext } from '@modelcontextprotocol/server';
 import { createAuditLog, type CreateAuditLogParams } from '@/lib/audit';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 import { isCompanyCommander } from '@/lib/permissions';
+import { taskUnitIdFor } from '@/lib/taskVisibility';
 import {
   formatScore,
   readRecordScore,
@@ -171,7 +172,7 @@ export function registerWriteTools(server: McpServer) {
           status: 'open',
           priority: args.priority ?? 'רגילה',
           created_by: c.profile.id,
-          unit_id: c.profile.unit_id,
+          unit_id: taskUnitIdFor({ createdBy: c.profile.id, assignedTo: assignee.id, creatorUnitId: c.profile.unit_id }),
           assigned_to: assignee.id,
           event_id: null,
           due_at: dueAt,

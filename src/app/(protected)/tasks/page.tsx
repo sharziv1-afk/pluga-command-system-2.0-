@@ -38,6 +38,7 @@ import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 import type { DbTask } from '@/lib/types';
 import { formatDate, formatDateTime, formatTime } from '@/lib/datetime';
 import { toDbProfile } from '@/lib/dbProfile';
+import { taskUnitIdFor } from '@/lib/taskVisibility';
 import { SearchParamsWatcher, focusItemElement, uuidParam, useItemChanged } from '@/lib/notifications/focus';
 
 type TaskStatus = 'open' | 'in_progress' | 'blocked' | 'completed' | 'cancelled';
@@ -500,7 +501,12 @@ export default function TasksPage() {
     setSuccess(null);
 
     try {
-    const taskUnitId = await resolveTaskUnitId();
+    // A task I give to myself is personal: no unit, so unit staff do not see it.
+    const taskUnitId = taskUnitIdFor({
+      createdBy: dbProfile.id,
+      assignedTo: assignedTo === 'none' ? null : assignedTo,
+      creatorUnitId: await resolveTaskUnitId(),
+    });
     const metadata: TaskMetadata = {
       category: category.trim() || undefined,
       location: location.trim() || undefined,

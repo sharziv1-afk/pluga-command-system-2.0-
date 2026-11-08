@@ -33,6 +33,7 @@ import { getScheduleDisplayStatus } from '@/lib/schedule';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
 import type { DbEvent, DbTask } from '@/lib/types';
+import { taskUnitIdFor } from '@/lib/taskVisibility';
 import { addDaysToDateKey, formatTime, getJerusalemDateKey } from '@/lib/datetime';
 
 type RequestStatus = 'open' | 'in_progress' | 'approved' | 'rejected' | 'completed' | 'cancelled';
@@ -800,7 +801,7 @@ export default function DashboardPage() {
               priority: taskForm.priority,
               assigned_to: assignedTo,
               created_by: profile.id,
-              unit_id: profile.unit_id,
+              unit_id: taskUnitIdFor({ createdBy: profile.id, assignedTo, creatorUnitId: profile.unit_id }),
               event_id: eventId,
               due_at: dueAt,
               completed_at: null,

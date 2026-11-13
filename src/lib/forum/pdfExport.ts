@@ -6,7 +6,7 @@
 // is a few objects and an xref table. The node tests load this file directly.
 //
 // Decided by the company commander: the whole company forum; each platoon
-// on its own page; empty ruled lines after every section for the pen.
+// on its own page; ruled lines after every section for the pen.
 
 export type ForumPdfSection = { title: string; body: string };
 export type ForumPdfPage = { heading: string; note?: string; sections: ForumPdfSection[] };
@@ -16,19 +16,23 @@ export type ForumPdfModel = { title: string; subtitle: string; pages: ForumPdfPa
 export const PAGE_WIDTH = 595.28;
 export const PAGE_HEIGHT = 841.89;
 
+// Sized so a platoon's nine sections, with short answers, fit on one page —
+// "each platoon on its own page" (13.11.2026). With three writing lines a
+// section they did not: every platoon ran onto a second page.
 export const LAYOUT = {
   marginX: 40,
-  marginTop: 44,
-  marginBottom: 46,
+  marginTop: 40,
+  marginBottom: 40,
   headerSize: 9,
-  headingSize: 20,
-  noteSize: 11,
-  sectionTitleSize: 12,
-  bodySize: 12,
-  bodyLineHeight: 18,
-  writingLines: 3,
-  writingLineGap: 24,
-  sectionGap: 14,
+  headingSize: 18,
+  noteSize: 10,
+  sectionTitleSize: 11,
+  titleGap: 4,
+  bodySize: 11,
+  bodyLineHeight: 15,
+  writingLines: 2,
+  writingLineGap: 18,
+  sectionGap: 8,
 } as const;
 
 export type DrawOp =
@@ -121,14 +125,14 @@ export function layoutForumPdf(model: ForumPdfModel, measure: Measure): LaidOutP
     for (const section of page.sections) {
       const body = wrapText(section.body.trim() || '—', width, L.bodySize, false, measure);
       const writing = L.writingLines * L.writingLineGap;
-      const needed = L.sectionTitleSize + 6 + body.length * L.bodyLineHeight + writing + L.sectionGap;
+      const needed = L.sectionTitleSize + L.titleGap + body.length * L.bodyLineHeight + writing + L.sectionGap;
       // Keep a section on one page when it fits on a page at all.
       const fullPage = bottom - (L.marginTop + 80);
       if (y + needed > bottom && needed <= fullPage) startPage(`${page.heading} (המשך)`);
 
       y += L.sectionTitleSize;
       text(section.title, L.sectionTitleSize, true, '#333333');
-      y += 6;
+      y += L.titleGap;
       for (const line of body) {
         if (y + L.bodyLineHeight > bottom) startPage(`${page.heading} (המשך)`);
         y += L.bodyLineHeight;

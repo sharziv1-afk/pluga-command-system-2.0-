@@ -51,6 +51,15 @@ test('each report page starts a PDF page, with writing lines after every section
   assert.deepEqual(texts(pages[1]).slice(-1), ['עמוד 2 מתוך 2']);
 });
 
+test('a platoon with short answers fits on one page, even the first page with the summary line', () => {
+  // Found on the live site (13.11.2026): every platoon ran onto a second page.
+  const titles = ['מצבה', 'כוח אדם', 'ת״ש', 'רפואה', 'לוגיסטיקה', 'כוננות', 'תכנון מול ביצוע', 'לקח יומי', 'פעולות להמשך'];
+  const platoon = (heading) => ({ heading, sections: titles.map((title) => section(title, 'תקין, בלי חריגים')) });
+  const pages = layoutForumPdf(model([platoon('מחלקה 1 · הוגש'), platoon('מחלקה 2 · הוגש')]), measure);
+  assert.equal(pages.length, 2);
+  assert.ok(!pages.some((page) => page.some((op) => op.kind === 'text' && op.text.includes('(המשך)'))));
+});
+
 test('a long page continues on the next with "(המשך)", and nothing runs off the page', () => {
   const long = Array.from({ length: 12 }, (_, i) => section(`סעיף ${i + 1}`, 'טקסט '.repeat(60)));
   const pages = layoutForumPdf(model([{ heading: 'מחלקה 3 · הוגש', sections: long }]), measure);

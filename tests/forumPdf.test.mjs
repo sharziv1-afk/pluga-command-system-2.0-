@@ -33,7 +33,7 @@ test('lines wrap to the width, keep the writer\'s line breaks, and cut an over-l
   }
 });
 
-test('each report page starts a PDF page, with writing lines after every section', () => {
+test('each report page starts a PDF page, with writing lines in every section box', () => {
   const pages = layoutForumPdf(model([
     { heading: 'מחלקה 1 · הוגש', sections: [section('כוח אדם', 'תקין'), section('לוגיסטיקה', '')] },
     { heading: 'מחלקה 2 · טרם הוגש', sections: [section('כוח אדם', '')] },
@@ -44,7 +44,7 @@ test('each report page starts a PDF page, with writing lines after every section
   assert.ok(texts(pages[1]).includes('מחלקה 2 · טרם הוגש'));
   assert.ok(texts(pages[0]).includes('מ״פ · מצבה 120/130'), 'the summary line is on the first page');
   assert.ok(texts(pages[0]).includes('—'), 'an empty section shows a dash, not nothing');
-  // Ruled lines: the header rule plus 3 per section.
+  // At least three writing lines in every box.
   const rules = (page) => page.filter((op) => op.kind === 'line' && op.color === '#d4d4d4').length;
   assert.equal(rules(pages[0]), 2 * LAYOUT.writingLines);
   assert.equal(rules(pages[1]), LAYOUT.writingLines);
@@ -58,6 +58,22 @@ test('a platoon with short answers fits on one page, even the first page with th
   const pages = layoutForumPdf(model([platoon('מחלקה 1 · הוגש'), platoon('מחלקה 2 · הוגש')]), measure);
   assert.equal(pages.length, 2);
   assert.ok(!pages.some((page) => page.some((op) => op.kind === 'text' && op.text.includes('(המשך)'))));
+  // Nine boxes, two side by side: four sides each, and both columns used.
+  const boxSides = pages[0].filter((op) => op.kind === 'line' && op.color === '#bdbdbd');
+  assert.equal(boxSides.length, 9 * 4);
+  const titleXs = new Set(pages[0].filter((op) => op.kind === 'text' && titles.includes(op.text)).map((op) => Math.round(op.x)));
+  assert.equal(titleXs.size, 2, 'two columns');
+});
+
+test('a section longer than a page runs full width across pages instead of a box', () => {
+  const huge = section('כוח אדם', 'מילה '.repeat(2000));
+  const pages = layoutForumPdf(model([{ heading: 'מחלקה 4 · הוגש', sections: [huge, section('ת״ש', 'תקין')] }]), measure);
+  assert.ok(pages.length > 2);
+  for (const page of pages) {
+    for (const op of page) {
+      if (op.kind === 'text' && !op.text.startsWith('עמוד ')) assert.ok(op.y <= PAGE_HEIGHT - LAYOUT.marginBottom);
+    }
+  }
 });
 
 test('a long page continues on the next with "(המשך)", and nothing runs off the page', () => {
@@ -66,10 +82,13 @@ test('a long page continues on the next with "(המשך)", and nothing runs off 
   assert.ok(pages.length > 1);
   assert.ok(pages.slice(1).every((page) => page.some((op) => op.kind === 'text' && op.text === 'מחלקה 3 · הוגש (המשך)')));
   const right = PAGE_WIDTH - LAYOUT.marginX;
+  const columnWidth = (PAGE_WIDTH - 2 * LAYOUT.marginX - LAYOUT.columnGap) / 2;
+  // RTL: page text at the right margin, box text at its box's right edge.
+  const anchors = [right, right - LAYOUT.boxPadding, right - columnWidth - LAYOUT.columnGap - LAYOUT.boxPadding];
   for (const page of pages) {
     for (const op of page) {
       if (op.kind !== 'text') continue;
-      assert.equal(op.x, right, 'RTL: text is anchored at the right margin');
+      assert.ok(anchors.some((x) => Math.abs(x - op.x) < 0.001), `${op.text} at x=${op.x}`);
       if (!op.text.startsWith('עמוד ')) assert.ok(op.y <= PAGE_HEIGHT - LAYOUT.marginBottom, `${op.text} at ${op.y}`);
     }
   }

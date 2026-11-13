@@ -34,6 +34,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
 import type { DbEvent, DbTask } from '@/lib/types';
 import { taskUnitIdFor } from '@/lib/taskVisibility';
+import { PERSONAL_TASK_CATEGORY, assigneeForCategoryChange, taskCategoryOptions } from '@/lib/taskCategories';
 import { addDaysToDateKey, formatTime, getJerusalemDateKey } from '@/lib/datetime';
 
 type RequestStatus = 'open' | 'in_progress' | 'approved' | 'rejected' | 'completed' | 'cancelled';
@@ -133,6 +134,7 @@ type QuickTaskForm = {
   dueAt: string;
   assignedTo: string;
   eventId: string;
+  category: string;
 };
 
 type QuickEventForm = {
@@ -160,6 +162,7 @@ const defaultTaskForm: QuickTaskForm = {
   dueAt: '',
   assignedTo: 'none',
   eventId: 'none',
+  category: '',
 };
 
 const defaultEventForm: QuickEventForm = {
@@ -780,6 +783,7 @@ export default function DashboardPage() {
       const eventId = taskForm.eventId === 'none' ? null : taskForm.eventId;
       const dueAt = taskForm.dueAt ? new Date(taskForm.dueAt).toISOString() : null;
       const metadata = {
+        category: taskForm.category || undefined,
         source_type: 'manual',
         source_id: null,
         creator_name: profile.name || currentUser.full_name,
@@ -960,6 +964,7 @@ export default function DashboardPage() {
               eventForm={eventForm}
               eventOptions={eventOptions}
               assignableUsers={assignableUsers}
+              currentProfileId={profile?.id ?? null}
               error={quickCreateError}
               isSubmitting={isQuickCreateSubmitting}
               onClose={closeQuickCreate}
@@ -1115,6 +1120,7 @@ function QuickCreateModal({
   eventForm,
   eventOptions,
   assignableUsers,
+  currentProfileId,
   error,
   isSubmitting,
   onClose,
@@ -1131,6 +1137,7 @@ function QuickCreateModal({
   eventForm: QuickEventForm;
   eventOptions: DbEvent[];
   assignableUsers: DashboardUser[];
+  currentProfileId: string | null;
   error: string | null;
   isSubmitting: boolean;
   onClose: () => void;
@@ -1283,7 +1290,32 @@ function QuickCreateModal({
                 >
                   <option value="none">ללא שיוך</option>
                   {assignableUsers.map(user => <option key={user.id} value={user.id}>{user.name || user.email || 'משתמש'}</option>)}
+                  {currentProfileId && !assignableUsers.some(user => user.id === currentProfileId) && (
+                    <option value={currentProfileId}>אני</option>
+                  )}
                 </select>
+              </QuickField>
+              <QuickField label="קטגוריה">
+                <select
+                  value={taskForm.category}
+                  onChange={event => {
+                    const category = event.target.value;
+                    // "אישי" assigns the task to me, so it is saved private.
+                    onTaskChange(prev => ({
+                      ...prev,
+                      category,
+                      assignedTo: assigneeForCategoryChange({ category, assignedTo: prev.assignedTo, creatorId: currentProfileId }),
+                    }));
+                  }}
+                  className="command-select"
+                  disabled={isSubmitting}
+                >
+                  <option value="">ללא קטגוריה</option>
+                  {taskCategoryOptions().map(category => <option key={category} value={category}>{category}</option>)}
+                </select>
+                {taskForm.category === PERSONAL_TASK_CATEGORY && (
+                  <p className="mt-1 text-xs text-[var(--text-muted-accessible)]">משימה אישית: רק אתה, מ״פ וסמ״פ רואים אותה</p>
+                )}
               </QuickField>
               <QuickField label="שיוך למופע">
                 <EventSelect value={taskForm.eventId} events={eventOptions} disabled={isSubmitting} onChange={eventId => onTaskChange(prev => ({ ...prev, eventId }))} />

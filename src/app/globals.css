@@ -508,11 +508,16 @@ textarea {
 }
 
 /* Textareas that grow with their text (AutoGrowTextarea): no inner scrollbar
-   while writing; the min-h-* class stays the floor. Browsers without
-   field-sizing (older Safari/iOS) get the same result from the component's JS
-   fallback, which sets an inline height to the content's scrollHeight. */
-.auto-grow-textarea {
+   while writing. Browsers without field-sizing (older Safari/iOS) get the same
+   result from the component's JS fallback, which sets an inline height to the
+   content's scrollHeight.
+   The floor lives here, not in a min-h-* utility: .command-input above is
+   unlayered CSS and its 44px min-height beats Tailwind's layered utilities,
+   which is why the forum boxes were stuck at ~2 lines. */
+textarea.auto-grow-textarea {
   field-sizing: content;
+  min-height: 6rem;
+  line-height: 1.6;
   overflow-y: hidden;
   resize: none;
 }

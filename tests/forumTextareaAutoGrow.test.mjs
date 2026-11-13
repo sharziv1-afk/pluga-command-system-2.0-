@@ -66,9 +66,6 @@ test('every editable forum text box auto-grows; only read-only previews stay pla
   const grown = forumPage.match(/<AutoGrowTextarea\b/g) ?? [];
   // post body, post edit, 4 company summary fields, staff notes, platoon primary + secondary fields, מ״פ closing
   assert.ok(grown.length >= 7, `expected ≥7 auto-grow boxes, got ${grown.length}`);
-  for (const line of forumPage.split('\n').filter(l => l.includes('<AutoGrowTextarea'))) {
-    assert.match(line, /min-h-(2[4-9]|3\d)\b/, `needs a comfortable minimum height: ${line.trim()}`);
-  }
 });
 
 test('the component re-measures on value change, width change and window resize', () => {
@@ -78,8 +75,13 @@ test('the component re-measures on value change, width change and window resize'
   assert.match(component, /auto-grow-textarea/);
 });
 
-test('CSS uses field-sizing: content with no inner scrollbar', () => {
-  const rule = css.match(/\.auto-grow-textarea\s*\{[^}]*\}/)?.[0] ?? '';
+test('CSS uses field-sizing: content with no inner scrollbar and a real minimum height', () => {
+  const rule = css.match(/textarea\.auto-grow-textarea\s*\{[^}]*\}/)?.[0] ?? '';
   assert.match(rule, /field-sizing:\s*content/);
   assert.match(rule, /overflow-y:\s*hidden/);
+  // Must be in the stylesheet, not a min-h-* utility: the unlayered
+  // .command-input min-height (44px) beats Tailwind's layered utilities.
+  const min = rule.match(/min-height:\s*([\d.]+)rem/);
+  assert.ok(min && Number(min[1]) >= 6, 'floor of at least 6rem (~4 lines)');
+  assert.ok(css.indexOf('textarea.auto-grow-textarea') > css.indexOf('.command-input {'), 'declared after .command-input so it wins');
 });

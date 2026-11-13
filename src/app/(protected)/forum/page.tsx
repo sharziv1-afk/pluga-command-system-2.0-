@@ -42,6 +42,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { showSquadReportsInLeadingForum } from '@/data/forum';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { AutoGrowTextarea } from '@/components/ui/AutoGrowTextarea';
 import { FieldPrivacyHint } from '@/components/ui/FieldPrivacyHint';
 import { CommandConfirmDialog } from '@/components/ui/CommandDialog';
 import { GlossyButton } from '@/components/ui/GlossyButton';
@@ -2708,7 +2709,7 @@ export default function ForumPage() {
 
           <label className="block">
             <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">תוכן *</span>
-            <textarea value={body} onChange={event => setBody(event.target.value)} className="command-input min-h-24 resize-none" placeholder="כתוב את העדכון המרכזי, החלטות, פערים או דגשים להמשך." disabled={isSubmitting} />
+            <AutoGrowTextarea value={body} onChange={event => setBody(event.target.value)} className="command-input" placeholder="כתוב את העדכון המרכזי, החלטות, פערים או דגשים להמשך." disabled={isSubmitting} />
           </label>
 
           {canSeeAll && (
@@ -2775,7 +2776,7 @@ export default function ForumPage() {
                     </label>
                     <label className="block">
                       <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">תוכן *</span>
-                      <textarea value={editPostBody} onChange={event => setEditPostBody(event.target.value)} className="command-input min-h-28 resize-none" disabled={isSubmitting} />
+                      <AutoGrowTextarea value={editPostBody} onChange={event => setEditPostBody(event.target.value)} className="command-input" disabled={isSubmitting} />
                     </label>
                     {canSeeAll && (
                       <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-4 py-3">
@@ -2887,7 +2888,7 @@ export default function ForumPage() {
         ] as Array<[ReportDraftTextField, string]>).map(([field, label]) => (
           <label key={field} className="block">
             <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">{label}</span>
-            <textarea value={reportDraft[field]} onChange={event => handleStructuredFieldChange(field, event.target.value)} className="command-input min-h-20 resize-none" disabled={isDailySaving || isSelectedReportReadOnly} />
+            <AutoGrowTextarea value={reportDraft[field]} onChange={event => handleStructuredFieldChange(field, event.target.value)} className="command-input" disabled={isDailySaving || isSelectedReportReadOnly} />
           </label>
         ))}
       </div>
@@ -3162,7 +3163,7 @@ export default function ForumPage() {
             </label>
             <label className="block">
               <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">התייחסות/דיווח</span>
-              <textarea value={reportDraft.notes} onChange={event => updateDraft('notes', event.target.value)} className="command-input min-h-32 resize-none" disabled={isDailySaving || isSelectedReportReadOnly} />
+              <AutoGrowTextarea value={reportDraft.notes} onChange={event => updateDraft('notes', event.target.value)} className="command-input" disabled={isDailySaving || isSelectedReportReadOnly} />
             </label>
           </div>
         ) : (
@@ -3207,7 +3208,7 @@ export default function ForumPage() {
                 {squadPrimaryFields.map(field => (
                   <label key={field.key} className="block">
                     <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">{field.label}</span>
-                    <textarea value={reportDraft[field.key]} onChange={event => handleStructuredFieldChange(field.key, event.target.value)} className="command-input min-h-20 resize-none" disabled={isDailySaving || isSelectedReportReadOnly} />
+                    <AutoGrowTextarea value={reportDraft[field.key]} onChange={event => handleStructuredFieldChange(field.key, event.target.value)} className="command-input" disabled={isDailySaving || isSelectedReportReadOnly} />
                     {field.sensitive && <FieldPrivacyHint />}
                   </label>
                 ))}
@@ -3226,13 +3227,13 @@ export default function ForumPage() {
                 {squadSecondaryFields.map(field => (
                   <label key={field.key} className={field.wide ? 'block lg:col-span-2' : 'block'}>
                     <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">{field.label}</span>
-                    <textarea value={reportDraft[field.key]} onChange={event => handleStructuredFieldChange(field.key, event.target.value)} className="command-input min-h-24 resize-none" disabled={isDailySaving || isSelectedReportReadOnly} />
+                    <AutoGrowTextarea value={reportDraft[field.key]} onChange={event => handleStructuredFieldChange(field.key, event.target.value)} className="command-input" disabled={isDailySaving || isSelectedReportReadOnly} />
                   </label>
                 ))}
                 {selectedNode.level === 'company' && (
                   <label className="block lg:col-span-2">
                     <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">דגשי מ״פ <span className="text-xs font-bold text-[var(--text-muted-accessible)]">(ידני — לא נגזר אוטומטית)</span></span>
-                    <textarea value={reportDraft.commander_closing} onChange={event => handleStructuredFieldChange('commander_closing', event.target.value)} className="command-input min-h-24 resize-none" disabled={isDailySaving || isSelectedReportReadOnly} />
+                    <AutoGrowTextarea value={reportDraft.commander_closing} onChange={event => handleStructuredFieldChange('commander_closing', event.target.value)} className="command-input" disabled={isDailySaving || isSelectedReportReadOnly} />
                   </label>
                 )}
               </div>

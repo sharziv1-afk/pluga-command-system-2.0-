@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clipboard,
+  FileDown,
   FileText,
   HeartPulse,
   ListChecks,
@@ -57,6 +58,7 @@ import { copyTextToClipboard } from '@/lib/clipboard';
 import { aggregateCompanyStructured, assignPlatoonReports } from '@/lib/forum/companyReport';
 import type { CompanyReportInput, CompanyReportPlatoon } from '@/lib/forum/companyReport';
 import { advanceReportStatus } from '@/lib/forum/reportStatus';
+import { forumPdfFileName, type ForumPdfModel, type ForumPdfSection } from '@/lib/forum/pdfExport';
 import { CARRY_OVER_SOURCE_STATUSES, carryOverWindow, isCarryOverTarget, pickCarryOverSource } from '@/lib/forum/carryOver';
 import type { CarryOverSourceRow } from '@/lib/forum/carryOver';
 import {
@@ -542,6 +544,9 @@ export default function ForumPage() {
   const [reportPendingDelete, setReportPendingDelete] = useState<DailyReportRow | null>(null);
   const [dailyError, setDailyError] = useState<string | null>(null);
   const [dailySuccess, setDailySuccess] = useState<string | null>(null);
+  // PDF for Notability (13.11.2026): building, or a ready file waiting for a second tap.
+  const [isPdfBuilding, setIsPdfBuilding] = useState(false);
+  const [pendingPdf, setPendingPdf] = useState<{ blob: Blob; fileName: string } | null>(null);
   const [ownerOptions, setOwnerOptions] = useState<ReportOwnerOption[]>([]);
   const [selectedOwnerId, setSelectedOwnerId] = useState('');
   const [commanderReportLevel, setCommanderReportLevel] = useState<ReportLevel>(showSquadReportsInLeadingForum ? 'squad' : 'platoon');
@@ -1145,6 +1150,147 @@ export default function ForumPage() {
 
     return lines.join('\n');
   }, [dailyReports, dbProfile, ownerOptions, selectedDate, whatsappMode]);
+
+  // The whole company forum as a PDF to write on in Notability: each platoon
+  // on its own page, every section of the detailed WhatsApp output, ruled
+  // space after each (company commander, 13.11.2026). Same sources as
+  // generateWhatsappText, so the two never disagree.
+  const buildForumPdfModel = useCallback((): ForumPdfModel => {
+    const platoons: CompanyReportPlatoon[] = platoonNodes.map((platoon, index) => ({
+      number: index + 1,
+      label: platoon.label,
+      ownerUserId: findPlatoonSummaryOwner(ownerOptions, platoon.label)?.id ?? null,
+    }));
+    const { byNumber: platoonByNumber, unidentified } = assignPlatoonReports(dailyReports, platoons);
+
+    const count = (raw: unknown): number | null => {
+      const text = typeof raw === 'string' ? raw.trim() : typeof raw === 'number' ? String(raw) : '';
+      if (!text) return null;
+      const parsed = Number(text.replace(/[^\d.-]/g, ''));
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+    let present: number | null = null;
+    let total: number | null = null;
+    let submitted = 0;
+    platoons.forEach(platoon => {
+      const report = platoonByNumber.get(platoon.number);
+      if (!report) return;
+      if (report.status === 'submitted' || report.status === 'closed') submitted += 1;
+      const p = count(report.content.present_count);
+      const t = count(report.content.total_count);
+      if (p !== null) present = (present ?? 0) + p;
+      if (t !== null) total = (total ?? 0) + t;
+    });
+
+    const platoonSections = (raw: Record<string, unknown> | null): ForumPdfSection[] => {
+      const content = { ...emptyReportDraft(), ...(raw ?? {}) };
+      const manpower = content.present_count || content.total_count
+        ? `${content.present_count || '—'}/${content.total_count || '—'}`
+        : '';
+      return [
+        { title: 'מצבה', body: manpower },
+        { title: 'כוח אדם', body: content.personnel },
+        { title: 'ת״ש', body: content.welfare },
+        { title: 'רפואה', body: content.medical },
+        { title: 'לוגיסטיקה', body: content.logistics },
+        { title: 'כוננות', body: content.readiness },
+        { title: 'תכנון מול ביצוע', body: content.plan_vs_actual },
+        { title: 'לקח יומי', body: content.daily_lessons },
+        { title: 'פעולות להמשך', body: content.next_actions },
+      ];
+    };
+
+    const pages: ForumPdfModel['pages'] = platoons.map(platoon => {
+      const report = platoonByNumber.get(platoon.number);
+      return {
+        heading: `${platoon.label} · ${report ? statusLabel(report.status) : 'טרם הוגש'}`,
+        sections: platoonSections(report ? report.content : null),
+      };
+    });
+    unidentified.forEach(report => {
+      pages.push({ heading: `מחלקה לא מזוהה · ${statusLabel(report.status)}`, sections: platoonSections(report.content) });
+    });
+
+    pages.push({
+      heading: 'מפל״ג',
+      sections: staffNodes.map(staffNode => {
+        const report = dailyReports.find(item => item.report_level === 'staff' && item.staff_role === staffNode.id);
+        const content = report ? { ...emptyReportDraft(), ...report.content } : null;
+        return { title: staffNode.label, body: content ? content.notes || 'הוגש' : 'טרם הוגש' };
+      }),
+    });
+
+    const company = dailyReports.find(report => report.report_level === 'company');
+    const companyContent = company ? { ...emptyReportDraft(), ...company.content } : null;
+    pages.push({
+      heading: 'דגשי מ״פ / סיכום פלוגתי',
+      sections: [
+        { title: 'סיכום פלוגתי', body: companyContent?.company_summary || companyContent?.commander_closing || '' },
+        { title: 'לו״ז פלוגתי למחר', body: companyContent?.tomorrow_schedule || '' },
+        { title: 'לו״ז מקביל', body: companyContent?.parallel_schedule || '' },
+      ],
+    });
+
+    return {
+      title: `פורום מוביל פלוגתי — ${formatSelectedDate(selectedDate)}`,
+      subtitle: [
+        dbProfile ? `${dbProfile.name} · ${dbProfile.role}` : null,
+        `מצבה פלוגתית: ${present ?? '—'}/${total ?? '—'}`,
+        `דוחות מחלקה שהוגשו: ${submitted}/${platoons.length}`,
+      ].filter(Boolean).join('   ·   '),
+      pages,
+    };
+  }, [dailyReports, dbProfile, ownerOptions, selectedDate]);
+
+  const finishPdfHandoff = (result: 'shared' | 'downloaded' | 'cancelled' | 'needs_tap', blob: Blob, fileName: string) => {
+    if (result === 'needs_tap') {
+      setPendingPdf({ blob, fileName });
+      setDailySuccess('ה־PDF מוכן. לחץ "פתח לשיתוף" ובחר Notability.');
+      return;
+    }
+    setPendingPdf(null);
+    if (result === 'downloaded') setDailySuccess('ה־PDF ירד למכשיר.');
+    if (result === 'shared') setDailySuccess('ה־PDF נשלח.');
+  };
+
+  const exportForumPdf = async () => {
+    if (isPdfBuilding) return;
+    setIsPdfBuilding(true);
+    setDailyError(null);
+    setDailySuccess(null);
+    try {
+      // Loaded on demand: most visits never export.
+      const { renderForumPdf, handOffPdf } = await import('@/lib/forum/pdfRender');
+      const model = buildForumPdfModel();
+      const blob = await renderForumPdf(model);
+      const fileName = forumPdfFileName(selectedDate);
+      finishPdfHandoff(await handOffPdf(blob, fileName, model.title), blob, fileName);
+    } catch {
+      setDailyError('לא ניתן ליצור PDF כרגע. נסה שוב.');
+    } finally {
+      setIsPdfBuilding(false);
+    }
+  };
+
+  const sharePendingPdf = async () => {
+    if (!pendingPdf) return;
+    const { handOffPdf } = await import('@/lib/forum/pdfRender');
+    finishPdfHandoff(await handOffPdf(pendingPdf.blob, pendingPdf.fileName, 'פורום מוביל'), pendingPdf.blob, pendingPdf.fileName);
+  };
+
+  const pdfButtons = (variant: 'orange' | 'slate') => (
+    <>
+      <GlossyButton variant={variant} size="sm" onClick={() => void exportForumPdf()} disabled={isPdfBuilding}>
+        <FileDown className="h-4 w-4" />
+        {isPdfBuilding ? 'מכין PDF…' : 'ייצוא PDF'}
+      </GlossyButton>
+      {pendingPdf && (
+        <GlossyButton variant="orange" size="sm" onClick={() => void sharePendingPdf()}>
+          פתח לשיתוף
+        </GlossyButton>
+      )}
+    </>
+  );
 
   const copyWhatsappText = async () => {
     const result = await copyTextToClipboard(generateWhatsappText());
@@ -2952,6 +3098,7 @@ export default function ForumPage() {
                 <Clipboard className="h-4 w-4" />
                 העתק פלט WhatsApp
               </GlossyButton>
+              {pdfButtons('slate')}
             </div>
           </div>
           <textarea readOnly aria-label="תצוגת פלט WhatsApp" value={generateWhatsappText()} className="command-input min-h-80 resize-none" dir="rtl" />
@@ -3563,6 +3710,7 @@ export default function ForumPage() {
                       <Clipboard className="h-4 w-4" />
                       העתק פלט WhatsApp
                     </GlossyButton>
+                    {pdfButtons('slate')}
                   </div>
                 </div>
                 <textarea readOnly aria-label="תצוגת פלט WhatsApp" value={generateWhatsappText()} className="command-input min-h-40 resize-none text-sm" dir="rtl" />

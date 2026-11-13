@@ -6,7 +6,8 @@
 // is a few objects and an xref table. The node tests load this file directly.
 //
 // Decided by the company commander: the whole company forum; each platoon
-// on its own page; empty ruled lines after every section for the pen.
+// on its own page; sections as boxes, two side by side, with ruled lines
+// in each box for the pen.
 
 export type ForumPdfSection = { title: string; body: string };
 export type ForumPdfPage = { heading: string; note?: string; sections: ForumPdfSection[] };
@@ -16,19 +17,27 @@ export type ForumPdfModel = { title: string; subtitle: string; pages: ForumPdfPa
 export const PAGE_WIDTH = 595.28;
 export const PAGE_HEIGHT = 841.89;
 
+// Sections are boxes, two side by side ("קובייה ליד קובייה", company
+// commander, 13.11.2026), so a platoon's nine sections fit on one page with
+// room to write in each box. One under the other, they ran onto a second page.
 export const LAYOUT = {
-  marginX: 40,
-  marginTop: 44,
-  marginBottom: 46,
+  marginX: 36,
+  marginTop: 40,
+  marginBottom: 40,
   headerSize: 9,
-  headingSize: 20,
-  noteSize: 11,
-  sectionTitleSize: 12,
-  bodySize: 12,
-  bodyLineHeight: 18,
+  headingSize: 18,
+  noteSize: 10,
+  columns: 2,
+  columnGap: 10,
+  rowGap: 10,
+  boxPadding: 8,
+  sectionTitleSize: 11,
+  titleGap: 4,
+  bodySize: 10.5,
+  bodyLineHeight: 14,
+  /** At least this many writing lines in every box; a shorter box in a row gets more. */
   writingLines: 3,
-  writingLineGap: 24,
-  sectionGap: 14,
+  writingLineGap: 17,
 } as const;
 
 export type DrawOp =
@@ -80,9 +89,11 @@ export function wrapText(text: string, maxWidth: number, size: number, bold: boo
 }
 
 /**
- * Lays the report out in A4 pages. Every model page starts a new PDF page;
- * a page that runs long continues on the next with "(המשך)". Coordinates are
- * points from the top-left; text x is the right edge (RTL).
+ * Lays the report out in A4 pages. Every model page starts a new PDF page,
+ * its sections in a two-column grid of boxes (first column on the right).
+ * A row that does not fit continues on the next page with "(המשך)"; a
+ * section too long for any page runs full width, line by line. Coordinates
+ * are points from the top-left; text x is the right edge (RTL).
  */
 export function layoutForumPdf(model: ForumPdfModel, measure: Measure): LaidOutPage[] {
   const L = LAYOUT;
@@ -90,57 +101,101 @@ export function layoutForumPdf(model: ForumPdfModel, measure: Measure): LaidOutP
   const left = L.marginX;
   const width = right - left;
   const bottom = PAGE_HEIGHT - L.marginBottom;
+  const columnWidth = (width - L.columnGap * (L.columns - 1)) / L.columns;
+  const innerWidth = columnWidth - L.boxPadding * 2;
   const pages: LaidOutPage[] = [];
 
   let ops: DrawOp[] = [];
   let y = 0;
+  let pageTop = 0;
 
-  const text = (value: string, size: number, bold: boolean, color = '#111111') => {
-    ops.push({ kind: 'text', text: value, x: right, y, size, bold, color });
+  const textAt = (value: string, x: number, size: number, bold: boolean, color = '#111111') => {
+    ops.push({ kind: 'text', text: value, x, y, size, bold, color });
+  };
+  const line = (x1: number, y1: number, x2: number, y2: number, color: string) => {
+    ops.push({ kind: 'line', x1, y1, x2, y2, color });
   };
 
   const startPage = (heading: string, note?: string) => {
     ops = [];
     pages.push(ops);
     y = L.marginTop;
-    text(model.title, L.headerSize, false, '#666666');
+    textAt(model.title, right, L.headerSize, false, '#666666');
     y += L.headerSize + 18;
-    text(heading, L.headingSize, true);
+    textAt(heading, right, L.headingSize, true);
     y += 8;
     if (note) {
       y += L.noteSize + 4;
-      text(note, L.noteSize, false, '#444444');
+      textAt(note, right, L.noteSize, false, '#444444');
     }
     y += 10;
-    ops.push({ kind: 'line', x1: left, y1: y, x2: right, y2: y, color: '#999999' });
-    y += 18;
+    line(left, y, right, y, '#999999');
+    y += 14;
+    pageTop = y;
+  };
+
+  const boxContentHeight = (bodyLines: number) =>
+    L.boxPadding + L.sectionTitleSize + L.titleGap + bodyLines * L.bodyLineHeight + L.boxPadding;
+
+  // A section longer than a whole page: full width, line by line, across pages.
+  const flowSection = (section: ForumPdfSection, heading: string) => {
+    const body = wrapText(section.body.trim() || '—', width, L.bodySize, false, measure);
+    y += L.sectionTitleSize;
+    textAt(section.title, right, L.sectionTitleSize, true, '#333333');
+    y += L.titleGap;
+    for (const bodyLine of body) {
+      if (y + L.bodyLineHeight > bottom) startPage(`${heading} (המשך)`);
+      y += L.bodyLineHeight;
+      if (bodyLine) textAt(bodyLine, right, L.bodySize, false);
+    }
+    for (let i = 0; i < L.writingLines && y + L.writingLineGap <= bottom; i += 1) {
+      y += L.writingLineGap;
+      line(left, y, right, y, '#d4d4d4');
+    }
+    y += L.rowGap;
   };
 
   model.pages.forEach((page, pageIndex) => {
     startPage(page.heading, pageIndex === 0 ? model.subtitle : page.note);
-    for (const section of page.sections) {
-      const body = wrapText(section.body.trim() || '—', width, L.bodySize, false, measure);
-      const writing = L.writingLines * L.writingLineGap;
-      const needed = L.sectionTitleSize + 6 + body.length * L.bodyLineHeight + writing + L.sectionGap;
-      // Keep a section on one page when it fits on a page at all.
-      const fullPage = bottom - (L.marginTop + 80);
-      if (y + needed > bottom && needed <= fullPage) startPage(`${page.heading} (המשך)`);
+    const fullPage = bottom - pageTop;
 
-      y += L.sectionTitleSize;
-      text(section.title, L.sectionTitleSize, true, '#333333');
-      y += 6;
-      for (const line of body) {
-        if (y + L.bodyLineHeight > bottom) startPage(`${page.heading} (המשך)`);
-        y += L.bodyLineHeight;
-        if (line) text(line, L.bodySize, false);
+    for (let i = 0; i < page.sections.length; i += L.columns) {
+      const row = page.sections.slice(i, i + L.columns).map((section) => ({
+        section,
+        body: wrapText(section.body.trim() || '—', innerWidth, L.bodySize, false, measure),
+      }));
+      const rowHeight = Math.max(...row.map(({ body }) => boxContentHeight(body.length) + L.writingLines * L.writingLineGap));
+
+      if (rowHeight > fullPage) {
+        row.forEach(({ section }) => flowSection(section, page.heading));
+        continue;
       }
-      // Ruled lines for handwriting.
-      for (let i = 0; i < L.writingLines; i += 1) {
-        if (y + L.writingLineGap > bottom) break;
-        y += L.writingLineGap;
-        ops.push({ kind: 'line', x1: left, y1: y, x2: right, y2: y, color: '#d4d4d4' });
-      }
-      y += L.sectionGap;
+      if (y + rowHeight > bottom) startPage(`${page.heading} (המשך)`);
+
+      const top = y;
+      row.forEach(({ section, body }, column) => {
+        const boxRight = right - column * (columnWidth + L.columnGap);
+        const boxLeft = boxRight - columnWidth;
+        const textRight = boxRight - L.boxPadding;
+        line(boxLeft, top, boxRight, top, '#bdbdbd');
+        line(boxRight, top, boxRight, top + rowHeight, '#bdbdbd');
+        line(boxRight, top + rowHeight, boxLeft, top + rowHeight, '#bdbdbd');
+        line(boxLeft, top + rowHeight, boxLeft, top, '#bdbdbd');
+
+        y = top + L.boxPadding + L.sectionTitleSize;
+        textAt(section.title, textRight, L.sectionTitleSize, true, '#333333');
+        y += L.titleGap;
+        for (const bodyLine of body) {
+          y += L.bodyLineHeight;
+          if (bodyLine) textAt(bodyLine, textRight, L.bodySize, false);
+        }
+        // Fill the rest of the box with writing lines.
+        while (y + L.writingLineGap <= top + rowHeight - L.boxPadding / 2) {
+          y += L.writingLineGap;
+          line(boxLeft + L.boxPadding, y, boxRight - L.boxPadding, y, '#d4d4d4');
+        }
+      });
+      y = top + rowHeight + L.rowGap;
     }
   });
 

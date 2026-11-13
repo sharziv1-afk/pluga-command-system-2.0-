@@ -39,6 +39,7 @@ import type { DbTask } from '@/lib/types';
 import { formatDate, formatDateTime, formatTime } from '@/lib/datetime';
 import { toDbProfile } from '@/lib/dbProfile';
 import { taskUnitIdFor } from '@/lib/taskVisibility';
+import { PERSONAL_TASK_CATEGORY, assigneeForCategoryChange, taskCategoryOptions } from '@/lib/taskCategories';
 import { SearchParamsWatcher, focusItemElement, uuidParam, useItemChanged } from '@/lib/notifications/focus';
 
 type TaskStatus = 'open' | 'in_progress' | 'blocked' | 'completed' | 'cancelled';
@@ -1028,6 +1029,10 @@ export default function TasksPage() {
                 {assignableUsers.map(user => (
                   <option key={user.id} value={user.id}>{getUserDisplayName(user)} · {user.role}</option>
                 ))}
+                {/* Someone who cannot assign others still sees himself, for a personal task. */}
+                {dbProfile && !assignableUsers.some(user => user.id === dbProfile.id) && (
+                  <option value={dbProfile.id}>אני</option>
+                )}
               </select>
             </label>
 
@@ -1066,13 +1071,24 @@ export default function TasksPage() {
 
             <label className="space-y-1">
               <span className="text-xs font-bold text-[var(--text-muted-accessible)]">קטגוריה</span>
-              <input
-                type="text"
+              <select
                 value={category}
-                onChange={(event) => setCategory(event.target.value)}
+                onChange={(event) => {
+                  const nextCategory = event.target.value;
+                  setCategory(nextCategory);
+                  // "אישי" assigns the task to me, so it is saved private.
+                  setAssignedTo(current => assigneeForCategoryChange({ category: nextCategory, assignedTo: current, creatorId: dbProfile?.id }));
+                }}
                 className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
-                placeholder="לוגיסטיקה / כשירות / מנהלה"
-              />
+              >
+                <option value="">ללא קטגוריה</option>
+                {taskCategoryOptions(category).map(option => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+              {category === PERSONAL_TASK_CATEGORY && (
+                <p className="text-xs text-[var(--text-muted-accessible)]">משימה אישית: רק אתה, מ״פ וסמ״פ רואים אותה</p>
+              )}
             </label>
 
             <label className="space-y-1">
@@ -1354,12 +1370,17 @@ export default function TasksPage() {
 
             <label className="space-y-1">
               <span className="text-xs font-bold text-[var(--text-muted-accessible)]">קטגוריה</span>
-              <input
-                type="text"
+              <select
                 value={editCategory}
                 onChange={(event) => setEditCategory(event.target.value)}
                 className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
-              />
+              >
+                <option value="">ללא קטגוריה</option>
+                {/* An older task may hold free text outside the list; keep it as an option. */}
+                {taskCategoryOptions(editCategory).map(option => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
             </label>
 
             <label className="space-y-1">

@@ -4,6 +4,7 @@ import { createAuditLog, type CreateAuditLogParams } from '@/lib/audit';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 import { isCompanyCommander } from '@/lib/permissions';
 import { taskUnitIdFor } from '@/lib/taskVisibility';
+import { TASK_CATEGORIES, personalTaskAssignee } from '@/lib/taskCategories';
 import {
   formatScore,
   readRecordScore,
@@ -141,7 +142,7 @@ export function registerWriteTools(server: McpServer) {
         priority: z.enum(TASK_PRIORITIES).optional().describe('Default רגילה'),
         assignee: z.string().optional().describe('Person\'s name as shown in list_people'),
         due: z.string().optional().describe('Due date/time in Israel time: "YYYY-MM-DD HH:mm" or "YYYY-MM-DD"'),
-        category: z.string().max(100).optional(),
+        category: z.enum(TASK_CATEGORIES).optional().describe('אישי = a personal task: with no assignee it goes to you and only you and the commanders see it'),
         location: z.string().max(200).optional(),
         output_required: z.string().max(500).optional(),
       }),
@@ -151,11 +152,12 @@ export function registerWriteTools(server: McpServer) {
       const c = caller(ctx);
       const assignee = await resolvePerson(c, args.assignee);
       if ('error' in assignee) return fail(assignee.error);
+      const assignedTo = personalTaskAssignee({ category: args.category, assignedTo: assignee.id, creatorId: c.profile.id });
       let dueAt: string | null = null;
       try { dueAt = args.due ? jerusalemLocalToIso(args.due) : null; } catch (e) { return fail((e as Error).message); }
 
       const metadata = {
-        category: args.category?.trim() || undefined,
+        category: args.category,
         location: args.location?.trim() || undefined,
         output_required: args.output_required?.trim() || undefined,
         control_questions: [],
@@ -172,8 +174,8 @@ export function registerWriteTools(server: McpServer) {
           status: 'open',
           priority: args.priority ?? 'רגילה',
           created_by: c.profile.id,
-          unit_id: taskUnitIdFor({ createdBy: c.profile.id, assignedTo: assignee.id, creatorUnitId: c.profile.unit_id }),
-          assigned_to: assignee.id,
+          unit_id: taskUnitIdFor({ createdBy: c.profile.id, assignedTo, creatorUnitId: c.profile.unit_id }),
+          assigned_to: assignedTo,
           event_id: null,
           due_at: dueAt,
           metadata,
@@ -182,7 +184,7 @@ export function registerWriteTools(server: McpServer) {
         .single();
       if (error || !data) return fail('The task was not created — you may not have permission for this.');
       await audit(c, ctx, { actionType: 'task_created', entityType: 'task', entityId: data.id, previousValue: null, newValue: { title: data.title, status: data.status, priority: data.priority } });
-      return ok({ created: 'task', id: data.id, title: data.title, assigned_to: assignee.name, due_at: data.due_at });
+      return ok({ created: 'task', id: data.id, title: data.title, assigned_to: assignee.name ?? (assignedTo ? c.profile.name : null), category: args.category ?? null, due_at: data.due_at });
     },
   );
 

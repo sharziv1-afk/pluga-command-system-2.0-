@@ -159,18 +159,28 @@ export function layoutForumPdf(model: ForumPdfModel, measure: Measure): LaidOutP
     startPage(page.heading, pageIndex === 0 ? model.subtitle : page.note);
     const fullPage = bottom - pageTop;
 
+    const rows: Array<{ items: Array<{ section: ForumPdfSection; body: string[] }>; height: number }> = [];
     for (let i = 0; i < page.sections.length; i += L.columns) {
-      const row = page.sections.slice(i, i + L.columns).map((section) => ({
+      const items = page.sections.slice(i, i + L.columns).map((section) => ({
         section,
         body: wrapText(section.body.trim() || '—', innerWidth, L.bodySize, false, measure),
       }));
-      const rowHeight = Math.max(...row.map(({ body }) => boxContentHeight(body.length) + L.writingLines * L.writingLineGap));
+      rows.push({ items, height: Math.max(...items.map(({ body }) => boxContentHeight(body.length) + L.writingLines * L.writingLineGap)) });
+    }
+    // When the whole page fits, the boxes stretch to fill it: the room left
+    // over becomes more writing lines (company commander, 13.11.2026).
+    const naturalHeight = rows.reduce((sum, row) => sum + row.height, 0) + L.rowGap * Math.max(rows.length - 1, 0);
+    const extra = rows.length > 0 && naturalHeight <= fullPage ? (fullPage - naturalHeight) / rows.length : 0;
+
+    for (const { items: row, height } of rows) {
+      const rowHeight = height + extra;
 
       if (rowHeight > fullPage) {
         row.forEach(({ section }) => flowSection(section, page.heading));
         continue;
       }
-      if (y + rowHeight > bottom) startPage(`${page.heading} (המשך)`);
+      // Half a point of slack: a stretched page ends exactly at the margin.
+      if (y + rowHeight > bottom + 0.5) startPage(`${page.heading} (המשך)`);
 
       const top = y;
       row.forEach(({ section, body }, column) => {

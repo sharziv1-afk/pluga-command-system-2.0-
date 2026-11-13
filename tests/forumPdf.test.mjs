@@ -46,8 +46,8 @@ test('each report page starts a PDF page, with writing lines in every section bo
   assert.ok(texts(pages[0]).includes('—'), 'an empty section shows a dash, not nothing');
   // At least three writing lines in every box.
   const rules = (page) => page.filter((op) => op.kind === 'line' && op.color === '#d4d4d4').length;
-  assert.equal(rules(pages[0]), 2 * LAYOUT.writingLines);
-  assert.equal(rules(pages[1]), LAYOUT.writingLines);
+  assert.ok(rules(pages[0]) >= 2 * LAYOUT.writingLines);
+  assert.ok(rules(pages[1]) >= LAYOUT.writingLines);
   assert.deepEqual(texts(pages[1]).slice(-1), ['עמוד 2 מתוך 2']);
 });
 
@@ -63,6 +63,20 @@ test('a platoon with short answers fits on one page, even the first page with th
   assert.equal(boxSides.length, 9 * 4);
   const titleXs = new Set(pages[0].filter((op) => op.kind === 'text' && titles.includes(op.text)).map((op) => Math.round(op.x)));
   assert.equal(titleXs.size, 2, 'two columns');
+});
+
+test('when a page fits, the boxes stretch to fill it with more writing lines', () => {
+  // The staff page has four short boxes; they used to leave most of the page empty.
+  const staff = ['חופ״ל', 'מש״ד', 'רס״פ', 'סמ״פ'].map((title) => section(title, 'טרם הוגש'));
+  const [first, page] = layoutForumPdf(model([{ heading: 'מחלקה 1', sections: [section('מצבה', '')] }, { heading: 'מפל״ג', sections: staff }]), measure);
+  assert.ok(first);
+  const sides = page.filter((op) => op.kind === 'line' && op.color === '#bdbdbd');
+  const lowest = Math.max(...sides.map((op) => Math.max(op.y1, op.y2)));
+  assert.ok(Math.abs(lowest - (PAGE_HEIGHT - LAYOUT.marginBottom)) < 1, `boxes end at ${lowest}`);
+  const writing = page.filter((op) => op.kind === 'line' && op.color === '#d4d4d4');
+  assert.ok(writing.length >= 4 * 10, `${writing.length} writing lines`);
+  // Never past the bottom margin.
+  assert.ok(writing.every((op) => op.y1 <= PAGE_HEIGHT - LAYOUT.marginBottom));
 });
 
 test('a section longer than a page runs full width across pages instead of a box', () => {

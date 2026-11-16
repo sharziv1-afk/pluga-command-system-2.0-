@@ -44,7 +44,7 @@ test('spacing variants of a stored role resolve to the same title', () => {
 
 test('only an empty or unknown role falls back to "תדריך יומי"', () => {
   assert.equal(typeof permissions.getCommandBriefTitle, 'function', 'getCommandBriefTitle must be exported');
-  for (const role of [null, undefined, '', '   ', 'אורח', 'מפקד', 'מ"מ', 'admin', 'סמל אורח', 'מ"כ admin', 'מ"מ 9', 'מ"כ 1ד', 'מ"כ 5א']) {
+  for (const role of [null, undefined, '', '   ', 'אורח', 'מפקד', 'מ"מ', 'admin', 'סמל אורח', 'מ"כ admin', 'מ"מ 9', 'מ"כ 1ה', 'מ"כ 5א']) {
     assert.equal(permissions.getCommandBriefTitle(role), 'תדריך יומי', `fallback for ${JSON.stringify(role)}`);
   }
 });

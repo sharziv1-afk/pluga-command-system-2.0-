@@ -15,7 +15,7 @@ import * as permissions from '../src/lib/permissions.ts';
 const COMMAND_AND_STAFF = ['מ״פ', 'סמ״פ', 'מש"ד', 'רס״פ / לוגיסטיקה', 'סרס"פ', 'חובש פלוגתי', 'קשר פלוגתי', 'ב.קוד / נהג'];
 const PLATOON_COMMANDERS = [1, 2, 3, 4].map(n => `מ״מ ${n}`);
 const SERGEANTS = [1, 2, 3, 4].map(n => `סמל ${n}`);
-const SQUAD_COMMANDERS = [1, 2, 3, 4].flatMap(n => ['א', 'ב', 'ג'].map(squad => `מ״כ ${n}${squad}`));
+const SQUAD_COMMANDERS = [1, 2, 3, 4].flatMap(n => ['א', 'ג', 'ד'].map(squad => `מ״כ ${n}${squad}`));
 const ALL_ROLES = [...COMMAND_AND_STAFF, ...PLATOON_COMMANDERS, ...SERGEANTS, ...SQUAD_COMMANDERS];
 
 const asGershayim = (role) => role.replace(/"/g, '״');

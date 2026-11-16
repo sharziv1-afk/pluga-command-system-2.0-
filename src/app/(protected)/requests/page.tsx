@@ -37,6 +37,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
 import { LIST_FETCH_LIMIT, TRUNCATION_NOTICE, isTruncated } from '@/lib/queryLimits';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
+import { sortByCompanyHierarchy } from '@/lib/roleOrder';
 import { formatDate, formatDateTime, formatTime } from '@/lib/datetime';
 import { toDbProfile } from '@/lib/dbProfile';
 import { SearchParamsWatcher, focusItemElement, uuidParam, useItemChanged } from '@/lib/notifications/focus';
@@ -325,7 +326,7 @@ export default function RequestsPage() {
         logSupabaseError('Assignable users load failed', assignableUsersResult.error);
         setAssigneeLoadError('לא ניתן לטעון רשימת מטפלים');
       } else {
-        assignableUsers = assignableUsersResult.data ?? [];
+        assignableUsers = sortByCompanyHierarchy(assignableUsersResult.data ?? []);
       }
 
       const raw = requestData ?? [];

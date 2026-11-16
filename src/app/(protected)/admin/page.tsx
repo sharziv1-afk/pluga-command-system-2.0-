@@ -11,6 +11,7 @@ import { CommandInput, CommandSelect } from '@/components/ui/CommandField';
 import { createAuditLog } from '@/lib/audit';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
+import { companyRoleRank } from '@/lib/roleOrder';
 import { logSupabaseError } from '@/lib/supabase/error';
 import { useApp } from '@/lib/context/AppContext';
 import { SearchParamsWatcher, focusItemElement, uuidParam } from '@/lib/notifications/focus';
@@ -155,7 +156,7 @@ export default function AdminPage() {
         supabase.from('users').select('id,auth_user_id,email,name,role,unit_id,commanded_unit_id,permission_level,role_approval_status,status,created_at').order('created_at', { ascending: false })
       ]);
 
-      if (rolesData) setRoles(rolesData);
+      if (rolesData) setRoles([...rolesData].sort((a, b) => companyRoleRank(a.name) - companyRoleRank(b.name) || a.name.localeCompare(b.name, 'he')));
       if (unitsData) setUnits(unitsData);
 
       // Reference data (roles/units) feeds the edit dropdowns. A failed load or an

@@ -78,6 +78,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
 import { toDbProfile } from '@/lib/dbProfile';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
+import { sortByCompanyHierarchy } from '@/lib/roleOrder';
 
 type ForumTab = 'posts' | 'daily';
 type ReportLevel = 'squad' | 'platoon' | 'company' | 'staff';
@@ -1437,10 +1438,12 @@ export default function ForumPage() {
       return;
     }
 
-    setOwnerOptions((data ?? []).map(owner => ({
+    // In company-hierarchy order, so "first match" for a platoon's owner is always the
+    // same person (two profiles can share a role, e.g. a test profile).
+    setOwnerOptions(sortByCompanyHierarchy((data ?? []).map(owner => ({
       ...owner,
       units: owner.units?.name ? { name: owner.units.name } : null,
-    })));
+    }))));
   }, [canSeeAll, supabase]);
 
   // loadPosts() used to run here on every mount, firing 1-3 queries whose

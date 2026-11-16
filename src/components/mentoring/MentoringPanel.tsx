@@ -19,6 +19,7 @@ import { logSupabaseError } from '@/lib/supabase/error';
 import { formatDate } from '@/lib/datetime';
 import { SearchParamsWatcher, focusItemElement, uuidParam, useItemChanged } from '@/lib/notifications/focus';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
+import { sortByCompanyHierarchy } from '@/lib/roleOrder';
 
 type Mentee = {
   id: string;
@@ -92,9 +93,9 @@ export function MentoringPanel() {
         : { data: [] as Array<{ id: string; name: string }> };
       const unitById = new Map((unitsData ?? []).map(u => [u.id, u.name]));
 
-      const nextMentees = menteeRows
-        .map(u => ({ id: u.id, name: u.name, role: u.role, unitName: u.unit_id ? unitById.get(u.unit_id) ?? null : null }))
-        .sort((a, b) => a.role.localeCompare(b.role, 'he'));
+      const nextMentees = sortByCompanyHierarchy(
+        menteeRows.map(u => ({ id: u.id, name: u.name, role: u.role, unitName: u.unit_id ? unitById.get(u.unit_id) ?? null : null })),
+      );
       setMentees(nextMentees);
 
       const menteeIds = nextMentees.map(m => m.id);

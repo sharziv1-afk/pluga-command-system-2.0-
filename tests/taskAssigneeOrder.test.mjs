@@ -83,3 +83,9 @@ test('the squad roles in the migration are א, ג, ד and nothing else changes',
   assert.match(sql, /not exists \(select 1 from public\.users u where u\.role = r\.name\)/);
   assert.doesNotMatch(sql, /update public\.users|alter table|create policy|drop policy/i);
 });
+
+test('the tracking table lists soldiers in company-hierarchy order, not alphabetically', () => {
+  const tracking = readFileSync('src/app/(protected)/tracking/page.tsx', 'utf8');
+  assert.match(tracking, /setSoldiers\(\[\.\.\.\(soldiersResult\.data \?\? \[\]\)\]\.sort\(\(a, b\) => \(\s*companyRoleRank\(a\.role_label\) - companyRoleRank\(b\.role_label\)/);
+  assert.match(tracking, /import \{ companyRoleRank \} from '@\/lib\/roleOrder';/);
+});

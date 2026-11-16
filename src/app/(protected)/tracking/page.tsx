@@ -27,6 +27,7 @@ import { useApp } from '@/lib/context/AppContext';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
+import { companyRoleRank } from '@/lib/roleOrder';
 import {
   formatScore,
   parseScoreInput,
@@ -368,7 +369,12 @@ export default function TrackingPage() {
         setErrorMessage('לא ניתן לטעון את נתוני המעקב כרגע.');
       }
 
-      setSoldiers(soldiersResult.data ?? []);
+      // Company hierarchy, as everywhere else: מ״פ, סמ״פ, staff, then platoon by
+      // platoon (מ״מ, סמל, מ״כ א, ג, ד); soldiers with no cadre role after, by name.
+      setSoldiers([...(soldiersResult.data ?? [])].sort((a, b) => (
+        companyRoleRank(a.role_label) - companyRoleRank(b.role_label)
+        || a.full_name.localeCompare(b.full_name, 'he')
+      )));
       // Removing a week is a single update on the week row, not a cascade over
       // its items — so an item whose week is no longer active leaves the table
       // here. Skipped when the weeks query itself failed, so a load error can't

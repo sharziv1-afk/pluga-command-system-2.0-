@@ -27,6 +27,16 @@ test('assignees sort by company hierarchy, platoon by platoon', () => {
   ]);
 });
 
+test('squad ד ranks after ג inside its own platoon, before the next platoon', () => {
+  // The company's squads are א, ג, ד (16.11.2026).
+  assert.ok(companyRoleRank('מ״כ 1ג') < companyRoleRank('מ״כ 1ד'));
+  assert.ok(companyRoleRank('מ״כ 1ד') < companyRoleRank('מ"מ 2'));
+  assert.ok(companyRoleRank('מ״כ 4ד') < companyRoleRank('תפקיד לא מוכר'));
+  assert.equal(companyRoleRank('מ"כ ד2'), companyRoleRank('מ״כ 2ד'));
+  const roster = ['מ״כ 2ד', 'מ"מ 2', 'מ״כ 1ד', 'מ״כ 1א', 'מ״כ 1ג', 'סמל 1', 'מ״מ 1'].map((role, i) => ({ role, name: `שם ${i}` }));
+  assert.deepEqual(sortByCompanyHierarchy(roster).map(p => p.role), ['מ״מ 1', 'סמל 1', 'מ״כ 1א', 'מ״כ 1ג', 'מ״כ 1ד', 'מ"מ 2', 'מ״כ 2ד']);
+});
+
 test('role spelling variants rank the same', () => {
   assert.equal(companyRoleRank('מ"כ א1'), companyRoleRank('מ״כ 1א'));
   assert.equal(companyRoleRank('מ״כ  1א'), companyRoleRank('מ״כ 1א'));
@@ -55,4 +65,27 @@ test('picking an event fills the due date in both the new and the edit form', ()
   assert.match(page, /onChange=\{\(event\) => setDueAt\(event\.target\.value\)\}/);
   assert.match(page, /onChange=\{\(event\) => setEditDueAt\(event\.target\.value\)\}/);
   assert.equal((page.match(/בשיוך למופע התאריך מתעדכן לשעת המופע — אפשר לשנות/g) ?? []).length, 2);
+});
+
+test('every page that lists people puts them in company-hierarchy order', () => {
+  const read = (path) => readFileSync(path, 'utf8');
+  assert.match(read('src/app/(protected)/requests/page.tsx'), /assignableUsers = sortByCompanyHierarchy\(assignableUsersResult\.data \?\? \[\]\);/);
+  assert.match(read('src/app/(protected)/schedule/page.tsx'), /setResponsibleUsers\(sortByCompanyHierarchy\(dedupedUsers\)\);/);
+  assert.match(read('src/app/(protected)/forum/page.tsx'), /setOwnerOptions\(sortByCompanyHierarchy\(/);
+  assert.match(read('src/components/mentoring/MentoringPanel.tsx'), /const nextMentees = sortByCompanyHierarchy\(/);
+  assert.match(read('src/app/(protected)/admin/page.tsx'), /companyRoleRank\(a\.name\) - companyRoleRank\(b\.name\)/);
+});
+
+test('the squad roles in the migration are א, ג, ד and nothing else changes', () => {
+  const sql = readFileSync('supabase/migrations/047_squad_roles_acd.sql', 'utf8');
+  assert.match(sql, /insert into public\.roles/);
+  assert.match(sql, /on conflict \(name\) do nothing/);
+  assert.match(sql, /not exists \(select 1 from public\.users u where u\.role = r\.name\)/);
+  assert.doesNotMatch(sql, /update public\.users|alter table|create policy|drop policy/i);
+});
+
+test('the tracking table lists soldiers in company-hierarchy order, not alphabetically', () => {
+  const tracking = readFileSync('src/app/(protected)/tracking/page.tsx', 'utf8');
+  assert.match(tracking, /setSoldiers\(\[\.\.\.\(soldiersResult\.data \?\? \[\]\)\]\.sort\(\(a, b\) => \(\s*companyRoleRank\(a\.role_label\) - companyRoleRank\(b\.role_label\)/);
+  assert.match(tracking, /import \{ companyRoleRank \} from '@\/lib\/roleOrder';/);
 });

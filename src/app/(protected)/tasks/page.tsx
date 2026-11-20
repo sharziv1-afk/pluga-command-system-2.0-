@@ -5,7 +5,9 @@ import {
   AlertTriangle,
   CalendarClock,
   CheckCircle2,
+  Circle,
   ClipboardList,
+  ListChecks,
   Loader2,
   Pencil,
   Plus,
@@ -40,6 +42,15 @@ import { formatDate, formatDateTime, formatTime } from '@/lib/datetime';
 import { toDbProfile } from '@/lib/dbProfile';
 import { taskUnitIdFor } from '@/lib/taskVisibility';
 import { PERSONAL_TASK_CATEGORY, assigneeForCategoryChange, taskCategoryOptions } from '@/lib/taskCategories';
+import {
+  checklistFromLines,
+  checklistProgress,
+  checklistToLines,
+  readChecklist,
+  toggleChecklistItem,
+  withChecklist,
+  type ChecklistItem,
+} from '@/lib/taskChecklist';
 import { SearchParamsWatcher, focusItemElement, uuidParam, useItemChanged } from '@/lib/notifications/focus';
 
 type TaskStatus = 'open' | 'in_progress' | 'blocked' | 'completed' | 'cancelled';
@@ -77,6 +88,8 @@ type TaskMetadata = {
   creator_name?: string;
   creator_role?: string;
   creator_unit?: string;
+  /** Sub-tasks ticked off one by one (lib/taskChecklist.ts). */
+  checklist?: ChecklistItem[];
 };
 
 type TaskView = DbTask & {
@@ -189,6 +202,7 @@ export default function TasksPage() {
   const [category, setCategory] = useState('');
   const [location, setLocation] = useState('');
   const [outputRequired, setOutputRequired] = useState('');
+  const [checklistText, setChecklistText] = useState('');
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editPriority, setEditPriority] = useState<TaskPriority>('רגילה');
@@ -198,6 +212,8 @@ export default function TasksPage() {
   const [editCategory, setEditCategory] = useState('');
   const [editLocation, setEditLocation] = useState('');
   const [editOutputRequired, setEditOutputRequired] = useState('');
+  const [editChecklistText, setEditChecklistText] = useState('');
+  const [togglingItemId, setTogglingItemId] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(false);
   const [cachedAt, setCachedAt] = useState<number | null>(null);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
@@ -207,7 +223,7 @@ export default function TasksPage() {
   const profilePermissionLevel = dbProfile?.permission_level ?? getPermissionLevelForRole(currentUser?.role ?? '');
   const canSeeAll = Boolean(currentUser && hasCompanyWideUiAccess(dbProfile?.role ?? currentUser.role, profilePermissionLevel));
   // ponytail: one page-wide write lock; split by task only if concurrent edits become necessary.
-  const isTaskWritePending = isSubmitting || isEditSubmitting || Boolean(updatingTaskId || deletingTaskId);
+  const isTaskWritePending = isSubmitting || isEditSubmitting || Boolean(updatingTaskId || deletingTaskId || togglingItemId);
 
   // Cache keys are scoped per user: on a shared phone one commander must
   // never read another's cached rows offline.
@@ -479,6 +495,7 @@ export default function TasksPage() {
     setCategory('');
     setLocation('');
     setOutputRequired('');
+    setChecklistText('');
   };
 
   const resolveTaskUnitId = async () => dbProfile?.unit_id ?? null;
@@ -520,6 +537,8 @@ export default function TasksPage() {
       creator_role: dbProfile.role || currentUser.role,
       creator_unit: dbProfile.units?.name || currentUser.assigned_frame,
     };
+    const checklist = checklistFromLines(checklistText);
+    if (checklist.length > 0) metadata.checklist = checklist;
 
     const { data: createdTask, error: insertError } = await supabase.from('tasks').insert({
       title: cleanTitle,
@@ -611,6 +630,7 @@ export default function TasksPage() {
     setEditCategory(metadata.category ?? '');
     setEditLocation(metadata.location ?? '');
     setEditOutputRequired(metadata.output_required ?? '');
+    setEditChecklistText(checklistToLines(readChecklist(task.metadata)));
   };
 
   const closeEditTask = () => {
@@ -625,6 +645,7 @@ export default function TasksPage() {
     setEditCategory('');
     setEditLocation('');
     setEditOutputRequired('');
+    setEditChecklistText('');
   };
 
   const handleEditTask = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -638,12 +659,16 @@ export default function TasksPage() {
     }
 
     const previousMetadata = getTaskMetadata(editingTask);
-    const nextMetadata: Record<string, unknown> = {
-      ...(editingTask.metadata ?? {}),
-      category: editCategory.trim() || null,
-      location: editLocation.trim() || null,
-      output_required: editOutputRequired.trim() || null,
-    };
+    // Lines that were already on the checklist keep their tick.
+    const nextMetadata: Record<string, unknown> = withChecklist(
+      {
+        ...(editingTask.metadata ?? {}),
+        category: editCategory.trim() || null,
+        location: editLocation.trim() || null,
+        output_required: editOutputRequired.trim() || null,
+      },
+      checklistFromLines(editChecklistText, readChecklist(editingTask.metadata)),
+    );
 
     const nextValues = {
       title: cleanTitle,
@@ -754,6 +779,67 @@ export default function TasksPage() {
     }
   };
 
+  // Ticking a sub-task: whoever may update the task's status — the creator,
+  // a commander, or the assignee (migration 048 lets the assignee change the
+  // ticks and nothing else). Guarded by updated_at, so two people ticking at
+  // once never overwrite each other: the second reloads and tries again.
+  const canTickChecklist = (task: TaskView) => canUpdateTaskStatus(task) && task.status !== 'cancelled';
+
+  const handleToggleChecklistItem = async (task: TaskView, itemId: string, done: boolean) => {
+    if (!dbProfile || isTaskWritePending || !canTickChecklist(task)) return;
+    if (!navigator.onLine) {
+      setError('אין רשת — סימון תת-משימה דורש חיבור.');
+      return;
+    }
+
+    const before = readChecklist(task.metadata);
+    const nextMetadata = withChecklist(task.metadata, toggleChecklistItem(before, itemId, done));
+    setTogglingItemId(itemId);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const { data: updatedRows, error: updateError } = await supabase
+        .from('tasks')
+        .update({ metadata: nextMetadata })
+        .eq('id', task.id)
+        .eq('updated_at', task.updated_at)
+        .select('id,metadata,updated_at')
+        .returns<Array<Pick<DbTask, 'id' | 'metadata' | 'updated_at'>>>();
+
+      if (updateError) {
+        logSupabaseError('Task checklist tick failed', updateError);
+        setError('לא ניתן לסמן את תת-המשימה כרגע. נסה שוב בעוד רגע.');
+        return;
+      }
+      if (!didRowsUpdate(updatedRows)) {
+        setError('המשימה השתנתה בינתיים. טענתי אותה מחדש — סמן שוב.');
+        await loadTasks();
+        return;
+      }
+
+      const saved = updatedRows[0];
+      setTasks(current => current.map(item => (
+        item.id === task.id ? { ...item, metadata: saved.metadata, updated_at: saved.updated_at } : item
+      )));
+      void createAuditLog(supabase, {
+        userId: dbProfile.id,
+        userName: dbProfile.name,
+        userRole: dbProfile.role,
+        actionType: 'task_updated',
+        entityType: 'task',
+        entityId: task.id,
+        previousValue: { checklist_item: before.find(item => item.id === itemId)?.text ?? itemId, done: !done },
+        newValue: { checklist_item: before.find(item => item.id === itemId)?.text ?? itemId, done },
+      });
+    } catch (toggleError) {
+      logSupabaseError('Task checklist tick failed unexpectedly', toggleError);
+      setError('לא ניתן לסמן את תת-המשימה כרגע. נסה שוב בעוד רגע.');
+    } finally {
+      setTogglingItemId(null);
+    }
+  };
+
   const handleStatusChange = async (task: TaskView, nextStatus: TaskStatus) => {
     if (!dbProfile || isTaskWritePending || task.status === nextStatus || !canUpdateTaskStatus(task)) return;
 
@@ -770,7 +856,8 @@ export default function TasksPage() {
         completed_at: nextStatus === 'completed' ? new Date().toISOString() : null,
       })
       .eq('id', task.id)
-      .select('id');
+      .select('id,updated_at')
+      .returns<Array<Pick<DbTask, 'id' | 'updated_at'>>>();
 
     if (updateError) {
       logSupabaseError('Task status update failed', updateError);
@@ -793,9 +880,15 @@ export default function TasksPage() {
       newValue: { status: nextStatus },
     });
 
+    // The new updated_at too, so ticking a sub-task right after is not refused as stale.
     setTasks(current => current.map(item => (
       item.id === task.id
-        ? { ...item, status: nextStatus, completed_at: nextStatus === 'completed' ? new Date().toISOString() : null }
+        ? {
+          ...item,
+          status: nextStatus,
+          completed_at: nextStatus === 'completed' ? new Date().toISOString() : null,
+          updated_at: updatedRows[0]?.updated_at ?? item.updated_at,
+        }
         : item
     )));
     setSuccess('סטטוס המשימה עודכן.');
@@ -1113,6 +1206,17 @@ export default function TasksPage() {
               />
             </label>
 
+            <label className="space-y-1 lg:col-span-2">
+              <span className="text-xs font-bold text-[var(--text-muted-accessible)]">תתי-משימות — שורה לכל אחת</span>
+              <textarea
+                value={checklistText}
+                onChange={(event) => setChecklistText(event.target.value)}
+                rows={4}
+                className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold leading-7 text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                placeholder={'אופציונלי, למשל:\n* לבדוק ציוד\n* להזמין הסעה'}
+              />
+            </label>
+
             <div className="flex flex-col gap-2 sm:flex-row lg:col-span-2">
               <GlossyButton variant="orange" type="submit" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -1149,6 +1253,9 @@ export default function TasksPage() {
             const taskPriority = priorityOptions.includes(task.priority as TaskPriority) ? (task.priority as TaskPriority) : 'רגילה';
             const canUpdate = canUpdateTaskStatus(task);
             const canEdit = canEditTask(task);
+            const checklist = readChecklist(task.metadata);
+            const progress = checklistProgress(checklist);
+            const canTick = canTickChecklist(task);
 
             return (
               <GlassCard key={task.id} data-item-id={task.id} className="space-y-4">
@@ -1191,6 +1298,49 @@ export default function TasksPage() {
                   <div className="rounded-2xl border border-[var(--brand)]/15 bg-[var(--brand)]/8 p-3 text-sm text-[var(--text-primary)]">
                     <span className="font-semibold">תוצר נדרש: </span>
                     {metadata.output_required}
+                  </div>
+                )}
+
+                {checklist.length > 0 && (
+                  <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <p className="flex items-center gap-1.5 text-xs font-bold text-[var(--command-subtle)]">
+                        <ListChecks className="h-4 w-4" />
+                        תתי-משימות
+                      </p>
+                      <span className={`rounded-full border px-2 py-0.5 text-caption font-bold ${
+                        progress.done === progress.total
+                          ? 'border-[var(--color-success)]/30 bg-[var(--color-success)]/10 text-[var(--color-success)]'
+                          : 'border-[var(--border-subtle)] text-[var(--text-muted-accessible)]'
+                      }`}>
+                        {progress.done}/{progress.total}
+                      </span>
+                    </div>
+                    <ul className="space-y-1">
+                      {checklist.map(item => (
+                        <li key={item.id}>
+                          <button
+                            type="button"
+                            role="checkbox"
+                            aria-checked={item.done}
+                            onClick={() => void handleToggleChecklistItem(task, item.id, !item.done)}
+                            disabled={!canTick || isTaskWritePending}
+                            className="flex min-h-11 w-full items-center gap-3 rounded-xl px-2 text-start text-sm font-semibold transition hover:bg-[var(--surface-muted)] disabled:cursor-default disabled:hover:bg-transparent"
+                          >
+                            {togglingItemId === item.id ? (
+                              <Loader2 className="h-5 w-5 shrink-0 animate-spin text-[var(--color-action-on-surface)]" />
+                            ) : item.done ? (
+                              <CheckCircle2 className="h-5 w-5 shrink-0 text-[var(--color-success)]" />
+                            ) : (
+                              <Circle className="h-5 w-5 shrink-0 text-[var(--text-muted-accessible)]" />
+                            )}
+                            <span className={item.done ? 'text-[var(--text-muted-accessible)] line-through' : 'text-[var(--text-primary)]'}>
+                              {item.text}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
 
@@ -1400,6 +1550,17 @@ export default function TasksPage() {
                 value={editOutputRequired}
                 onChange={(event) => setEditOutputRequired(event.target.value)}
                 className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+              />
+            </label>
+
+            <label className="space-y-1 lg:col-span-2">
+              <span className="text-xs font-bold text-[var(--text-muted-accessible)]">תתי-משימות — שורה לכל אחת (מה שכבר סומן נשאר מסומן)</span>
+              <textarea
+                value={editChecklistText}
+                onChange={(event) => setEditChecklistText(event.target.value)}
+                rows={5}
+                className="w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 py-3 text-sm font-bold leading-7 text-[var(--text-primary)] outline-none focus:border-[var(--focus-ring)]"
+                placeholder={'* לבדוק ציוד\n* להזמין הסעה'}
               />
             </label>
         </form>

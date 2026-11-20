@@ -35,6 +35,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
 import { LIST_FETCH_LIMIT, TRUNCATION_NOTICE, isTruncated } from '@/lib/queryLimits';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
+import { sortByCompanyHierarchy } from '@/lib/roleOrder';
 import type { DbEvent } from '@/lib/types';
 import { addDaysToDateKey, dateFromKey, formatDateTime, formatTime, getJerusalemDateKey } from '@/lib/datetime';
 import { toDbProfile } from '@/lib/dbProfile';
@@ -295,7 +296,7 @@ export default function SchedulePage() {
       }
       const usersForResponsibility = responsibleUsersResult.data ?? fallbackResponsibility;
       const dedupedUsers = Array.from(new Map(usersForResponsibility.map(user => [user.id, user])).values());
-      setResponsibleUsers(dedupedUsers);
+      setResponsibleUsers(sortByCompanyHierarchy(dedupedUsers));
 
       const rawEvents = eventData ?? [];
       const userIds = [

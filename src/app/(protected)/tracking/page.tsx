@@ -27,9 +27,14 @@ import { useApp } from '@/lib/context/AppContext';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
+import { companyRoleRank } from '@/lib/roleOrder';
 import {
+  TIME_MAX_SECONDS,
+  TIME_MIN_SECONDS,
   formatScore,
+  isTimeScore,
   parseScoreInput,
+  parseTimeInput,
   readRecordScore,
   readScoreConfig,
   scoreRangeLabel,
@@ -70,6 +75,8 @@ type ItemFormState = {
   description: string;
   sortOrder: string;
   scoreMode: boolean;
+  /** A score item measured in time (mm:ss), e.g. a run: only the pass time is asked. */
+  timeMode: boolean;
   scoreMin: string;
   scoreMax: string;
   passScore: string;
@@ -129,6 +136,7 @@ const initialItemForm: ItemFormState = {
   description: '',
   sortOrder: '0',
   scoreMode: false,
+  timeMode: false,
   scoreMin: '0',
   scoreMax: '100',
   passScore: '80',
@@ -220,6 +228,21 @@ function getUnitSortRank(unit: DbUnit) {
 // The score part of the item form: null config for a regular item.
 function readItemFormScoreConfig(form: ItemFormState): { config: ScoreConfig | null; error: string | null } {
   if (!form.scoreMode) return { config: null, error: null };
+  if (form.timeMode) {
+    // A time: lower is better, from 0:00 to 99:59 — only the pass time is asked.
+    const pass = parseTimeInput(form.passScore);
+    if (typeof pass !== 'number') return { config: null, error: 'יש להזין זמן מעבר בדקות:שניות, למשל 14:00.' };
+    const config: ScoreConfig = {
+      min: TIME_MIN_SECONDS,
+      max: TIME_MAX_SECONDS,
+      pass,
+      lowerIsBetter: true,
+      passInclusive: form.passInclusive,
+      unit: 'time',
+    };
+    const error = validateScoreConfig(config);
+    return error ? { config: null, error } : { config, error: null };
+  }
   const min = parseScoreInput(form.scoreMin);
   const max = parseScoreInput(form.scoreMax);
   const pass = parseScoreInput(form.passScore);
@@ -368,7 +391,12 @@ export default function TrackingPage() {
         setErrorMessage('לא ניתן לטעון את נתוני המעקב כרגע.');
       }
 
-      setSoldiers(soldiersResult.data ?? []);
+      // Company hierarchy, as everywhere else: מ״פ, סמ״פ, staff, then platoon by
+      // platoon (מ״מ, סמל, מ״כ א, ג, ד); soldiers with no cadre role after, by name.
+      setSoldiers([...(soldiersResult.data ?? [])].sort((a, b) => (
+        companyRoleRank(a.role_label) - companyRoleRank(b.role_label)
+        || a.full_name.localeCompare(b.full_name, 'he')
+      )));
       // Removing a week is a single update on the week row, not a cascade over
       // its items — so an item whose week is no longer active leaves the table
       // here. Skipped when the weeks query itself failed, so a load error can't
@@ -554,9 +582,10 @@ export default function TrackingPage() {
       description: item.description ?? '',
       sortOrder: String(item.sort_order),
       scoreMode: !!scoreConfig,
-      scoreMin: scoreConfig ? String(scoreConfig.min) : initialItemForm.scoreMin,
-      scoreMax: scoreConfig ? String(scoreConfig.max) : initialItemForm.scoreMax,
-      passScore: scoreConfig ? String(scoreConfig.pass) : initialItemForm.passScore,
+      timeMode: isTimeScore(scoreConfig),
+      scoreMin: scoreConfig && !isTimeScore(scoreConfig) ? String(scoreConfig.min) : initialItemForm.scoreMin,
+      scoreMax: scoreConfig && !isTimeScore(scoreConfig) ? String(scoreConfig.max) : initialItemForm.scoreMax,
+      passScore: scoreConfig ? formatScore(scoreConfig.pass, scoreConfig) : initialItemForm.passScore,
       lowerIsBetter: scoreConfig?.lowerIsBetter ?? false,
       passInclusive: scoreConfig?.passInclusive ?? true,
     });
@@ -751,13 +780,14 @@ export default function TrackingPage() {
     const previousScoreConfig = editingItem ? readScoreConfig(editingItem.metadata) : null;
     // Results already entered were recorded as עבר/לא עבר or as scores; turning
     // one kind into the other would leave them meaningless.
-    if (editingItem && !!previousScoreConfig !== !!scoreConfig) {
+    // A time is stored in seconds, so a score item cannot become a time either.
+    if (editingItem && (!!previousScoreConfig !== !!scoreConfig || isTimeScore(previousScoreConfig) !== isTimeScore(scoreConfig))) {
       const hasResults = records.some(record => (
         record.tracking_item_id === editingItem.id
         && (record.status !== 'empty' || readRecordScore(record.metadata) !== null)
       ));
       if (hasResults) {
-        setErrorMessage('כבר הוזנו תוצאות במופע הזה, ולכן אי אפשר להחליף בין מעקב רגיל למעקב עם ציון. אפשר ליצור מופע חדש.');
+        setErrorMessage('כבר הוזנו תוצאות במופע הזה, ולכן אי אפשר להחליף את סוג המעקב (רגיל, ציון או זמן). אפשר ליצור מופע חדש.');
         return;
       }
     }
@@ -1278,7 +1308,7 @@ export default function TrackingPage() {
   const openScoreDialog = (soldier: DbSoldier, item: DbTrackingItem, record: DbTrackingRecord | null) => {
     const score = readRecordScore(record?.metadata);
     setScoreDialogTarget({ soldier, item, record });
-    setScoreDraft(score === null ? '' : formatScore(score));
+    setScoreDraft(score === null ? '' : formatScore(score, readScoreConfig(item.metadata)));
     setScoreError(null);
   };
 
@@ -1295,9 +1325,9 @@ export default function TrackingPage() {
     const config = readScoreConfig(item.metadata);
     if (!config) return;
 
-    const parsed = parseScoreInput(scoreDraft);
+    const parsed = parseScoreInput(scoreDraft, config);
     if (parsed === 'invalid') {
-      setScoreError('יש להזין ציון מספרי.');
+      setScoreError(isTimeScore(config) ? 'יש להזין זמן בדקות:שניות, למשל 13:45.' : 'יש להזין ציון מספרי.');
       return;
     }
     if (parsed !== null) {
@@ -1384,9 +1414,10 @@ export default function TrackingPage() {
 
     setScoreDialogTarget(null);
     setScoreDraft('');
+    const noun = isTimeScore(config) ? 'הזמן' : 'הציון';
     setSuccessMessage(parsed === null
-      ? 'הציון נמחק.'
-      : `הציון נשמר: ${formatScore(parsed)} — ${nextStatus === 'passed' ? 'עובר' : 'לא עובר'}.`);
+      ? `${noun} נמחק.`
+      : `${noun} נשמר: ${formatScore(parsed, config)} — ${nextStatus === 'passed' ? 'עובר' : 'לא עובר'}.`);
   };
 
   const openNoteDialog = (soldier: DbSoldier, item: DbTrackingItem, record: DbTrackingRecord) => {
@@ -1515,13 +1546,20 @@ export default function TrackingPage() {
   );
 
   const scoreDialogConfig = scoreDialogTarget ? readScoreConfig(scoreDialogTarget.item.metadata) : null;
-  const scorePreview = parseScoreInput(scoreDraft);
+  const scorePreview = parseScoreInput(scoreDraft, scoreDialogConfig);
   const scorePreviewStatus = scoreDialogConfig && typeof scorePreview === 'number' && !validateScore(scorePreview, scoreDialogConfig)
     ? statusForScore(scorePreview, scoreDialogConfig)
     : null;
-  const itemFormPass = parseScoreInput(itemForm.passScore);
+  const itemFormPass = itemForm.timeMode ? parseTimeInput(itemForm.passScore) : parseScoreInput(itemForm.passScore);
   const itemFormRulePreview = typeof itemFormPass === 'number'
-    ? scoreRuleLabel({ min: 0, max: 0, pass: itemFormPass, lowerIsBetter: itemForm.lowerIsBetter, passInclusive: itemForm.passInclusive })
+    ? scoreRuleLabel({
+      min: 0,
+      max: 0,
+      pass: itemFormPass,
+      lowerIsBetter: itemForm.timeMode || itemForm.lowerIsBetter,
+      passInclusive: itemForm.passInclusive,
+      ...(itemForm.timeMode ? { unit: 'time' as const } : {}),
+    })
     : null;
 
   return (
@@ -1579,7 +1617,7 @@ export default function TrackingPage() {
       <CommandOverlay
         open={!!scoreDialogTarget}
         onClose={closeScoreDialog}
-        title={scoreDialogTarget ? `ציון — ${scoreDialogTarget.soldier.full_name} · ${scoreDialogTarget.item.title}` : 'ציון'}
+        title={scoreDialogTarget ? `${isTimeScore(scoreDialogConfig) ? 'זמן' : 'ציון'} — ${scoreDialogTarget.soldier.full_name} · ${scoreDialogTarget.item.title}` : 'ציון'}
         dismissible={!isSavingScore}
         footer={
           <div className="flex justify-end gap-2">
@@ -1624,8 +1662,8 @@ export default function TrackingPage() {
             inputMode="decimal"
             dir="ltr"
             autoFocus
-            placeholder="—"
-            aria-label="ציון"
+            placeholder={isTimeScore(scoreDialogConfig) ? '13:45' : '—'}
+            aria-label={isTimeScore(scoreDialogConfig) ? 'זמן בדקות:שניות' : 'ציון'}
             disabled={isSavingScore}
             className={`command-input w-full text-center font-mono text-3xl font-semibold ${scorePreviewStatus ? statusStyles[scorePreviewStatus] : 'text-[var(--text-primary)]'}`}
           />
@@ -1672,7 +1710,7 @@ export default function TrackingPage() {
           {noteDialogTarget && readScoreConfig(noteDialogTarget.item.metadata) ? (
             // Score items: the status follows the score, so it is shown, not picked.
             <p className={`rounded-2xl border px-3 py-2 text-center text-xs font-semibold ${statusStyles[noteDialogTarget.record.status]}`}>
-              ציון: {readRecordScore(noteDialogTarget.record.metadata) === null ? '—' : formatScore(readRecordScore(noteDialogTarget.record.metadata) as number)}
+              {isTimeScore(readScoreConfig(noteDialogTarget.item.metadata)) ? 'זמן' : 'ציון'}: {readRecordScore(noteDialogTarget.record.metadata) === null ? '—' : formatScore(readRecordScore(noteDialogTarget.record.metadata) as number, readScoreConfig(noteDialogTarget.item.metadata))}
               {' · '}
               {statusLabels[noteDialogTarget.record.status]}
             </p>
@@ -1993,20 +2031,28 @@ export default function TrackingPage() {
             </label>
 
             <div className="space-y-3 lg:col-span-2">
-              <div role="radiogroup" aria-label="סוג מעקב" className="grid grid-cols-2 gap-1 rounded-2xl border border-[var(--border-strong)] bg-[var(--surface-muted)] p-1">
+              <div role="radiogroup" aria-label="סוג מעקב" className="grid grid-cols-3 gap-1 rounded-2xl border border-[var(--border-strong)] bg-[var(--surface-muted)] p-1">
                 {[
-                  { scoreMode: false, label: 'רגיל — עבר / לא עבר' },
-                  { scoreMode: true, label: 'מעקב עם ציון' },
+                  { scoreMode: false, timeMode: false, label: 'רגיל — עבר / לא עבר' },
+                  { scoreMode: true, timeMode: false, label: 'מעקב עם ציון' },
+                  { scoreMode: true, timeMode: true, label: 'זמן (ריצה)' },
                 ].map(option => (
                   <button
                     key={option.label}
                     type="button"
                     role="radio"
-                    aria-checked={itemForm.scoreMode === option.scoreMode}
-                    onClick={() => setItemForm(value => ({ ...value, scoreMode: option.scoreMode }))}
+                    aria-checked={itemForm.scoreMode === option.scoreMode && itemForm.timeMode === option.timeMode}
+                    onClick={() => setItemForm(value => {
+                      // The pass field means a number for a score and mm:ss for a time;
+                      // switching between them starts it from that kind's default.
+                      const passScore = value.timeMode === option.timeMode
+                        ? value.passScore
+                        : option.timeMode ? '14:00' : initialItemForm.passScore;
+                      return { ...value, scoreMode: option.scoreMode, timeMode: option.timeMode, passScore };
+                    })}
                     disabled={isItemSubmitting}
                     className={`min-h-11 rounded-xl px-3 text-sm font-semibold transition disabled:opacity-60 ${
-                      itemForm.scoreMode === option.scoreMode
+                      itemForm.scoreMode === option.scoreMode && itemForm.timeMode === option.timeMode
                         ? 'bg-[var(--action)] text-white shadow-sm'
                         : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                     }`}
@@ -2016,7 +2062,41 @@ export default function TrackingPage() {
                 ))}
               </div>
 
-              {itemForm.scoreMode && (
+              {itemForm.scoreMode && itemForm.timeMode && (
+                <div className="rounded-3xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4">
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-semibold text-[var(--text-muted-accessible)]">זמן מעבר (דקות:שניות)</span>
+                    <input
+                      value={itemForm.passScore}
+                      onChange={event => setItemForm(value => ({ ...value, passScore: event.target.value }))}
+                      inputMode="decimal"
+                      dir="ltr"
+                      placeholder="14:00"
+                      aria-label="זמן מעבר בדקות:שניות"
+                      className="command-input w-full text-center font-mono text-lg font-semibold text-[var(--text-primary)]"
+                      disabled={isItemSubmitting}
+                    />
+                  </label>
+                  <p className="mt-2 text-xs font-semibold text-[var(--text-muted-accessible)]">
+                    זמן מתחת לרף עובר, זמן מעליו לא עובר. בכל תא מזינים את הזמן של החייל, למשל 13:45.
+                  </p>
+                  <label className="mt-3 flex min-h-11 items-center gap-2 border-t border-[var(--border-subtle)] pt-3 text-sm font-semibold text-[var(--text-primary)]">
+                    <input
+                      type="checkbox"
+                      checked={itemForm.passInclusive}
+                      onChange={event => setItemForm(value => ({ ...value, passInclusive: event.target.checked }))}
+                      className="h-5 w-5 accent-[var(--action)]"
+                      disabled={isItemSubmitting}
+                    />
+                    זמן ששווה בדיוק לרף עובר
+                  </label>
+                  {itemFormRulePreview && (
+                    <p className="mt-3 text-xs font-bold text-[var(--color-action-on-surface)]">{itemFormRulePreview}</p>
+                  )}
+                </div>
+              )}
+
+              {itemForm.scoreMode && !itemForm.timeMode && (
                 <div className="rounded-3xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4">
                   <div className="grid grid-cols-3 gap-3">
                     {([
@@ -2365,13 +2445,13 @@ export default function TrackingPage() {
                         <div className="flex shrink-0 items-center gap-1.5">
                           <button
                             type="button"
-                            title={scoreConfig ? `הזנת ציון · ${scoreRuleLabel(scoreConfig)}` : 'לחיצה מחליפה סטטוס'}
+                            title={scoreConfig ? `${isTimeScore(scoreConfig) ? 'הזנת זמן' : 'הזנת ציון'} · ${scoreRuleLabel(scoreConfig)}` : 'לחיצה מחליפה סטטוס'}
                             onClick={() => (scoreConfig ? openScoreDialog(soldier, item, record ?? null) : void handleCycleCellStatus(soldier, item, record))}
                             disabled={isCellUpdating}
                             className={`inline-flex min-h-11 min-w-20 items-center justify-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition hover:shadow-sm disabled:cursor-wait disabled:opacity-70 ${statusStyles[cellStatus]}${scoreConfig ? ' font-mono text-sm' : ''}`}
                           >
                             {isCellUpdating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                            {scoreConfig ? (score === null ? '—' : formatScore(score)) : statusLabels[status]}
+                            {scoreConfig ? (score === null ? '—' : formatScore(score, scoreConfig)) : statusLabels[status]}
                           </button>
                           <button
                             type="button"
@@ -2429,9 +2509,9 @@ export default function TrackingPage() {
                             const summary = scoreSummaryByItem.get(item.id);
                             return (
                               <div className="mt-1 space-y-0.5 text-caption font-bold text-[var(--text-muted-accessible)]">
-                                <div>ציון {scoreRangeLabel(config)} · {scoreRuleLabel(config)}</div>
+                                <div>{isTimeScore(config) ? `זמן · ${scoreRuleLabel(config)}` : `ציון ${scoreRangeLabel(config)} · ${scoreRuleLabel(config)}`}</div>
                                 {summary && summary.count > 0 && summary.average !== null && (
-                                  <div className="text-[var(--color-action-on-surface)]">ממוצע {formatScore(summary.average)} · {summary.passRate}% עברו</div>
+                                  <div className="text-[var(--color-action-on-surface)]">ממוצע {formatScore(summary.average, config)} · {summary.passRate}% עברו</div>
                                 )}
                               </div>
                             );
@@ -2538,13 +2618,13 @@ export default function TrackingPage() {
                           <div className="flex items-center gap-1.5">
                             <button
                               type="button"
-                              title={scoreConfig ? `הזנת ציון · ${scoreRuleLabel(scoreConfig)}` : 'לחיצה מחליפה סטטוס'}
+                              title={scoreConfig ? `${isTimeScore(scoreConfig) ? 'הזנת זמן' : 'הזנת ציון'} · ${scoreRuleLabel(scoreConfig)}` : 'לחיצה מחליפה סטטוס'}
                               onClick={() => (scoreConfig ? openScoreDialog(soldier, item, record ?? null) : void handleCycleCellStatus(soldier, item, record))}
                               disabled={isCellUpdating}
                               className={`inline-flex min-h-11 min-w-20 items-center justify-center gap-1.5 rounded-full border px-3 py-1 transition hover:shadow-sm disabled:cursor-wait disabled:opacity-70 ${statusStyles[cellStatus]}${scoreConfig ? ' font-mono text-sm' : ''}`}
                             >
                               {isCellUpdating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                              {scoreConfig ? (score === null ? '—' : formatScore(score)) : statusLabels[status]}
+                              {scoreConfig ? (score === null ? '—' : formatScore(score, scoreConfig)) : statusLabels[status]}
                             </button>
                             <button
                               type="button"

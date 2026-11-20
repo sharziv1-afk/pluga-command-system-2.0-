@@ -79,3 +79,22 @@ test('the page wires carry-over through the user\'s own RLS read, with no write 
   assert.match(source, /carryOverOwnerId === dbProfile\?\.id/);
   assert.match(source, /התחל דוח ריק/);
 });
+
+test('the previous report can be copied again and again — "התחל דוח ריק" never hides the button', () => {
+  // מ״פ, 20.11.2026: after "העתק מהדוח הקודם" and then "התחל דוח ריק" the
+  // button disappeared, so a mistake could not be undone.
+  const source = readFileSync('src/app/(protected)/forum/page.tsx', 'utf8');
+  assert.match(source, /const canCopyCarryOver = Boolean\(carryOverLevel && carryOverOwnerId && !isSelectedReportReadOnly\);/);
+  assert.match(source, /const pendingCarryOver = canCopyCarryOver && carryOverSource\?\.scope === selectedDailyDraftScope/);
+  // "Dismissed" stops only the automatic fill.
+  assert.match(source, /&& isSelectedSlotCarryOverTarget\s*&& !dismissedCarryOverScopes\.has\(selectedDailyDraftScope\)/);
+  assert.doesNotMatch(source, /isSelectedSlotCarryOverTarget\s*&& carryOverSource\?\.scope === selectedDailyDraftScope\s*&& !dismissedCarryOverScopes/);
+  // The source is read whenever the form is editable, not only while it is empty.
+  assert.match(source, /if \(!canCopyCarryOver \|\| !carryOverOwnerId \|\| !carryOverLevel\) return;/);
+  // Copying over written text asks first and stays an unsaved edit.
+  assert.match(source, /מה שכתוב בדוח של היום יוחלף בתוכן הדוח הקודם\. שום דבר לא נשמר עד שתלחץ שמור\. להמשיך\?/);
+  const apply = source.slice(source.indexOf('const applyCarryOverNow = () => {'), source.indexOf('const dismissCarryOver = () => {'));
+  assert.doesNotMatch(apply, /\.(insert|update|upsert)\(/, 'copying never saves by itself');
+  assert.match(apply, /next\.delete\(scope\);/, 'copying again undoes "התחל דוח ריק"');
+});
+

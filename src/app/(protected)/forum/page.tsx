@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clipboard,
+  FileDown,
   FileText,
   HeartPulse,
   ListChecks,
@@ -42,6 +43,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { showSquadReportsInLeadingForum } from '@/data/forum';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { AutoGrowTextarea } from '@/components/ui/AutoGrowTextarea';
 import { FieldPrivacyHint } from '@/components/ui/FieldPrivacyHint';
 import { CommandConfirmDialog } from '@/components/ui/CommandDialog';
 import { GlossyButton } from '@/components/ui/GlossyButton';
@@ -56,6 +58,7 @@ import { copyTextToClipboard } from '@/lib/clipboard';
 import { aggregateCompanyStructured, assignPlatoonReports } from '@/lib/forum/companyReport';
 import type { CompanyReportInput, CompanyReportPlatoon } from '@/lib/forum/companyReport';
 import { advanceReportStatus } from '@/lib/forum/reportStatus';
+import { forumPdfFileName, type ForumPdfModel, type ForumPdfSection } from '@/lib/forum/pdfExport';
 import { CARRY_OVER_SOURCE_STATUSES, carryOverWindow, isCarryOverTarget, pickCarryOverSource } from '@/lib/forum/carryOver';
 import type { CarryOverSourceRow } from '@/lib/forum/carryOver';
 import {
@@ -75,6 +78,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
 import { toDbProfile } from '@/lib/dbProfile';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
+import { sortByCompanyHierarchy } from '@/lib/roleOrder';
 
 type ForumTab = 'posts' | 'daily';
 type ReportLevel = 'squad' | 'platoon' | 'company' | 'staff';
@@ -541,6 +545,9 @@ export default function ForumPage() {
   const [reportPendingDelete, setReportPendingDelete] = useState<DailyReportRow | null>(null);
   const [dailyError, setDailyError] = useState<string | null>(null);
   const [dailySuccess, setDailySuccess] = useState<string | null>(null);
+  // PDF for Notability (13.11.2026): building, or a ready file waiting for a second tap.
+  const [isPdfBuilding, setIsPdfBuilding] = useState(false);
+  const [pendingPdf, setPendingPdf] = useState<{ blob: Blob; fileName: string } | null>(null);
   const [ownerOptions, setOwnerOptions] = useState<ReportOwnerOption[]>([]);
   const [selectedOwnerId, setSelectedOwnerId] = useState('');
   const [commanderReportLevel, setCommanderReportLevel] = useState<ReportLevel>(showSquadReportsInLeadingForum ? 'squad' : 'platoon');
@@ -979,19 +986,21 @@ export default function ForumPage() {
     ? selectedReport.owner_user_id
     : canUseDraftFormForSelectedNode ? selectedNode?.ownerUserId ?? dbProfile?.id ?? null : null;
   const carryOverStaffRole = carryOverLevel === 'staff' ? selectedReport?.staff_role ?? selectedNode?.staffRole ?? null : null;
-  const isSelectedSlotCarryOverTarget = Boolean(
-    carryOverLevel
-      && carryOverOwnerId
-      && !isSelectedReportReadOnly
-      && isCarryOverTarget(selectedReport, carryOverContentKeys),
-  );
-  const pendingCarryOver = isSelectedSlotCarryOverTarget
-    && carryOverSource?.scope === selectedDailyDraftScope
-    && !dismissedCarryOverScopes.has(selectedDailyDraftScope)
+  // The previous report can be copied in again at any time while the form is
+  // editable — into an empty form, after "התחל דוח ריק", or over what is
+  // already written — because mistakes happen (מ״פ, 20.11.2026). It fills on
+  // its own only while the day's report is still empty; "התחל דוח ריק" stops
+  // that, but never hides the button.
+  const canCopyCarryOver = Boolean(carryOverLevel && carryOverOwnerId && !isSelectedReportReadOnly);
+  const isSelectedSlotCarryOverTarget = canCopyCarryOver && isCarryOverTarget(selectedReport, carryOverContentKeys);
+  const pendingCarryOver = canCopyCarryOver && carryOverSource?.scope === selectedDailyDraftScope
     ? carryOverSource.report
     : null;
   const isOwnCarryOverSlot = Boolean(dbProfile) && carryOverOwnerId === dbProfile?.id;
-  const appliedCarryOver = pendingCarryOver && (isOwnCarryOverSlot || acceptedCarryOverScopes.has(selectedDailyDraftScope))
+  const appliedCarryOver = pendingCarryOver
+    && isSelectedSlotCarryOverTarget
+    && !dismissedCarryOverScopes.has(selectedDailyDraftScope)
+    && (isOwnCarryOverSlot || acceptedCarryOverScopes.has(selectedDailyDraftScope))
     ? pendingCarryOver
     : null;
 
@@ -1145,6 +1154,147 @@ export default function ForumPage() {
     return lines.join('\n');
   }, [dailyReports, dbProfile, ownerOptions, selectedDate, whatsappMode]);
 
+  // The whole company forum as a PDF to write on in Notability: each platoon
+  // on its own page, every section of the detailed WhatsApp output, ruled
+  // space after each (company commander, 13.11.2026). Same sources as
+  // generateWhatsappText, so the two never disagree.
+  const buildForumPdfModel = useCallback((): ForumPdfModel => {
+    const platoons: CompanyReportPlatoon[] = platoonNodes.map((platoon, index) => ({
+      number: index + 1,
+      label: platoon.label,
+      ownerUserId: findPlatoonSummaryOwner(ownerOptions, platoon.label)?.id ?? null,
+    }));
+    const { byNumber: platoonByNumber, unidentified } = assignPlatoonReports(dailyReports, platoons);
+
+    const count = (raw: unknown): number | null => {
+      const text = typeof raw === 'string' ? raw.trim() : typeof raw === 'number' ? String(raw) : '';
+      if (!text) return null;
+      const parsed = Number(text.replace(/[^\d.-]/g, ''));
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+    let present: number | null = null;
+    let total: number | null = null;
+    let submitted = 0;
+    platoons.forEach(platoon => {
+      const report = platoonByNumber.get(platoon.number);
+      if (!report) return;
+      if (report.status === 'submitted' || report.status === 'closed') submitted += 1;
+      const p = count(report.content.present_count);
+      const t = count(report.content.total_count);
+      if (p !== null) present = (present ?? 0) + p;
+      if (t !== null) total = (total ?? 0) + t;
+    });
+
+    const platoonSections = (raw: Record<string, unknown> | null): ForumPdfSection[] => {
+      const content = { ...emptyReportDraft(), ...(raw ?? {}) };
+      const manpower = content.present_count || content.total_count
+        ? `${content.present_count || '—'}/${content.total_count || '—'}`
+        : '';
+      return [
+        { title: 'מצבה', body: manpower },
+        { title: 'כוח אדם', body: content.personnel },
+        { title: 'ת״ש', body: content.welfare },
+        { title: 'רפואה', body: content.medical },
+        { title: 'לוגיסטיקה', body: content.logistics },
+        { title: 'כוננות', body: content.readiness },
+        { title: 'תכנון מול ביצוע', body: content.plan_vs_actual },
+        { title: 'לקח יומי', body: content.daily_lessons },
+        { title: 'פעולות להמשך', body: content.next_actions },
+      ];
+    };
+
+    const pages: ForumPdfModel['pages'] = platoons.map(platoon => {
+      const report = platoonByNumber.get(platoon.number);
+      return {
+        heading: `${platoon.label} · ${report ? statusLabel(report.status) : 'טרם הוגש'}`,
+        sections: platoonSections(report ? report.content : null),
+      };
+    });
+    unidentified.forEach(report => {
+      pages.push({ heading: `מחלקה לא מזוהה · ${statusLabel(report.status)}`, sections: platoonSections(report.content) });
+    });
+
+    pages.push({
+      heading: 'מפל״ג',
+      sections: staffNodes.map(staffNode => {
+        const report = dailyReports.find(item => item.report_level === 'staff' && item.staff_role === staffNode.id);
+        const content = report ? { ...emptyReportDraft(), ...report.content } : null;
+        return { title: staffNode.label, body: content ? content.notes || 'הוגש' : 'טרם הוגש' };
+      }),
+    });
+
+    const company = dailyReports.find(report => report.report_level === 'company');
+    const companyContent = company ? { ...emptyReportDraft(), ...company.content } : null;
+    pages.push({
+      heading: 'דגשי מ״פ / סיכום פלוגתי',
+      sections: [
+        { title: 'סיכום פלוגתי', body: companyContent?.company_summary || companyContent?.commander_closing || '' },
+        { title: 'לו״ז פלוגתי למחר', body: companyContent?.tomorrow_schedule || '' },
+        { title: 'לו״ז מקביל', body: companyContent?.parallel_schedule || '' },
+      ],
+    });
+
+    return {
+      title: `פורום מוביל פלוגתי — ${formatSelectedDate(selectedDate)}`,
+      subtitle: [
+        dbProfile ? `${dbProfile.name} · ${dbProfile.role}` : null,
+        `מצבה פלוגתית: ${present ?? '—'}/${total ?? '—'}`,
+        `דוחות מחלקה שהוגשו: ${submitted}/${platoons.length}`,
+      ].filter(Boolean).join('   ·   '),
+      pages,
+    };
+  }, [dailyReports, dbProfile, ownerOptions, selectedDate]);
+
+  const finishPdfHandoff = (result: 'shared' | 'downloaded' | 'cancelled' | 'needs_tap', blob: Blob, fileName: string) => {
+    if (result === 'needs_tap') {
+      setPendingPdf({ blob, fileName });
+      setDailySuccess('ה־PDF מוכן. לחץ "פתח לשיתוף" ובחר Notability.');
+      return;
+    }
+    setPendingPdf(null);
+    if (result === 'downloaded') setDailySuccess('ה־PDF ירד למכשיר.');
+    if (result === 'shared') setDailySuccess('ה־PDF נשלח.');
+  };
+
+  const exportForumPdf = async () => {
+    if (isPdfBuilding) return;
+    setIsPdfBuilding(true);
+    setDailyError(null);
+    setDailySuccess(null);
+    try {
+      // Loaded on demand: most visits never export.
+      const { renderForumPdf, handOffPdf } = await import('@/lib/forum/pdfRender');
+      const model = buildForumPdfModel();
+      const blob = await renderForumPdf(model);
+      const fileName = forumPdfFileName(selectedDate);
+      finishPdfHandoff(await handOffPdf(blob, fileName, model.title), blob, fileName);
+    } catch {
+      setDailyError('לא ניתן ליצור PDF כרגע. נסה שוב.');
+    } finally {
+      setIsPdfBuilding(false);
+    }
+  };
+
+  const sharePendingPdf = async () => {
+    if (!pendingPdf) return;
+    const { handOffPdf } = await import('@/lib/forum/pdfRender');
+    finishPdfHandoff(await handOffPdf(pendingPdf.blob, pendingPdf.fileName, 'פורום מוביל'), pendingPdf.blob, pendingPdf.fileName);
+  };
+
+  const pdfButtons = (variant: 'orange' | 'slate') => (
+    <>
+      <GlossyButton variant={variant} size="sm" onClick={() => void exportForumPdf()} disabled={isPdfBuilding}>
+        <FileDown className="h-4 w-4" />
+        {isPdfBuilding ? 'מכין PDF…' : 'ייצוא PDF'}
+      </GlossyButton>
+      {pendingPdf && (
+        <GlossyButton variant="orange" size="sm" onClick={() => void sharePendingPdf()}>
+          פתח לשיתוף
+        </GlossyButton>
+      )}
+    </>
+  );
+
   const copyWhatsappText = async () => {
     const result = await copyTextToClipboard(generateWhatsappText());
     if (result.ok) {
@@ -1290,10 +1440,12 @@ export default function ForumPage() {
       return;
     }
 
-    setOwnerOptions((data ?? []).map(owner => ({
+    // In company-hierarchy order, so "first match" for a platoon's owner is always the
+    // same person (two profiles can share a role, e.g. a test profile).
+    setOwnerOptions(sortByCompanyHierarchy((data ?? []).map(owner => ({
       ...owner,
       units: owner.units?.name ? { name: owner.units.name } : null,
-    })));
+    }))));
   }, [canSeeAll, supabase]);
 
   // loadPosts() used to run here on every mount, firing 1-3 queries whose
@@ -1390,7 +1542,7 @@ export default function ForumPage() {
   // day's reports are still loading (the slot may turn out not to be empty).
   useEffect(() => {
     if (activeTab !== 'daily' || isDailyLoading || isOfflineDaily) return;
-    if (!isSelectedSlotCarryOverTarget || !carryOverOwnerId || !carryOverLevel) return;
+    if (!canCopyCarryOver || !carryOverOwnerId || !carryOverLevel) return;
     const scope = selectedDailyDraftScope;
     let cancelled = false;
 
@@ -1424,12 +1576,12 @@ export default function ForumPage() {
     };
   }, [
     activeTab,
+    canCopyCarryOver,
     carryOverLevel,
     carryOverOwnerId,
     carryOverStaffRole,
     isDailyLoading,
     isOfflineDaily,
-    isSelectedSlotCarryOverTarget,
     selectedDailyDraftScope,
     selectedDate,
     supabase,
@@ -1438,12 +1590,30 @@ export default function ForumPage() {
 
   const applyCarryOverNow = () => {
     if (!pendingCarryOver) return;
-    if (
-      isDraftDirty(reportDraftRef.current, reportDraftBaseline.current, reportDraftFields)
-      && !window.confirm('יש שינויים שלא נשמרו. ההעתקה תחליף אותם בתוכן הדוח הקודם. להמשיך?')
-    ) return;
-    replaceWithCleanDailyDraft(sanitizeReportContent(emptyReportDraft(), pendingCarryOver.content ?? {}));
-    setAcceptedCarryOverScopes(current => new Set(current).add(selectedDailyDraftScope));
+    const copied = sanitizeReportContent(emptyReportDraft(), pendingCarryOver.content ?? {});
+    const scope = selectedDailyDraftScope;
+    if (isSelectedSlotCarryOverTarget) {
+      // The day's report is still empty: the copy is the clean starting point.
+      if (
+        isDraftDirty(reportDraftRef.current, reportDraftBaseline.current, reportDraftFields)
+        && !window.confirm('יש שינויים שלא נשמרו. ההעתקה תחליף אותם בתוכן הדוח הקודם. להמשיך?')
+      ) return;
+      replaceWithCleanDailyDraft(copied);
+      setAcceptedCarryOverScopes(current => new Set(current).add(scope));
+      setDismissedCarryOverScopes(current => {
+        const next = new Set(current);
+        next.delete(scope);
+        return next;
+      });
+    } else {
+      // The day's report already holds text: the copy replaces it in the form
+      // only, as an unsaved edit, until the user presses שמור.
+      if (!window.confirm('מה שכתוב בדוח של היום יוחלף בתוכן הדוח הקודם. שום דבר לא נשמר עד שתלחץ שמור. להמשיך?')) return;
+      const snapshot = snapshotDraftFields(copied, reportDraftFields);
+      reportDraftRef.current = snapshot;
+      hydratedDailyDraftScope.current = scope;
+      setReportDraft(snapshot);
+    }
     setIsEditingReport(true);
   };
 
@@ -1452,8 +1622,15 @@ export default function ForumPage() {
       isDraftDirty(reportDraftRef.current, reportDraftBaseline.current, reportDraftFields)
       && !window.confirm('יש שינויים שלא נשמרו. התחלת דוח ריק תמחק אותם. להמשיך?')
     ) return;
+    const scope = selectedDailyDraftScope;
     replaceWithCleanDailyDraft(draftFromReport(selectedReport));
-    setDismissedCarryOverScopes(current => new Set(current).add(selectedDailyDraftScope));
+    // Stops the automatic fill; the "copy" button stays, so this can be undone.
+    setDismissedCarryOverScopes(current => new Set(current).add(scope));
+    setAcceptedCarryOverScopes(current => {
+      const next = new Set(current);
+      next.delete(scope);
+      return next;
+    });
   };
 
   // Hydrate the company-report editor meta from its row, but only when the underlying report
@@ -2708,7 +2885,7 @@ export default function ForumPage() {
 
           <label className="block">
             <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">תוכן *</span>
-            <textarea value={body} onChange={event => setBody(event.target.value)} className="command-input min-h-24 resize-none" placeholder="כתוב את העדכון המרכזי, החלטות, פערים או דגשים להמשך." disabled={isSubmitting} />
+            <AutoGrowTextarea value={body} onChange={event => setBody(event.target.value)} className="command-input" placeholder="כתוב את העדכון המרכזי, החלטות, פערים או דגשים להמשך." disabled={isSubmitting} />
           </label>
 
           {canSeeAll && (
@@ -2775,7 +2952,7 @@ export default function ForumPage() {
                     </label>
                     <label className="block">
                       <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">תוכן *</span>
-                      <textarea value={editPostBody} onChange={event => setEditPostBody(event.target.value)} className="command-input min-h-28 resize-none" disabled={isSubmitting} />
+                      <AutoGrowTextarea value={editPostBody} onChange={event => setEditPostBody(event.target.value)} className="command-input" disabled={isSubmitting} />
                     </label>
                     {canSeeAll && (
                       <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-4 py-3">
@@ -2887,7 +3064,7 @@ export default function ForumPage() {
         ] as Array<[ReportDraftTextField, string]>).map(([field, label]) => (
           <label key={field} className="block">
             <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">{label}</span>
-            <textarea value={reportDraft[field]} onChange={event => handleStructuredFieldChange(field, event.target.value)} className="command-input min-h-20 resize-none" disabled={isDailySaving || isSelectedReportReadOnly} />
+            <AutoGrowTextarea value={reportDraft[field]} onChange={event => handleStructuredFieldChange(field, event.target.value)} className="command-input" disabled={isDailySaving || isSelectedReportReadOnly} />
           </label>
         ))}
       </div>
@@ -2951,6 +3128,7 @@ export default function ForumPage() {
                 <Clipboard className="h-4 w-4" />
                 העתק פלט WhatsApp
               </GlossyButton>
+              {pdfButtons('slate')}
             </div>
           </div>
           <textarea readOnly aria-label="תצוגת פלט WhatsApp" value={generateWhatsappText()} className="command-input min-h-80 resize-none" dir="rtl" />
@@ -3123,7 +3301,7 @@ export default function ForumPage() {
           </div>
         )}
 
-        {pendingCarryOver && (
+        {pendingCarryOver && (!isReadView || isSelectedSlotCarryOverTarget) && (
           <div className="flex flex-col gap-3 rounded-2xl border border-[var(--brand)]/25 bg-[var(--brand)]/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
               <CalendarClock className="mt-0.5 h-5 w-5 shrink-0 text-[var(--color-action-on-surface)]" />
@@ -3135,7 +3313,11 @@ export default function ForumPage() {
               ) : (
                 <div className="text-sm font-bold text-[var(--text-primary)]">
                   <span className="block font-semibold">יש דוח קודם מ{formatSelectedDate(pendingCarryOver.report_date)}</span>
-                  <span className="text-[var(--text-muted-accessible)]">אפשר להעתיק אותו לכאן ולערוך רק את מה שהשתנה.</span>
+                  <span className="text-[var(--text-muted-accessible)]">
+                    {isSelectedSlotCarryOverTarget
+                      ? 'אפשר להעתיק אותו לכאן ולערוך רק את מה שהשתנה.'
+                      : 'אפשר להעתיק אותו שוב לכאן במקום מה שכתוב. שום דבר לא נשמר עד שתלחץ שמור.'}
+                  </span>
                 </div>
               )}
             </div>
@@ -3162,7 +3344,7 @@ export default function ForumPage() {
             </label>
             <label className="block">
               <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">התייחסות/דיווח</span>
-              <textarea value={reportDraft.notes} onChange={event => updateDraft('notes', event.target.value)} className="command-input min-h-32 resize-none" disabled={isDailySaving || isSelectedReportReadOnly} />
+              <AutoGrowTextarea value={reportDraft.notes} onChange={event => updateDraft('notes', event.target.value)} className="command-input" disabled={isDailySaving || isSelectedReportReadOnly} />
             </label>
           </div>
         ) : (
@@ -3207,7 +3389,7 @@ export default function ForumPage() {
                 {squadPrimaryFields.map(field => (
                   <label key={field.key} className="block">
                     <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">{field.label}</span>
-                    <textarea value={reportDraft[field.key]} onChange={event => handleStructuredFieldChange(field.key, event.target.value)} className="command-input min-h-20 resize-none" disabled={isDailySaving || isSelectedReportReadOnly} />
+                    <AutoGrowTextarea value={reportDraft[field.key]} onChange={event => handleStructuredFieldChange(field.key, event.target.value)} className="command-input" disabled={isDailySaving || isSelectedReportReadOnly} />
                     {field.sensitive && <FieldPrivacyHint />}
                   </label>
                 ))}
@@ -3226,13 +3408,13 @@ export default function ForumPage() {
                 {squadSecondaryFields.map(field => (
                   <label key={field.key} className={field.wide ? 'block lg:col-span-2' : 'block'}>
                     <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">{field.label}</span>
-                    <textarea value={reportDraft[field.key]} onChange={event => handleStructuredFieldChange(field.key, event.target.value)} className="command-input min-h-24 resize-none" disabled={isDailySaving || isSelectedReportReadOnly} />
+                    <AutoGrowTextarea value={reportDraft[field.key]} onChange={event => handleStructuredFieldChange(field.key, event.target.value)} className="command-input" disabled={isDailySaving || isSelectedReportReadOnly} />
                   </label>
                 ))}
                 {selectedNode.level === 'company' && (
                   <label className="block lg:col-span-2">
                     <span className="mb-2 block text-sm font-semibold text-[var(--text-primary)]">דגשי מ״פ <span className="text-xs font-bold text-[var(--text-muted-accessible)]">(ידני — לא נגזר אוטומטית)</span></span>
-                    <textarea value={reportDraft.commander_closing} onChange={event => handleStructuredFieldChange('commander_closing', event.target.value)} className="command-input min-h-24 resize-none" disabled={isDailySaving || isSelectedReportReadOnly} />
+                    <AutoGrowTextarea value={reportDraft.commander_closing} onChange={event => handleStructuredFieldChange('commander_closing', event.target.value)} className="command-input" disabled={isDailySaving || isSelectedReportReadOnly} />
                   </label>
                 )}
               </div>
@@ -3562,6 +3744,7 @@ export default function ForumPage() {
                       <Clipboard className="h-4 w-4" />
                       העתק פלט WhatsApp
                     </GlossyButton>
+                    {pdfButtons('slate')}
                   </div>
                 </div>
                 <textarea readOnly aria-label="תצוגת פלט WhatsApp" value={generateWhatsappText()} className="command-input min-h-40 resize-none text-sm" dir="rtl" />

@@ -7,6 +7,8 @@ import { taskUnitIdFor } from '@/lib/taskVisibility';
 import { TASK_CATEGORIES, personalTaskAssignee } from '@/lib/taskCategories';
 import {
   formatScore,
+  isTimeScore,
+  parseTimeInput,
   readRecordScore,
   readScoreConfig,
   scoreRangeLabel,
@@ -344,12 +346,13 @@ export function registerWriteTools(server: McpServer) {
     'set_tracking_status',
     {
       title: 'עדכון תא במעקב',
-      description: 'Set one person\'s result for one tracking item (מעקב), with an optional note. Works for soldiers and for staff (סגל) added to the tracking table with add_tracking_soldier — a staff member can be named by their name or role (e.g. "מ״מ 2"). Regular items take a status: עבר / לא עבר / השלמה / ריק ("ריק" clears the cell). Attendance items (נוכחות) take נכח / לא נכח / ריק. Score items (מעקב עם ציון) take a score instead, within the item\'s range; עבר / לא עבר then follows the item\'s pass rule. Status "ריק" without a score clears a score item too. Person and item are matched by name.' + CONFIRM_NOTE,
+      description: 'Set one person\'s result for one tracking item (מעקב), with an optional note. Works for soldiers and for staff (סגל) added to the tracking table with add_tracking_soldier — a staff member can be named by their name or role (e.g. "מ״מ 2"). Regular items take a status: עבר / לא עבר / השלמה / ריק ("ריק" clears the cell). Attendance items (נוכחות) take נכח / לא נכח / ריק. Score items (מעקב עם ציון) take a score instead, within the item\'s range; עבר / לא עבר then follows the item\'s pass rule. Time items (זמן, e.g. a run) take a time as minutes:seconds, e.g. "13:45". Status "ריק" without a score clears a score item too. Person and item are matched by name.' + CONFIRM_NOTE,
       inputSchema: z.object({
         soldier: z.string().min(2).describe('The soldier\'s or staff member\'s name (staff also by role, e.g. "מ״מ 2")'),
         item: z.string().min(2).describe('Tracking item title, e.g. "מטווח רובה"'),
         status: z.enum(['עבר', 'לא עבר', 'השלמה', 'ריק', 'נכח', 'לא נכח']).optional().describe('Regular items: עבר / לא עבר / השלמה / ריק. Attendance items: נכח / לא נכח / ריק. "ריק" also clears a score item'),
         score: z.number().optional().describe('Score items only, e.g. 86'),
+        time: z.string().max(12).optional().describe('Time items only, minutes:seconds, e.g. "13:45"'),
         note: z.string().max(500).optional(),
       }),
       annotations: WRITE,
@@ -369,7 +372,23 @@ export function registerWriteTools(server: McpServer) {
       const scoreConfig = readScoreConfig(it.match.metadata);
       let status: ReturnType<typeof trackingCodeFromLabel>;
       let score: number | null = null;
-      if (scoreConfig) {
+      if (scoreConfig && isTimeScore(scoreConfig)) {
+        // A time item: the time is typed as mm:ss and stored in seconds.
+        if (args.score !== undefined) return fail(`"${it.match.title}" is a time item — give time as minutes:seconds, e.g. "13:45".`);
+        if (args.time === undefined) {
+          if (args.status !== 'ריק') return fail(`"${it.match.title}" is a time item — give time as minutes:seconds, or status "ריק" to clear it.`);
+          status = 'empty';
+        } else {
+          if (args.status !== undefined) return fail(`"${it.match.title}" is a time item — give only the time; עבר / לא עבר follows from it.`);
+          const parsed = parseTimeInput(args.time);
+          if (typeof parsed !== 'number') return fail(`"${args.time}" is not a time — use minutes:seconds, e.g. "13:45".`);
+          const rangeError = validateScore(parsed, scoreConfig);
+          if (rangeError) return fail(`Time out of range for "${it.match.title}": ${scoreRangeLabel(scoreConfig)}.`);
+          score = parsed;
+          status = statusForScore(score, scoreConfig);
+        }
+      } else if (scoreConfig) {
+        if (args.time !== undefined) return fail(`"${it.match.title}" is a score item, not a time item — give a score.`);
         if (args.score === undefined) {
           if (args.status !== 'ריק') return fail(`"${it.match.title}" is a score item — give a score between ${scoreRangeLabel(scoreConfig)}, or status "ריק" to clear it.`);
           status = 'empty';
@@ -381,13 +400,13 @@ export function registerWriteTools(server: McpServer) {
           status = statusForScore(score, scoreConfig);
         }
       } else if (isAttendanceItem(it.match.metadata)) {
-        if (args.score !== undefined) return fail(`"${it.match.title}" is an attendance item — give נכח / לא נכח / ריק.`);
+        if (args.score !== undefined || args.time !== undefined) return fail(`"${it.match.title}" is an attendance item — give נכח / לא נכח / ריק.`);
         if (args.status === undefined || !['נכח', 'לא נכח', 'ריק'].includes(args.status)) {
           return fail(`"${it.match.title}" is an attendance item — give נכח / לא נכח / ריק.`);
         }
         status = attendanceCodeFromLabel(args.status);
       } else {
-        if (args.score !== undefined) return fail(`"${it.match.title}" is not a score item — give a status (עבר / לא עבר / השלמה / ריק).`);
+        if (args.score !== undefined || args.time !== undefined) return fail(`"${it.match.title}" is not a score item — give a status (עבר / לא עבר / השלמה / ריק).`);
         if (args.status === undefined) return fail('A status is required (עבר / לא עבר / השלמה / ריק).');
         if (args.status === 'נכח' || args.status === 'לא נכח') return fail(`"${it.match.title}" is not an attendance item — give עבר / לא עבר / השלמה / ריק.`);
         status = trackingCodeFromLabel(args.status);
@@ -450,7 +469,10 @@ export function registerWriteTools(server: McpServer) {
         from: existing ? trackingLabel(existing.status) : 'ריק',
         to: trackingLabel(status),
         ...(scoreConfig
-          ? { from_score: existing ? readRecordScore(existing.metadata) : null, score: score === null ? null : formatScore(score) }
+          ? {
+            from_score: existing && readRecordScore(existing.metadata) !== null ? formatScore(readRecordScore(existing.metadata) as number, scoreConfig) : null,
+            score: score === null ? null : formatScore(score, scoreConfig),
+          }
           : {}),
       });
     },

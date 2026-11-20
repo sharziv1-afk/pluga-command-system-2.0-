@@ -18,8 +18,9 @@ const BRIEF_EXACT_ROLES = new Set([
   'סרס"פ א"',
   'סרס"פ ב"',
 ]);
-// 4 platoons, 3 squads each (א-ג) — migration 021 removed the 4th squad.
-const BRIEF_NUMBERED_ROLE = /^(?:מ"מ [1-4]|סמל [1-4]|מ"כ [1-4][א-ג])$/;
+// 4 platoons; the squads are א, ג, ד (the company's roster, 16.11.2026; ב stays
+// valid for an old profile).
+const BRIEF_NUMBERED_ROLE = /^(?:מ"מ [1-4]|סמל [1-4]|מ"כ [1-4][א-ד])$/;
 
 /**
  * Dashboard brief title for the signed-in role, e.g. "תדריך מ״מ 2".

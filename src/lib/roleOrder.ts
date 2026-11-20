@@ -23,8 +23,9 @@ const COMPANY_ROLES = [
   'ב.קוד / נהג',
 ];
 
-// Then each platoon in turn: מ״מ, סמל, and its squad commanders א-ג.
-const PLATOON_ROLE = /^(מ"מ|סמל|מ"כ) ?([1-4])([א-ג])?$/;
+// Then each platoon in turn: מ״מ, סמל, and its squad commanders (א, ג, ד — the
+// company's squads, 16.11.2026; ב is still ranked so an old profile sorts right).
+const PLATOON_ROLE = /^(מ"מ|סמל|מ"כ) ?([1-4])([א-ד])?$/;
 const PLATOON_ROLE_ORDER = ['מ"מ', 'סמל', 'מ"כ'];
 
 /**
@@ -37,11 +38,11 @@ export function companyRoleRank(role: string | null | undefined): number {
   const companyIndex = COMPANY_ROLES.findIndex(item => item.replace(/\. /g, '.') === normalized);
   if (companyIndex >= 0) return companyIndex;
 
-  const squadFirst = normalized.match(/^מ"כ ?([א-ג]) ?([1-4])$/);
+  const squadFirst = normalized.match(/^מ"כ ?([א-ד]) ?([1-4])$/);
   const match = squadFirst ? ['', 'מ"כ', squadFirst[2], squadFirst[1]] : normalized.match(PLATOON_ROLE);
   if (match) {
     const platoon = Number(match[2]);
-    const squad = match[3] ? '-אבג'.indexOf(match[3]) : 0;
+    const squad = match[3] ? '-אבגד'.indexOf(match[3]) : 0;
     return 100 + platoon * 100 + PLATOON_ROLE_ORDER.indexOf(match[1]) * 10 + squad;
   }
 

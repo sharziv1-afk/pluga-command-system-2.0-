@@ -986,19 +986,21 @@ export default function ForumPage() {
     ? selectedReport.owner_user_id
     : canUseDraftFormForSelectedNode ? selectedNode?.ownerUserId ?? dbProfile?.id ?? null : null;
   const carryOverStaffRole = carryOverLevel === 'staff' ? selectedReport?.staff_role ?? selectedNode?.staffRole ?? null : null;
-  const isSelectedSlotCarryOverTarget = Boolean(
-    carryOverLevel
-      && carryOverOwnerId
-      && !isSelectedReportReadOnly
-      && isCarryOverTarget(selectedReport, carryOverContentKeys),
-  );
-  const pendingCarryOver = isSelectedSlotCarryOverTarget
-    && carryOverSource?.scope === selectedDailyDraftScope
-    && !dismissedCarryOverScopes.has(selectedDailyDraftScope)
+  // The previous report can be copied in again at any time while the form is
+  // editable — into an empty form, after "התחל דוח ריק", or over what is
+  // already written — because mistakes happen (מ״פ, 20.11.2026). It fills on
+  // its own only while the day's report is still empty; "התחל דוח ריק" stops
+  // that, but never hides the button.
+  const canCopyCarryOver = Boolean(carryOverLevel && carryOverOwnerId && !isSelectedReportReadOnly);
+  const isSelectedSlotCarryOverTarget = canCopyCarryOver && isCarryOverTarget(selectedReport, carryOverContentKeys);
+  const pendingCarryOver = canCopyCarryOver && carryOverSource?.scope === selectedDailyDraftScope
     ? carryOverSource.report
     : null;
   const isOwnCarryOverSlot = Boolean(dbProfile) && carryOverOwnerId === dbProfile?.id;
-  const appliedCarryOver = pendingCarryOver && (isOwnCarryOverSlot || acceptedCarryOverScopes.has(selectedDailyDraftScope))
+  const appliedCarryOver = pendingCarryOver
+    && isSelectedSlotCarryOverTarget
+    && !dismissedCarryOverScopes.has(selectedDailyDraftScope)
+    && (isOwnCarryOverSlot || acceptedCarryOverScopes.has(selectedDailyDraftScope))
     ? pendingCarryOver
     : null;
 
@@ -1540,7 +1542,7 @@ export default function ForumPage() {
   // day's reports are still loading (the slot may turn out not to be empty).
   useEffect(() => {
     if (activeTab !== 'daily' || isDailyLoading || isOfflineDaily) return;
-    if (!isSelectedSlotCarryOverTarget || !carryOverOwnerId || !carryOverLevel) return;
+    if (!canCopyCarryOver || !carryOverOwnerId || !carryOverLevel) return;
     const scope = selectedDailyDraftScope;
     let cancelled = false;
 
@@ -1574,12 +1576,12 @@ export default function ForumPage() {
     };
   }, [
     activeTab,
+    canCopyCarryOver,
     carryOverLevel,
     carryOverOwnerId,
     carryOverStaffRole,
     isDailyLoading,
     isOfflineDaily,
-    isSelectedSlotCarryOverTarget,
     selectedDailyDraftScope,
     selectedDate,
     supabase,
@@ -1588,12 +1590,30 @@ export default function ForumPage() {
 
   const applyCarryOverNow = () => {
     if (!pendingCarryOver) return;
-    if (
-      isDraftDirty(reportDraftRef.current, reportDraftBaseline.current, reportDraftFields)
-      && !window.confirm('יש שינויים שלא נשמרו. ההעתקה תחליף אותם בתוכן הדוח הקודם. להמשיך?')
-    ) return;
-    replaceWithCleanDailyDraft(sanitizeReportContent(emptyReportDraft(), pendingCarryOver.content ?? {}));
-    setAcceptedCarryOverScopes(current => new Set(current).add(selectedDailyDraftScope));
+    const copied = sanitizeReportContent(emptyReportDraft(), pendingCarryOver.content ?? {});
+    const scope = selectedDailyDraftScope;
+    if (isSelectedSlotCarryOverTarget) {
+      // The day's report is still empty: the copy is the clean starting point.
+      if (
+        isDraftDirty(reportDraftRef.current, reportDraftBaseline.current, reportDraftFields)
+        && !window.confirm('יש שינויים שלא נשמרו. ההעתקה תחליף אותם בתוכן הדוח הקודם. להמשיך?')
+      ) return;
+      replaceWithCleanDailyDraft(copied);
+      setAcceptedCarryOverScopes(current => new Set(current).add(scope));
+      setDismissedCarryOverScopes(current => {
+        const next = new Set(current);
+        next.delete(scope);
+        return next;
+      });
+    } else {
+      // The day's report already holds text: the copy replaces it in the form
+      // only, as an unsaved edit, until the user presses שמור.
+      if (!window.confirm('מה שכתוב בדוח של היום יוחלף בתוכן הדוח הקודם. שום דבר לא נשמר עד שתלחץ שמור. להמשיך?')) return;
+      const snapshot = snapshotDraftFields(copied, reportDraftFields);
+      reportDraftRef.current = snapshot;
+      hydratedDailyDraftScope.current = scope;
+      setReportDraft(snapshot);
+    }
     setIsEditingReport(true);
   };
 
@@ -1602,8 +1622,15 @@ export default function ForumPage() {
       isDraftDirty(reportDraftRef.current, reportDraftBaseline.current, reportDraftFields)
       && !window.confirm('יש שינויים שלא נשמרו. התחלת דוח ריק תמחק אותם. להמשיך?')
     ) return;
+    const scope = selectedDailyDraftScope;
     replaceWithCleanDailyDraft(draftFromReport(selectedReport));
-    setDismissedCarryOverScopes(current => new Set(current).add(selectedDailyDraftScope));
+    // Stops the automatic fill; the "copy" button stays, so this can be undone.
+    setDismissedCarryOverScopes(current => new Set(current).add(scope));
+    setAcceptedCarryOverScopes(current => {
+      const next = new Set(current);
+      next.delete(scope);
+      return next;
+    });
   };
 
   // Hydrate the company-report editor meta from its row, but only when the underlying report
@@ -3274,7 +3301,7 @@ export default function ForumPage() {
           </div>
         )}
 
-        {pendingCarryOver && (
+        {pendingCarryOver && (!isReadView || isSelectedSlotCarryOverTarget) && (
           <div className="flex flex-col gap-3 rounded-2xl border border-[var(--brand)]/25 bg-[var(--brand)]/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
               <CalendarClock className="mt-0.5 h-5 w-5 shrink-0 text-[var(--color-action-on-surface)]" />
@@ -3286,7 +3313,11 @@ export default function ForumPage() {
               ) : (
                 <div className="text-sm font-bold text-[var(--text-primary)]">
                   <span className="block font-semibold">יש דוח קודם מ{formatSelectedDate(pendingCarryOver.report_date)}</span>
-                  <span className="text-[var(--text-muted-accessible)]">אפשר להעתיק אותו לכאן ולערוך רק את מה שהשתנה.</span>
+                  <span className="text-[var(--text-muted-accessible)]">
+                    {isSelectedSlotCarryOverTarget
+                      ? 'אפשר להעתיק אותו לכאן ולערוך רק את מה שהשתנה.'
+                      : 'אפשר להעתיק אותו שוב לכאן במקום מה שכתוב. שום דבר לא נשמר עד שתלחץ שמור.'}
+                  </span>
                 </div>
               )}
             </div>

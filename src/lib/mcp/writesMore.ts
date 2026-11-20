@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/server';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
-import { validateScoreConfig, withScoreConfig, type ScoreConfig } from '@/lib/trackingScore';
+import { TIME_MAX_SECONDS, TIME_MIN_SECONDS, parseTimeInput, validateScoreConfig, withScoreConfig, type ScoreConfig } from '@/lib/trackingScore';
 import { MCP_ORIGIN, jerusalemLocalToIso, matchByName, resolveDateKey } from './shape';
 import {
   ATTENDANCE_MODE,
@@ -263,10 +263,11 @@ export function registerMoreWriteTools(server: McpServer) {
         + 'attendance — נוכחות, no score (cells are נכח / לא נכח; the site shows them as עבר / לא עבר); '
         + 'pass_fail — עבר / לא עבר / השלמה; '
         + 'score — עם ציון: needs score_min, score_max and pass_score (רף מעבר); lower_is_better for times, pass_inclusive (default true) for a score exactly on the threshold. '
+        + 'time — זמן (e.g. a run): needs pass_time as minutes:seconds, e.g. "14:00"; a time at or under it passes (pass_inclusive, default true). '
         + 'Categories: כשירות (default), אימון, מטווח, רפואה, מנהלה, אחר. Tracking commanders only.' + CONFIRM_NOTE,
       inputSchema: z.object({
         title: z.string().min(2).max(120),
-        type: z.enum(['attendance', 'pass_fail', 'score']),
+        type: z.enum(['attendance', 'pass_fail', 'score', 'time']),
         week: z.string().optional().describe('Week title, as in get_tracking'),
         category: z.enum(TRACKING_CATEGORIES).optional(),
         description: z.string().max(1000).optional(),
@@ -275,6 +276,7 @@ export function registerMoreWriteTools(server: McpServer) {
         pass_score: z.number().optional(),
         lower_is_better: z.boolean().optional(),
         pass_inclusive: z.boolean().optional(),
+        pass_time: z.string().max(12).optional().describe('Time items: the pass time, minutes:seconds, e.g. "14:00"'),
       }),
       annotations: WRITE,
     },
@@ -283,7 +285,25 @@ export function registerMoreWriteTools(server: McpServer) {
       const origin = { created_via: MCP_ORIGIN, mcp_client_id: clientIdOf(ctx) };
       let metadata: Record<string, unknown>;
       let scoreConfig: ScoreConfig | null = null;
-      if (args.type === 'score') {
+      if (args.type === 'time') {
+        if ([args.score_min, args.score_max, args.pass_score, args.lower_is_better].some((v) => v !== undefined)) {
+          return fail('A time item takes pass_time (and pass_inclusive) only.');
+        }
+        const pass = args.pass_time === undefined ? null : parseTimeInput(args.pass_time);
+        if (typeof pass !== 'number') return fail('A time item needs pass_time as minutes:seconds, e.g. "14:00".');
+        scoreConfig = {
+          min: TIME_MIN_SECONDS,
+          max: TIME_MAX_SECONDS,
+          pass,
+          lowerIsBetter: true,
+          passInclusive: args.pass_inclusive ?? true,
+          unit: 'time',
+        };
+        const configError = validateScoreConfig(scoreConfig);
+        if (configError) return fail(configError);
+        metadata = withScoreConfig(origin, scoreConfig);
+      } else if (args.type === 'score') {
+        if (args.pass_time !== undefined) return fail('pass_time belongs to a time item (type "time").');
         if (args.score_min === undefined || args.score_max === undefined || args.pass_score === undefined) {
           return fail('A score item needs score_min, score_max and pass_score.');
         }
@@ -298,7 +318,7 @@ export function registerMoreWriteTools(server: McpServer) {
         if (configError) return fail(configError);
         metadata = withScoreConfig(origin, scoreConfig);
       } else {
-        if ([args.score_min, args.score_max, args.pass_score, args.lower_is_better, args.pass_inclusive].some((v) => v !== undefined)) {
+        if ([args.score_min, args.score_max, args.pass_score, args.lower_is_better, args.pass_inclusive, args.pass_time].some((v) => v !== undefined)) {
           return fail('Score settings belong only to a score item (type "score").');
         }
         metadata = args.type === 'attendance' ? { ...origin, mode: ATTENDANCE_MODE } : origin;

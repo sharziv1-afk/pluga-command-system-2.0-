@@ -3,7 +3,7 @@ import type { McpServer, ServerContext } from '@modelcontextprotocol/server';
 import { assignPlatoonReports } from '@/lib/forum/companyReport';
 import { hasCompanyWideUiAccess, isCompanyCommander } from '@/lib/permissions';
 import { requestStatusLabels, taskStatusLabels, eventStatusLabels } from '@/lib/statusLabels';
-import { formatScore, readRecordScore, readScoreConfig, scoreRangeLabel, scoreRuleLabel, summarizeScores } from '@/lib/trackingScore';
+import { formatScore, isTimeScore, readRecordScore, readScoreConfig, scoreRangeLabel, scoreRuleLabel, summarizeScores } from '@/lib/trackingScore';
 import { callerFrom, type McpCaller } from './context';
 import {
   addDays,
@@ -463,7 +463,8 @@ export function registerReadTools(server: McpServer) {
                   range: scoreRangeLabel(config),
                   rule: scoreRuleLabel(config),
                   scored: summary.count,
-                  average: summary.average,
+                  // A time's average reads as mm:ss; a plain score stays a number.
+                  average: summary.average !== null && isTimeScore(config) ? formatScore(summary.average, config) : summary.average,
                   pass_rate_percent: summary.passRate,
                 },
               }
@@ -481,9 +482,9 @@ export function registerReadTools(server: McpServer) {
           ? {
               scores: Object.fromEntries(
                 scoredItems
-                  .map((i) => [i.title, scoreOf(s.id, i.id)] as const)
+                  .map((i) => [i.title, scoreOf(s.id, i.id), scoreConfigOf.get(i.id)] as const)
                   .filter(([, score]) => score !== null)
-                  .map(([title, score]) => [title, formatScore(score as number)]),
+                  .map(([title, score, config]) => [title, formatScore(score as number, config)]),
               ),
             }
           : {}),

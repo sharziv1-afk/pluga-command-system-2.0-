@@ -48,7 +48,13 @@ export function checklistFromLines(
   const unused = [...previous];
   const items: ChecklistItem[] = [];
   for (const rawLine of text.replace(/\r\n?/g, '\n').split('\n')) {
-    const line = rawLine.replace(/^\s*(?:[*•\-–]+|\[[ xX✓]?\])\s*/, '').trim().slice(0, CHECKLIST_MAX_TEXT);
+    // Text pasted from Notes or WhatsApp carries invisible joiners (U+2060,
+    // U+200B–U+200F, U+FEFF) after the bullet; they are dropped.
+    const line = rawLine
+      .replace(/[​-‏⁠﻿]/g, '')
+      .replace(/^\s*(?:[*•\-–]+|\[[ xX✓]?\])\s*/, '')
+      .trim()
+      .slice(0, CHECKLIST_MAX_TEXT);
     if (!line) continue;
     if (items.length >= CHECKLIST_MAX_ITEMS) break;
     const matchIndex = unused.findIndex((item) => item.text === line);

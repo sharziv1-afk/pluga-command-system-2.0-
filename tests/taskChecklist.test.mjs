@@ -32,6 +32,12 @@ test('one line per sub-task; bullets and blank lines are dropped', () => {
   assert.deepEqual(checklistFromLines('', [], ids), []);
 });
 
+test('invisible characters pasted from Notes or WhatsApp are dropped', () => {
+  // Found in the live "משימות של ברוש" (20.11.2026): "* ⁠טבלת…" with U+2060.
+  const items = checklistFromLines('* ⁠טבלת כשיר להכשיר\n*​ רשמ”צ מטווחים﻿', [], ids);
+  assert.deepEqual(items.map(i => i.text), ['טבלת כשיר להכשיר', 'רשמ”צ מטווחים']);
+});
+
 test('editing the list keeps what was already ticked', () => {
   counter = 0;
   const first = checklistFromLines('א\nב\nג', [], ids);

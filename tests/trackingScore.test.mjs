@@ -160,7 +160,8 @@ test('a time shows as minutes:seconds everywhere', () => {
   assert.equal(formatTime(825), '13:45');
   assert.equal(formatTime(840), '14:00');
   assert.equal(formatTime(65), '1:05');
-  assert.equal(formatTime(3750), '1:02:30');
+  assert.equal(formatTime(3750), '62:30', 'past the hour, as a stopwatch reads');
+  assert.equal(formatTime(TIME_MAX_SECONDS), '99:59');
   assert.equal(formatScore(825, timeRun), '13:45');
   assert.equal(formatScore(825), '825', 'without the time unit it is a number');
   assert.equal(scoreRuleLabel(timeRun), 'עובר: 14:00 ומטה');

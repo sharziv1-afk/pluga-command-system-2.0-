@@ -111,14 +111,12 @@ export function parseTimeInput(text: string): number | null | 'invalid' {
   return hours * 3600 + minutes * 60 + seconds;
 }
 
-/** Seconds as "13:45" (or "1:02:30" from an hour up). */
+/** Seconds as minutes:seconds — "13:45", and "62:30" past the hour, as a stopwatch reads. */
 export function formatTime(totalSeconds: number): string {
   const rounded = Math.round(totalSeconds);
-  const hours = Math.floor(rounded / 3600);
-  const minutes = Math.floor((rounded % 3600) / 60);
+  const minutes = Math.floor(rounded / 60);
   const seconds = rounded % 60;
-  const ss = String(seconds).padStart(2, '0');
-  return hours > 0 ? `${hours}:${String(minutes).padStart(2, '0')}:${ss}` : `${minutes}:${ss}`;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
 /**

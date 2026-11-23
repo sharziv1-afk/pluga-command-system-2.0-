@@ -28,6 +28,8 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { logSupabaseError } from '@/lib/supabase/error';
 import { didRowsUpdate } from '@/lib/supabase/assertUpdated';
 import { companyRoleRank } from '@/lib/roleOrder';
+import { downloadBlob, handOffFile } from '@/lib/fileHandoff';
+import { XLSX_MIME, buildXlsx, type XlsxCell } from '@/lib/xlsx';
 import {
   TIME_MAX_SECONDS,
   TIME_MIN_SECONDS,
@@ -1509,6 +1511,95 @@ export default function TrackingPage() {
     return bySoldier;
   }, [visibleItems, visibleSoldiers, recordByCell, selectedWeekId]);
 
+  // Excel export: exactly what the table shows now — the selected week,
+  // category, platoon and search — one soldier per row in the table's order,
+  // one item per column. Status cells carry their label and colour; score
+  // cells the score itself (a time as m:ss). Notes go in a last column.
+  // Reading only: nothing is written but the audit line.
+  const exportTrackingExcel = async () => {
+    if (visibleSoldiers.length === 0 || visibleItems.length === 0) {
+      setErrorMessage('אין מה לייצא — הטבלה ריקה בסינון הנוכחי.');
+      return;
+    }
+
+    const weekById = new Map(weeks.map(week => [week.id, week]));
+    const selectedWeek = selectedWeekId === 'all' ? null : weekById.get(selectedWeekId) ?? null;
+
+    const header: XlsxCell[] = [
+      'שם',
+      'מחלקה',
+      'תפקיד / כיתה',
+      ...visibleItems.map(item => {
+        const config = scoreConfigByItem.get(item.id) ?? null;
+        const itemWeek = !selectedWeek && item.week_id ? weekById.get(item.week_id)?.title : null;
+        return [item.title, itemWeek, config ? scoreRuleLabel(config) : null].filter(Boolean).join('\n');
+      }),
+      'הערות',
+    ];
+
+    const rows = visibleSoldiers.map((soldier): XlsxCell[] => {
+      const notes: string[] = [];
+      const cells = visibleItems.map((item): XlsxCell => {
+        const record = recordByCell.get(`${soldier.id}:${item.id}`);
+        if (record?.note?.trim()) notes.push(`${item.title}: ${record.note.trim()}`);
+        const config = scoreConfigByItem.get(item.id) ?? null;
+        if (config) {
+          const score = readRecordScore(record?.metadata);
+          if (score === null) return null;
+          const status = statusForScore(score, config);
+          return { value: isTimeScore(config) ? formatScore(score, config) : score, style: status === 'empty' ? undefined : status };
+        }
+        const status = record?.status ?? 'empty';
+        return status === 'empty' ? null : { value: statusLabels[status], style: status };
+      });
+      return [
+        soldier.full_name,
+        unitNameById.get(soldier.unit_id) ?? '',
+        soldier.role_label ?? soldier.squad_label ?? '',
+        ...cells,
+        notes.length ? { value: notes.join('\n'), style: 'wrap' } : null,
+      ];
+    });
+
+    const sheetTitle = selectedWeek?.title ?? 'כל השבועות';
+    const today = new Date();
+    const stamp = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const fileName = `מעקב - ${sheetTitle.replace(/[\\/:*?"<>|]/g, '-')} - ${stamp}.xlsx`;
+    const bytes = buildXlsx({
+      name: sheetTitle,
+      rows: [header, ...rows],
+      columnWidths: [22, 12, 14, ...visibleItems.map(() => 14), 40],
+      rightToLeft: true,
+      frozenColumns: 1,
+    });
+    const blob = new Blob([bytes as BlobPart], { type: XLSX_MIME });
+
+    const result = await handOffFile(blob, fileName, 'מעקב', XLSX_MIME);
+    if (result === 'needs_tap') downloadBlob(blob, fileName);
+    if (result !== 'cancelled') setSuccessMessage(`הקובץ "${fileName}" מוכן — ${rows.length} חיילים, ${visibleItems.length} מופעים.`);
+
+    if (currentUserId && currentUser) {
+      void createAuditLog(supabase, {
+        userId: currentUserId,
+        userName: currentUser.full_name,
+        userRole: currentUser.role,
+        actionType: 'tracking_exported',
+        entityType: 'tracking_export',
+        entityId: selectedWeek?.id ?? currentUserId,
+        previousValue: null,
+        newValue: {
+          format: 'xlsx',
+          week: selectedWeek?.title ?? null,
+          category: categoryFilter === 'all' ? null : categoryFilter,
+          unit: unitFilter === 'all' ? null : unitNameById.get(unitFilter) ?? null,
+          search: searchText.trim() || null,
+          soldiers: rows.length,
+          items: visibleItems.length,
+        },
+      });
+    }
+  };
+
   const headerActions = (
     <div className="flex flex-wrap items-center gap-2">
       <GlossyButton
@@ -1538,9 +1629,15 @@ export default function TrackingPage() {
         <CalendarPlus className="h-4 w-4" />
         שבוע חדש
       </GlossyButton>
-      <GlossyButton variant="orange" size="sm" disabled title="בשלב הבא">
+      <GlossyButton
+        variant="orange"
+        size="sm"
+        onClick={() => void exportTrackingExcel()}
+        disabled={isLoading || showEmptyState}
+        title="מוריד את הטבלה כפי שהיא מוצגת עכשיו (שבוע, קטגוריה, מחלקה וחיפוש)"
+      >
         <Download className="h-4 w-4" />
-        ייצוא CSV
+        ייצוא לאקסל
       </GlossyButton>
     </div>
   );

@@ -139,6 +139,7 @@ test('the file is named by the forum date', () => {
 test('the forum page exports the whole company forum, and the phone gets the share sheet', () => {
   const page = readFileSync('src/app/(protected)/forum/page.tsx', 'utf8');
   const render = readFileSync('src/lib/forum/pdfRender.ts', 'utf8');
+  const handoff = readFileSync('src/lib/fileHandoff.ts', 'utf8');
   for (const title of ['מצבה', 'כוח אדם', 'ת״ש', 'רפואה', 'לוגיסטיקה', 'כוננות', 'תכנון מול ביצוע', 'לקח יומי', 'פעולות להמשך']) {
     assert.ok(page.includes(`{ title: '${title}', body:`), title);
   }
@@ -147,8 +148,9 @@ test('the forum page exports the whole company forum, and the phone gets the sha
   assert.match(page, /const \{ byNumber: platoonByNumber, unidentified \} = assignPlatoonReports\(dailyReports, platoons\);/);
   assert.equal((page.match(/\{pdfButtons\('slate'\)\}/g) ?? []).length, 2, 'next to both WhatsApp buttons');
   assert.match(page, /await import\('@\/lib\/forum\/pdfRender'\)/);
-  assert.match(render, /await navigator\.share\(\{ files: \[file\], title \}\);/);
-  assert.match(render, /if \(name === 'NotAllowedError'\) return 'needs_tap';/);
+  assert.match(render, /return handOffFile\(blob, fileName, title, 'application\/pdf'\);/);
+  assert.match(handoff, /await navigator\.share\(\{ files: \[file\], title \}\);/);
+  assert.match(handoff, /if \(name === 'NotAllowedError'\) return 'needs_tap';/);
   assert.match(render, /await document\.fonts\.ready;/);
   assert.match(render, /ctx\.direction = 'rtl';/);
   // Exporting reads the report; it never writes one.

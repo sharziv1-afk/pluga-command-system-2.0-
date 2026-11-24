@@ -1,5 +1,6 @@
 'use client';
 
+import { handOffFile, type FileHandoff } from '../fileHandoff';
 import { PAGE_HEIGHT, PAGE_WIDTH, buildImagePdf, layoutForumPdf, type ForumPdfModel } from './pdfExport';
 
 // Draws the laid-out pages on a canvas — the browser shapes the Hebrew and
@@ -62,38 +63,14 @@ export async function renderForumPdf(model: ForumPdfModel): Promise<Blob> {
   return new Blob([buildImagePdf(images) as BlobPart], { type: 'application/pdf' });
 }
 
-export type PdfHandoff = 'shared' | 'downloaded' | 'cancelled' | 'needs_tap';
-
-function isTouchDevice(): boolean {
-  const ua = navigator.userAgent;
-  return /iPad|iPhone|iPod|Android/.test(ua) || (ua.includes('Macintosh') && navigator.maxTouchPoints > 1);
-}
+export type PdfHandoff = FileHandoff;
 
 /**
  * On a phone or iPad: the share sheet, where Notability is one tap. Elsewhere:
  * a download. Safari allows the share sheet only right after a tap; when
- * building the file took too long it says NotAllowedError, and the caller
- * shows a second button that shares the ready file.
+ * building the file took too long it returns 'needs_tap', and the caller
+ * shows a second button that shares the ready file (src/lib/fileHandoff.ts).
  */
-export async function handOffPdf(blob: Blob, fileName: string, title: string): Promise<PdfHandoff> {
-  const file = new File([blob], fileName, { type: 'application/pdf' });
-  if (isTouchDevice() && typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file], title });
-      return 'shared';
-    } catch (error) {
-      const name = (error as { name?: string })?.name;
-      if (name === 'AbortError') return 'cancelled';
-      if (name === 'NotAllowedError') return 'needs_tap';
-    }
-  }
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  return 'downloaded';
+export function handOffPdf(blob: Blob, fileName: string, title: string): Promise<PdfHandoff> {
+  return handOffFile(blob, fileName, title, 'application/pdf');
 }

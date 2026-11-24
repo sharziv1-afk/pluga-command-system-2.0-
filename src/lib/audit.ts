@@ -45,7 +45,7 @@ export type AuditActionType =
   | 'tracking_record_updated'
   | 'tracking_week_created'
   | 'tracking_week_updated'
-  | 'tracking_exported_csv'
+  | 'tracking_exported'
   | 'mentoring_entry_created'
   | 'mentoring_entry_converted_to_task'
   | 'mentoring_entry_deleted';

@@ -264,7 +264,7 @@ export function registerMoreWriteTools(server: McpServer) {
         + 'pass_fail — עבר / לא עבר / השלמה; '
         + 'score — עם ציון: needs score_min, score_max and pass_score (רף מעבר); lower_is_better for times, pass_inclusive (default true) for a score exactly on the threshold. '
         + 'time — זמן (e.g. a run): needs pass_time as minutes:seconds, e.g. "14:00"; a time at or under it passes (pass_inclusive, default true). '
-        + 'Categories: כשירות (default), אימון, מטווח, רפואה, מנהלה, אחר. Tracking commanders only.' + CONFIRM_NOTE,
+        + 'Categories: כשירות (default), אימון, מטווח, רפואה, מנהלה, אחר. Tracking commanders (מ״פ, סמ״פ) and platoon commanders (מ״מ).' + CONFIRM_NOTE,
       inputSchema: z.object({
         title: z.string().min(2).max(120),
         type: z.enum(['attendance', 'pass_fail', 'score', 'time']),
@@ -357,7 +357,7 @@ export function registerMoreWriteTools(server: McpServer) {
         })
         .select('id,title,category')
         .single();
-      if (error || !data) return fail('The item was not created — only a tracking commander (מ״פ, סמ״פ) can add one.');
+      if (error || !data) return fail('The item was not created — only a tracking commander (מ״פ, סמ״פ) or a platoon commander (מ״מ) can add one.');
       await audit(c, ctx, {
         actionType: 'tracking_item_created',
         entityType: 'tracking_item',

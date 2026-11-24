@@ -825,7 +825,7 @@ export default function TrackingPage() {
         return;
       }
       if (!didRowsUpdate(updatedRows)) {
-        setErrorMessage('לא ניתן לעדכן את מופע המעקב — אין לך הרשאה לכך.');
+        setErrorMessage('לא ניתן לעדכן את מופע המעקב — אין לך הרשאה לכך. מ״מ יכול לערוך רק מופע שהוא הוסיף.');
         return;
       }
 
@@ -1141,7 +1141,7 @@ export default function TrackingPage() {
       return;
     }
     if (!didRowsUpdate(updatedRows)) {
-      setErrorMessage('לא ניתן להסיר את מופע המעקב — אין לך הרשאה לכך.');
+      setErrorMessage('לא ניתן להסיר את מופע המעקב — אין לך הרשאה לכך. מ״מ יכול להסיר רק מופע שהוא הוסיף.');
       return;
     }
 

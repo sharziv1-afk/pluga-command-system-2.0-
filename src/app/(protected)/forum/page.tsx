@@ -3346,7 +3346,7 @@ export default function ForumPage() {
         {/* The report's actions (מ״פ, 24.11.2026: fewer buttons). One button
             per thing to do, shown only when it applies — no disabled
             look-alikes — and nothing that wipes a report sits next to "הגש".
-            "אפס דוח" is gone; deleting stays apart, under פעולות מתקדמות. */}
+            The reset-report button is gone; deleting stays apart, under פעולות מתקדמות. */}
         <div className="tactical-glass-card flex flex-wrap items-center gap-2 rounded-3xl p-4">
             {selectedReport?.status === 'closed' && (
               <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-4 py-2 text-sm font-semibold text-[var(--text-primary)]">

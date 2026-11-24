@@ -541,7 +541,6 @@ export default function ForumPage() {
   const dailySaveInFlight = useRef(false);
   const [isDailyLoading, setIsDailyLoading] = useState(false);
   const [isDailySaving, setIsDailySaving] = useState(false);
-  const [reportPendingReset, setReportPendingReset] = useState<DailyReportRow | null>(null);
   const [reportPendingDelete, setReportPendingDelete] = useState<DailyReportRow | null>(null);
   const [dailyError, setDailyError] = useState<string | null>(null);
   const [dailySuccess, setDailySuccess] = useState<string | null>(null);
@@ -966,8 +965,6 @@ export default function ForumPage() {
       && (canSeeAll || report.created_by === dbProfile.id || report.owner_user_id === dbProfile.id),
   );
   const canDeleteSelectedReport = canMutateReport(selectedReport);
-  // A closed report must be deliberately reopened before its content is reset.
-  const canResetSelectedReport = canDeleteSelectedReport && selectedReport?.status !== 'closed';
   const canUseDraftFormForSelectedNode = Boolean(
     !selectedReport
       && selectedNode
@@ -2403,86 +2400,6 @@ export default function ForumPage() {
     await loadDailyReports(selectedDate);
   };
 
-  const resetSelectedReport = async () => {
-    if (!selectedReport || !dbProfile || !canResetSelectedReport) return;
-    setReportPendingReset(selectedReport);
-  };
-
-  const confirmResetSelectedReport = async () => {
-    // Act on the report captured when the dialog opened, not on whatever is
-    // selected now — a background loadDailyReports can swap it underneath —
-    // and re-check permission on that same snapshot.
-    const target = reportPendingReset;
-    if (!target || !dbProfile || !canMutateReport(target)) { setReportPendingReset(null); return; }
-    setReportPendingReset(null);
-
-    setIsDailySaving(true);
-    setDailyError(null);
-    setDailySuccess(null);
-
-    const previousSnapshot = {
-      id: target.id,
-      report_level: target.report_level,
-      owner_user_id: target.owner_user_id,
-      created_by: target.created_by,
-      status: target.status,
-      report_date: target.report_date,
-      staff_role: target.staff_role,
-      content: target.content,
-      summary_text: target.summary_text,
-      whatsapp_text: target.whatsapp_text,
-      metadata: target.metadata,
-    };
-    const resetMetadata = {
-      ...(target.metadata ?? {}),
-      reset_at: new Date().toISOString(),
-      reset_by: dbProfile.id,
-      reset_by_name: dbProfile.name,
-      previous_status: target.status,
-      reset_reason: 'איפוס ידני דרך פורום מוביל',
-    };
-    const updatePayload = {
-      status: 'draft' as ReportStatus,
-      content: emptyReportDraft(),
-      summary_text: null,
-      whatsapp_text: null,
-      metadata: resetMetadata,
-    };
-
-    const { data: resetRows, error: resetError } = await supabase
-      .from('forum_daily_reports')
-      .update(updatePayload)
-      .eq('id', target.id)
-      .select('id');
-
-    if (resetError || !didRowsUpdate(resetRows)) {
-      if (resetError) logSupabaseError('Forum daily report reset failed', resetError);
-      setDailyError('לא ניתן לאפס את הדיווח כרגע. בדוק הרשאות או נסה שוב.');
-      setIsDailySaving(false);
-      return;
-    }
-
-    void createAuditLog(supabase, {
-      userId: dbProfile.id,
-      userName: dbProfile.name,
-      userRole: dbProfile.role,
-      actionType: 'forum_daily_report_reset',
-      entityType: 'forum_daily_report',
-      entityId: target.id,
-      previousValue: previousSnapshot,
-      newValue: {
-        status: 'draft',
-        reset_by: dbProfile.id,
-        previous_status: target.status,
-      },
-    });
-
-    replaceWithCleanDailyDraft(emptyReportDraft());
-    setDailySuccess('הדוח אופס וחזר לטיוטה.');
-    setIsDailySaving(false);
-    await loadDailyReports(selectedDate);
-  };
-
   const deleteSelectedReport = async () => {
     if (!selectedReport || !dbProfile || !canDeleteSelectedReport) return;
     setReportPendingDelete(selectedReport);
@@ -3426,9 +3343,11 @@ export default function ForumPage() {
 
         {canPublishForum && selectedNode.level === 'company' && renderCompanyPublishBlock()}
 
-        <div className="tactical-glass-card flex flex-col gap-3 rounded-3xl p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-sm font-bold text-[var(--text-muted-accessible)]">היררכיית המחלקות המלאה תוצג כאן לאחר שיוך משתמשים ליחידות.</div>
-          <div className="flex flex-wrap gap-2">
+        {/* The report's actions (מ״פ, 24.11.2026: fewer buttons). One button
+            per thing to do, shown only when it applies — no disabled
+            look-alikes — and nothing that wipes a report sits next to "הגש".
+            "אפס דוח" is gone; deleting stays apart, under פעולות מתקדמות. */}
+        <div className="tactical-glass-card flex flex-wrap items-center gap-2 rounded-3xl p-4">
             {selectedReport?.status === 'closed' && (
               <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-4 py-2 text-sm font-semibold text-[var(--text-primary)]">
                 <Lock className="h-4 w-4 text-[var(--brand)]" />
@@ -3440,12 +3359,7 @@ export default function ForumPage() {
                 פתח נעילה
               </GlossyButton>
             )}
-            {selectedReport && canSeeAll && selectedReport.status !== 'closed' && (
-              <GlossyButton variant="slate" onClick={() => void closeSelectedReport()} disabled={isDailySaving}>
-                סגור
-              </GlossyButton>
-            )}
-            {selectedReport && selectedReport.status !== 'closed' && (
+            {selectedReport && selectedReport.status !== 'closed' && selectedReport.status !== 'submitted' && (
               <GlossyButton variant="slate" onClick={() => void submitSelectedReport()} disabled={isDailySaving}>
                 <CheckCircle2 className="h-4 w-4" />
                 הגש לדרג הבא
@@ -3476,23 +3390,17 @@ export default function ForumPage() {
                 )}
               </>
             )}
-            {canResetSelectedReport && (
-              <GlossyButton variant="slate" onClick={() => void resetSelectedReport()} disabled={isDailySaving}>
-                <RefreshCw className="h-4 w-4" />
-                אפס דוח
+            {/* "סגור" and "אשר ושחרר" were two buttons doing the same close. */}
+            {selectedReport && canSeeAll && selectedReport.status !== 'closed' && (
+              <GlossyButton variant="slate" onClick={() => void closeSelectedReport()} disabled={isDailySaving}>
+                {selectedReport.status === 'submitted' ? 'אשר ושחרר' : 'סגור'}
               </GlossyButton>
             )}
-            {canSeeAll && (
-              <>
-                <GlossyButton variant="slate" onClick={() => void closeSelectedReport()} disabled={isDailySaving || selectedReport?.status !== 'submitted'}>
-                  אשר ושחרר
-                </GlossyButton>
-                <GlossyButton variant="slate" onClick={() => void returnSelectedReport()} disabled={isDailySaving || selectedReport?.status !== 'submitted'}>
-                  החזר לדרג מטה
-                </GlossyButton>
-              </>
+            {selectedReport && canSeeAll && selectedReport.status === 'submitted' && (
+              <GlossyButton variant="slate" onClick={() => void returnSelectedReport()} disabled={isDailySaving}>
+                החזר לדרג מטה
+              </GlossyButton>
             )}
-          </div>
         </div>
         {canDeleteSelectedReport && (
           <div className="rounded-3xl border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 p-3">
@@ -3797,17 +3705,6 @@ export default function ForumPage() {
         description="פעולה זו תשמור את הנוסח הסופי ותסגור את כל דוחות היום לכלל הפלוגה. הדוחות ינעלו לקריאה בלבד. להמשיך?"
         confirmLabel="הפץ וסגור"
         loading={isCompanyReportBusy}
-      />
-
-      <CommandConfirmDialog
-        open={!!reportPendingReset}
-        onCancel={() => setReportPendingReset(null)}
-        onConfirm={() => void confirmResetSelectedReport()}
-        title="איפוס דוח"
-        description="האם לאפס את הדוח? התוכן יימחק והדוח יחזור לטיוטה."
-        confirmLabel="אפס דוח"
-        destructive
-        loading={isDailySaving}
       />
 
       <CommandConfirmDialog

@@ -13,15 +13,15 @@
   --color-command-text: #020108;
   --color-command-muted: #667085;
   --color-command-subtle: #98a2b3;
-  --color-command-orange: #ff6b02;
-  --color-command-orange-soft: rgba(255, 107, 2, 0.12);
+  --color-command-orange: #1f7a2e;
+  --color-command-orange-soft: rgba(31, 122, 46, 0.12);
   --color-command-border: rgba(2, 1, 8, 0.1);
   --color-tactical-bg: #f6f7f9;
   --color-tactical-card: rgba(255, 255, 255, 0.72);
   --color-tactical-card-hover: rgba(255, 255, 255, 0.88);
   --color-tactical-border: rgba(2, 1, 8, 0.1);
-  --color-tactical-border-hover: rgba(255, 107, 2, 0.28);
-  --color-accent-orange: #ff6b02;
+  --color-tactical-border-hover: rgba(31, 122, 46, 0.28);
+  --color-accent-orange: #1f7a2e;
   --color-accent-cyan: #0f766e;
   --color-status-success: #079455;
   --color-status-stuck: #d92d20;
@@ -42,10 +42,10 @@
   --color-text-muted: #616b7d;
   --color-border-subtle: rgba(2, 1, 8, 0.08);
   --color-border-strong: rgba(2, 1, 8, 0.14);
-  --color-brand: #ff6b02;               /* brand accent / decoration */
-  --color-action: #c2410c;              /* AA-safe action (5.18:1 vs white) */
-  --color-action-hover: #a63d00;
-  --color-action-on-surface: #c2410c;
+  --color-brand: #1f7a2e;               /* brand accent / decoration */
+  --color-action: #17602a;              /* AA-safe action (5.18:1 vs white) */
+  --color-action-hover: #124d21;
+  --color-action-on-surface: #17602a;
   --color-teal: #0f766e;
   --color-teal-hover: #115e59;
   /* Semantic status colors. These are the ON-SURFACE values: they are used
@@ -62,7 +62,7 @@
      danger variant). Stays constant across themes — the button supplies its
      own background, so it must NOT follow the on-surface value above. */
   --color-danger-solid: #d92d20;
-  --color-focus-ring: #ff6b02;
+  --color-focus-ring: #1f7a2e;
 
   --radius-sm: 0.625rem;   /* 10px */
   --radius-md: 0.875rem;   /* 14px */
@@ -74,20 +74,20 @@
   --background: #f6f7f9;
   --foreground: #020108;
   --color-app-bg: #f6f7f9;
-  --brand: #ff6b02;
+  --brand: #1f7a2e;
   
   --tactical-dark: #ffffff;
   --tactical-glass: rgba(255, 255, 255, 0.72);
   --tactical-strong-glass: rgba(255, 255, 255, 0.88);
   --tactical-border: rgba(2, 1, 8, 0.1);
-  --tactical-border-hover: rgba(255, 107, 2, 0.28);
+  --tactical-border-hover: rgba(31, 122, 46, 0.28);
   
-  --accent-orange: #ff6b02;
+  --accent-orange: #1f7a2e;
   --accent-cyan: #0f766e;
   --command-muted: #667085;
   --command-subtle: #98a2b3;
-  --orange-soft: rgba(255, 107, 2, 0.12);
-  --orange-border: rgba(255, 107, 2, 0.28);
+  --orange-soft: rgba(31, 122, 46, 0.12);
+  --orange-border: rgba(31, 122, 46, 0.28);
 
   --status-success: #079455;
   --status-stuck: #d92d20;
@@ -103,13 +103,13 @@
   --text-muted-accessible: #616b7d;
   --border-subtle: rgba(2, 1, 8, 0.08);
   --border-strong: rgba(2, 1, 8, 0.14);
-  --action: #c2410c;
-  --action-hover: #a63d00;
-  --focus-ring: rgba(255, 107, 2, 0.45);
+  --action: #17602a;
+  --action-hover: #124d21;
+  --focus-ring: rgba(31, 122, 46, 0.45);
   /* Solid companion to --focus-ring, for the outline-based indicator below.
      The translucent one is fine layered over a fill; an outline sits on
      whatever is behind the control, so it needs full opacity. */
-  --focus-outline: #c2410c;
+  --focus-outline: #17602a;
 
   --radius-card: 1rem;
 
@@ -150,7 +150,7 @@
   --tactical-glass: rgba(255, 255, 255, 0.08);
   --tactical-strong-glass: rgba(255, 255, 255, 0.12);
   --tactical-border: rgba(255, 255, 255, 0.14);
-  --tactical-border-hover: rgba(255, 107, 2, 0.38);
+  --tactical-border-hover: rgba(31, 122, 46, 0.38);
   --command-muted: #cbd5e1;
   --command-subtle: #94a3b8;
 
@@ -162,8 +162,8 @@
   --text-muted-accessible: #cbd5e1;
   --border-subtle: rgba(255, 255, 255, 0.10);
   --border-strong: rgba(255, 255, 255, 0.16);
-  --action: #c2410c;
-  --action-hover: #a63d00;
+  --action: #17602a;
+  --action-hover: #124d21;
   --color-action-on-surface: #ffb077;
   --focus-outline: #ffb077;
   /* Status colors must lighten on a dark ground — the light-mode values are
@@ -239,7 +239,7 @@ html {
 
 body {
   background:
-    radial-gradient(circle at top right, rgba(255,107,2,0.14), transparent 28%),
+    radial-gradient(circle at top right, rgba(31,122,46,0.14), transparent 28%),
     radial-gradient(circle at bottom left, rgba(2,1,8,0.06), transparent 32%),
     #F6F7F9;
   color: var(--foreground);
@@ -250,7 +250,7 @@ body {
 
 :root[data-theme="dark"] body {
   background:
-    radial-gradient(circle at top right, rgba(255,107,2,0.18), transparent 30%),
+    radial-gradient(circle at top right, rgba(31,122,46,0.18), transparent 30%),
     radial-gradient(circle at bottom left, rgba(255,255,255,0.06), transparent 32%),
     #101114;
   color: #f8fafc;
@@ -290,14 +290,14 @@ textarea {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 107, 2, 0.26);
+  background: rgba(31, 122, 46, 0.26);
   border-radius: 9999px;
   transition: all 160ms ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--accent-cyan);
-  box-shadow: 0 0 8px rgba(255, 107, 2, 0.24);
+  box-shadow: 0 0 8px rgba(31, 122, 46, 0.24);
 }
 
 /* Card surface — crisp opaque surface, subtle border, restrained elevation.
@@ -342,14 +342,14 @@ textarea {
 }
 
 .tactical-glow-orange {
-  border-color: rgba(255, 107, 2, 0.28);
-  background: linear-gradient(135deg, rgba(255, 107, 2, 0.12), rgba(255, 255, 255, 0.88));
+  border-color: rgba(31, 122, 46, 0.28);
+  background: linear-gradient(135deg, rgba(31, 122, 46, 0.12), rgba(255, 255, 255, 0.88));
   box-shadow: 0 22px 60px rgba(2, 1, 8, 0.1);
 }
 
 :root[data-theme="dark"] .tactical-glow-orange {
-  background: linear-gradient(135deg, rgba(255, 107, 2, 0.16), rgba(255, 255, 255, 0.09));
-  border-color: rgba(255, 107, 2, 0.38);
+  background: linear-gradient(135deg, rgba(31, 122, 46, 0.16), rgba(255, 255, 255, 0.09));
+  border-color: rgba(31, 122, 46, 0.38);
 }
 
 /* Glossy Highlights Sweep Animation */
@@ -386,17 +386,70 @@ textarea {
   max-width: 100%;
   overflow-x: hidden;
   background:
-    radial-gradient(circle at top right, rgba(255,107,2,0.14), transparent 28%),
+    radial-gradient(circle at top right, rgba(31,122,46,0.14), transparent 28%),
     radial-gradient(circle at bottom left, rgba(2,1,8,0.06), transparent 32%),
     #F6F7F9;
   color: #020108;
+  /* The emblem layers below sit inside the shell, behind its content. */
+  position: relative;
+  isolation: isolate;
+}
+
+/* Battalion 601 identity (מ״פ, 28.11.2026): the emblem is part of the
+   background, not a picture on the page — a large, faint watermark in the
+   bottom corner, and the shield's diagonal green/black split folded into the
+   top corner. Fixed, so it stays while the page scrolls; behind everything,
+   so it never takes a tap. */
+.command-page-shell::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: url('/brand/emblem-601.png') no-repeat left -5vw bottom -7vh / auto min(80vh, 640px);
+  opacity: 0.075;
+  filter: saturate(0.85);
+}
+
+.command-page-shell::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(52vmin, 420px);
+  height: min(52vmin, 420px);
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(225deg,
+    rgba(31, 122, 46, 0.22) 0 34%,
+    rgba(11, 14, 10, 0.10) 34% 46%,
+    transparent 46%);
+  -webkit-mask-image: radial-gradient(circle at top right, #000 35%, transparent 72%);
+  mask-image: radial-gradient(circle at top right, #000 35%, transparent 72%);
+}
+
+:root[data-theme="dark"] .command-page-shell::before {
+  opacity: 0.11;
+  filter: saturate(0.7) brightness(1.1);
+}
+
+:root[data-theme="dark"] .command-page-shell::after {
+  background: linear-gradient(225deg,
+    rgba(31, 122, 46, 0.32) 0 34%,
+    rgba(255, 214, 31, 0.06) 34% 37%,
+    transparent 37%);
+}
+
+@media print {
+  .command-page-shell::before,
+  .command-page-shell::after { display: none; }
 }
 
 :root[data-theme="dark"] .command-page-shell {
   background:
-    radial-gradient(circle at top right, rgba(255,107,2,0.18), transparent 30%),
+    radial-gradient(circle at top right, rgba(31,122,46,0.18), transparent 30%),
     radial-gradient(circle at bottom left, rgba(255,255,255,0.06), transparent 32%),
-    #101114;
+    #0d110d;
   color: #f8fafc;
 }
 
@@ -437,9 +490,9 @@ textarea {
 }
 
 .command-icon-button:hover {
-  border-color: rgba(255, 107, 2, 0.28);
-  color: #ff6b02;
-  background: rgba(255, 107, 2, 0.1);
+  border-color: rgba(31, 122, 46, 0.28);
+  color: #1f7a2e;
+  background: rgba(31, 122, 46, 0.1);
 }
 
 .command-icon-button:active {
@@ -502,8 +555,8 @@ textarea {
 }
 
 .command-input:focus {
-  border-color: rgba(255, 107, 2, 0.42) !important;
-  box-shadow: 0 0 0 4px rgba(255, 107, 2, 0.12);
+  border-color: rgba(31, 122, 46, 0.42) !important;
+  box-shadow: 0 0 0 4px rgba(31, 122, 46, 0.12);
   background: rgba(255, 255, 255, 0.96);
 }
 
@@ -536,8 +589,8 @@ textarea.auto-grow-textarea {
 }
 
 .command-select:focus {
-  border-color: rgba(255, 107, 2, 0.42) !important;
-  box-shadow: 0 0 0 4px rgba(255, 107, 2, 0.12);
+  border-color: rgba(31, 122, 46, 0.42) !important;
+  box-shadow: 0 0 0 4px rgba(31, 122, 46, 0.12);
 }
 
 /* Light command theme overrides for legacy dark Tailwind utilities. */
@@ -629,13 +682,13 @@ option {
 
 .auth-dark-card {
   background: rgba(255, 255, 255, 0.88) !important;
-  border-color: rgba(255, 107, 2, 0.16) !important;
+  border-color: rgba(31, 122, 46, 0.16) !important;
   box-shadow: 0 22px 60px rgba(2, 1, 8, 0.1) !important;
 }
 
 .command-auth-overlay {
   background:
-    radial-gradient(circle at 70% 18%, rgba(255,107,2,0.16), transparent 30%),
+    radial-gradient(circle at 70% 18%, rgba(31,122,46,0.16), transparent 30%),
     radial-gradient(circle at 20% 82%, rgba(2,1,8,0.06), transparent 34%);
 }
 
@@ -649,15 +702,15 @@ option {
 /* Night variant: keep the same gloss system while overriding legacy light utilities. */
 :root[data-theme="dark"] .command-page-shell {
   background:
-    radial-gradient(circle at top right, rgba(255,107,2,0.18), transparent 30%),
+    radial-gradient(circle at top right, rgba(31,122,46,0.18), transparent 30%),
     radial-gradient(circle at bottom left, rgba(255,255,255,0.06), transparent 32%),
-    #101114 !important;
+    #0d110d !important;
   color: #f8fafc !important;
 }
 
 :root[data-theme="dark"] .command-auth-overlay {
   background:
-    radial-gradient(circle at 70% 18%, rgba(255,107,2,0.18), transparent 30%),
+    radial-gradient(circle at 70% 18%, rgba(31,122,46,0.18), transparent 30%),
     radial-gradient(circle at 20% 82%, rgba(255,255,255,0.06), transparent 34%);
 }
 
@@ -678,8 +731,8 @@ option {
 :root[data-theme="dark"] .tactical-glow-orange,
 :root[data-theme="dark"] .auth-dark-card {
   background:
-    linear-gradient(135deg, rgba(255,107,2,0.16), rgba(255,255,255,0.08)) !important;
-  border-color: rgba(255, 107, 2, 0.32) !important;
+    linear-gradient(135deg, rgba(31,122,46,0.16), rgba(255,255,255,0.08)) !important;
+  border-color: rgba(31, 122, 46, 0.32) !important;
   box-shadow: 0 22px 60px rgba(0, 0, 0, 0.32) !important;
 }
 

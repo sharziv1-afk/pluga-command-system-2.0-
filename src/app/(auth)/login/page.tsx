@@ -336,7 +336,7 @@ export default function LoginPage() {
 
       <div className="relative z-10 w-full max-w-lg">
         <div className="mb-5 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--brand)]/20 bg-[var(--brand)]/10 text-[var(--brand)] shadow-[0_14px_30px_rgba(255,107,2,0.14)]">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--brand)]/20 bg-[var(--brand)]/10 text-[var(--brand)] shadow-[0_14px_30px_rgba(31,122,46,0.14)]">
             <ShieldCheck className="h-6 w-6" />
           </div>
           <p className="text-2xl font-bold text-[var(--text-primary)]">המפקד</p>

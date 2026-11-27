@@ -64,7 +64,7 @@ test('role normalization and existing UI capability rules share one truth table'
 
 test('restored navigation puts forum first while preserving privileged module boundaries', () => {
   assert.equal(showSquadReportsInLeadingForum, false, 'squad restoration is a separate product decision');
-  const common = ['/forum', '/dashboard', '/tasks', '/requests', '/schedule', '/tracking'];
+  const common = ['/forum', '/tasks', '/tracking', '/schedule', '/dashboard', '/requests'];
   assert.deepEqual(visibleNavItems(false).map(({ path }) => path), [...common, '/profile', '/help']);
   assert.deepEqual(visibleNavItems(true).map(({ path }) => path), [...common, '/admin', '/profile', '/help']);
   assert.deepEqual(visibleNavItems(true, true).map(({ path }) => path), [

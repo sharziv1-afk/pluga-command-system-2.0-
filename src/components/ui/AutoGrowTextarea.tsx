@@ -3,8 +3,12 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { fitTextareaHeight, supportsFieldSizing, withScrollPreserved } from '@/lib/ui/autoGrow';
+import { applyAutoList } from '@/lib/ui/autoList';
 
-type AutoGrowTextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement>;
+type AutoGrowTextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
+  /** Lists continue themselves: "1." → "2.", "* " → "• " (src/lib/ui/autoList.ts). */
+  autoList?: boolean;
+};
 
 /**
  * A plain <textarea> that grows with its text: no inner scrollbar while
@@ -14,9 +18,13 @@ type AutoGrowTextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement>;
  * height is measured on every value change (typing, load, carry-over from an
  * earlier report), when the box's width changes (window resize, rotation,
  * a <details> opening) and after web fonts load.
+ *
+ * With `autoList`, numbered and bulleted lists continue on Enter.
  */
-export function AutoGrowTextarea({ className, value, rows = 2, ...props }: AutoGrowTextareaProps) {
+export function AutoGrowTextarea({ className, value, rows = 2, autoList = false, onChange, ...props }: AutoGrowTextareaProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const previousValue = useRef(String(value ?? ''));
+  const pendingCaret = useRef<number | null>(null);
 
   const resize = useCallback(() => {
     const el = ref.current;
@@ -28,6 +36,17 @@ export function AutoGrowTextarea({ className, value, rows = 2, ...props }: AutoG
   useLayoutEffect(() => {
     resize();
   }, [value, resize]);
+
+  // Remembers the value the next change starts from, and puts back the caret
+  // an auto-list change moved (React would otherwise leave it at the end).
+  useLayoutEffect(() => {
+    previousValue.current = String(value ?? '');
+    const el = ref.current;
+    if (el && pendingCaret.current !== null && document.activeElement === el) {
+      el.setSelectionRange(pendingCaret.current, pendingCaret.current);
+    }
+    pendingCaret.current = null;
+  }, [value]);
 
   useEffect(() => {
     const el = ref.current;
@@ -48,5 +67,18 @@ export function AutoGrowTextarea({ className, value, rows = 2, ...props }: AutoG
     };
   }, [resize]);
 
-  return <textarea ref={ref} rows={rows} value={value} className={cn('auto-grow-textarea', className)} {...props} />;
+  const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const el = event.target;
+    if (autoList && !(event.nativeEvent as InputEvent).isComposing) {
+      const listed = applyAutoList(previousValue.current, el.value, el.selectionStart ?? el.value.length);
+      if (listed) {
+        el.value = listed.value;
+        el.setSelectionRange(listed.caret, listed.caret);
+        pendingCaret.current = listed.caret;
+      }
+    }
+    onChange?.(event);
+  };
+
+  return <textarea ref={ref} rows={rows} value={value} onChange={handleChange} className={cn('auto-grow-textarea', className)} {...props} />;
 }

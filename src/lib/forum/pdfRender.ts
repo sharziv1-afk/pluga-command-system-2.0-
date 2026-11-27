@@ -11,12 +11,25 @@ import { PAGE_HEIGHT, PAGE_WIDTH, buildImagePdf, layoutForumPdf, type ForumPdfMo
 const SCALE = 2.5;
 const JPEG_QUALITY = 0.88;
 
+/** The battalion emblem, drawn when the model asks for it and the file loads. */
+export const EMBLEM_SRC = '/brand/emblem-601.png';
+
+function loadImage(src: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => resolve(null);
+    image.src = src;
+  });
+}
+
 export async function renderForumPdf(model: ForumPdfModel): Promise<Blob> {
   const family = getComputedStyle(document.body).fontFamily || 'sans-serif';
   const font = (size: number, bold: boolean) => `${bold ? 700 : 400} ${size}px ${family}`;
   // Measuring before the font is ready would wrap lines for a fallback font.
   await Promise.all([document.fonts.load(font(12, false), 'א'), document.fonts.load(font(12, true), 'א')]).catch(() => undefined);
   await document.fonts.ready;
+  const emblem = model.emblem ? await loadImage(EMBLEM_SRC) : null;
 
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(PAGE_WIDTH * SCALE);
@@ -45,14 +58,45 @@ export async function renderForumPdf(model: ForumPdfModel): Promise<Blob> {
       if (op.kind === 'text') {
         ctx.font = font(op.size, op.bold);
         ctx.fillStyle = op.color;
+        ctx.textAlign = op.align === 'center' ? 'center' : 'right';
         ctx.fillText(op.text, op.x, op.y);
-      } else {
+      } else if (op.kind === 'line') {
         ctx.strokeStyle = op.color;
-        ctx.lineWidth = 0.6;
+        ctx.lineWidth = op.width ?? 0.6;
         ctx.beginPath();
         ctx.moveTo(op.x1, op.y1);
         ctx.lineTo(op.x2, op.y2);
         ctx.stroke();
+      } else if (op.kind === 'rect') {
+        ctx.beginPath();
+        if (op.radius) ctx.roundRect(op.x, op.y, op.w, op.h, op.radius);
+        else ctx.rect(op.x, op.y, op.w, op.h);
+        if (op.fill) {
+          ctx.fillStyle = op.fill;
+          ctx.fill();
+        }
+        if (op.stroke) {
+          ctx.strokeStyle = op.stroke;
+          ctx.lineWidth = op.lineWidth ?? 1;
+          ctx.stroke();
+        }
+      } else if (op.kind === 'poly') {
+        ctx.beginPath();
+        op.points.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
+        ctx.closePath();
+        ctx.fillStyle = op.fill;
+        ctx.fill();
+      } else if (op.kind === 'ellipse') {
+        ctx.beginPath();
+        ctx.ellipse(op.cx, op.cy, op.rx, op.ry, op.rotation, 0, Math.PI * 2);
+        ctx.fillStyle = op.fill;
+        ctx.fill();
+      } else if (op.kind === 'image' && emblem) {
+        // Kept in proportion, centred in its square.
+        const ratio = Math.min(op.w / emblem.naturalWidth, op.h / emblem.naturalHeight);
+        const w = emblem.naturalWidth * ratio;
+        const h = emblem.naturalHeight * ratio;
+        ctx.drawImage(emblem, op.x + (op.w - w) / 2, op.y + (op.h - h) / 2, w, h);
       }
     }
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', JPEG_QUALITY));

@@ -58,7 +58,7 @@ import { copyTextToClipboard } from '@/lib/clipboard';
 import { aggregateCompanyStructured, assignPlatoonReports } from '@/lib/forum/companyReport';
 import type { CompanyReportInput, CompanyReportPlatoon } from '@/lib/forum/companyReport';
 import { advanceReportStatus } from '@/lib/forum/reportStatus';
-import { forumPdfFileName, type ForumPdfModel, type ForumPdfSection } from '@/lib/forum/pdfExport';
+import { forumPdfFileName, type ForumPdfBox, type ForumPdfModel, type ForumPdfRow } from '@/lib/forum/pdfExport';
 import { CARRY_OVER_SOURCE_STATUSES, carryOverWindow, isCarryOverTarget, pickCarryOverSource } from '@/lib/forum/carryOver';
 import type { CarryOverSourceRow } from '@/lib/forum/carryOver';
 import {
@@ -1151,10 +1151,11 @@ export default function ForumPage() {
     return lines.join('\n');
   }, [dailyReports, dbProfile, ownerOptions, selectedDate, whatsappMode]);
 
-  // The whole company forum as a PDF to write on in Notability: each platoon
-  // on its own page, every section of the detailed WhatsApp output, ruled
-  // space after each (company commander, 13.11.2026). Same sources as
-  // generateWhatsappText, so the two never disagree.
+  // The whole company forum as a PDF to write on in Notability, in the
+  // company's own landscape template (מ״פ, 28.11.2026; layout in
+  // lib/forum/pdfExport.ts): a cell gets the report's text only when there
+  // is text, otherwise it stays empty for the pen. Same report sources as
+  // generateWhatsappText.
   const buildForumPdfModel = useCallback((): ForumPdfModel => {
     const platoons: CompanyReportPlatoon[] = platoonNodes.map((platoon, index) => ({
       number: index + 1,
@@ -1163,84 +1164,94 @@ export default function ForumPage() {
     }));
     const { byNumber: platoonByNumber, unidentified } = assignPlatoonReports(dailyReports, platoons);
 
-    const count = (raw: unknown): number | null => {
-      const text = typeof raw === 'string' ? raw.trim() : typeof raw === 'number' ? String(raw) : '';
-      if (!text) return null;
-      const parsed = Number(text.replace(/[^\d.-]/g, ''));
-      return Number.isFinite(parsed) ? parsed : null;
-    };
-    let present: number | null = null;
-    let total: number | null = null;
-    let submitted = 0;
-    platoons.forEach(platoon => {
-      const report = platoonByNumber.get(platoon.number);
-      if (!report) return;
-      if (report.status === 'submitted' || report.status === 'closed') submitted += 1;
-      const p = count(report.content.present_count);
-      const t = count(report.content.total_count);
-      if (p !== null) present = (present ?? 0) + p;
-      if (t !== null) total = (total ?? 0) + t;
-    });
+    // The template's columns (מ״פ, 28.11.2026), in its order.
+    const columnFields: Array<[keyof SquadContent, string]> = [
+      ['personnel', 'כוח אדם'],
+      ['readiness', 'כוננות'],
+      ['welfare', 'ת״ש'],
+      ['medical', 'רפואה'],
+      ['safety', 'בטיחות'],
+      ['discipline', 'משמעת'],
+      ['personal_requests', 'בקשות אישיות'],
+      ['plan_vs_actual', 'תכנון מול ביצוע'],
+      ['daily_lessons', 'לקח יומי'],
+    ];
+    // Forum fields the template has no column for: a last page, only if written.
+    const extraFields: Array<[keyof SquadContent, string]> = [
+      ['logistics', 'לוגיסטיקה'],
+      ['next_actions', 'פעולות להמשך'],
+      ['network_and_knowledge', 'רשת / ריאלי / פרגון / שימור ידע'],
+      ['personal_note', 'התייחסות אישית'],
+    ];
+    const textOf = (raw: unknown) => (typeof raw === 'string' ? raw.trim() : '');
+    const extras: ForumPdfBox[] = [];
 
-    const platoonSections = (raw: Record<string, unknown> | null): ForumPdfSection[] => {
+    const platoonRow = (label: string, raw: Record<string, unknown> | null): ForumPdfRow => {
       const content = { ...emptyReportDraft(), ...(raw ?? {}) };
-      const manpower = content.present_count || content.total_count
-        ? `${content.present_count || '—'}/${content.total_count || '—'}`
-        : '';
-      return [
-        { title: 'מצבה', body: manpower },
-        { title: 'כוח אדם', body: content.personnel },
-        { title: 'ת״ש', body: content.welfare },
-        { title: 'רפואה', body: content.medical },
-        { title: 'לוגיסטיקה', body: content.logistics },
-        { title: 'כוננות', body: content.readiness },
-        { title: 'תכנון מול ביצוע', body: content.plan_vs_actual },
-        { title: 'לקח יומי', body: content.daily_lessons },
-        { title: 'פעולות להמשך', body: content.next_actions },
-      ];
+      const manpower = textOf(content.present_count) || textOf(content.total_count)
+        ? `${textOf(content.present_count) || '—'}/${textOf(content.total_count) || '—'}`
+        : undefined;
+      extraFields.forEach(([key, title]) => {
+        const body = textOf(content[key]);
+        if (body) extras.push({ title: `${label} · ${title}`, body });
+      });
+      return { label, sublabel: manpower, cells: columnFields.map(([key]) => textOf(content[key])) };
     };
 
-    const pages: ForumPdfModel['pages'] = platoons.map(platoon => {
-      const report = platoonByNumber.get(platoon.number);
-      return {
-        heading: `${platoon.label} · ${report ? statusLabel(report.status) : 'טרם הוגש'}`,
-        sections: platoonSections(report ? report.content : null),
-      };
-    });
-    unidentified.forEach(report => {
-      pages.push({ heading: `מחלקה לא מזוהה · ${statusLabel(report.status)}`, sections: platoonSections(report.content) });
-    });
+    const platoonRows = platoons.map(platoon => platoonRow(platoon.label, platoonByNumber.get(platoon.number)?.content ?? null));
+    unidentified.forEach(report => platoonRows.push(platoonRow('לא מזוהה', report.content)));
 
-    pages.push({
-      heading: 'מפל״ג',
-      sections: staffNodes.map(staffNode => {
+    // מפל״ג: each staff officer's notes in their box; the table row takes a
+    // column's text from whichever staff report wrote in it.
+    const staffReports = staffNodes.map(staffNode => ({
+      staffNode,
+      content: (() => {
         const report = dailyReports.find(item => item.report_level === 'staff' && item.staff_role === staffNode.id);
-        const content = report ? { ...emptyReportDraft(), ...report.content } : null;
-        return { title: staffNode.label, body: content ? content.notes || 'הוגש' : 'טרם הוגש' };
-      }),
-    });
+        return report ? { ...emptyReportDraft(), ...report.content } : null;
+      })(),
+    }));
+    const staffCell = (key: keyof SquadContent) => {
+      const written = staffReports.filter(({ content }) => content && textOf(content[key]));
+      if (written.length === 1) return textOf(written[0].content![key]);
+      return written.map(({ staffNode, content }) => `${staffNode.label}: ${textOf(content![key])}`).join('\n');
+    };
+    const staffBoxTitles: Array<[StaffRole, string]> = [
+      ['medic', 'חופ״ל'],
+      ['logistics_nco', 'רס״פ'],
+      ['assistant_commander', 'משה״ד'],
+      ['deputy_commander', 'סמ״פ'],
+    ];
 
     const company = dailyReports.find(report => report.report_level === 'company');
     const companyContent = company ? { ...emptyReportDraft(), ...company.content } : null;
-    pages.push({
-      heading: 'דגשי מ״פ / סיכום פלוגתי',
-      sections: [
-        { title: 'סיכום פלוגתי', body: companyContent?.company_summary || companyContent?.commander_closing || '' },
-        { title: 'לו״ז פלוגתי למחר', body: companyContent?.tomorrow_schedule || '' },
-        { title: 'לו״ז מקביל', body: companyContent?.parallel_schedule || '' },
-      ],
+    ([
+      ['commander_opening', 'פתיחת מ״פ'],
+      ['tomorrow_schedule', 'לו״ז פלוגתי למחר'],
+      ['parallel_schedule', 'לו״ז מקביל'],
+    ] as const).forEach(([key, title]) => {
+      const body = textOf(companyContent?.[key]);
+      if (body) extras.push({ title, body });
     });
 
+    const [year, month, day] = selectedDate.split('-');
     return {
-      title: `פורום מוביל פלוגתי — ${formatSelectedDate(selectedDate)}`,
-      subtitle: [
-        dbProfile ? `${dbProfile.name} · ${dbProfile.role}` : null,
-        `מצבה פלוגתית: ${present ?? '—'}/${total ?? '—'}`,
-        `דוחות מחלקה שהוגשו: ${submitted}/${platoons.length}`,
-      ].filter(Boolean).join('   ·   '),
-      pages,
+      title: `פורום מוביל — ${formatSelectedDate(selectedDate)}`,
+      date: day && month && year ? `${day}.${month}.${year}` : selectedDate,
+      columns: columnFields.map(([, title]) => title),
+      staffRow: { label: 'מפל״ג', cells: columnFields.map(([key]) => staffCell(key)) },
+      staffBoxes: staffBoxTitles.map(([role, title]) => ({
+        title,
+        body: textOf(staffReports.find(({ staffNode }) => staffNode.id === role)?.content?.notes),
+      })),
+      commanderBoxes: [
+        { title: 'משמעויות עולות', body: textOf(companyContent?.company_summary) },
+        { title: 'דגשים שלי', body: textOf(companyContent?.commander_closing) },
+      ],
+      platoonRows,
+      extras,
+      emblem: true,
     };
-  }, [dailyReports, dbProfile, ownerOptions, selectedDate]);
+  }, [dailyReports, ownerOptions, selectedDate]);
 
   const finishPdfHandoff = (result: 'shared' | 'downloaded' | 'cancelled' | 'needs_tap', blob: Blob, fileName: string) => {
     if (result === 'needs_tap') {

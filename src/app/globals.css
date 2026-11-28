@@ -164,8 +164,8 @@
   --border-strong: rgba(255, 255, 255, 0.16);
   --action: #17602a;
   --action-hover: #124d21;
-  --color-action-on-surface: #ffb077;
-  --focus-outline: #ffb077;
+  --color-action-on-surface: #8ad897;
+  --focus-outline: #8ad897;
   /* Status colors must lighten on a dark ground — the light-mode values are
      dark inks and measure ~1.9:1 against a dark surface. --color-danger-solid
      deliberately does not change: it backs white text. */
@@ -266,6 +266,7 @@ textarea {
 
 .protected-layout-shell {
   position: relative;
+  isolation: isolate;
   min-height: 100vh;
   min-height: 100svh;
   /* Overrides the height above once JS has measured the real viewport (see
@@ -400,41 +401,47 @@ textarea {
    bottom corner, and the shield's diagonal green/black split folded into the
    top corner. Fixed, so it stays while the page scrolls; behind everything,
    so it never takes a tap. */
-.command-page-shell::before {
+.command-page-shell::before,
+.protected-layout-shell::before {
   content: '';
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
   background: url('/brand/emblem-601.png') no-repeat left -5vw bottom -7vh / auto min(80vh, 640px);
-  opacity: 0.075;
+  opacity: 0.06;
   filter: saturate(0.85);
 }
 
-.command-page-shell::after {
+/* Top-left: the side menu sits on the right on a computer (RTL) and would
+   hide this corner there. */
+.command-page-shell::after,
+.protected-layout-shell::after {
   content: '';
   position: fixed;
   top: 0;
-  right: 0;
+  left: 0;
   width: min(52vmin, 420px);
   height: min(52vmin, 420px);
   z-index: -1;
   pointer-events: none;
-  background: linear-gradient(225deg,
+  background: linear-gradient(135deg,
     rgba(31, 122, 46, 0.22) 0 34%,
     rgba(11, 14, 10, 0.10) 34% 46%,
     transparent 46%);
-  -webkit-mask-image: radial-gradient(circle at top right, #000 35%, transparent 72%);
-  mask-image: radial-gradient(circle at top right, #000 35%, transparent 72%);
+  -webkit-mask-image: radial-gradient(circle at top left, #000 35%, transparent 72%);
+  mask-image: radial-gradient(circle at top left, #000 35%, transparent 72%);
 }
 
-:root[data-theme="dark"] .command-page-shell::before {
-  opacity: 0.11;
+:root[data-theme="dark"] .command-page-shell::before,
+:root[data-theme="dark"] .protected-layout-shell::before {
+  opacity: 0.07;
   filter: saturate(0.7) brightness(1.1);
 }
 
-:root[data-theme="dark"] .command-page-shell::after {
-  background: linear-gradient(225deg,
+:root[data-theme="dark"] .command-page-shell::after,
+:root[data-theme="dark"] .protected-layout-shell::after {
+  background: linear-gradient(135deg,
     rgba(31, 122, 46, 0.32) 0 34%,
     rgba(255, 214, 31, 0.06) 34% 37%,
     transparent 37%);
@@ -442,7 +449,9 @@ textarea {
 
 @media print {
   .command-page-shell::before,
-  .command-page-shell::after { display: none; }
+  .command-page-shell::after,
+  .protected-layout-shell::before,
+  .protected-layout-shell::after { display: none; }
 }
 
 :root[data-theme="dark"] .command-page-shell {
@@ -775,9 +784,9 @@ option {
   color: #f8fafc !important;
 }
 
-:root[data-theme="dark"] [class*="text-[#C54F00]"],
-:root[data-theme="dark"] [class*="text-[#9A4600]"] {
-  color: #ffb077 !important;
+:root[data-theme="dark"] [class*="text-[#17602A]"],
+:root[data-theme="dark"] [class*="text-[#124D21]"] {
+  color: #8ad897 !important;
 }
 
 :root[data-theme="dark"] input:not([aria-invalid="true"]),

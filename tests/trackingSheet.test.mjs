@@ -62,3 +62,10 @@ test('a new item asks for a name, a week and a kind; category, subject, order an
   assert.ok(form.indexOf('שבוע מעקב') < form.indexOf('<details'));
   assert.ok(form.indexOf('role="radiogroup"') < form.indexOf('<details'), 'the kind comes before the folded settings');
 });
+
+test('on a phone the add menu opens leftwards from the button, inside the screen', () => {
+  // 28.11.2026: on a phone the button sits at the right edge (RTL) and the
+  // menu, anchored left-0, opened rightwards off the screen.
+  const header = page.slice(page.indexOf('const headerActions'), page.indexOf('const scoreDialogConfig'));
+  assert.match(header, /role="menu"\s*className="absolute right-0 top-full z-50 mt-2 w-52 max-w-\[calc\(100vw-2rem\)\][^"]*sm:left-0 sm:right-auto"/);
+});

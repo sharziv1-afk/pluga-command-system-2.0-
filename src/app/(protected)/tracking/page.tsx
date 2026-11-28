@@ -1698,9 +1698,13 @@ export default function TrackingPage() {
               className="fixed inset-0 z-40 cursor-default"
               onClick={() => setIsAddMenuOpen(false)}
             />
+            {/* On a phone the button sits at the right edge (RTL), so the menu
+                opens leftwards from it — it used to open rightwards, off the
+                screen (מ״פ, 28.11.2026). From sm up the header's buttons are
+                on the left, and it opens rightwards as before. */}
             <div
               role="menu"
-              className="absolute left-0 top-full z-50 mt-2 w-52 rounded-2xl border border-[var(--border-strong)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--shadow-lg)]"
+              className="absolute right-0 top-full z-50 mt-2 w-52 max-w-[calc(100vw-2rem)] rounded-2xl border border-[var(--border-strong)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--shadow-lg)] sm:left-0 sm:right-auto"
             >
               {addActions.map(({ label, icon: Icon, run }) => (
                 <button

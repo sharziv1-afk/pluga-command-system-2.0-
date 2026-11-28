@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LogOut, PanelRightClose, PanelRightOpen, Shield, User } from 'lucide-react';
+import { LogOut, PanelRightClose, PanelRightOpen, User } from 'lucide-react';
 import { visibleNavItems } from '@/data/navigation';
 import { hasAdminAccess, isCompanyCommander } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
@@ -81,9 +81,8 @@ export const AppSidebar: React.FC<{ className?: string }> = ({ className }) => {
     >
       {/* Brand */}
       <div className="flex items-center gap-2.5 border-b border-[var(--border-subtle)] p-3 lg:p-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--action)]/25 bg-[var(--brand)]/10 text-[var(--color-action-on-surface)]">
-          <Shield className="h-5 w-5" />
-        </div>
+        {/* The battalion 601 emblem (מ״פ, 28.11.2026) — also the app icon. */}
+        <img src="/brand/app-logo.png" alt="סמל גדוד 601" width={40} height={40} className="h-10 w-10 shrink-0 rounded-xl" />
         <div className={cn('min-w-0', labelCls === 'hidden' ? 'hidden' : 'hidden lg:block')}>
           <h1 className="truncate text-base font-bold text-[var(--text-primary)]">המפקד</h1>
           <p className="mt-0.5 truncate text-caption font-bold text-[var(--text-muted-accessible)]">ניהול פיקודי לפלוגה</p>

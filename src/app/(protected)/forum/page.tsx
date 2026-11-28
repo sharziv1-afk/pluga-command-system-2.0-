@@ -3575,7 +3575,7 @@ export default function ForumPage() {
                               type="button"
                               data-node-id={node.id}
                               onClick={handleSelectDailyNode}
-                              className={`w-full rounded-2xl border px-4 py-3 text-right transition ${isActive ? 'border-[var(--brand)]/35 bg-[var(--brand)]/10 shadow-[0_12px_28px_rgba(255,107,2,0.12)]' : 'border-[var(--border-subtle)] bg-[var(--tactical-glass)] hover:bg-[var(--surface)]'}`}
+                              className={`w-full rounded-2xl border px-4 py-3 text-right transition ${isActive ? 'border-[var(--brand)]/35 bg-[var(--brand)]/10 shadow-[0_12px_28px_rgba(31,122,46,0.12)]' : 'border-[var(--border-subtle)] bg-[var(--tactical-glass)] hover:bg-[var(--surface)]'}`}
                             >
                               <span className="flex items-start justify-between gap-3">
                                 <span className="min-w-0">

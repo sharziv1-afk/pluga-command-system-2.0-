@@ -310,7 +310,7 @@ export default function ProfilePage() {
         <GlassCard glow="orange" className="p-6 md:p-8">
           {/* Header Profile Info */}
           <div className="mb-8 flex flex-col sm:flex-row items-center gap-4 border-b border-[var(--border-subtle)] pb-6">
-            <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-[var(--brand)]/20 bg-[var(--brand)]/10 text-[var(--brand)] shadow-[0_14px_30px_rgba(255,107,2,0.14)]">
+            <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-[var(--brand)]/20 bg-[var(--brand)]/10 text-[var(--brand)] shadow-[0_14px_30px_rgba(31,122,46,0.14)]">
               <User className="h-8 w-8" />
             </div>
             <div className="text-center sm:text-right space-y-1">

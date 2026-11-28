@@ -994,7 +994,7 @@ export default function RequestsPage() {
               }}
               className={`touch-target flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition duration-150 ${
                 viewMode === mode.id
-                  ? 'bg-[var(--action)] text-white shadow-[0_4px_12px_rgba(255,107,2,0.28)]'
+                  ? 'bg-[var(--action)] text-white shadow-[0_4px_12px_rgba(31,122,46,0.28)]'
                   : 'text-[var(--text-muted-accessible)] hover:bg-[var(--action)]/10 hover:text-[var(--text-primary)]'
               }`}
             >
@@ -1109,7 +1109,7 @@ export default function RequestsPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`touch-target flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition duration-150 ${
                 isActive
-                  ? 'bg-[var(--action)] text-white shadow-[0_4px_12px_rgba(255,107,2,0.28)]'
+                  ? 'bg-[var(--action)] text-white shadow-[0_4px_12px_rgba(31,122,46,0.28)]'
                   : 'text-[var(--text-muted-accessible)] hover:bg-[var(--action)]/10 hover:text-[var(--text-primary)]'
               }`}
             >

@@ -40,7 +40,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport = {
-  themeColor: '#FF6B02',
+  themeColor: '#1F7A2E',
   // Without viewportFit the safe-area insets resolve to 0 on iPhone, which
   // made globals.css's .safe-bottom-nav a no-op and left the bottom nav
   // sitting under the home indicator. Setting it lets the page paint into

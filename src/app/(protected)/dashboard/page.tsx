@@ -1054,7 +1054,7 @@ function CommandBriefCard({ brief }: { brief: CommandBrief }) {
 
   return (
     <GlassCard
-      className={`border-[var(--brand)]/18 bg-[var(--tactical-glass)] ${isAttention ? 'shadow-[0_16px_40px_rgba(255,107,2,0.12)]' : ''}`}
+      className={`border-[var(--brand)]/18 bg-[var(--tactical-glass)] ${isAttention ? 'shadow-[0_16px_40px_rgba(31,122,46,0.12)]' : ''}`}
       glossHighlight={false}
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

@@ -359,7 +359,7 @@ export function GapsPanel() {
               type="button"
               onClick={() => setCategoryFilter(isActive ? 'הכל' : c)}
               className={`rounded-2xl border p-4 text-right transition duration-150 ${
-                isActive ? 'border-[var(--action)] shadow-[0_4px_16px_rgba(255,107,2,0.18)]' : 'border-[var(--border-subtle)] hover:border-[var(--action)]/40'
+                isActive ? 'border-[var(--action)] shadow-[0_4px_16px_rgba(31,122,46,0.18)]' : 'border-[var(--border-subtle)] hover:border-[var(--action)]/40'
               } bg-[var(--surface)]`}
             >
               <div className="flex items-center justify-between">

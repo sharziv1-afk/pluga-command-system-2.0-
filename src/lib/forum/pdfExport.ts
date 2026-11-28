@@ -121,28 +121,52 @@ export function wrapText(text: string, maxWidth: number, size: number, bold: boo
   return out;
 }
 
-export type FittedText = { lines: string[]; size: number; lineHeight: number; overflow: boolean };
+export type FittedText = {
+  lines: string[];
+  size: number;
+  lineHeight: number;
+  overflow: boolean;
+  /** Lines run down the first column (the right one), then the next. */
+  columns: number;
+  columnWidth: number;
+};
+
+/** Space between the columns of a box's text. */
+export const COLUMN_GAP = 12;
+
+/** The "נוסף מהפורום" page: two columns, small text. */
+export const EXTRAS = { bodySize: 8, titleSize: 10, columnGap: 18, sectionGap: 8 } as const;
 
 /**
- * The largest body size at which `text` fits the box. Too long even at the
- * smallest size: as many lines as fit, the last ending in "…", overflow set.
+ * The largest body size at which `text` fits the box, in one column or — in
+ * a wide box, up to `maxColumns` — side by side, so a long list of short
+ * lines stays readable instead of shrinking to the smallest size (the סמ״פ
+ * box on 26.11.2026). Too long even at the smallest size: as many lines as
+ * fit, the last ending in "…", overflow set.
  */
-export function fitText(text: string, maxWidth: number, maxHeight: number, measure: Measure): FittedText {
+export function fitText(text: string, maxWidth: number, maxHeight: number, measure: Measure, maxColumns = 1): FittedText {
   const sizes = LAYOUT.bodySizes;
   for (const size of sizes) {
     const lineHeight = size * LAYOUT.lineHeightRatio;
-    const lines = wrapText(text, maxWidth, size, false, measure);
-    if (lines.length * lineHeight <= maxHeight) return { lines, size, lineHeight, overflow: false };
+    for (let columns = 1; columns <= maxColumns; columns += 1) {
+      const columnWidth = (maxWidth - COLUMN_GAP * (columns - 1)) / columns;
+      const lines = wrapText(text, columnWidth, size, false, measure);
+      if (Math.ceil(lines.length / columns) * lineHeight <= maxHeight) {
+        return { lines, size, lineHeight, overflow: false, columns, columnWidth };
+      }
+    }
   }
   const size = sizes[sizes.length - 1];
   const lineHeight = size * LAYOUT.lineHeightRatio;
-  const lines = wrapText(text, maxWidth, size, false, measure);
-  const room = Math.max(1, Math.floor(maxHeight / lineHeight));
+  const columns = maxColumns;
+  const columnWidth = (maxWidth - COLUMN_GAP * (columns - 1)) / columns;
+  const lines = wrapText(text, columnWidth, size, false, measure);
+  const room = Math.max(1, Math.floor(maxHeight / lineHeight)) * columns;
   const kept = lines.slice(0, room);
   let last = kept[kept.length - 1] ?? '';
-  while (last && measure(`${last}…`, size, false) > maxWidth) last = [...last].slice(0, -1).join('');
+  while (last && measure(`${last}…`, size, false) > columnWidth) last = [...last].slice(0, -1).join('');
   kept[kept.length - 1] = `${last}…`;
-  return { lines: kept, size, lineHeight, overflow: true };
+  return { lines: kept, size, lineHeight, overflow: true, columns, columnWidth };
 }
 
 /** A small deterministic random sequence, so the camouflage is the same every time. */
@@ -232,19 +256,21 @@ export function layoutForumPdf(model: ForumPdfModel, measure: Measure): LaidOutP
   };
 
   // A cell or box body: its text when there is any, writing lines when not.
-  const body = (value: string, boxLeft: number, boxRight: number, top: number, boxBottom: number, overflowTitle: string) => {
+  const body = (value: string, boxLeft: number, boxRight: number, top: number, boxBottom: number, overflowTitle: string, maxColumns = 1) => {
     const innerLeft = boxLeft + L.cellPadding;
     const innerRight = boxRight - L.cellPadding;
     if (!hasText(value)) {
       writingLines(innerLeft, innerRight, top, boxBottom);
       return;
     }
-    const fitted = fitText(value.trim(), innerRight - innerLeft, boxBottom - top - L.cellPadding, measure);
-    let y = top;
-    for (const textLine of fitted.lines) {
-      y += fitted.lineHeight;
-      if (textLine) text(textLine, innerRight, y - fitted.lineHeight * 0.22, fitted.size);
-    }
+    const fitted = fitText(value.trim(), innerRight - innerLeft, boxBottom - top - L.cellPadding, measure, maxColumns);
+    const perColumn = Math.ceil(fitted.lines.length / fitted.columns);
+    fitted.lines.forEach((textLine, index) => {
+      const column = Math.floor(index / perColumn);
+      const y = top + (index - column * perColumn + 1) * fitted.lineHeight;
+      const x = innerRight - column * (fitted.columnWidth + COLUMN_GAP);
+      if (textLine) text(textLine, x, y - fitted.lineHeight * 0.22, fitted.size);
+    });
     if (fitted.overflow) overflow.push({ title: overflowTitle, body: value.trim() });
   };
 
@@ -295,7 +321,9 @@ export function layoutForumPdf(model: ForumPdfModel, measure: Measure): LaidOutP
       const boxLeft = boxRight - boxWidth;
       if (index > 0) line(boxRight, top, boxRight, boxesBottom, COLORS.frame, 1.2);
       text(item.title, boxRight - 10, top + 20, L.boxTitleSize, true);
-      body(item.body, boxLeft + 6, boxRight - 6, top + 26, boxesBottom, item.title);
+      // A box is wide: a long list runs in columns side by side, small
+      // (the iPad zooms — מ״פ, 28.11.2026), rather than one long thin column.
+      body(item.body, boxLeft + 6, boxRight - 6, top + 26, boxesBottom, item.title, boxWidth > 300 ? 3 : 2);
     });
   };
 
@@ -312,30 +340,45 @@ export function layoutForumPdf(model: ForumPdfModel, measure: Measure): LaidOutP
   startPage('פורום מוביל');
   table(model.platoonRows, L.tableTop, bottom);
 
-  // 3. Everything else with text, full width, as many pages as it takes.
+  // 3. Everything else with text, in two columns side by side, small (the
+  // iPad zooms — מ״פ, 28.11.2026): the right column first, then the left,
+  // then a new page.
   const extras = [...overflow, ...model.extras.filter((extra) => hasText(extra.body))];
   if (extras.length > 0) {
-    const size = 10;
-    const lineHeight = size * 1.4;
+    const size = EXTRAS.bodySize;
+    const lineHeight = size * 1.35;
+    const columnWidth = (width - EXTRAS.columnGap) / 2;
+    let column = 0;
     let y = 0;
+    const columnRight = () => right - column * (columnWidth + EXTRAS.columnGap);
     const startExtras = () => {
       startPage('נוסף מהפורום');
+      column = 0;
       y = L.tableTop;
+    };
+    const nextColumn = () => {
+      if (column === 0) {
+        column = 1;
+        y = L.tableTop;
+      } else {
+        startExtras();
+      }
     };
     startExtras();
     for (const extra of extras) {
-      const lines = wrapText(extra.body.trim(), width - 16, size, false, measure);
-      if (y + 40 > bottom) startExtras();
-      y += 16;
-      text(extra.title, right, y, L.boxTitleSize, true);
-      line(left, y + 5, right, y + 5, COLORS.rule, 0.8);
-      y += 6;
+      const lines = wrapText(extra.body.trim(), columnWidth - 8, size, false, measure);
+      // A title never sits alone at the bottom of a column.
+      if (y + EXTRAS.titleSize + 6 + lineHeight * Math.min(lines.length, 2) > bottom) nextColumn();
+      y += EXTRAS.titleSize + 2;
+      text(extra.title, columnRight(), y, EXTRAS.titleSize, true);
+      line(columnRight() - columnWidth, y + 4, columnRight(), y + 4, COLORS.rule, 0.8);
+      y += 4;
       for (const textLine of lines) {
-        if (y + lineHeight > bottom) startExtras();
+        if (y + lineHeight > bottom) nextColumn();
         y += lineHeight;
-        if (textLine) text(textLine, right - 8, y, size);
+        if (textLine) text(textLine, columnRight() - 6, y, size);
       }
-      y += 10;
+      y += EXTRAS.sectionGap;
     }
   }
 

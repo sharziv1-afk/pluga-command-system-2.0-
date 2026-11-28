@@ -56,6 +56,31 @@ test('text shrinks to fit a cell, and is cut with "…" only below the smallest 
   assert.ok(huge.lines.length * huge.lineHeight <= 80 + huge.lineHeight);
 });
 
+test('a long list of short lines in a wide box runs in columns side by side instead of shrinking', () => {
+  // The סמ״פ box on 26.11.2026: fourteen short lines came out at the smallest size.
+  const list = Array.from({ length: 14 }, (_, i) => `• שורה ${i + 1}`).join('\n');
+  const one = fitText(list, 170, 100, measure, 1);
+  const two = fitText(list, 170, 100, measure, 2);
+  assert.equal(one.columns, 1);
+  assert.equal(two.columns, 2);
+  assert.ok(two.size > one.size, `${two.size} > ${one.size}`);
+  assert.ok(Math.ceil(two.lines.length / 2) * two.lineHeight <= 100);
+  assert.equal(fitText('קצר', 170, 100, measure, 3).columns, 1, 'short text stays in one column');
+});
+
+test('the extra page runs in two columns, right first', () => {
+  const extras = Array.from({ length: 12 }, (_, i) => ({ title: `סעיף ${i + 1}`, body: 'טקסט '.repeat(80) }));
+  const pages = layoutForumPdf(model({ extras }), measure);
+  const extraPage = pages[2];
+  const titleXs = new Set(extraPage.filter((op) => op.kind === 'text' && op.text.startsWith('סעיף ')).map((op) => Math.round(op.x)));
+  assert.equal(titleXs.size, 2, 'two columns');
+  const first = extraPage.find((op) => op.kind === 'text' && op.text === 'סעיף 1');
+  assert.equal(Math.round(first.x), Math.max(...titleXs), 'the first section is in the right column');
+  for (const page of pages.slice(2)) {
+    for (const op of page) if (op.kind === 'text') assert.ok(op.y < PAGE_HEIGHT - 30, `${op.text} at ${op.y}`);
+  }
+});
+
 test('an empty forum: the two template pages, landscape, every cell and box left for the pen', () => {
   const pages = layoutForumPdf(model(), measure);
   assert.equal(pages.length, 2, 'no extra page when nothing else was written');

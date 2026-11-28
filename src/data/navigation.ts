@@ -29,12 +29,13 @@ export interface NavItem {
  * everyday screens; reordering this array reorders that row.
  */
 export const navigationItems: NavItem[] = [
+  // מ״פ, 28.11.2026: forum, tasks, tracking, then the schedule.
   { name: 'פורום מוביל', path: '/forum', icon: MessageSquare },
-  { name: 'לוח מפקד', path: '/dashboard', icon: LayoutDashboard },
   { name: 'משימות ובקרה', path: '/tasks', icon: CheckSquare },
-  { name: 'דרישות', path: '/requests', icon: Truck },
-  { name: 'לו״ז', path: '/schedule', icon: CalendarClock },
   { name: 'מעקב', path: '/tracking', icon: Table2 },
+  { name: 'לו״ז', path: '/schedule', icon: CalendarClock },
+  { name: 'לוח מפקד', path: '/dashboard', icon: LayoutDashboard },
+  { name: 'דרישות', path: '/requests', icon: Truck },
   { name: 'חניכה', path: '/mentoring', icon: GraduationCap, commanderOnly: true },
   { name: 'אישור משתמשים', path: '/admin', icon: Shield, adminOnly: true },
   { name: 'פרופיל אישי', path: '/profile', icon: User },
@@ -43,7 +44,7 @@ export const navigationItems: NavItem[] = [
 
 /** Modules currently available from navigation and direct URLs. */
 export const activeModulePaths = [
-  '/forum', '/dashboard', '/tasks', '/requests', '/schedule', '/tracking',
+  '/forum', '/tasks', '/tracking', '/schedule', '/dashboard', '/requests',
   '/mentoring', '/admin', '/profile', '/help',
 ] as const;
 

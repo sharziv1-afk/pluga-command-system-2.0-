@@ -23,7 +23,7 @@ test('every place that creates a task uses it', () => {
   const mcp = readFileSync('src/lib/mcp/writes.ts', 'utf8');
   assert.match(tasksPage, /const taskUnitId = taskUnitIdFor\(\{\s*createdBy: dbProfile\.id,\s*assignedTo: assignedTo === 'none' \? null : assignedTo,/);
   assert.match(dashboard, /unit_id: taskUnitIdFor\(\{ createdBy: profile\.id, assignedTo, creatorUnitId: profile\.unit_id \}\),/);
-  assert.match(mcp, /unit_id: taskUnitIdFor\(\{ createdBy: c\.profile\.id, assignedTo: assignee\.id, creatorUnitId: c\.profile\.unit_id \}\),/);
+  assert.match(mcp, /unit_id: taskUnitIdFor\(\{ createdBy: c\.profile\.id, assignedTo, creatorUnitId: c\.profile\.unit_id \}\),\s*assigned_to: assignedTo,/);
   // No task insert still passes the raw unit.
   assert.doesNotMatch(mcp, /unit_id: c\.profile\.unit_id,\s*assigned_to: assignee\.id/);
   assert.doesNotMatch(dashboard, /unit_id: profile\.unit_id,\s*event_id: eventId,\s*due_at: dueAt,\s*completed_at: null/);

@@ -7,7 +7,6 @@ import {
   ClipboardCheck,
   Download,
   Loader2,
-  NotebookPen,
   Pencil,
   Plus,
   Table2,
@@ -318,6 +317,13 @@ export default function TrackingPage() {
   const [weekForm, setWeekForm] = useState<WeekFormState>(initialWeekForm);
   const [isWeekSubmitting, setIsWeekSubmitting] = useState(false);
   const [removingWeekId, setRemovingWeekId] = useState<string | null>(null);
+  // The sheet's tap menus: a soldier's or an item's edit/remove, and "+".
+  const [sheetMenu, setSheetMenu] = useState<
+    { kind: 'soldier'; soldier: DbSoldier } | { kind: 'item'; item: DbTrackingItem } | null
+  >(null);
+  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
+  const longPressTimer = useRef<number | null>(null);
+  const longPressFired = useRef(false);
   const soldierFormRef = useRef<HTMLDivElement>(null);
   const itemFormRef = useRef<HTMLDivElement>(null);
 
@@ -1600,35 +1606,121 @@ export default function TrackingPage() {
     }
   };
 
+  // A cell: a tap marks it; holding it (450ms) — or a right-click — opens its
+  // note instead. Scrolling cancels the hold (pointercancel), and the tap
+  // that ends a hold does not also mark the cell.
+  const clearLongPress = () => {
+    if (longPressTimer.current !== null) window.clearTimeout(longPressTimer.current);
+    longPressTimer.current = null;
+  };
+  const consumeLongPress = () => {
+    const fired = longPressFired.current;
+    longPressFired.current = false;
+    return fired;
+  };
+  const cellPressHandlers = (onLongPress: () => void) => ({
+    onPointerDown: (event: React.PointerEvent) => {
+      if (event.button !== 0) return;
+      longPressFired.current = false;
+      clearLongPress();
+      longPressTimer.current = window.setTimeout(() => {
+        longPressFired.current = true;
+        longPressTimer.current = null;
+        onLongPress();
+      }, 450);
+    },
+    onPointerUp: clearLongPress,
+    onPointerLeave: clearLongPress,
+    onPointerCancel: clearLongPress,
+    onContextMenu: (event: React.MouseEvent) => {
+      event.preventDefault();
+      clearLongPress();
+      onLongPress();
+    },
+  });
+  const openCellNote = (soldier: DbSoldier, item: DbTrackingItem, record: DbTrackingRecord | undefined) => {
+    if (record) {
+      openNoteDialog(soldier, item, record);
+      return;
+    }
+    setErrorMessage('כדי להוסיף הערה, סמן קודם את התא.');
+  };
+
+  const runSheetMenu = (action: 'edit' | 'remove') => {
+    const menu = sheetMenu;
+    setSheetMenu(null);
+    if (!menu) return;
+    if (menu.kind === 'soldier') {
+      if (action === 'edit') openEditSoldier(menu.soldier);
+      else requestRemoveSoldier(menu.soldier);
+    } else if (action === 'edit') {
+      openEditItem(menu.item);
+    } else {
+      requestRemoveItem(menu.item);
+    }
+  };
+
+  // Every add action is still here, behind one "+" (מ״פ, 28.11.2026: keep
+  // the options, make the header calmer). Each keeps its old toggle.
+  const addActions = [
+    {
+      label: 'מופע מעקב',
+      icon: Plus,
+      run: () => (isItemFormOpen && !editingItem ? closeItemForm() : openCreateItem()),
+    },
+    {
+      label: 'חייל',
+      icon: UserPlus,
+      run: () => (isSoldierFormOpen && !editingSoldier ? closeSoldierForm() : openCreateSoldier()),
+    },
+    { label: 'שבוע חדש', icon: CalendarPlus, run: () => openWeekDialog(null) },
+  ];
+
   const headerActions = (
     <div className="flex flex-wrap items-center gap-2">
-      <GlossyButton
-        variant="slate"
-        size="sm"
-        onClick={() => (isSoldierFormOpen && !editingSoldier ? closeSoldierForm() : openCreateSoldier())}
-        disabled={isLoading}
-      >
-        <UserPlus className="h-4 w-4" />
-        הוסף חייל
-      </GlossyButton>
-      <GlossyButton
-        variant="slate"
-        size="sm"
-        onClick={() => (isItemFormOpen && !editingItem ? closeItemForm() : openCreateItem())}
-        disabled={isLoading}
-      >
-        <Plus className="h-4 w-4" />
-        הוסף מופע מעקב
-      </GlossyButton>
-      <GlossyButton
-        variant="slate"
-        size="sm"
-        onClick={() => openWeekDialog(null)}
-        disabled={isLoading}
-      >
-        <CalendarPlus className="h-4 w-4" />
-        שבוע חדש
-      </GlossyButton>
+      <div className="relative">
+        <GlossyButton
+          variant="slate"
+          size="sm"
+          onClick={() => setIsAddMenuOpen(open => !open)}
+          disabled={isLoading}
+          aria-haspopup="menu"
+          aria-expanded={isAddMenuOpen}
+        >
+          <Plus className="h-4 w-4" />
+          הוספה
+        </GlossyButton>
+        {isAddMenuOpen && (
+          <>
+            <button
+              type="button"
+              aria-label="סגירת התפריט"
+              className="fixed inset-0 z-40 cursor-default"
+              onClick={() => setIsAddMenuOpen(false)}
+            />
+            <div
+              role="menu"
+              className="absolute left-0 top-full z-50 mt-2 w-52 rounded-2xl border border-[var(--border-strong)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--shadow-lg)]"
+            >
+              {addActions.map(({ label, icon: Icon, run }) => (
+                <button
+                  key={label}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setIsAddMenuOpen(false);
+                    run();
+                  }}
+                  className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-right text-sm font-semibold text-[var(--text-primary)] transition hover:bg-[var(--surface-muted)]"
+                >
+                  <Icon className="h-4 w-4 text-[var(--color-action-on-surface)]" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
       <GlossyButton
         variant="orange"
         size="sm"
@@ -1835,6 +1927,47 @@ export default function TrackingPage() {
             placeholder="הערה — לדוגמה: תרגל שוב ביום ה׳, החסיר בגלל אימון קודם"
             className="command-input min-h-32 w-full resize-none"
           />
+        </div>
+      </CommandOverlay>
+
+      {/* Tapping a name or an item title in the sheet: its edit and remove,
+          which used to be two small icons on every row and column. */}
+      <CommandOverlay
+        open={!!sheetMenu}
+        onClose={() => setSheetMenu(null)}
+        title={sheetMenu?.kind === 'soldier' ? sheetMenu.soldier.full_name : sheetMenu?.kind === 'item' ? sheetMenu.item.title : ''}
+        description={
+          sheetMenu?.kind === 'soldier'
+            ? [unitNameById.get(sheetMenu.soldier.unit_id), sheetMenu.soldier.role_label ?? sheetMenu.soldier.squad_label].filter(Boolean).join(' · ')
+            : sheetMenu?.kind === 'item'
+              ? (() => {
+                const config = scoreConfigByItem.get(sheetMenu.item.id) ?? null;
+                return [sheetMenu.item.category, config ? scoreRuleLabel(config) : null].filter(Boolean).join(' · ');
+              })()
+              : undefined
+        }
+      >
+        <div className="grid gap-2">
+          <button
+            type="button"
+            onClick={() => runSheetMenu('edit')}
+            className="flex min-h-12 items-center gap-2 rounded-xl border border-[var(--border-strong)] bg-[var(--tactical-glass)] px-4 text-sm font-semibold text-[var(--text-primary)] transition hover:bg-[var(--surface-muted)]"
+          >
+            <Pencil className="h-4 w-4 text-[var(--color-action-on-surface)]" />
+            {sheetMenu?.kind === 'soldier' ? 'עריכת פרטי חייל' : 'עריכת מופע'}
+          </button>
+          <button
+            type="button"
+            onClick={() => runSheetMenu('remove')}
+            disabled={
+              (sheetMenu?.kind === 'soldier' && removingSoldierId === sheetMenu.soldier.id)
+              || (sheetMenu?.kind === 'item' && removingItemId === sheetMenu.item.id)
+            }
+            className="flex min-h-12 items-center gap-2 rounded-xl border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 px-4 text-sm font-semibold text-[var(--color-danger)] transition disabled:opacity-60"
+          >
+            <Trash2 className="h-4 w-4" />
+            {sheetMenu?.kind === 'soldier' ? 'הסר חייל מהמעקב' : 'הסר מופע מהטבלה'}
+          </button>
         </div>
       </CommandOverlay>
 
@@ -2073,34 +2206,6 @@ export default function TrackingPage() {
             </label>
 
             <label className="block space-y-2">
-              <span className="block text-xs font-semibold text-[var(--text-secondary)]">קטגוריה</span>
-              <select
-                required
-                value={itemForm.category}
-                onChange={event => setItemForm(value => ({ ...value, category: event.target.value }))}
-                className="command-select"
-                disabled={isItemSubmitting}
-              >
-                {/* An existing item may carry a category outside the preset list
-                    (real data already does) — keep it selectable when editing. */}
-                {[...new Set([...itemCategories, itemForm.category].filter(Boolean))].map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
-            </label>
-
-            <label className="block space-y-2">
-              <span className="block text-xs font-semibold text-[var(--text-secondary)]">נושא</span>
-              <input
-                value={itemForm.subject}
-                onChange={event => setItemForm(value => ({ ...value, subject: event.target.value }))}
-                className="command-input"
-                placeholder="אופציונלי"
-                disabled={isItemSubmitting}
-              />
-            </label>
-
-            <label className="block space-y-2">
               <span className="block text-xs font-semibold text-[var(--text-secondary)]">שבוע מעקב</span>
               <select
                 value={itemForm.weekId}
@@ -2113,18 +2218,6 @@ export default function TrackingPage() {
                   <option key={week.id} value={week.id}>{week.title}</option>
                 ))}
               </select>
-            </label>
-
-            <label className="block space-y-2">
-              <span className="block text-xs font-semibold text-[var(--text-secondary)]">סדר תצוגה</span>
-              <input
-                type="number"
-                value={itemForm.sortOrder}
-                onChange={event => setItemForm(value => ({ ...value, sortOrder: event.target.value }))}
-                className="command-input"
-                min={0}
-                disabled={isItemSubmitting}
-              />
             </label>
 
             <div className="space-y-3 lg:col-span-2">
@@ -2244,16 +2337,69 @@ export default function TrackingPage() {
               )}
             </div>
 
-            <label className="block space-y-2 lg:col-span-2">
-              <span className="block text-xs font-semibold text-[var(--text-secondary)]">תיאור</span>
-              <textarea
-                value={itemForm.description}
-                onChange={event => setItemForm(value => ({ ...value, description: event.target.value }))}
-                className="command-input min-h-24 resize-none"
-                placeholder="אופציונלי"
-                disabled={isItemSubmitting}
-              />
-            </label>
+            {/* Everything else stays, folded away (מ״פ, 28.11.2026: a new item
+                is a name, a week and a kind). Open by itself when editing an
+                item that already uses any of it. */}
+            <details
+              className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-4 py-3 lg:col-span-2"
+              open={Boolean(editingItem && (itemForm.subject || itemForm.description || itemForm.category !== initialItemForm.category))}
+            >
+              <summary className="cursor-pointer text-sm font-semibold text-[var(--text-primary)]">
+                עוד הגדרות — קטגוריה ({itemForm.category}), נושא, סדר תצוגה, תיאור
+              </summary>
+              <div className="mt-3 grid gap-4 lg:grid-cols-3">
+                <label className="block space-y-2">
+                  <span className="block text-xs font-semibold text-[var(--text-secondary)]">קטגוריה</span>
+                  <select
+                    required
+                    value={itemForm.category}
+                    onChange={event => setItemForm(value => ({ ...value, category: event.target.value }))}
+                    className="command-select"
+                    disabled={isItemSubmitting}
+                  >
+                    {/* An existing item may carry a category outside the preset list
+                        (real data already does) — keep it selectable when editing. */}
+                    {[...new Set([...itemCategories, itemForm.category].filter(Boolean))].map(category => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block space-y-2">
+                  <span className="block text-xs font-semibold text-[var(--text-secondary)]">נושא</span>
+                  <input
+                    value={itemForm.subject}
+                    onChange={event => setItemForm(value => ({ ...value, subject: event.target.value }))}
+                    className="command-input"
+                    placeholder="אופציונלי"
+                    disabled={isItemSubmitting}
+                  />
+                </label>
+
+                <label className="block space-y-2">
+                  <span className="block text-xs font-semibold text-[var(--text-secondary)]">סדר תצוגה</span>
+                  <input
+                    type="number"
+                    value={itemForm.sortOrder}
+                    onChange={event => setItemForm(value => ({ ...value, sortOrder: event.target.value }))}
+                    className="command-input"
+                    min={0}
+                    disabled={isItemSubmitting}
+                  />
+                </label>
+
+                <label className="block space-y-2 lg:col-span-3">
+                  <span className="block text-xs font-semibold text-[var(--text-secondary)]">תיאור</span>
+                  <textarea
+                    value={itemForm.description}
+                    onChange={event => setItemForm(value => ({ ...value, description: event.target.value }))}
+                    className="command-input min-h-24 resize-none"
+                    placeholder="אופציונלי"
+                    disabled={isItemSubmitting}
+                  />
+                </label>
+              </div>
+            </details>
 
             <div className="flex flex-col gap-2 lg:col-span-2 sm:flex-row">
               <GlossyButton type="submit" variant="orange" size="lg" disabled={isItemSubmitting} className="flex-1">
@@ -2438,262 +2584,77 @@ export default function TrackingPage() {
             />
           ) : (
           <>
-          {/* Mobile has no column headers to hang item actions on, so item
-              edit/remove lives in this collapsed list instead. */}
-          <details className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] px-4 py-3 md:hidden">
-            <summary className="cursor-pointer text-xs font-semibold text-[var(--text-primary)]">
-              ניהול מופעי מעקב ({visibleItems.length})
-            </summary>
-            <div className="mt-2 divide-y divide-[var(--border-subtle)]">
-              {visibleItems.map(item => (
-                <div key={item.id} className="flex items-center justify-between gap-3 py-2">
-                  <div className="min-w-0">
-                    <div className="truncate text-xs font-semibold text-[var(--text-primary)]">{item.title}</div>
-                    <div className="text-caption font-bold text-[var(--command-subtle)]">{item.category}</div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <button
-                      type="button"
-                      title="עריכת מופע"
-                      onClick={() => openEditItem(item)}
-                      className="touch-target inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border-strong)] bg-[var(--tactical-glass)] text-[var(--text-secondary)]"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                      <span className="sr-only">עריכה</span>
-                    </button>
-                    <button
-                      type="button"
-                      title="הסר מופע מעקב מהטבלה"
-                      onClick={() => requestRemoveItem(item)}
-                      disabled={removingItemId === item.id}
-                      className="touch-target inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 text-[var(--color-danger)] disabled:cursor-wait disabled:opacity-60"
-                    >
-                      {removingItemId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                      <span className="sr-only">הסר</span>
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </details>
-
-          {/* Mobile: a table with one column per item forces horizontal
-              scrolling that's unusable on a phone — stack each soldier as a
-              card with their items listed vertically instead. */}
-          <div className="space-y-3 md:hidden">
-            {visibleSoldiers.map((soldier) => (
-              <div key={soldier.id} className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--tactical-glass)] p-4 shadow-[0_8px_18px_rgba(2,1,8,0.04)]">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="font-semibold text-[var(--text-primary)]">{soldier.full_name}</div>
-                    <div className="mt-1 text-caption font-bold text-[var(--text-muted-accessible)]">
-                      {unitNameById.get(soldier.unit_id) ?? 'יחידה לא ידועה'}
-                    </div>
-                    <div className="mt-0.5 text-caption font-bold text-[var(--command-subtle)]">
-                      {soldier.role_label ?? soldier.squad_label ?? 'ללא שיוך נוסף'}
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                  <button
-                    type="button"
-                    title="עריכת פרטי חייל"
-                    onClick={() => openEditSoldier(soldier)}
-                    className="touch-target inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--border-strong)] bg-[var(--tactical-glass)] text-[var(--text-secondary)]"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                    <span className="sr-only">עריכה</span>
-                  </button>
-                  <button
-                    type="button"
-                    title="הסר חייל מהמעקב"
-                    onClick={() => requestRemoveSoldier(soldier)}
-                    disabled={removingSoldierId === soldier.id}
-                    className="touch-target inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 text-[var(--color-danger)] transition hover:border-[var(--color-danger)]/25 hover:bg-[var(--color-danger)]/10 disabled:cursor-wait disabled:opacity-60"
-                  >
-                    {removingSoldierId === soldier.id ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-3.5 w-3.5" />
-                    )}
-                    <span className="sr-only">הסר</span>
-                  </button>
-                  </div>
-                </div>
-
-                <div className="mt-3 divide-y divide-[var(--border-subtle)] border-t border-[var(--border-subtle)]">
-                  {visibleItems.map((item) => {
-                    const record = recordByCell.get(`${soldier.id}:${item.id}`);
-                    const status = record?.status ?? 'empty';
-                    const cellKey = `${soldier.id}:${item.id}`;
-                    const isCellUpdating = updatingCells.has(cellKey);
-                    const scoreConfig = scoreConfigByItem.get(item.id) ?? null;
-                    const score = scoreConfig ? readRecordScore(record?.metadata) : null;
-                    const cellStatus = scoreConfig ? statusForScore(score, scoreConfig) : status;
-
+          {/* One sheet on the phone and the computer alike, like a simple
+              spreadsheet (מ״פ, 28.11.2026): the names stay on the right and the
+              item titles on top while scrolling. Tap a cell to mark it (or to
+              enter a score); hold it — or right-click — for its note. Tap a name
+              or an item title for its edit and remove actions. */}
+          <p className="text-caption font-bold text-[var(--text-muted-accessible)]">
+            לחיצה על תא מסמנת · לחיצה ארוכה על תא פותחת הערה · לחיצה על שם או על כותרת — עריכה והסרה
+          </p>
+          <div className="tracking-sheet max-h-[70svh] max-w-full overflow-auto rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)]">
+            <table className="w-max min-w-full border-separate border-spacing-0 text-right text-xs">
+              <thead>
+                <tr>
+                  <th className="sticky right-0 top-0 z-30 min-w-[9.5rem] border-b border-l border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3 py-2 text-caption font-bold text-[var(--text-muted-accessible)]">
+                    חייל · {visibleSoldiers.length}
+                  </th>
+                  {visibleItems.map(item => {
+                    const config = scoreConfigByItem.get(item.id) ?? null;
+                    const summary = scoreSummaryByItem.get(item.id);
                     return (
-                      <div key={item.id} className="flex items-center justify-between gap-3 py-2.5">
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate text-xs font-semibold text-[var(--text-primary)]">{item.title}</div>
-                          <div className="text-caption font-bold text-[var(--command-subtle)]">
-                            {item.category}
-                            {scoreConfig && ` · ${scoreRuleLabel(scoreConfig)}`}
-                          </div>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-1.5">
-                          <button
-                            type="button"
-                            title={scoreConfig ? `${isTimeScore(scoreConfig) ? 'הזנת זמן' : 'הזנת ציון'} · ${scoreRuleLabel(scoreConfig)}` : 'לחיצה מחליפה סטטוס'}
-                            onClick={() => (scoreConfig ? openScoreDialog(soldier, item, record ?? null) : void handleCycleCellStatus(soldier, item, record))}
-                            disabled={isCellUpdating}
-                            className={`inline-flex min-h-11 min-w-20 items-center justify-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition hover:shadow-sm disabled:cursor-wait disabled:opacity-70 ${statusStyles[cellStatus]}${scoreConfig ? ' font-mono text-sm' : ''}`}
-                          >
-                            {isCellUpdating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                            {scoreConfig ? (score === null ? '—' : formatScore(score, scoreConfig)) : statusLabels[status]}
-                          </button>
-                          <button
-                            type="button"
-                            title={record ? 'עריכת תא — סטטוס והערה' : 'סמן סטטוס לפני עריכת התא'}
-                            onClick={() => record && openNoteDialog(soldier, item, record)}
-                            disabled={!record}
-                            className={`touch-target inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition disabled:cursor-not-allowed disabled:opacity-40 ${
-                              record?.note
-                                ? 'border-[var(--brand)]/30 bg-[var(--brand)]/10 text-[var(--color-action-on-surface)]'
-                                : 'border-[var(--border-strong)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)]'
-                            }`}
-                          >
-                            <NotebookPen className="h-4 w-4" />
-                            <span className="sr-only">הערה</span>
-                          </button>
-                        </div>
-                      </div>
+                      <th
+                        key={item.id}
+                        className="sticky top-0 z-20 w-24 min-w-[6rem] max-w-[8.5rem] border-b border-l border-[var(--border-subtle)] bg-[var(--surface-raised)] p-0 align-bottom"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setSheetMenu({ kind: 'item', item })}
+                          title={`${item.title} — עריכה והסרה`}
+                          className="flex w-full flex-col items-start gap-0.5 px-2 py-2 text-right transition hover:bg-[var(--surface-muted)]"
+                        >
+                          <span className="line-clamp-2 font-semibold text-[var(--text-primary)]">{item.title}</span>
+                          <span className="text-[0.6875rem] font-bold text-[var(--command-subtle)]">
+                            {config
+                              ? `${isTimeScore(config) ? 'זמן' : 'ציון'} · ${scoreRuleLabel(config)}`
+                              : item.category}
+                          </span>
+                          {config && summary && summary.count > 0 && summary.average !== null && (
+                            <span className="text-[0.6875rem] font-bold text-[var(--color-action-on-surface)]">
+                              ממוצע {formatScore(summary.average, config)} · {summary.passRate}% עברו
+                            </span>
+                          )}
+                        </button>
+                      </th>
                     );
                   })}
-                </div>
-
-                {weeklyNotesBySoldier.has(soldier.id) && (
-                  <div className="mt-3 rounded-xl border border-[var(--brand)]/20 bg-[var(--brand)]/5 p-3">
-                    <div className="mb-1 flex items-center gap-1.5 text-caption font-bold text-[var(--color-action-on-surface)]">
-                      <NotebookPen className="h-3.5 w-3.5" />
-                      הערות השבוע
-                    </div>
-                    <ul className="space-y-1 text-xs font-semibold text-[var(--text-secondary)]">
-                      {weeklyNotesBySoldier.get(soldier.id)?.map((line, index) => (
-                        <li key={index}>{line}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          <div className="hidden max-w-full overflow-x-auto pb-2 md:block">
-            <table
-              className="border-separate border-spacing-y-2 text-right text-sm"
-              style={{ minWidth: `${Math.max(760, 280 + visibleItems.length * 176)}px` }}
-            >
-              <thead className="text-xs font-semibold text-[var(--text-muted-accessible)]">
-                <tr>
-                  <th className="sticky right-0 z-20 w-64 bg-[var(--tactical-strong-glass)] px-3 py-2 backdrop-blur-xl">חייל</th>
-                  {visibleItems.map((item) => (
-                    <th key={item.id} className="w-44 px-3 py-2 align-bottom">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="font-semibold text-[var(--text-primary)]">{item.title}</div>
-                          <div className="mt-1 text-caption font-bold text-[var(--command-subtle)]">{item.category}</div>
-                          {scoreConfigByItem.get(item.id) && (() => {
-                            const config = scoreConfigByItem.get(item.id) as ScoreConfig;
-                            const summary = scoreSummaryByItem.get(item.id);
-                            return (
-                              <div className="mt-1 space-y-0.5 text-caption font-bold text-[var(--text-muted-accessible)]">
-                                <div>{isTimeScore(config) ? `זמן · ${scoreRuleLabel(config)}` : `ציון ${scoreRangeLabel(config)} · ${scoreRuleLabel(config)}`}</div>
-                                {summary && summary.count > 0 && summary.average !== null && (
-                                  <div className="text-[var(--color-action-on-surface)]">ממוצע {formatScore(summary.average, config)} · {summary.passRate}% עברו</div>
-                                )}
-                              </div>
-                            );
-                          })()}
-                        </div>
-                        <div className="flex shrink-0 items-center gap-1">
-                        <button
-                          type="button"
-                          title="עריכת מופע"
-                          onClick={() => openEditItem(item)}
-                          className="touch-target inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--border-strong)] bg-[var(--tactical-glass)] text-[var(--text-secondary)] transition hover:border-[var(--action)]/30"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                          <span className="sr-only">עריכה</span>
-                        </button>
-                        <button
-                          type="button"
-                          title="הסר מופע מעקב מהטבלה"
-                          onClick={() => requestRemoveItem(item)}
-                          disabled={removingItemId === item.id}
-                          className="touch-target inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 text-[var(--color-danger)] transition hover:border-[var(--color-danger)]/25 hover:bg-[var(--color-danger)]/10 disabled:cursor-wait disabled:opacity-60"
-                        >
-                          {removingItemId === item.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-3.5 w-3.5" />
-                          )}
-                          <span className="sr-only">הסר</span>
-                        </button>
-                        </div>
-                      </div>
-                    </th>
-                  ))}
                   {selectedWeekId !== 'all' && (
-                    <th className="w-56 rounded-l-xl px-3 py-2 align-bottom">
-                      <div className="flex items-center gap-1.5 font-semibold text-[var(--text-primary)]">
-                        <NotebookPen className="h-3.5 w-3.5" />
-                        הערות השבוע
-                      </div>
+                    <th className="sticky top-0 z-20 min-w-[12rem] border-b border-[var(--border-subtle)] bg-[var(--surface-raised)] px-3 py-2 text-caption font-bold text-[var(--text-primary)]">
+                      הערות השבוע
                     </th>
                   )}
                 </tr>
               </thead>
               <tbody>
-                {visibleSoldiers.map((soldier) => (
-                  <tr key={soldier.id} className="bg-[var(--tactical-glass)] shadow-[0_8px_18px_rgba(2,1,8,0.04)]">
-                    <td className="sticky right-0 z-10 rounded-r-xl bg-[var(--tactical-strong-glass)] px-3 py-3 font-semibold text-[var(--text-primary)] backdrop-blur-xl">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <div>{soldier.full_name}</div>
-                          <div className="mt-1 text-caption font-bold text-[var(--text-muted-accessible)]">
-                            {unitNameById.get(soldier.unit_id) ?? 'יחידה לא ידועה'}
-                          </div>
-                          <div className="mt-1 text-caption font-bold text-[var(--command-subtle)]">
-                            {soldier.role_label ?? soldier.squad_label ?? 'ללא שיוך נוסף'}
-                          </div>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-1">
-                        <button
-                          type="button"
-                          title="עריכת פרטי חייל"
-                          onClick={() => openEditSoldier(soldier)}
-                          className="touch-target inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--border-strong)] bg-[var(--tactical-glass)] text-[var(--text-secondary)] transition hover:border-[var(--action)]/30"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                          <span className="sr-only">עריכה</span>
-                        </button>
-                        <button
-                          type="button"
-                          title="הסר חייל מהמעקב"
-                          onClick={() => requestRemoveSoldier(soldier)}
-                          disabled={removingSoldierId === soldier.id}
-                          className="touch-target inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 text-[var(--color-danger)] transition hover:border-[var(--color-danger)]/25 hover:bg-[var(--color-danger)]/10 disabled:cursor-wait disabled:opacity-60"
-                        >
-                          {removingSoldierId === soldier.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-3.5 w-3.5" />
-                          )}
-                          <span className="sr-only">הסר</span>
-                        </button>
-                        </div>
-                      </div>
-                    </td>
-                    {visibleItems.map((item, itemIndex) => {
+                {visibleSoldiers.map(soldier => (
+                  <tr key={soldier.id} className="group">
+                    <th
+                      scope="row"
+                      className="sticky right-0 z-10 border-b border-l border-[var(--border-subtle)] bg-[var(--surface-raised)] p-0 font-normal group-hover:bg-[var(--surface-muted)]"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setSheetMenu({ kind: 'soldier', soldier })}
+                        title={`${soldier.full_name} — עריכה והסרה`}
+                        className="flex w-full flex-col items-start px-3 py-1.5 text-right"
+                      >
+                        <span className="font-semibold text-[var(--text-primary)]">{soldier.full_name}</span>
+                        <span className="text-[0.6875rem] font-bold text-[var(--text-muted-accessible)]">
+                          {[unitNameById.get(soldier.unit_id) ?? 'יחידה לא ידועה', soldier.role_label ?? soldier.squad_label].filter(Boolean).join(' · ')}
+                        </span>
+                      </button>
+                    </th>
+                    {visibleItems.map(item => {
                       const record = recordByCell.get(`${soldier.id}:${item.id}`);
                       const status = record?.status ?? 'empty';
                       const cellKey = `${soldier.id}:${item.id}`;
@@ -2701,48 +2662,33 @@ export default function TrackingPage() {
                       const scoreConfig = scoreConfigByItem.get(item.id) ?? null;
                       const score = scoreConfig ? readRecordScore(record?.metadata) : null;
                       const cellStatus = scoreConfig ? statusForScore(score, scoreConfig) : status;
-
-                      // The notes column, when shown, is the true last column now —
-                      // only round this cell's corner when there is no notes
-                      // column to take that place.
-                      const isLastColumn = itemIndex === visibleItems.length - 1 && selectedWeekId === 'all';
+                      const shown = scoreConfig ? (score === null ? '—' : formatScore(score, scoreConfig)) : statusLabels[status];
 
                       return (
-                        <td
-                          key={item.id}
-                          className={`px-3 py-3 text-xs font-semibold ${isLastColumn ? 'rounded-l-xl' : ''}`}
-                        >
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              title={scoreConfig ? `${isTimeScore(scoreConfig) ? 'הזנת זמן' : 'הזנת ציון'} · ${scoreRuleLabel(scoreConfig)}` : 'לחיצה מחליפה סטטוס'}
-                              onClick={() => (scoreConfig ? openScoreDialog(soldier, item, record ?? null) : void handleCycleCellStatus(soldier, item, record))}
-                              disabled={isCellUpdating}
-                              className={`inline-flex min-h-11 min-w-20 items-center justify-center gap-1.5 rounded-full border px-3 py-1 transition hover:shadow-sm disabled:cursor-wait disabled:opacity-70 ${statusStyles[cellStatus]}${scoreConfig ? ' font-mono text-sm' : ''}`}
-                            >
-                              {isCellUpdating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                              {scoreConfig ? (score === null ? '—' : formatScore(score, scoreConfig)) : statusLabels[status]}
-                            </button>
-                            <button
-                              type="button"
-                              title={record ? 'עריכת תא — סטטוס והערה' : 'סמן סטטוס לפני עריכת התא'}
-                              onClick={() => record && openNoteDialog(soldier, item, record)}
-                              disabled={!record}
-                              className={`touch-target inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition disabled:cursor-not-allowed disabled:opacity-40 ${
-                                record?.note
-                                  ? 'border-[var(--brand)]/30 bg-[var(--brand)]/10 text-[var(--color-action-on-surface)]'
-                                  : 'border-[var(--border-strong)] bg-[var(--tactical-glass)] text-[var(--text-muted-accessible)]'
-                              }`}
-                            >
-                              <NotebookPen className="h-3.5 w-3.5" />
-                              <span className="sr-only">הערה</span>
-                            </button>
-                          </div>
+                        <td key={item.id} className="border-b border-l border-[var(--border-subtle)] p-1 text-center">
+                          <button
+                            type="button"
+                            {...cellPressHandlers(() => openCellNote(soldier, item, record))}
+                            onClick={() => {
+                              if (consumeLongPress()) return;
+                              if (scoreConfig) openScoreDialog(soldier, item, record ?? null);
+                              else void handleCycleCellStatus(soldier, item, record);
+                            }}
+                            disabled={isCellUpdating}
+                            title={`${soldier.full_name} · ${item.title}: ${shown}${record?.note ? ` — ${record.note}` : ''}`}
+                            aria-label={`${soldier.full_name}, ${item.title}: ${shown}`}
+                            className={`tracking-cell relative inline-flex h-9 w-full min-w-[3.75rem] items-center justify-center rounded-lg border px-1 text-xs font-semibold transition disabled:cursor-wait disabled:opacity-70 ${statusStyles[cellStatus]}${scoreConfig ? ' font-mono' : ''}`}
+                          >
+                            {isCellUpdating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : status === 'empty' && !scoreConfig ? '' : shown}
+                            {record?.note && (
+                              <span aria-hidden className="absolute left-1 top-1 h-1.5 w-1.5 rounded-full bg-[var(--brand)]" />
+                            )}
+                          </button>
                         </td>
                       );
                     })}
                     {selectedWeekId !== 'all' && (
-                      <td className="rounded-l-xl px-3 py-3 align-top text-xs font-semibold text-[var(--text-secondary)]">
+                      <td className="border-b border-[var(--border-subtle)] px-3 py-1.5 align-top text-xs font-semibold text-[var(--text-secondary)]">
                         {weeklyNotesBySoldier.has(soldier.id) ? (
                           <ul className="space-y-1">
                             {weeklyNotesBySoldier.get(soldier.id)?.map((line, index) => (
@@ -2750,7 +2696,7 @@ export default function TrackingPage() {
                             ))}
                           </ul>
                         ) : (
-                          <span className="text-[var(--command-subtle)]">אין הערות השבוע</span>
+                          <span className="text-[var(--command-subtle)]">—</span>
                         )}
                       </td>
                     )}

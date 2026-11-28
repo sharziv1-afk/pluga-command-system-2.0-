@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { CheckCircle2, KeyRound, Loader2, Mail, ShieldCheck, UserRound } from 'lucide-react';
+import { CheckCircle2, KeyRound, Loader2, Mail, UserRound } from 'lucide-react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlossyButton } from '@/components/ui/GlossyButton';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
@@ -336,9 +336,14 @@ export default function LoginPage() {
 
       <div className="relative z-10 w-full max-w-lg">
         <div className="mb-5 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--brand)]/20 bg-[var(--brand)]/10 text-[var(--brand)] shadow-[0_14px_30px_rgba(31,122,46,0.14)]">
-            <ShieldCheck className="h-6 w-6" />
-          </div>
+          {/* The battalion 601 emblem, as in the app and its icon (מ״פ, 28.11.2026). */}
+          <img
+            src="/icon-192.png"
+            alt="סמל גדוד 601"
+            width={80}
+            height={80}
+            className="mx-auto mb-3 h-20 w-20 rounded-[1.25rem] shadow-[0_14px_30px_rgba(31,122,46,0.22)]"
+          />
           <p className="text-2xl font-bold text-[var(--text-primary)]">המפקד</p>
           <p className="mt-1 text-sm font-semibold text-[var(--text-muted-accessible)]">מערכת ניהול פיקודית לפלוגה</p>
         </div>

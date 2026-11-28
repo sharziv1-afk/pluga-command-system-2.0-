@@ -91,9 +91,7 @@ export default function OAuthConsentPage() {
     <div dir="rtl" className="flex min-h-screen items-center justify-center px-4 py-10">
       <div className="w-full max-w-lg">
         <div className="mb-5 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--brand)]/20 bg-[var(--brand)]/10 text-[var(--brand)]">
-            <ShieldCheck className="h-6 w-6" />
-          </div>
+          <img src="/icon-192.png" alt="סמל גדוד 601" width={64} height={64} className="mx-auto mb-3 h-16 w-16 rounded-2xl" />
           <p className="text-2xl font-bold text-[var(--text-primary)]">המפקד</p>
           <p className="mt-1 text-sm font-semibold text-[var(--text-muted-accessible)]">אישור גישה לאפליקציה חיצונית</p>
         </div>

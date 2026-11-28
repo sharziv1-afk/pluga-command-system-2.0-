@@ -114,8 +114,8 @@ const tools = readFileSync('src/lib/mcp/tools.ts', 'utf8');
 
 test('the tracking page: score items are entered, never cycled', () => {
   assert.match(page, /if \(readScoreConfig\(item\.metadata\)\) return;/, 'handleCycleCellStatus ignores score items');
-  const cellClicks = page.match(/onClick=\{\(\) => \(scoreConfig \? openScoreDialog\(soldier, item, record \?\? null\) : void handleCycleCellStatus\(soldier, item, record\)\)\}/g) ?? [];
-  assert.equal(cellClicks.length, 2, 'both the mobile and the desktop cell route score items to the score dialog');
+  // One sheet for phone and computer since 28.11.2026.
+  assert.match(page, /if \(scoreConfig\) openScoreDialog\(soldier, item, record \?\? null\);\s*else void handleCycleCellStatus\(soldier, item, record\);/, 'the sheet cell routes score items to the score dialog');
   assert.match(page, /const cellStatus = scoreConfig \? statusForScore\(score, scoreConfig\) : status;/);
 });
 
@@ -194,7 +194,7 @@ test('the tracking page offers a time kind that asks only for the pass time', ()
   assert.match(page, /lowerIsBetter: true,\s*passInclusive: form\.passInclusive,\s*unit: 'time',/);
   assert.match(page, /const parsed = parseScoreInput\(scoreDraft, config\);/);
   assert.match(page, /placeholder=\{isTimeScore\(scoreDialogConfig\) \? '13:45' : '—'\}/);
-  assert.equal((page.match(/formatScore\(score, scoreConfig\)/g) ?? []).length, 2, 'both the table and the phone cards show mm:ss');
+  assert.equal((page.match(/formatScore\(score, scoreConfig\)/g) ?? []).length, 1, 'the sheet shows mm:ss (one sheet since 28.11.2026)');
 });
 
 test('MCP: a time item is created with pass_time and filled with a time', () => {
